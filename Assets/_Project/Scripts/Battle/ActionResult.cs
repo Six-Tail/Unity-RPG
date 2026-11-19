@@ -17,6 +17,10 @@ namespace SubcultureRPG.Battle
             public int totalDamage;
             public bool anyCrit;
             public bool defeated;
+            public int healed;              // 회복량(>0이면 힐)
+            public bool weakness;           // 약점 적중
+            public bool broke;              // 이 타격으로 브레이크
+            public StatusType appliedEffect;// 부여된 효과(None이면 없음)
         }
     }
 }

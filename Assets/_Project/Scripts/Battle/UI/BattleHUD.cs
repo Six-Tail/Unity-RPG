@@ -49,6 +49,7 @@ namespace SubcultureRPG.Battle.UI
             controller.OnTurnBegin += HandleTurnBegin;
             controller.OnPlayerInputNeeded += HandlePlayerInput;
             controller.OnActionResolved += HandleResolved;
+            controller.OnStatusTick += HandleStatusTick;
             controller.OnBattleEnd += HandleEnd;
         }
 
@@ -59,6 +60,7 @@ namespace SubcultureRPG.Battle.UI
             controller.OnTurnBegin -= HandleTurnBegin;
             controller.OnPlayerInputNeeded -= HandlePlayerInput;
             controller.OnActionResolved -= HandleResolved;
+            controller.OnStatusTick -= HandleStatusTick;
             controller.OnBattleEnd -= HandleEnd;
         }
 
@@ -96,7 +98,7 @@ namespace SubcultureRPG.Battle.UI
         {
             _inputActor = unit;
             _selecting = false; _pendingSkill = null;
-            SetEnemiesTargetable(false);
+            ClearTargetable();
             BuildSkillButtons(unit);
             _skillBarGO.SetActive(true);
             SetInstruction($"{unit.Name}의 행동 선택");
@@ -106,15 +108,34 @@ namespace SubcultureRPG.Battle.UI
         {
             _skillBarGO.SetActive(false);
             _selecting = false; _pendingSkill = null;
-            SetEnemiesTargetable(false);
+            ClearTargetable();
             SetInstruction("");
 
             foreach (var h in result.hits)
-                if (_panels.TryGetValue(h.target, out var panel))
-                    SpawnDamage(panel, h.totalDamage, h.anyCrit);
+            {
+                if (!_panels.TryGetValue(h.target, out var panel)) continue;
+                if (h.healed > 0)
+                    SpawnPopup(panel, "+" + h.healed, new Color(0.4f, 0.9f, 0.5f), false);
+                else if (h.totalDamage > 0)
+                {
+                    var col = h.anyCrit ? new Color(1f, 0.85f, 0.35f)
+                        : (h.weakness ? new Color(1f, 0.6f, 0.9f) : Color.white);
+                    SpawnPopup(panel, h.anyCrit ? $"{h.totalDamage}!" : h.totalDamage.ToString(), col, h.anyCrit || h.weakness);
+                }
+                if (h.broke) SpawnPopup(panel, "BREAK!", new Color(1f, 0.8f, 0.3f), true);
+            }
 
             foreach (var p in _panels.Values) p.Refresh();
             RefreshSkillPoints();
+        }
+
+        private void HandleStatusTick(BattleUnit unit, int dot)
+        {
+            if (dot > 0 && _panels.TryGetValue(unit, out var panel))
+            {
+                SpawnPopup(panel, dot.ToString(), new Color(0.75f, 0.5f, 1f), false);
+                panel.Refresh();
+            }
         }
 
         private void HandleEnd(Team winner)
@@ -133,28 +154,38 @@ namespace SubcultureRPG.Battle.UI
             if (_inputActor == null) return;
             if (!controller.Engine.CanUse(_inputActor, skill)) return;
 
-            if (skill.target == TargetType.AllEnemies) { Submit(skill, null); return; }
+            // 광역/자기 대상은 즉시 발동
+            if (skill.target == TargetType.AllEnemies || skill.target == TargetType.AllAllies || skill.target == TargetType.Self)
+            {
+                Submit(skill, null);
+                return;
+            }
 
-            var alive = AliveEnemies();
-            if (alive.Count == 1) { Submit(skill, alive[0]); return; }
+            // 단일 대상: 아군(힐/버프) 또는 적 선택
+            bool ally = skill.TargetsAllies;
+            var pool = ally ? AliveAllies() : AliveEnemies();
+            if (pool.Count == 0) { Submit(skill, null); return; }
+            if (pool.Count == 1) { Submit(skill, pool[0]); return; }
 
             _pendingSkill = skill;
             _selecting = true;
-            SetEnemiesTargetable(true);
-            SetInstruction("대상을 선택하세요");
+            SetTargetableUnits(pool);
+            SetInstruction(ally ? "아군 대상을 선택하세요" : "대상을 선택하세요");
         }
 
         private void OnPanelClicked(BattleUnit unit)
         {
-            if (!_selecting || _pendingSkill == null) return;
-            if (unit == null || !unit.IsAlive || unit.team != Team.Enemy) return;
+            if (!_selecting || _pendingSkill == null || unit == null || !unit.IsAlive) return;
+            bool ally = _pendingSkill.TargetsAllies;
+            if (ally && unit.team != Team.Ally) return;
+            if (!ally && unit.team != Team.Enemy) return;
             Submit(_pendingSkill, unit);
         }
 
         private void Submit(BattleSkill skill, BattleUnit target)
         {
             _selecting = false; _pendingSkill = null;
-            SetEnemiesTargetable(false);
+            ClearTargetable();
             _skillBarGO.SetActive(false);
             SetInstruction("");
             controller.SubmitAction(skill, target);
@@ -294,10 +325,9 @@ namespace SubcultureRPG.Battle.UI
             }
         }
 
-        private void SpawnDamage(UnitPanel panel, int dmg, bool crit)
+        private void SpawnPopup(UnitPanel panel, string text, Color color, bool big)
         {
-            var t = UIFactory.AddText("Dmg", panel.transform, crit ? $"{dmg}!" : dmg.ToString(),
-                crit ? 40 : 30, font, crit ? new Color(1f, 0.85f, 0.35f) : Color.white,
+            var t = UIFactory.AddText("Popup", panel.transform, text, big ? 38 : 30, font, color,
                 TextAlignmentOptions.Center, FontStyles.Bold);
             var rt = t.rectTransform;
             UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
@@ -322,17 +352,29 @@ namespace SubcultureRPG.Battle.UI
 
         // ---------------- 유틸 ----------------
 
-        private void SetEnemiesTargetable(bool on)
+        private void ClearTargetable()
         {
-            foreach (var kv in _panels)
-                if (kv.Key.team == Team.Enemy && kv.Key.IsAlive)
-                    kv.Value.SetTargetable(on);
+            foreach (var kv in _panels) kv.Value.SetTargetable(false);
+        }
+
+        private void SetTargetableUnits(List<BattleUnit> units)
+        {
+            ClearTargetable();
+            foreach (var u in units)
+                if (_panels.TryGetValue(u, out var p)) p.SetTargetable(true);
         }
 
         private List<BattleUnit> AliveEnemies()
         {
             var list = new List<BattleUnit>();
             foreach (var u in controller.Engine.enemies) if (u.IsAlive) list.Add(u);
+            return list;
+        }
+
+        private List<BattleUnit> AliveAllies()
+        {
+            var list = new List<BattleUnit>();
+            foreach (var u in controller.Engine.allies) if (u.IsAlive) list.Add(u);
             return list;
         }
 

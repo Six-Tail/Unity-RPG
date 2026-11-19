@@ -28,6 +28,16 @@ namespace SubcultureRPG.Battle
         [Tooltip("전투 시작 시 스킬 포인트. 기본 공격은 +1, 스킬은 -1.")]
         public int startSkillPoints = 3;
 
+        [Header("속성 / 브레이크")]
+        [Tooltip("약점 적중 피해 배율.")]
+        public float weaknessMultiplier = 1.5f;
+        [Tooltip("브레이크 상태 대상이 받는 추가 피해 배율(취약).")]
+        public float breakVulnerability = 1.25f;
+        [Tooltip("브레이크 순간 추가 피해 배율(그 타격 기준).")]
+        public float breakBonus = 0.8f;
+        [Tooltip("브레이크 시 대상 다음 행동 지연(행동치 증가).")]
+        public float breakActionDelay = 4000f;
+
         /// <summary>컨트롤러에 Config를 연결하지 않았을 때 쓰는 런타임 기본 인스턴스.</summary>
         public static BattleConfig CreateDefault() => CreateInstance<BattleConfig>();
     }

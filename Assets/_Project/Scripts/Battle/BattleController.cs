@@ -34,6 +34,7 @@ namespace SubcultureRPG.Battle
         public event Action<BattleUnit> OnTurnBegin;          // 이 유닛의 차례 시작
         public event Action<BattleUnit> OnPlayerInputNeeded;  // 플레이어 입력 대기
         public event Action<ActionResult> OnActionResolved;   // 행동 처리됨
+        public event Action<BattleUnit, int> OnStatusTick;    // 턴 시작 도트 피해(유닛, 피해량)
         public event Action<Team> OnBattleEnd;                // 승리 팀
 
         private Coroutine _loop;
@@ -79,6 +80,13 @@ namespace SubcultureRPG.Battle
                 if (actor == null) break;
 
                 CurrentActor = actor;
+
+                // 턴 시작: 브레이크 회복 + 도트/효과 틱
+                int dot = Engine.StartTurn(actor);
+                if (dot > 0) OnStatusTick?.Invoke(actor, dot);
+                if (Engine.IsOver) break;
+                if (!actor.IsAlive) { yield return new WaitForSeconds(betweenTurnDelay); continue; }
+
                 OnTurnBegin?.Invoke(actor);
 
                 if (actor.team == Team.Ally && !autoBattle)

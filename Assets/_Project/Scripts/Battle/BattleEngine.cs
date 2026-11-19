@@ -115,6 +115,15 @@ namespace SubcultureRPG.Battle
             return order;
         }
 
+        // ---------------- 턴 시작 처리 ----------------
+
+        /// <summary>유닛 턴 시작: 브레이크 회복 + 도트/효과 틱. 반환: 이번 틱에 받은 도트 피해.</summary>
+        public int StartTurn(BattleUnit actor)
+        {
+            actor.RecoverBreak();
+            return actor.TickTurnStart();
+        }
+
         // ---------------- 행동 처리 ----------------
 
         public ActionResult ResolveAction(BattleUnit actor, BattleSkill skill, BattleUnit primaryTarget)
@@ -129,29 +138,60 @@ namespace SubcultureRPG.Battle
                 hits = new List<ActionResult.TargetHit>()
             };
 
+            bool heal = skill.IsHeal && skill.TargetsAllies;
+
             foreach (var target in targets)
             {
                 if (target == null || !target.IsAlive) continue;
+                var th = new ActionResult.TargetHit { target = target };
 
-                int total = 0;
-                bool anyCrit = false;
-                for (int h = 0; h < Mathf.Max(1, skill.hits); h++)
+                if (heal)
                 {
-                    if (!target.IsAlive) break;
-                    var hit = DamageCalculator.Compute(actor, target, skill, _roll(), _cfg);
-                    target.TakeDamage(hit.damage);
-                    target.GainEnergy(_cfg.energyOnHit);
-                    total += hit.damage;
-                    anyCrit |= hit.crit;
+                    int amount = Mathf.Max(1, Mathf.RoundToInt(actor.EffectiveAtk * skill.heal));
+                    target.Heal(amount);
+                    th.healed = amount;
+                }
+                else if (!skill.TargetsAllies)
+                {
+                    int total = 0;
+                    bool anyCrit = false, anyWeak = false;
+                    for (int h = 0; h < Mathf.Max(1, skill.hits); h++)
+                    {
+                        if (!target.IsAlive) break;
+                        var hit = DamageCalculator.Compute(actor, target, skill, _roll(), _cfg);
+                        target.TakeDamage(hit.damage);
+                        target.GainEnergy(_cfg.energyOnHit);
+                        total += hit.damage;
+                        anyCrit |= hit.crit;
+                        anyWeak |= hit.weakness;
+
+                        // 약점 → 내구도 감소 → 브레이크
+                        if (hit.weakness && target.ReduceToughness(skill.breakDamage))
+                        {
+                            int bonus = Mathf.Max(1, Mathf.RoundToInt(hit.damage * Mathf.Max(0f, _cfg.breakBonus)));
+                            target.TakeDamage(bonus);
+                            total += bonus;
+                            target.actionValue += _cfg.breakActionDelay; // 다음 행동 지연
+                            th.broke = true;
+                        }
+                    }
+                    th.totalDamage = total;
+                    th.anyCrit = anyCrit;
+                    th.weakness = anyWeak;
+                    th.defeated = !target.IsAlive;
                 }
 
-                result.hits.Add(new ActionResult.TargetHit
+                // 상태효과 부여(디버프는 적 대상, 버프는 아군 대상)
+                if (skill.applyEffect != StatusType.None && target.IsAlive && _roll() < skill.effectChance)
                 {
-                    target = target,
-                    totalDamage = total,
-                    anyCrit = anyCrit,
-                    defeated = !target.IsAlive
-                });
+                    float mag = skill.applyEffect == StatusType.Dot
+                        ? actor.EffectiveAtk * skill.effectMagnitude
+                        : skill.effectMagnitude;
+                    target.ApplyEffect(skill.applyEffect, mag, skill.effectDuration);
+                    th.appliedEffect = skill.applyEffect;
+                }
+
+                result.hits.Add(th);
             }
 
             // 시전자 에너지 정산
@@ -168,23 +208,30 @@ namespace SubcultureRPG.Battle
 
         private List<BattleUnit> ResolveTargets(BattleUnit actor, BattleSkill skill, BattleUnit primary)
         {
-            var opp = Opponents(actor);
             var list = new List<BattleUnit>();
 
             switch (skill.target)
             {
                 case TargetType.AllEnemies:
-                    foreach (var u in opp) if (u.IsAlive) list.Add(u);
+                    foreach (var u in Opponents(actor)) if (u.IsAlive) list.Add(u);
+                    break;
+
+                case TargetType.AllAllies:
+                    foreach (var u in Teammates(actor)) if (u.IsAlive) list.Add(u);
+                    break;
+
+                case TargetType.Self:
+                    list.Add(actor);
+                    break;
+
+                case TargetType.SingleAlly:
+                    if (primary != null && primary.IsAlive && primary.team == actor.team) list.Add(primary);
+                    else { var t = LowestHPRatio(Teammates(actor)); if (t != null) list.Add(t); }
                     break;
 
                 default: // SingleEnemy
-                    if (primary != null && primary.IsAlive && primary.team != actor.team)
-                        list.Add(primary);
-                    else
-                    {
-                        var t = FirstAlive(opp);
-                        if (t != null) list.Add(t);
-                    }
+                    if (primary != null && primary.IsAlive && primary.team != actor.team) list.Add(primary);
+                    else { var t = FirstAlive(Opponents(actor)); if (t != null) list.Add(t); }
                     break;
             }
             return list;
@@ -240,6 +287,14 @@ namespace SubcultureRPG.Battle
             BattleUnit best = null;
             foreach (var u in list)
                 if (u.IsAlive && (best == null || u.currentHP < best.currentHP)) best = u;
+            return best;
+        }
+
+        private static BattleUnit LowestHPRatio(List<BattleUnit> list)
+        {
+            BattleUnit best = null;
+            foreach (var u in list)
+                if (u.IsAlive && (best == null || u.HPRatio < best.HPRatio)) best = u;
             return best;
         }
     }

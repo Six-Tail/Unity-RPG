@@ -17,8 +17,9 @@ namespace SubcultureRPG.Battle.UI
         private TMP_FontAsset _font;
         private Action<BattleUnit> _onClick;
 
-        private Image _bg, _highlight, _portrait, _hpFill, _energyFill, _deadOverlay;
-        private TextMeshProUGUI _nameText, _hpText;
+        private Image _bg, _highlight, _portrait, _hpFill, _energyFill, _toughFill, _deadOverlay;
+        private GameObject _toughBarGO;
+        private TextMeshProUGUI _nameText, _hpText, _statusText;
         private Button _button;
         private Coroutine _hpAnim;
         private float _hpShown = 1f;
@@ -89,6 +90,22 @@ namespace SubcultureRPG.Battle.UI
             _energyFill = UIFactory.AddImage("Fill", enBar, new Color(0.35f, 0.75f, 1f, 1f));
             UIFactory.Stretch(_energyFill.rectTransform);
 
+            // 내구도 바(브레이크) — HasBreakSystem일 때만 표시
+            var tgBar = UIFactory.NewRect("ToughBar", right);
+            UIFactory.Anchor(tgBar, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            tgBar.sizeDelta = new Vector2(0, 5); tgBar.anchoredPosition = new Vector2(0, -56);
+            var tgBg = UIFactory.AddImage("BG", tgBar, new Color(0, 0, 0, 0.5f));
+            UIFactory.Stretch(tgBg.rectTransform);
+            _toughFill = UIFactory.AddImage("Fill", tgBar, new Color(1f, 0.7f, 0.25f, 1f));
+            UIFactory.Stretch(_toughFill.rectTransform);
+            _toughBarGO = tgBar.gameObject;
+
+            // 상태(버프/디버프) 표시 — 우상단
+            _statusText = UIFactory.AddText("Status", transform, "", 13, _font, Color.white, TextAlignmentOptions.TopRight);
+            var sttr = _statusText.rectTransform;
+            UIFactory.Anchor(sttr, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            sttr.sizeDelta = new Vector2(90, 20); sttr.anchoredPosition = new Vector2(-6, -6);
+
             // 격파 오버레이
             _deadOverlay = UIFactory.AddImage("Dead", transform, new Color(0, 0, 0, 0.55f));
             UIFactory.Stretch(_deadOverlay.rectTransform);
@@ -111,6 +128,9 @@ namespace SubcultureRPG.Battle.UI
             _hpShown = unit.HPRatio;
             SetHPImmediate(unit.HPRatio);
             SetEnergy(unit.EnergyRatio, unit.UltimateReady);
+            _toughBarGO.SetActive(unit.HasBreakSystem);
+            SetToughness(unit.ToughnessRatio);
+            UpdateStatus();
             _hpText.text = $"{unit.currentHP}/{unit.maxHP}";
             _deadOverlay.gameObject.SetActive(!unit.IsAlive);
             SetCurrent(false);
@@ -122,6 +142,8 @@ namespace SubcultureRPG.Battle.UI
             if (_unit == null) return;
             _hpText.text = $"{_unit.currentHP}/{_unit.maxHP}";
             SetEnergy(_unit.EnergyRatio, _unit.UltimateReady);
+            if (_toughBarGO.activeSelf) SetToughness(_unit.ToughnessRatio);
+            UpdateStatus();
             AnimateHP(_unit.HPRatio);
             _deadOverlay.gameObject.SetActive(!_unit.IsAlive);
             _button.interactable = _unit.IsAlive;
@@ -177,6 +199,24 @@ namespace SubcultureRPG.Battle.UI
             var m = rt.anchorMax; m.x = ratio; rt.anchorMax = m;
             rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
             _energyFill.color = full ? new Color(1f, 0.85f, 0.35f, 1f) : new Color(0.35f, 0.75f, 1f, 1f);
+        }
+
+        private void SetToughness(float ratio)
+        {
+            var rt = _toughFill.rectTransform;
+            var m = rt.anchorMax; m.x = Mathf.Clamp01(ratio); rt.anchorMax = m;
+            rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        }
+
+        private void UpdateStatus()
+        {
+            if (_unit == null) { _statusText.text = ""; return; }
+            int b = _unit.BuffCount, d = _unit.DebuffCount;
+            if (b == 0 && d == 0) { _statusText.text = ""; return; }
+            string s = "";
+            if (b > 0) s += $"<color=#6FE08F>+{b}</color>";
+            if (d > 0) s += (b > 0 ? " " : "") + $"<color=#FF7A7A>-{d}</color>";
+            _statusText.text = s;
         }
 
         private static Color HPColor(float ratio) =>
