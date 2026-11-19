@@ -1,0 +1,34 @@
+using UnityEngine;
+
+namespace SubcultureRPG.Battle
+{
+    /// <summary>
+    /// 전투 수치 튜닝. 메뉴: Create > SubcultureRPG > Battle > Battle Config.
+    /// 컨트롤러에 비워 두면 기본값으로 동작합니다.
+    /// </summary>
+    [CreateAssetMenu(fileName = "BattleConfig", menuName = "SubcultureRPG/Battle/Battle Config")]
+    public class BattleConfig : ScriptableObject
+    {
+        [Header("행동 순서 (Action Value)")]
+        [Tooltip("기준 행동치. 각 유닛의 다음 차례 간격 = base / SPD. 클수록 전체 템포가 느려짐.")]
+        public float baseActionValue = 10000f;
+
+        [Header("피해 공식")]
+        [Tooltip("방어 경감 상수 K. 경감률 = DEF / (DEF + K).")]
+        public float defConstant = 200f;
+
+        [Header("에너지 / 필살기")]
+        public int maxEnergy = 100;
+        [Tooltip("피격 시 얻는 에너지.")]
+        public int energyOnHit = 10;
+
+        [Header("스킬 포인트 (팀 공유 — 기본 공격의 가치)")]
+        [Tooltip("스킬 포인트 최대치.")]
+        public int maxSkillPoints = 5;
+        [Tooltip("전투 시작 시 스킬 포인트. 기본 공격은 +1, 스킬은 -1.")]
+        public int startSkillPoints = 3;
+
+        /// <summary>컨트롤러에 Config를 연결하지 않았을 때 쓰는 런타임 기본 인스턴스.</summary>
+        public static BattleConfig CreateDefault() => CreateInstance<BattleConfig>();
+    }
+}
