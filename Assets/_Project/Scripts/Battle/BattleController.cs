@@ -56,6 +56,14 @@ namespace SubcultureRPG.Battle
             _loop = StartCoroutine(RunLoop());
         }
 
+        /// <summary>팀을 지정하고(기본값: 즉시 시작) 전투 시작. 가챠↔전투 연동 진입점.</summary>
+        public void SetTeams(List<BattleUnitData> allies, List<BattleUnitData> enemies, bool begin = true)
+        {
+            allyTeam = allies != null ? new List<BattleUnitData>(allies) : new List<BattleUnitData>();
+            enemyTeam = enemies != null ? new List<BattleUnitData>(enemies) : new List<BattleUnitData>();
+            if (begin) Begin();
+        }
+
         public void Stop()
         {
             if (_loop != null) { StopCoroutine(_loop); _loop = null; }
