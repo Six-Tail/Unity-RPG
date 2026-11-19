@@ -25,6 +25,9 @@ MonoBehaviour:
     hpGrowth: 0
     atkGrowth: 0
     defGrowth: 0
+  element: 1
+  weaknesses: 
+  maxToughness: 0
   skills:
   - {fileID: 11400000, guid: 8b5e2f4f7c8ff694c9583e5a01a5d3c0, type: 2}
   - {fileID: 11400000, guid: f180c69e1ff22c949a618442161d1540, type: 2}

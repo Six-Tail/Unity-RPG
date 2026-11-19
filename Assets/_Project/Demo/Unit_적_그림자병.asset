@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "\uC801_\uADF8\uB9BC\uC790\uBCD1"
   level: 1
   baseStats:
-    maxHP: 900
+    maxHP: 1000
     atk: 100
     def: 55
     spd: 95
@@ -25,5 +25,8 @@ MonoBehaviour:
     hpGrowth: 0
     atkGrowth: 0
     defGrowth: 0
+  element: 0
+  weaknesses: 01000000
+  maxToughness: 60
   skills:
   - {fileID: 11400000, guid: 8b5e2f4f7c8ff694c9583e5a01a5d3c0, type: 2}

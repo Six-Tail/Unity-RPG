@@ -19,3 +19,10 @@ MonoBehaviour:
   power: 1.8
   hits: 1
   energyGain: 30
+  element: 1
+  breakDamage: 20
+  heal: 0
+  applyEffect: 0
+  effectMagnitude: 0.3
+  effectDuration: 2
+  effectChance: 1

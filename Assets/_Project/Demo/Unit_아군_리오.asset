@@ -16,16 +16,20 @@ MonoBehaviour:
   displayName: "\uC544\uAD70_\uB9AC\uC624"
   level: 1
   baseStats:
-    maxHP: 850
-    atk: 125
+    maxHP: 950
+    atk: 110
     def: 45
-    spd: 125
-    critRate: 0.1
+    spd: 120
+    critRate: 0.08
     critDmg: 0.6
     hpGrowth: 0
     atkGrowth: 0
     defGrowth: 0
+  element: 0
+  weaknesses: 
+  maxToughness: 0
   skills:
   - {fileID: 11400000, guid: 8b5e2f4f7c8ff694c9583e5a01a5d3c0, type: 2}
-  - {fileID: 11400000, guid: f180c69e1ff22c949a618442161d1540, type: 2}
+  - {fileID: 11400000, guid: 526e5818bbf5f4d429fd2696f4ab493a, type: 2}
+  - {fileID: 11400000, guid: a8642261a38faca4da7a6080d9076e2c, type: 2}
   - {fileID: 11400000, guid: 2b2b4bb96b552b945a3656f215f1f733, type: 2}

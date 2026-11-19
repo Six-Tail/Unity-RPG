@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &474189997
+--- !u!1 &823398311
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,8 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 474189999}
-  - component: {fileID: 474189998}
+  - component: {fileID: 823398313}
+  - component: {fileID: 823398312}
   m_Layer: 0
   m_Name: Battle
   m_TagString: Untagged
@@ -136,13 +136,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &474189998
+--- !u!114 &823398312
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 474189997}
+  m_GameObject: {fileID: 823398311}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4f6b20492661ab24eba8a8670e8e592c, type: 3}
@@ -161,13 +161,13 @@ MonoBehaviour:
   startOnPlay: 1
   enemyTurnDelay: 0.6
   betweenTurnDelay: 0.35
---- !u!4 &474189999
+--- !u!4 &823398313
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 474189997}
+  m_GameObject: {fileID: 823398311}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -176,7 +176,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1041556611
+--- !u!1 &1084969070
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -184,9 +184,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1041556614}
-  - component: {fileID: 1041556613}
-  - component: {fileID: 1041556612}
+  - component: {fileID: 1084969073}
+  - component: {fileID: 1084969072}
+  - component: {fileID: 1084969071}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -194,21 +194,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &1041556612
+--- !u!81 &1084969071
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1041556611}
+  m_GameObject: {fileID: 1084969070}
   m_Enabled: 1
---- !u!20 &1041556613
+--- !u!20 &1084969072
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1041556611}
+  m_GameObject: {fileID: 1084969070}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 1
@@ -253,13 +253,13 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &1041556614
+--- !u!4 &1084969073
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1041556611}
+  m_GameObject: {fileID: 1084969070}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1, z: -10}
@@ -268,7 +268,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1122975626
+--- !u!1 &1289862635
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -276,8 +276,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1122975628}
-  - component: {fileID: 1122975627}
+  - component: {fileID: 1289862637}
+  - component: {fileID: 1289862636}
   m_Layer: 0
   m_Name: BattleHUD
   m_TagString: Untagged
@@ -285,29 +285,29 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1122975627
+--- !u!114 &1289862636
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1122975626}
+  m_GameObject: {fileID: 1289862635}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 26bd9a049e1302944a47a102f2170ea4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Battle.UI.BattleHUD
-  controller: {fileID: 474189998}
+  controller: {fileID: 823398312}
   font: {fileID: 11400000, guid: 582ce75765a27e74990e014fc40ffcb2, type: 2}
   drawBackground: 1
   turnPreviewCount: 8
---- !u!4 &1122975628
+--- !u!4 &1289862637
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1122975626}
+  m_GameObject: {fileID: 1289862635}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -316,7 +316,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1164833913
+--- !u!1 &1505069918
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -324,8 +324,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1164833915}
-  - component: {fileID: 1164833914}
+  - component: {fileID: 1505069920}
+  - component: {fileID: 1505069919}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -333,13 +333,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!108 &1164833914
+--- !u!108 &1505069919
 Light:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1164833913}
+  m_GameObject: {fileID: 1505069918}
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 1
@@ -398,13 +398,13 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!4 &1164833915
+--- !u!4 &1505069920
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1164833913}
+  m_GameObject: {fileID: 1505069918}
   serializedVersion: 2
   m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
   m_LocalPosition: {x: 0, y: 3, z: 0}
@@ -417,7 +417,7 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1041556614}
-  - {fileID: 1164833915}
-  - {fileID: 474189999}
-  - {fileID: 1122975628}
+  - {fileID: 1084969073}
+  - {fileID: 1505069920}
+  - {fileID: 823398313}
+  - {fileID: 1289862637}

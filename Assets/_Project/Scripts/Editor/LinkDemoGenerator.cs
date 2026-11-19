@@ -41,9 +41,9 @@ namespace SubcultureRPG.EditorTools
 
             var enemyBasic = Skill("연동_적_기본공격", SkillCategory.Basic, TargetType.SingleEnemy, 1.0f, 20);
             string[] enemyNames = { "그림자병", "그림자궁수", "어둠군주" };
-            Enemy("그림자병", 95, 900, 100, 55, enemyBasic);
-            Enemy("그림자궁수", 110, 750, 115, 45, enemyBasic);
-            Enemy("어둠군주", 90, 1500, 110, 70, enemyBasic);
+            Enemy("그림자병", 95, 900, 100, 55, enemyBasic, 50, new[] { Element.Fire, Element.Physical });
+            Enemy("그림자궁수", 110, 750, 115, 45, enemyBasic, 40, new[] { Element.Ice, Element.Wind });
+            Enemy("어둠군주", 90, 1500, 110, 70, enemyBasic, 100, new[] { Element.Lightning, Element.Fire });
 
             var db = LoadOrCreate<GameDatabase>(Root + "/GameDatabase.asset");
             db.characters = new List<CharacterData>(chars);
@@ -131,12 +131,15 @@ namespace SubcultureRPG.EditorTools
             return c;
         }
 
-        private static void Enemy(string name, int spd, int hp, int atk, int def, BattleSkill basic)
+        private static void Enemy(string name, int spd, int hp, int atk, int def, BattleSkill basic, int toughness, Element[] weaknesses)
         {
             var u = LoadOrCreate<BattleUnitData>(Root + "/Unit_연동_" + name + ".asset");
             u.character = null;
             u.displayName = name;
             u.level = 1;
+            u.element = Element.Physical;
+            u.maxToughness = toughness;
+            u.weaknesses = weaknesses != null ? new List<Element>(weaknesses) : new List<Element>();
             u.baseStats = new BattleStats { maxHP = hp, atk = atk, def = def, spd = spd, critRate = 0.05f, critDmg = 0.5f };
             u.skills = new List<BattleSkill> { basic };
             EditorUtility.SetDirty(u);
