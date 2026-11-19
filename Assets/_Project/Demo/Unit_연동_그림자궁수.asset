@@ -25,5 +25,8 @@ MonoBehaviour:
     hpGrowth: 0
     atkGrowth: 0
     defGrowth: 0
+  element: 0
+  weaknesses: 0200000004000000
+  maxToughness: 40
   skills:
   - {fileID: 11400000, guid: dcba39c79ddef9546ab020aeaa301a42, type: 2}
