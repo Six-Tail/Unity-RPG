@@ -1,0 +1,60 @@
+# ==============================================================
+#  Unity .gitignore
+#  최신본: https://github.com/github/gitignore/blob/main/Unity.gitignore
+# ==============================================================
+
+# Unity 생성 폴더 (커밋하지 않음)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Rider / VS / IDE
+.vs/
+.idea/
+.vscode/
+.gradle/
+ExportedObj/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity 생성 meta (대응 에셋이 무시될 때만)
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# 크래시 리포트
+sysinfo.txt
+crashlytics-build.properties
+
+# 빌드 산출물
+*.apk
+*.aab
+*.ipa
+*.app
+*.unitypackage
+
+# Addressables 패킹 결과
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
