@@ -82,6 +82,7 @@ namespace SubcultureRPG.EditorTools
             var launcher = metaGO.AddComponent<BattleLauncher>();
             SetField(launcher, "controller", controller);
             SetField(launcher, "database", dbRef);
+            SetField(launcher, "roster", roster);
             SetField(launcher, "enemyTeam", enemyRefs);
 
             var partyGO = new GameObject("PartyScreen");
