@@ -15,12 +15,14 @@ namespace SubcultureRPG.Meta
     {
         [SerializeField, Tooltip("비우면 자동 탐색.")] private BattleController controller;
         [SerializeField, Tooltip("캐릭터→전투유닛 조회(선택). 없으면 성급 기반 자동 생성.")] private GameDatabase database;
-        [SerializeField] private int partyLevel = 1;
+        [SerializeField, Tooltip("보유 레벨 조회(선택). 없으면 partyLevel 사용.")] private PlayerRoster roster;
+        [SerializeField, Tooltip("roster가 없을 때 쓸 기본 레벨.")] private int partyLevel = 1;
         [SerializeField, Tooltip("이 전투의 적 유닛.")] private List<BattleUnitData> enemyTeam = new();
 
         private void Awake()
         {
             if (controller == null) controller = FindAnyObjectByType<BattleController>();
+            if (roster == null) roster = FindAnyObjectByType<PlayerRoster>();
         }
 
         /// <summary>파티 캐릭터로 전투 시작.</summary>
@@ -34,7 +36,11 @@ namespace SubcultureRPG.Meta
             var allies = new List<BattleUnitData>();
             foreach (var c in party)
                 if (c != null)
-                    allies.Add(RuntimeUnits.FromCharacter(c, partyLevel, lookup));
+                {
+                    int lvl = roster != null ? roster.LevelOf(c) : partyLevel;
+                    int skl = roster != null ? roster.SkillLevelOf(c) : 1;
+                    allies.Add(RuntimeUnits.FromCharacter(c, lvl, lookup, skl));
+                }
 
             controller.SetTeams(allies, new List<BattleUnitData>(enemyTeam));
         }

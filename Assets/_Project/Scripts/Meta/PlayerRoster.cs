@@ -13,6 +13,9 @@ namespace SubcultureRPG.Meta
         public string id;
         public int count = 1;
         public int level = 1;
+        public int exp = 0;
+        public int ascension = 0;   // 돌파 단계(레벨 상한)
+        public int skillLevel = 1;  // 스킬 레벨
     }
 
     /// <summary>
@@ -86,6 +89,84 @@ namespace SubcultureRPG.Meta
         }
 
         public OwnedCharacter Get(string id) => _owned.Find(o => o.id == id);
+
+        public OwnedCharacter GetOwned(CharacterData c)
+        {
+            var k = KeyOf(c);
+            return k != null ? _owned.Find(o => o.id == k) : null;
+        }
+
+        public int LevelOf(CharacterData c)
+        {
+            var o = GetOwned(c);
+            return o != null ? o.level : 1;
+        }
+
+        public int AscensionOf(CharacterData c)
+        {
+            var o = GetOwned(c);
+            return o != null ? o.ascension : 0;
+        }
+
+        public int SkillLevelOf(CharacterData c)
+        {
+            var o = GetOwned(c);
+            return o != null ? o.skillLevel : 1;
+        }
+
+        /// <summary>경험치 추가 + 레벨업(돌파 단계의 레벨 상한까지).</summary>
+        public void AddExp(CharacterData c, int amount)
+        {
+            var o = GetOwned(c);
+            if (o == null || amount <= 0) return;
+
+            int cap = Leveling.LevelCap(o.ascension);
+            if (o.level >= cap) return; // 상한 도달 → 돌파 필요
+
+            o.exp += amount;
+            while (o.level < cap && o.exp >= Leveling.ExpForNext(o.level))
+            {
+                o.exp -= Leveling.ExpForNext(o.level);
+                o.level++;
+            }
+            if (o.level >= cap) o.exp = 0;
+
+            Save();
+            OnRosterChanged?.Invoke();
+        }
+
+        /// <summary>돌파 가능 여부(레벨 상한 도달 + 최대 돌파 전).</summary>
+        public bool CanAscend(CharacterData c)
+        {
+            var o = GetOwned(c);
+            return o != null && o.ascension < Leveling.MaxAscension && o.level >= Leveling.LevelCap(o.ascension);
+        }
+
+        public bool Ascend(CharacterData c)
+        {
+            var o = GetOwned(c);
+            if (o == null || !CanAscend(c)) return false;
+            o.ascension++;
+            Save();
+            OnRosterChanged?.Invoke();
+            return true;
+        }
+
+        public bool CanUpgradeSkill(CharacterData c)
+        {
+            var o = GetOwned(c);
+            return o != null && o.skillLevel < Leveling.MaxSkillLevel;
+        }
+
+        public bool UpgradeSkill(CharacterData c)
+        {
+            var o = GetOwned(c);
+            if (o == null || !CanUpgradeSkill(c)) return false;
+            o.skillLevel++;
+            Save();
+            OnRosterChanged?.Invoke();
+            return true;
+        }
 
         // ---------------- 저장 ----------------
 
