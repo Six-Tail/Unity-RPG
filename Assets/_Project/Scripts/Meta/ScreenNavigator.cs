@@ -15,6 +15,7 @@ namespace SubcultureRPG.Meta
         Party,
         Battle,
         Bag,
+        Dungeon,   // 스테이지 화면의 특수 던전 탭으로 열기
     }
 
     /// <summary>
@@ -81,6 +82,12 @@ namespace SubcultureRPG.Meta
         /// <summary>지정 화면만 표시.</summary>
         public void Go(HubScreen screen)
         {
+            if (screen == HubScreen.Dungeon)
+            {
+                if (stage != null) stage.OpenSpecial();
+                screen = HubScreen.Stage;
+            }
+
             // 홈/스테이지 목록으로 돌아오면 스테이지 출격 모드 해제
             if (screen == HubScreen.Home || screen == HubScreen.Stage)
             {

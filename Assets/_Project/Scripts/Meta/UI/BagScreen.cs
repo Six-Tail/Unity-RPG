@@ -126,6 +126,7 @@ namespace SubcultureRPG.Meta.UI
 
             Header(root, "육성 재료", -823, -590);
             AddCell(root, MaterialType.SkillBook, BookTint, new Vector2(-735, -640), new Vector2(176, 176));
+            AddCell(root, MaterialType.EquipOre, new Color(0.3f, 0.72f, 0.68f), new Vector2(-545, -640), new Vector2(176, 176));
 
             // 가운데: 돌파 재료 (속성 행 × 등급 열)
             Header(root, "돌파 재료", -325, -140);

@@ -24,6 +24,9 @@ MonoBehaviour:
   kind: 0
   dungeonElement: 0
   dungeonTier: 1
+  equipmentSets: []
+  equipmentDrops: 0
+  equipmentRarityWeights: 
   unlockAfter: {fileID: 0}
   enemies:
   - unit: {fileID: 11400000, guid: 2ab082b95980b8c4aaf95e1151656fca, type: 2}

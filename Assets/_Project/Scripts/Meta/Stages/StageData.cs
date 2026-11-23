@@ -26,7 +26,47 @@ namespace SubcultureRPG.Meta
     public enum StageKind
     {
         Main,              // 메인 스토리(챕터 진행) — 경험치 재료·금화
-        AscensionDungeon,  // 돌파 던전(속성 × 등급) — 속성 돌파 재료, 반복 파밍
+        AscensionDungeon,  // 특수 던전: 돌파 던전(속성 × 등급) — 속성 돌파 재료
+        GoldDungeon,       // 특수 던전: 금화 던전(단계) — 금화
+        SkillBookDungeon,  // 특수 던전: 스킬 교본 던전(단계) — 스킬 교본
+        EquipmentDungeon,  // 특수 던전: 장비 던전(세트 2종) — 장비 + 장비 강화석
+        // 이후 장비 던전 등은 뒤에 추가(세이브/에셋은 정수값으로 저장)
+    }
+
+    /// <summary>특수 던전 종류별 표시 정보.</summary>
+    public static class SpecialDungeons
+    {
+        public static readonly StageKind[] All = { StageKind.EquipmentDungeon, StageKind.AscensionDungeon, StageKind.GoldDungeon, StageKind.SkillBookDungeon };
+
+        public static string Name(StageKind k) => k switch
+        {
+            StageKind.AscensionDungeon => "돌파 던전",
+            StageKind.GoldDungeon => "금화 던전",
+            StageKind.SkillBookDungeon => "스킬 교본 던전",
+            StageKind.EquipmentDungeon => "장비 던전",
+            _ => "메인 스토리",
+        };
+
+        public static Color ColorOf(StageKind k) => k switch
+        {
+            StageKind.AscensionDungeon => new Color(0.58f, 0.38f, 0.88f),
+            StageKind.GoldDungeon => new Color(0.95f, 0.74f, 0.25f),
+            StageKind.SkillBookDungeon => new Color(0.38f, 0.58f, 0.95f),
+            StageKind.EquipmentDungeon => new Color(0.3f, 0.72f, 0.68f),
+            _ => Color.white,
+        };
+
+        public static string Hex(StageKind k) => "#" + ColorUtility.ToHtmlStringRGB(ColorOf(k));
+
+        /// <summary>던전 종류 설명(상세 패널).</summary>
+        public static string Summary(StageKind k) => k switch
+        {
+            StageKind.AscensionDungeon => "캐릭터 속성의 돌파 재료 · 초급 40 / 중급 60 / 상급 80 돌파",
+            StageKind.GoldDungeon => "레벨업 · 돌파 · 스킬 · 합성에 필요한 금화를 대량으로 획득",
+            StageKind.SkillBookDungeon => "스킬 레벨업에 필요한 스킬 교본 획득",
+            StageKind.EquipmentDungeon => "세트 2종 중 무작위 장비 + 장비 강화석",
+            _ => "",
+        };
     }
 
     /// <summary>메인 스토리 난이도. 하드 = 쉬움 7챕터 클리어, 극악 = 쉬움 15챕터 클리어 시 개방(StageDatabase에서 변경).</summary>
@@ -82,9 +122,28 @@ namespace SubcultureRPG.Meta
         [Header("종류 (돌파 던전)")]
         public StageKind kind = StageKind.Main;
         [Tooltip("돌파 던전: 드롭하는 돌파 재료의 속성.")] public Element dungeonElement = Element.Physical;
-        [Tooltip("돌파 던전 등급 1~3 = 초급(40 돌파) / 중급(60) / 상급(80).")]
-        [Range(1, 3)] public int dungeonTier = 1;
-        [Tooltip("이 스테이지를 클리어하면 개방(돌파 던전용). 비우면 항상 개방.")]
+        [Tooltip("돌파 던전 등급 1~3 = 초급(40 돌파) / 중급(60) / 상급(80). 금화·교본 던전은 단계(1~).")]
+        [Range(1, 10)] public int dungeonTier = 1;
+        [Tooltip("장비 던전: 드롭하는 장비 세트 id(EquipSets).")]
+        public List<string> equipmentSets = new();
+        [Tooltip("장비 던전: 클리어마다 얻는 장비 개수.")]
+        [Min(0)] public int equipmentDrops = 0;
+        [Tooltip("장비 던전: 드롭 성급 가중치 [3성, 4성, 5성, 6성].")]
+        public List<int> equipmentRarityWeights = new();
+
+        /// <summary>장비 던전에서 나올 수 있는 최고 성급(가중치 > 0).</summary>
+        public int MaxEquipRarity
+        {
+            get
+            {
+                int max = 0;
+                if (equipmentRarityWeights != null)
+                    for (int i = 0; i < equipmentRarityWeights.Count; i++)
+                        if (equipmentRarityWeights[i] > 0) max = 3 + i;
+                return max;
+            }
+        }
+        [Tooltip("이 스테이지를 클리어하면 개방(특수 던전용). 비우면 항상 개방.")]
         public StageData unlockAfter;
 
         [Header("적")]
@@ -105,10 +164,13 @@ namespace SubcultureRPG.Meta
         [Tooltip("클리어할 때마다 받는 금화.")]
         [Min(0)] public int gold = 1000;
 
-        public bool IsDungeon => kind == StageKind.AscensionDungeon;
+        /// <summary>특수 던전(돌파·금화·교본 등) 여부.</summary>
+        public bool IsDungeon => kind != StageKind.Main;
+        public bool IsAscensionDungeon => kind == StageKind.AscensionDungeon;
 
         /// <summary>표시용 번호(예: 1-3, 던전은 '초급' 등).</summary>
-        public string Code => IsDungeon ? Materials.TierName(dungeonTier)
+        public string Code => IsAscensionDungeon ? Materials.TierName(dungeonTier)
+            : IsDungeon ? $"{dungeonTier}단계"
             : (difficulty == StageDifficulty.Easy ? "" : Difficulties.Name(difficulty) + " ") + $"{chapter}-{number}";
 
         /// <summary>돌파 던전이 주는 대표 재료.</summary>

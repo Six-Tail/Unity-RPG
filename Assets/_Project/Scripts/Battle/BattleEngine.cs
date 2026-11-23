@@ -147,7 +147,7 @@ namespace SubcultureRPG.Battle
 
                 if (heal)
                 {
-                    int amount = Mathf.Max(1, Mathf.RoundToInt(actor.EffectiveAtk * skill.heal));
+                    int amount = Mathf.Max(1, Mathf.RoundToInt(actor.EffectiveAtk * skill.heal * (1f + actor.healBonus)));
                     target.Heal(amount);
                     th.healed = amount;
                 }
@@ -166,9 +166,10 @@ namespace SubcultureRPG.Battle
                         anyWeak |= hit.weakness;
 
                         // 약점 → 내구도 감소 → 브레이크
-                        if (hit.weakness && target.ReduceToughness(skill.breakDamage))
+                        int breakAmount = Mathf.RoundToInt(skill.breakDamage * (1f + actor.breakEffect));   // 브레이크 효율
+                        if (hit.weakness && target.ReduceToughness(breakAmount))
                         {
-                            int bonus = Mathf.Max(1, Mathf.RoundToInt(hit.damage * Mathf.Max(0f, _cfg.breakBonus)));
+                            int bonus = Mathf.Max(1, Mathf.RoundToInt(hit.damage * Mathf.Max(0f, _cfg.breakBonus) * (1f + actor.breakEffect)));
                             target.TakeDamage(bonus);
                             total += bonus;
                             target.actionValue += _cfg.breakActionDelay; // 다음 행동 지연
@@ -182,7 +183,11 @@ namespace SubcultureRPG.Battle
                 }
 
                 // 상태효과 부여(디버프는 적 대상, 버프는 아군 대상)
-                if (skill.applyEffect != StatusType.None && target.IsAlive && _roll() < skill.effectChance)
+                // 적에게 거는 효과: 효과 명중 ↑ · 대상 효과 저항 ↓
+                float chance = target.team != actor.team
+                    ? skill.effectChance * (1f + actor.effectHit) * (1f - target.effectRes)
+                    : skill.effectChance;
+                if (skill.applyEffect != StatusType.None && target.IsAlive && _roll() < chance)
                 {
                     float mag = skill.applyEffect == StatusType.Dot
                         ? actor.EffectiveAtk * skill.effectMagnitude
@@ -196,7 +201,7 @@ namespace SubcultureRPG.Battle
 
             // 시전자 에너지 정산
             if (skill.IsUltimate) actor.ResetEnergy();
-            else actor.GainEnergy(skill.energyGain);
+            else actor.GainEnergy(Mathf.RoundToInt(skill.energyGain * (1f + actor.energyRegen)));   // 에너지 회복 효율
             result.energyAfter = actor.energy;
 
             // 스킬 포인트: 기본 +1, 스킬 -1 (필살기는 변화 없음)

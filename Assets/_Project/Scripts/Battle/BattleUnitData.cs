@@ -30,6 +30,9 @@ namespace SubcultureRPG.Battle
         [Tooltip("전투 시작 시 에너지(초월 패시브 등).")]
         [Min(0)] public int startEnergy = 0;
 
+        /// <summary>장비 등 추가 능력치(실행 중에만 설정, 에셋에 저장 안 함).</summary>
+        [System.NonSerialized] public StatBonus bonus;
+
         [Tooltip("스킬 목록. [0]에 기본 공격을 권장(비우면 자동 생성).")]
         public List<BattleSkill> skills = new();
 

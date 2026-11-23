@@ -73,6 +73,11 @@ namespace SubcultureRPG.EditorTools
             Enemy("빙결거인", 85, 1800, 118, 85, enemyBasic, 120, new[] { Element.Fire, Element.Wind }, Element.Ice);
             DungeonEnemies(enemyBasic);
             Enemy("종말의 군주", 100, 2200, 125, 95, enemyBasic, 150, new[] { Element.Lightning, Element.Ice });   // 15챕터 보스
+            // 금화 던전(단단한 황금 골렘) · 스킬 교본 던전(빠른 마도서)
+            Enemy(StageContent.GoldMinion, 100, 900, 100, 70, enemyBasic, 50, new[] { Element.Lightning, Element.Physical });
+            Enemy(StageContent.GoldBoss, 80, 2600, 105, 120, enemyBasic, 140, new[] { Element.Lightning, Element.Ice });
+            Enemy(StageContent.BookMinion, 125, 700, 112, 40, enemyBasic, 40, new[] { Element.Fire, Element.Wind }, Element.Wind);
+            Enemy(StageContent.BookBoss, 105, 1800, 120, 75, enemyBasic, 110, new[] { Element.Fire, Element.Physical }, Element.Lightning);
 
             // 4-2) 스테이지 (챕터 1 그림자 숲 · 챕터 2 얼어붙은 성채)
             AssetDatabase.SaveAssets();
@@ -138,6 +143,10 @@ namespace SubcultureRPG.EditorTools
             SetField(launcher, "database", dbRef);
             SetField(launcher, "roster", roster);
             SetField(launcher, "enemyTeam", enemies);
+            var equipComp = metaGO.AddComponent<PlayerEquipment>();
+            SetField(equipComp, "wallet", wallet);
+            SetField(equipComp, "inventory", inventory);
+            SetField(launcher, "equipment", equipComp);
             var stageProgress = metaGO.AddComponent<StageProgress>();
             var runner = metaGO.AddComponent<StageRunner>();
             SetField(runner, "controller", battle);
@@ -148,6 +157,7 @@ namespace SubcultureRPG.EditorTools
             SetField(runner, "inventory", inventory);
             SetField(runner, "roster", roster);
             SetField(runner, "database", stageDbRef);
+            SetField(runner, "equipment", equipComp);
 
             var bagGO = new GameObject("BagScreen");
             var bagScr = bagGO.AddComponent<BagScreen>();

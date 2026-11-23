@@ -14,6 +14,7 @@ namespace SubcultureRPG.Meta
         SkillBook = 3,      // 스킬 교본 (스킬 레벨업)
         ExpSmall = 4,       // 소형 경험치 물약 (+100)
         ExpLarge = 5,       // 대형 경험치 물약 (+1000)
+        EquipOre = 6,       // 장비 강화석 (장비 강화)
 
         PhysicalAsc1 = 101, PhysicalAsc2 = 102, PhysicalAsc3 = 103,
         FireAsc1 = 111, FireAsc2 = 112, FireAsc3 = 113,
@@ -46,6 +47,7 @@ namespace SubcultureRPG.Meta
                 MaterialType.ExpLarge => "대형 경험치 물약",
                 MaterialType.ExpCrystal => "경험치 결정",
                 MaterialType.SkillBook => "스킬 교본",
+                MaterialType.EquipOre => "장비 강화석",
                 _ => t.ToString(),
             };
         }
@@ -92,7 +94,8 @@ namespace SubcultureRPG.Meta
                        "<color=#FFD36B>획득처</color>\n메인 스테이지 클리어";
             return t switch
             {
-                MaterialType.SkillBook => "<color=#FFD36B>용도</color>\n스킬 레벨업 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n돌파 던전 클리어",
+                MaterialType.SkillBook => "<color=#FFD36B>용도</color>\n스킬 레벨업 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n특수 던전 · 스킬 교본 던전",
+                MaterialType.EquipOre => "<color=#FFD36B>용도</color>\n장비 강화 (금화 필요, 최대 +20)\n\n<color=#FFD36B>획득처</color>\n특수 던전 · 장비 던전\n장비 분해",
                 _ => "",
             };
         }

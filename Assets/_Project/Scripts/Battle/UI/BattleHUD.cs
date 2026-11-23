@@ -46,12 +46,12 @@ namespace SubcultureRPG.Battle.UI
 
         // 자동 전투 · 배속 (설정은 PlayerPrefs에 저장 → 다음 전투에도 유지)
         private const string AutoKey = "battle.auto", SpeedKey = "battle.speed";
-        private static readonly float[] Speeds = { 1f, 2f };
+        private static readonly float[] Speeds = { 1f, 2f, 3f };
         private Button _autoBtn, _speedBtn;
         private Image _autoBg, _speedBg;
         private TextMeshProUGUI _autoLabel, _speedLabel;
-        private bool _speedUnlocked = true;          // 허브가 진행도에 따라 지정(독립 전투 씬은 해금 상태)
-        private string _speedLockHint = "";
+        private int _maxSpeedIndex = 2;              // 허브가 진행도에 따라 지정(독립 전투 씬은 전부 해금)
+        private string _speedLockHint = "";          // 다음(잠긴) 배속 해금 조건
         private int _speedIndex;
         private Coroutine _hintRoutine;
 
@@ -189,14 +189,17 @@ namespace SubcultureRPG.Battle.UI
         // ---------------- 자동 전투 · 배속 ----------------
 
         /// <summary>
-        /// 배속 해금 여부(허브에서 진행도로 지정). 잠기면 1배속으로 고정, 누르면 lockedHint 표시.
+        /// 해금된 최대 배속 단계(0 = ×1만, 1 = ×2까지, 2 = ×3까지). 허브에서 진행도로 지정.
+        /// nextLockHint = 다음 배속 해금 조건(누르다가 잠긴 단계에 닿으면 잠깐 표시).
         /// </summary>
-        public void SetSpeedUnlocked(bool unlocked, string lockedHint = "")
+        public void SetSpeedLimit(int maxIndex, string nextLockHint = "")
         {
-            _speedUnlocked = unlocked;
-            _speedLockHint = lockedHint ?? "";
+            _maxSpeedIndex = Mathf.Clamp(maxIndex, 0, Speeds.Length - 1);
+            _speedLockHint = nextLockHint ?? "";
             ApplySpeed();
         }
+
+        private int EffectiveSpeedIndex => Mathf.Min(_speedIndex, _maxSpeedIndex);
 
         private void LoadBattleSettings()
         {
@@ -218,12 +221,19 @@ namespace SubcultureRPG.Battle.UI
 
         private void CycleSpeed()
         {
-            if (!_speedUnlocked)
+            if (_maxSpeedIndex <= 0)
             {
                 ShowHint(string.IsNullOrEmpty(_speedLockHint) ? "아직 배속을 쓸 수 없습니다" : _speedLockHint);
                 return;
             }
-            _speedIndex = (_speedIndex + 1) % Speeds.Length;
+            // ×1 → ×2 → ×3 → ×1 … (해금된 단계까지만, 다음 단계가 잠겨 있으면 해금 조건 안내 후 ×1)
+            int next = EffectiveSpeedIndex + 1;
+            if (next > _maxSpeedIndex)
+            {
+                if (_maxSpeedIndex < Speeds.Length - 1 && !string.IsNullOrEmpty(_speedLockHint)) ShowHint(_speedLockHint);
+                next = 0;
+            }
+            _speedIndex = next;
             PlayerPrefs.SetInt(SpeedKey, _speedIndex);
             PlayerPrefs.Save();
             ApplySpeed();
@@ -231,15 +241,16 @@ namespace SubcultureRPG.Battle.UI
 
         private void ApplySpeed()
         {
-            float speed = _speedUnlocked ? Speeds[_speedIndex] : 1f;
+            float speed = Speeds[EffectiveSpeedIndex];
             if (controller != null) controller.SetSpeed(speed);
             if (_speedLabel == null) return;
-            if (_speedUnlocked)
+            if (_maxSpeedIndex > 0)
             {
                 bool fast = speed > 1f;
                 _speedLabel.text = $"배속 ×{speed:0}";
                 _speedLabel.color = fast ? new Color(1f, 0.88f, 0.45f) : Color.white;
-                _speedBg.color = fast ? new Color(0.85f, 0.55f, 0.15f, 0.9f) : new Color(1, 1, 1, 0.14f);
+                _speedBg.color = speed >= 3f ? new Color(0.85f, 0.3f, 0.2f, 0.92f)
+                    : fast ? new Color(0.85f, 0.55f, 0.15f, 0.9f) : new Color(1, 1, 1, 0.14f);
             }
             else
             {

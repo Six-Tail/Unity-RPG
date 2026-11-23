@@ -18,8 +18,10 @@ namespace SubcultureRPG.Battle
         public static Hit Compute(BattleUnit attacker, BattleUnit defender, BattleSkill skill, float roll01, BattleConfig cfg)
         {
             float raw = attacker.EffectiveAtk * Mathf.Max(0f, skill.power);
-            float mitigation = defender.EffectiveDef / (defender.EffectiveDef + Mathf.Max(1f, cfg.defConstant));
+            float def = defender.EffectiveDef * (1f - attacker.penetration);          // 방어 관통
+            float mitigation = def / (def + Mathf.Max(1f, cfg.defConstant));
             float afterDef = raw * (1f - mitigation);
+            afterDef *= 1f + attacker.allDmg + attacker.ElementDmg(skill.element);    // 피해 증가 · 속성 피해
 
             bool weakness = defender.IsWeakTo(skill.element);
             if (weakness) afterDef *= Mathf.Max(1f, cfg.weaknessMultiplier);

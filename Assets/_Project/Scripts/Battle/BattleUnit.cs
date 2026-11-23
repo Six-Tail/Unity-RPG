@@ -38,6 +38,11 @@ namespace SubcultureRPG.Battle
         public bool isBroken;
         public readonly List<StatusEffect> effects = new();
 
+        // 장비 등 추가 능력(StatBonus)
+        public float penetration, allDmg, breakEffect, energyRegen, healBonus, effectHit, effectRes;
+        public readonly float[] elementDmg = new float[5];
+        public float ElementDmg(Element e) => (int)e >= 0 && (int)e < elementDmg.Length ? elementDmg[(int)e] : 0f;
+
         public bool IsAlive => currentHP > 0;
         public string Name => source != null ? source.DisplayName : "???";
         public float HPRatio => maxHP > 0 ? (float)currentHP / maxHP : 0f;
@@ -52,16 +57,25 @@ namespace SubcultureRPG.Battle
             level = Mathf.Max(1, data.level);
 
             var s = data.baseStats;
-            maxHP = Mathf.Max(1, s.MaxHPAt(level));
+            var b = data.bonus ?? new StatBonus();
+            maxHP = b.ApplyHP(Mathf.Max(1, s.MaxHPAt(level)));
             currentHP = maxHP;
-            atk = Mathf.Max(0, s.AtkAt(level));
-            def = Mathf.Max(0, s.DefAt(level));
-            spd = Mathf.Max(1, s.spd);
-            critRate = Mathf.Clamp01(s.critRate);
-            critDmg = Mathf.Max(0f, s.critDmg);
+            atk = b.ApplyAtk(Mathf.Max(0, s.AtkAt(level)));
+            def = b.ApplyDef(Mathf.Max(0, s.DefAt(level)));
+            spd = b.ApplySpd(Mathf.Max(1, s.spd));
+            critRate = Mathf.Clamp01(s.critRate + b.critRate);
+            critDmg = Mathf.Max(0f, s.critDmg + b.critDmg);
+            penetration = Mathf.Clamp(b.penetration, 0f, 0.8f);
+            allDmg = b.allDmg;
+            breakEffect = b.breakEffect;
+            energyRegen = b.energyRegen;
+            healBonus = b.healBonus;
+            effectHit = b.effectHit;
+            effectRes = Mathf.Clamp01(b.effectRes);
+            for (int i = 0; i < elementDmg.Length; i++) elementDmg[i] = b.ElementDmg((Element)i);
 
             maxEnergy = Mathf.Max(1, cfg.maxEnergy);
-            energy = Mathf.Clamp(data.startEnergy, 0, maxEnergy);
+            energy = Mathf.Clamp(data.startEnergy + b.startEnergy, 0, maxEnergy);
 
             // 스킬 목록(null 제거, 비면 기본 공격 자동 생성)
             var list = new List<BattleSkill>();

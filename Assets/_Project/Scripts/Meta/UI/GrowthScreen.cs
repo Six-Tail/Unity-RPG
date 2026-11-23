@@ -21,6 +21,7 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private GameDatabase database;
         [SerializeField] private PlayerInventory inventory;
         [SerializeField] private PlayerWallet wallet;
+        [SerializeField] private PlayerEquipment equipment;
         [SerializeField] private TMP_FontAsset font;
 
         private GameObject _root, _detPanel;
@@ -28,7 +29,9 @@ namespace SubcultureRPG.Meta.UI
         private Image _detPortrait, _expFill;
         private TextMeshProUGUI _matText, _detName, _detLevel, _detInfo, _detStats, _detExp, _detSkill, _detPassives, _toast;
         private TextMeshProUGUI _levelLbl, _ascendLbl, _skillLbl, _mergeLbl;
-        private Button _levelBtn, _ascendBtn, _skillBtn, _mergeBtn, _backBtn;
+        private Button _levelBtn, _ascendBtn, _skillBtn, _mergeBtn, _backBtn, _equipBtn;
+        private TextMeshProUGUI _equipLbl;
+        private EquipmentPanel _equipPanel;
         private System.Action _onBack;
         private RosterFilterBar _filterBar;
         private StarRow _detStars;
@@ -42,6 +45,7 @@ namespace SubcultureRPG.Meta.UI
             if (roster == null) roster = FindAnyObjectByType<PlayerRoster>();
             if (inventory == null) inventory = FindAnyObjectByType<PlayerInventory>();
             if (wallet == null) wallet = FindAnyObjectByType<PlayerWallet>();
+            if (equipment == null) equipment = FindAnyObjectByType<PlayerEquipment>();
             BuildUI();
         }
 
@@ -50,6 +54,7 @@ namespace SubcultureRPG.Meta.UI
             if (roster != null) roster.OnRosterChanged += OnRosterChanged;
             if (inventory != null) inventory.OnChanged += Refresh;
             if (wallet != null) wallet.OnChanged += Refresh;
+            if (equipment != null) equipment.OnChanged += Refresh;
         }
 
         private void OnDisable()
@@ -57,6 +62,7 @@ namespace SubcultureRPG.Meta.UI
             if (roster != null) roster.OnRosterChanged -= OnRosterChanged;
             if (inventory != null) inventory.OnChanged -= Refresh;
             if (wallet != null) wallet.OnChanged -= Refresh;
+            if (equipment != null) equipment.OnChanged -= Refresh;
         }
 
         private void Start()
@@ -68,6 +74,7 @@ namespace SubcultureRPG.Meta.UI
 
         public void Show(bool on)
         {
+            if (!on && _equipPanel != null && _equipPanel.IsOpen) _equipPanel.Close();
             if (_root != null) _root.SetActive(on);
             if (!on) return;
             RebuildGrid();
@@ -241,7 +248,16 @@ namespace SubcultureRPG.Meta.UI
             _detLevel.text = $"Lv. {o.level} / {cap}{asc}";
 
             var (hp, atk, def, spd) = StatsAt(_selected, o.level, o.skillLevel, starN, tr);
-            _detStats.text = $"HP {hp}    ATK {atk}\nDEF {def}    SPD {spd}";
+            var eb = equipment != null ? equipment.BonusFor(_selected) : null;
+            if (eb != null && equipment.EquippedOn(_selected).Count > 0)
+            {
+                int h2 = eb.ApplyHP(hp), a2 = eb.ApplyAtk(atk), d2 = eb.ApplyDef(def), s2 = eb.ApplySpd(spd);
+                _detStats.text = $"HP {h2}{Gain(h2 - hp)}    ATK {a2}{Gain(a2 - atk)}\nDEF {d2}{Gain(d2 - def)}    SPD {s2}{Gain(s2 - spd)}";
+            }
+            else _detStats.text = $"HP {hp}    ATK {atk}\nDEF {def}    SPD {spd}";
+            int equippedCount = equipment != null ? equipment.EquippedOn(_selected).Count : 0;
+            if (_equipLbl != null) _equipLbl.text = $"장비\n<size=60%>{equippedCount} / 6 장착</size>";
+            if (_equipBtn != null) _equipBtn.interactable = equipment != null;
 
             bool atCap = o.level >= cap;
             int need = o.level >= Leveling.MaxLevel ? 0 : Leveling.ExpForNext(o.level);
@@ -328,6 +344,15 @@ namespace SubcultureRPG.Meta.UI
         }
 
         private int Mat(MaterialType t) => inventory != null ? inventory.Count(t) : 0;
+
+        private static string Gain(int d) => d > 0 ? $" <size=75%><color=#7CFF9A>(+{d})</color></size>" : "";
+
+        private void OpenEquipment()
+        {
+            if (_selected == null || _equipPanel == null) return;
+            if (LevelPanelOpen) CloseLevelPanel();
+            _equipPanel.Open(_selected);
+        }
 
         private int Gold => wallet != null ? wallet.Gold : int.MaxValue;
 
@@ -484,13 +509,14 @@ namespace SubcultureRPG.Meta.UI
             BuildDetail();
 
             // 테스트 재료 충전
-            var charge = UIFactory.AddButton("Charge", _root.transform, "재료·금화 충전(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var charge = UIFactory.AddButton("Charge", _root.transform, "재료·금화·장비 충전(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
             var crt = (RectTransform)charge.transform;
             UIFactory.Anchor(crt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
             crt.sizeDelta = new Vector2(240, 48); crt.anchoredPosition = new Vector2(30, 30);
             charge.onClick.AddListener(() =>
             {
                 if (inventory != null) inventory.GrantTest();
+                if (equipment != null) equipment.GrantTest(12);
                 if (wallet != null) wallet.AddGold(100000);
             });
 
@@ -500,6 +526,10 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(drt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
             drt.sizeDelta = new Vector2(280, 48); drt.anchoredPosition = new Vector2(290, 30);
             dup.onClick.AddListener(() => { if (roster != null && _selected != null) roster.GrantTestDuplicates(_selected, 6); });
+
+            // 장비 패널(맨 위)
+            _equipPanel = EquipmentPanel.Create(_root.transform, font, equipment, inventory, wallet,
+                key => database != null ? database.GetCharacter(key)?.displayName : null);
 
             // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
             _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
@@ -561,7 +591,9 @@ namespace SubcultureRPG.Meta.UI
             _detPassives.color = new Color(0.92f, 0.93f, 0.97f);
 
             // 레벨업(재료 선택 패널 열기)
-            _levelBtn = DetailButton(panel.transform, new Color(0.3f, 0.55f, 0.45f, 0.95f), new Vector2(492, 52), new Vector2(0, -590), OpenLevelPanel, out _levelLbl);
+            _levelBtn = DetailButton(panel.transform, new Color(0.3f, 0.55f, 0.45f, 0.95f), new Vector2(241, 52), new Vector2(-125, -590), OpenLevelPanel, out _levelLbl);
+            _equipBtn = DetailButton(panel.transform, new Color(0.22f, 0.55f, 0.55f, 0.95f), new Vector2(241, 52), new Vector2(125, -590), OpenEquipment, out _equipLbl);
+            foreach (var l in new[] { _levelLbl, _equipLbl }) { l.enableAutoSizing = true; l.fontSizeMin = 12; l.fontSizeMax = 20; }
             // 돌파
             _ascendBtn = DetailButton(panel.transform, new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(492, 52), new Vector2(0, -650), Ascend, out _ascendLbl);
             // 스킬업

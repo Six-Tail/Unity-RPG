@@ -23,6 +23,9 @@ MonoBehaviour:
   kind: 1
   dungeonElement: 2
   dungeonTier: 3
+  equipmentSets: []
+  equipmentDrops: 0
+  equipmentRarityWeights: 
   unlockAfter: {fileID: 11400000, guid: af26c4aff5aa752408f2f05a68e441f8, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: 24d54f7b5de1f9a41932029e77ebceed, type: 2}
@@ -37,7 +40,5 @@ MonoBehaviour:
   rewards:
   - type: 123
     count: 4
-  - type: 3
-    count: 3
   characterExp: 3500
   gold: 15000

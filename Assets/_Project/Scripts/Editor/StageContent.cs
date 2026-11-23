@@ -9,7 +9,8 @@ using SubcultureRPG.Meta;
 namespace SubcultureRPG.EditorTools
 {
     /// <summary>
-    /// 스테이지 데이터 생성: 메인 스토리 15챕터 × 6스테이지 × 3난이도(쉬움/하드/극악) + 돌파 던전 15개.
+    /// 스테이지 데이터 생성: 메인 스토리 15챕터 × 6스테이지 × 3난이도(쉬움/하드/극악)
+    /// + 특수 던전(돌파 15 · 금화 5 · 스킬 교본 5).
     /// 적 레벨·보상은 아래 공식으로 계산합니다(튜닝 지점). MainSceneGenerator가 호출.
     /// </summary>
     public static class StageContent
@@ -132,13 +133,29 @@ namespace SubcultureRPG.EditorTools
                     for (int s = 1; s <= StagesPerChapter; s++)
                         main.Add(MainStage(c, s, d));
 
-            // 돌파 던전 개방: 초급 = 1-3, 중급 = 6-6, 상급 = 10-6 (쉬움)
+            // 특수 던전 (개방 = 쉬움 스테이지 클리어)
             StageData Find(int c, int s) => main.Find(x => x.difficulty == StageDifficulty.Easy && x.chapter == c && x.number == s);
-            var unlockBy = new[] { Find(1, 3), Find(6, 6), Find(10, 6) };
             var dungeons = new List<StageData>();
+
+            // 돌파 던전: 초급 = 3-6, 중급 = 6-6, 상급 = 10-6
+            var ascUnlock = new[] { Find(3, 6), Find(6, 6), Find(10, 6) };
             foreach (var e in Traits.AllElements)
                 for (int tier = 1; tier <= Materials.AscensionTiers; tier++)
-                    dungeons.Add(Dungeon(e, tier, unlockBy[tier - 1]));
+                    dungeons.Add(Dungeon(e, tier, ascUnlock[tier - 1]));
+
+            // 장비 던전: 세트 2종씩 5곳 × 1~5단계 (단계 개방 2-6 / 4-6 / 7-6 / 10-6 / 13-6)
+            for (int k = 1; k <= 5; k++) AssetDatabase.DeleteAsset($"{Root}/Stages/Dungeon_Equip_{k}.asset");   // 예전 단일 단계 에셋 정리
+            for (int i = 0; i < EquipPairs.Length; i++)
+                for (int t = 1; t <= EquipTierChapters.Length; t++)
+                    dungeons.Add(EquipmentDungeon(i, t, Find(EquipTierChapters[t - 1], StagesPerChapter)));
+
+            // 금화 · 스킬 교본 던전: 1~5단계 = 1-6 / 4-6 / 7-6 / 10-6 / 13-6
+            for (int t = 1; t <= TierUnlockChapters.Length; t++)
+            {
+                var after = Find(TierUnlockChapters[t - 1], StagesPerChapter);
+                dungeons.Add(ResourceDungeon(StageKind.GoldDungeon, t, after));
+                dungeons.Add(ResourceDungeon(StageKind.SkillBookDungeon, t, after));
+            }
 
             var db = LoadOrCreate<StageDatabase>(Root + "/StageDatabase.asset");
             db.chapterNames = new List<string>();
@@ -236,11 +253,115 @@ namespace SubcultureRPG.EditorTools
             s.characterExp = new[] { 400, 1500, 3500 }[t];
             s.gold = new[] { 3000, 8000, 15000 }[t];
             s.enemies = new List<StageEnemy> { E(DungeonMinion[i], lv), E(DungeonGuardian[i], lv + 2), E(DungeonMinion[i], lv) };
-            s.rewards = new List<MaterialReward>
+            s.rewards = new List<MaterialReward> { M(Materials.Ascension(e, tier), new[] { 3, 3, 4 }[t]) };   // 교본은 스킬 교본 던전으로
+            EditorUtility.SetDirty(s);
+            return s;
+        }
+
+        // ---------------- 장비 던전 ----------------
+
+        /// <summary>장비 던전별 드롭 세트(2종)와 개방 챕터.</summary>
+        public static readonly string[][] EquipPairs =
+        {
+            new[] { "assault", "guardian" },
+            new[] { "ember", "frost" },
+            new[] { "thunder", "gale" },
+            new[] { "steel", "breaker" },
+            new[] { "spring", "swift" },
+        };
+        /// <summary>장비 던전 단계별 개방 챕터(쉬움 보스 클리어).</summary>
+        public static readonly int[] EquipTierChapters = { 2, 4, 7, 10, 13 };
+
+        /// <summary>단계별 드롭 성급 가중치 [3성, 4성, 5성, 6성] — 3단계까지 최대 4성, 4단계 5성, 5단계 6성.</summary>
+        public static readonly int[][] EquipTierRarity =
+        {
+            new[] { 80, 20, 0, 0 },
+            new[] { 55, 45, 0, 0 },
+            new[] { 30, 70, 0, 0 },
+            new[] { 10, 50, 40, 0 },
+            new[] { 0, 35, 45, 20 },
+        };
+        private static readonly Element[] EquipDungeonElement = { Element.Physical, Element.Fire, Element.Lightning, Element.Wind, Element.Ice };
+
+        private static StageData EquipmentDungeon(int i, int tier, StageData unlockAfter)
+        {
+            int t = tier - 1;
+            int lv = EnemyLevel(EquipTierChapters[t], StagesPerChapter, StageDifficulty.Easy) + 2;
+            var el = EquipDungeonElement[i];
+            var s = LoadOrCreate<StageData>($"{Root}/Stages/Dungeon_Equip_{i + 1}_{tier}.asset");
+            s.id = $"dungeon_equip_{i + 1}_{tier}";
+            s.kind = StageKind.EquipmentDungeon;
+            s.difficulty = StageDifficulty.Easy;
+            s.enemyStatMultiplier = 1f;
+            s.dungeonElement = el;
+            s.dungeonTier = tier;
+            s.unlockAfter = unlockAfter;
+            s.chapter = i + 1;      // 던전(세트 묶음) 번호 — 목록 정렬용
+            s.number = tier;
+            s.stageName = $"{EquipSets.Name(EquipPairs[i][0])} · {EquipSets.Name(EquipPairs[i][1])}";
+            s.description = "";
+            s.isBoss = false;
+            s.recommendedLevel = lv;
+            s.turnLimit = 9 + tier;
+            s.firstClearCrystals = new[] { 20, 30, 40, 50, 60 }[t];
+            s.characterExp = new[] { 500, 1200, 2500, 4000, 6000 }[t];
+            s.gold = new[] { 2000, 3500, 5500, 8000, 11000 }[t];
+            s.equipmentSets = new List<string>(EquipPairs[i]);
+            s.equipmentDrops = 2;
+            s.equipmentRarityWeights = new List<int>(EquipTierRarity[t]);
+            s.enemies = new List<StageEnemy>
             {
-                M(Materials.Ascension(e, tier), new[] { 3, 3, 4 }[t]),
-                M(MaterialType.SkillBook, tier),
+                E(DungeonMinion[(int)el], lv - 2), E(DungeonGuardian[(int)el], lv), E(DungeonMinion[(int)el], lv - 2),
             };
+            s.rewards = new List<MaterialReward> { M(MaterialType.EquipOre, new[] { 3, 5, 7, 10, 14 }[t]) };
+            EditorUtility.SetDirty(s);
+            return s;
+        }
+
+        // ---------------- 금화 · 스킬 교본 던전 ----------------
+
+        /// <summary>금화/교본 던전 단계별 개방 챕터(쉬움 보스 클리어).</summary>
+        public static readonly int[] TierUnlockChapters = { 1, 4, 7, 10, 13 };
+
+        public const string GoldMinion = "황금 정령", GoldBoss = "황금 골렘";
+        public const string BookMinion = "떠도는 마도서", BookBoss = "금서의 파수꾼";
+
+        private static readonly int[] GoldReward = { 12000, 30000, 55000, 85000, 120000 };
+        private static readonly int[] BookReward = { 2, 4, 6, 9, 12 };
+        private static readonly int[] BookGold = { 2000, 4000, 6000, 9000, 12000 };
+        private static readonly int[] TierCharExp = { 500, 1200, 2500, 4000, 6000 };
+        private static readonly int[] TierCrystals = { 30, 40, 50, 60, 80 };
+
+        /// <summary>금화/교본 던전 1단계분. 적 레벨 = 개방 챕터 보스 레벨 수준.</summary>
+        private static StageData ResourceDungeon(StageKind kind, int tier, StageData unlockAfter)
+        {
+            int t = tier - 1;
+            bool gold = kind == StageKind.GoldDungeon;
+            int lv = EnemyLevel(TierUnlockChapters[t], StagesPerChapter, StageDifficulty.Easy) + 2;
+            string tag = gold ? "Gold" : "Book";
+
+            var s = LoadOrCreate<StageData>($"{Root}/Stages/Dungeon_{tag}_{tier}.asset");
+            s.id = $"dungeon_{tag.ToLowerInvariant()}_{tier}";
+            s.kind = kind;
+            s.difficulty = StageDifficulty.Easy;
+            s.enemyStatMultiplier = 1f;
+            s.dungeonElement = Element.Physical;
+            s.dungeonTier = tier;
+            s.unlockAfter = unlockAfter;
+            s.chapter = 0;
+            s.number = tier;
+            s.stageName = SpecialDungeons.Name(kind);
+            s.description = "";
+            s.isBoss = false;
+            s.recommendedLevel = lv;
+            s.turnLimit = 8 + tier;
+            s.firstClearCrystals = TierCrystals[t];
+            s.characterExp = TierCharExp[t];
+            s.gold = gold ? GoldReward[t] : BookGold[t];
+            s.enemies = gold
+                ? new List<StageEnemy> { E(GoldMinion, lv - 2), E(GoldBoss, lv), E(GoldMinion, lv - 2) }
+                : new List<StageEnemy> { E(BookMinion, lv - 2), E(BookBoss, lv), E(BookMinion, lv - 2) };
+            s.rewards = gold ? new List<MaterialReward>() : new List<MaterialReward> { M(MaterialType.SkillBook, BookReward[t]) };
             EditorUtility.SetDirty(s);
             return s;
         }

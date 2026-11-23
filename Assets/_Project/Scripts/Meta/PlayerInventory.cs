@@ -30,6 +30,7 @@ namespace SubcultureRPG.Meta
                 _items[MaterialType.ExpLarge] = 15;
                 _items[MaterialType.ExpCrystal] = 6;
                 _items[MaterialType.SkillBook] = 24;
+                _items[MaterialType.EquipOre] = 60;
                 Save();
             }
         }
@@ -85,6 +86,7 @@ namespace SubcultureRPG.Meta
             _items[MaterialType.ExpLarge] = Count(MaterialType.ExpLarge) + 15;
             _items[MaterialType.ExpCrystal] = Count(MaterialType.ExpCrystal) + 6;
             Add(MaterialType.SkillBook, 12);
+            _items[MaterialType.EquipOre] = Count(MaterialType.EquipOre) + 200;
             // 속성별 돌파 재료(40/60/80 돌파 각 1회분 정도)
             for (int e = 0; e <= (int)Element.Wind; e++)
             {

@@ -31,6 +31,7 @@ namespace SubcultureRPG.Meta.UI
         private RectTransform _modeTabs, _tabs, _nodes;
         private GridLayoutGroup _grid;
         private bool _dungeonMode;
+        private StageKind _dungeonKind = StageKind.AscensionDungeon;
         private StageDifficulty _difficulty = StageDifficulty.Easy;
         private TextMeshProUGUI _totalStars, _chapterTitle, _detTitle, _detBody, _sortieLbl;
         private Button _backBtn, _sortieBtn;
@@ -74,8 +75,17 @@ namespace SubcultureRPG.Meta.UI
         {
             if (s == null) return;
             _dungeonMode = s.IsDungeon;
-            if (!s.IsDungeon) { _chapter = s.chapter; _difficulty = s.difficulty; }
+            if (s.IsDungeon) _dungeonKind = s.kind;
+            else { _chapter = s.chapter; _difficulty = s.difficulty; }
             _selected = s;
+        }
+
+        /// <summary>특수 던전 탭으로 열기(홈의 '특수 던전' 메뉴).</summary>
+        public void OpenSpecial(StageKind kind = StageKind.AscensionDungeon)
+        {
+            _dungeonMode = true;
+            if (kind != StageKind.Main) _dungeonKind = kind;
+            _selected = null;
         }
 
         /// <summary>가장 앞선 해금 스테이지(아직 안 깬 것)로 챕터·선택 이동.</summary>
@@ -114,7 +124,8 @@ namespace SubcultureRPG.Meta.UI
 
             if (_dungeonMode)
             {
-                _chapterTitle.text = "돌파 던전  <size=60%><color=#AEB6C8>캐릭터 속성의 돌파 재료 · 초급 40 / 중급 60 / 상급 80 돌파</color></size>";
+                _chapterTitle.text = $"<color={SpecialDungeons.Hex(_dungeonKind)}>{SpecialDungeons.Name(_dungeonKind)}</color>  " +
+                                     $"<size=60%><color=#AEB6C8>{SpecialDungeons.Summary(_dungeonKind)}</color></size>";
             }
             else
             {
@@ -128,9 +139,9 @@ namespace SubcultureRPG.Meta.UI
             RebuildNodes();
             if (_dungeonMode)
             {
-                if (_selected == null || !_selected.IsDungeon)
+                if (_selected == null || _selected.kind != _dungeonKind)
                 {
-                    var list = database.Dungeons();
+                    var list = database.Dungeons(_dungeonKind);
                     _selected = list.Find(d => progress == null || progress.IsUnlocked(d, database));
                     if (_selected == null && list.Count > 0) _selected = list[0];
                 }
@@ -171,8 +182,22 @@ namespace SubcultureRPG.Meta.UI
                 });
             }
 
-            // 챕터 번호(1~15) — 던전 모드에서는 숨김
-            _tabs.gameObject.SetActive(!_dungeonMode);
+            // 두 번째 줄: 메인 = 챕터 번호(1~15), 특수 던전 = 던전 종류
+            if (_dungeonMode)
+                foreach (var k in SpecialDungeons.All)
+                {
+                    var kk = k;
+                    var ofKind = database.Dungeons(k);
+                    if (ofKind.Count == 0) continue;
+                    bool open = ofKind.Exists(d => progress == null || progress.IsUnlocked(d, database));
+                    bool on = k == _dungeonKind;
+                    var col = SpecialDungeons.ColorOf(k);
+                    var b = UIFactory.AddButton("Kind", _tabs, open ? SpecialDungeons.Name(k) : $"{SpecialDungeons.Name(k)} <size=70%>(잠김)</size>", 19, font,
+                        on ? new Color(col.r, col.g, col.b, 0.95f) : new Color(col.r, col.g, col.b, open ? 0.3f : 0.1f), Color.white);
+                    var le = b.gameObject.AddComponent<LayoutElement>();
+                    le.preferredWidth = 210; le.preferredHeight = 40;
+                    b.onClick.AddListener(() => { _dungeonKind = kk; _selected = null; Refresh(); });
+                }
             if (!_dungeonMode)
                 foreach (int ch in chapters)
                 {
@@ -196,7 +221,7 @@ namespace SubcultureRPG.Meta.UI
             var spacer = UIFactory.NewRect("Spacer", _modeTabs);
             spacer.gameObject.AddComponent<LayoutElement>().preferredWidth = 40;
             int openCount = dungeons.FindAll(d => progress == null || progress.IsUnlocked(d, database)).Count;
-            var db = UIFactory.AddButton("DungeonTab", _modeTabs, openCount > 0 ? "돌파 던전" : "돌파 던전 (잠김)", 20, font,
+            var db = UIFactory.AddButton("DungeonTab", _modeTabs, openCount > 0 ? "특수 던전" : "특수 던전 (잠김)", 20, font,
                 _dungeonMode ? new Color(0.55f, 0.35f, 0.85f, 0.95f) : new Color(0.55f, 0.35f, 0.85f, openCount > 0 ? 0.35f : 0.12f), Color.white);
             var dle = db.gameObject.AddComponent<LayoutElement>();
             dle.preferredWidth = 230; dle.preferredHeight = 44;
@@ -207,11 +232,24 @@ namespace SubcultureRPG.Meta.UI
         {
             Clear(_nodes);
             _nodeHL.Clear();
-            if (_dungeonMode)
+            _grid.constraintCount = 3;
+            if (_dungeonMode && _dungeonKind == StageKind.EquipmentDungeon)
+            {
+                // 세트 묶음 5줄 × 1~5단계
+                _grid.constraintCount = 5;
+                _grid.cellSize = new Vector2(186, 118); _grid.spacing = new Vector2(17, 14);
+                foreach (var s in database.Dungeons(_dungeonKind)) BuildNode(s);
+            }
+            else if (_dungeonMode && _dungeonKind == StageKind.AscensionDungeon)
             {
                 // 5속성 × 3등급 → 작은 칸
                 _grid.cellSize = new Vector2(300, 118); _grid.spacing = new Vector2(30, 14);
-                foreach (var s in database.Dungeons()) BuildNode(s);
+                foreach (var s in database.Dungeons(_dungeonKind)) BuildNode(s);
+            }
+            else if (_dungeonMode)
+            {
+                _grid.cellSize = new Vector2(300, 170); _grid.spacing = new Vector2(30, 30);
+                foreach (var s in database.Dungeons(_dungeonKind)) BuildNode(s);
             }
             else
             {
@@ -233,7 +271,9 @@ namespace SubcultureRPG.Meta.UI
             _nodeHL[s] = hl;
 
             Color frameCol = s.isBoss ? new Color(0.85f, 0.32f, 0.36f) : (cleared ? Gold : new Color(0.45f, 0.5f, 0.62f));
-            if (s.IsDungeon) frameCol = Traits.ColorOf(s.dungeonElement) * new Color(1, 1, 1, cleared ? 1f : 0.75f);
+            if (s.IsDungeon)
+                frameCol = (s.IsAscensionDungeon ? Traits.ColorOf(s.dungeonElement) : SpecialDungeons.ColorOf(s.kind))
+                           * new Color(1, 1, 1, cleared ? 1f : 0.75f);
             if (!unlocked) frameCol = new Color(0.25f, 0.26f, 0.3f);
             var frame = UIFactory.AddImage("Frame", node, frameCol, null, raycast: true);
             UIFactory.Stretch(frame.rectTransform);
@@ -270,18 +310,30 @@ namespace SubcultureRPG.Meta.UI
         private void BuildDungeonNodeText(Transform inner, StageData s, bool unlocked, int stars)
         {
             var dim = new Color(0.5f, 0.5f, 0.55f);
-            string el = unlocked ? $"<color={Traits.Hex(s.dungeonElement)}>{Traits.Name(s.dungeonElement)}</color>" : Traits.Name(s.dungeonElement);
-            var top = UIFactory.AddText("Code", inner, $"{el}  ·  {s.Code}", 26, font, unlocked ? Color.white : dim,
+            bool asc = s.IsAscensionDungeon;
+            string head = asc
+                ? (unlocked ? $"<color={Traits.Hex(s.dungeonElement)}>{Traits.Name(s.dungeonElement)}</color>" : Traits.Name(s.dungeonElement))
+                : (unlocked ? $"<color={SpecialDungeons.Hex(s.kind)}>{s.Code}</color>" : s.Code);   // 종류는 위 탭에 있으므로 단계만
+            bool equip = s.kind == StageKind.EquipmentDungeon;
+            if (equip && s.equipmentSets != null && s.equipmentSets.Count >= 2)
+                head = $"{EquipSets.Short(s.equipmentSets[0])}·{EquipSets.Short(s.equipmentSets[1])}  " + head;
+            var top = UIFactory.AddText("Code", inner, asc ? $"{head}  ·  {s.Code}" : head, asc ? 26 : (equip ? 22 : 32), font, unlocked ? Color.white : dim,
                 TextAlignmentOptions.Center, FontStyles.Bold);
+            top.enableAutoSizing = true; top.fontSizeMin = 14; top.fontSizeMax = asc ? 26 : 32;
             var trt = top.rectTransform;
             UIFactory.Anchor(trt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            trt.sizeDelta = new Vector2(0, 34); trt.anchoredPosition = new Vector2(0, -8);
+            trt.sizeDelta = new Vector2(0, 34); trt.anchoredPosition = new Vector2(0, asc ? -8 : -16);
 
-            var mat = UIFactory.AddText("Mat", inner, $"{Materials.Name(s.DungeonMaterial)}  <size=80%>· {Materials.TierTargetLevel(s.dungeonTier)} 돌파</size>",
+            string sub = asc ? $"{Materials.Name(s.DungeonMaterial)}  <size=80%>· {Materials.TierTargetLevel(s.dungeonTier)} 돌파</size>"
+                : s.kind == StageKind.GoldDungeon ? $"금화 {s.gold:N0}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>"
+                : s.kind == StageKind.EquipmentDungeon ? $"최대 {EquipStats.Stars(s.MaxEquipRarity)}  <size=80%>· Lv.{s.recommendedLevel}</size>"
+                : $"스킬 교본 ×{BookCount(s)}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>";
+            var mat = UIFactory.AddText("Mat", inner, sub,
                 17, font, unlocked ? new Color(0.85f, 0.88f, 0.95f) : new Color(0.45f, 0.45f, 0.5f), TextAlignmentOptions.Center);
+            mat.enableAutoSizing = true; mat.fontSizeMin = 12; mat.fontSizeMax = 17;
             var mrt = mat.rectTransform;
             UIFactory.Anchor(mrt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            mrt.sizeDelta = new Vector2(-12, 24); mrt.anchoredPosition = new Vector2(0, -44);
+            mrt.sizeDelta = new Vector2(-12, 24); mrt.anchoredPosition = new Vector2(0, asc ? -44 : -62);
 
             string bottom = unlocked ? StageRunner.Stars(stars)
                 : $"<color=#6B7280>{(s.unlockAfter != null ? s.unlockAfter.Code + " 클리어 시 개방" : "잠김")}</color>";
@@ -289,6 +341,13 @@ namespace SubcultureRPG.Meta.UI
             var srt = st.rectTransform;
             UIFactory.Anchor(srt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
             srt.sizeDelta = new Vector2(0, 28); srt.anchoredPosition = new Vector2(0, 8);
+        }
+
+        private static int BookCount(StageData s)
+        {
+            int n = 0;
+            if (s.rewards != null) foreach (var m in s.rewards) if (m != null && m.type == MaterialType.SkillBook) n += m.count;
+            return n;
         }
 
         private void RefreshHighlights()
@@ -308,15 +367,38 @@ namespace SubcultureRPG.Meta.UI
             bool cleared = progress != null && progress.IsCleared(s);
             int best = progress != null ? progress.StarsOf(s) : 0;
 
-            _detTitle.text = s.IsDungeon
+            _detTitle.text = s.IsAscensionDungeon
                 ? $"<color={Traits.Hex(s.dungeonElement)}>{Traits.Name(s.dungeonElement)}</color> 돌파 던전  <size=70%>{s.Code}</size>"
+                : s.IsDungeon
+                ? $"<color={SpecialDungeons.Hex(s.kind)}>{SpecialDungeons.Name(s.kind)}</color>  <size=70%>{s.Code}</size>"
                 : $"{s.Code}  {s.stageName}" + (s.isBoss ? "  <size=60%><color=#FF8A8A>BOSS</color></size>" : "");
 
             var sb = new StringBuilder();
             if (s.IsDungeon)
             {
-                sb.Append($"<color=#AEB6C8>{Traits.Name(s.dungeonElement)} 속성 캐릭터의 <b>{Materials.TierTargetLevel(s.dungeonTier)} 돌파</b> 재료 ")
-                  .Append(Materials.RichName(s.DungeonMaterial)).Append("<color=#AEB6C8> 획득 · 반복 도전 가능</color>\n");
+                if (s.IsAscensionDungeon)
+                    sb.Append($"<color=#AEB6C8>{Traits.Name(s.dungeonElement)} 속성 캐릭터의 <b>{Materials.TierTargetLevel(s.dungeonTier)} 돌파</b> 재료 ")
+                      .Append(Materials.RichName(s.DungeonMaterial)).Append("<color=#AEB6C8> 획득 · 반복 도전 가능</color>\n");
+                else
+                    sb.Append($"<color=#AEB6C8>{SpecialDungeons.Summary(s.kind)} · 반복 도전 가능</color>\n");
+                if (s.kind == StageKind.EquipmentDungeon && s.equipmentRarityWeights != null)
+                {
+                    int total = 0;
+                    foreach (var w in s.equipmentRarityWeights) total += w;
+                    var rates = new List<string>();
+                    for (int i = 0; i < s.equipmentRarityWeights.Count; i++)
+                        if (s.equipmentRarityWeights[i] > 0 && total > 0)
+                            rates.Add($"{EquipStats.Stars(3 + i)} {Mathf.RoundToInt(100f * s.equipmentRarityWeights[i] / total)}%");
+                    sb.Append("<color=#FFD36B>드롭 성급</color>  ").Append(string.Join("  ·  ", rates))
+                      .Append("  <size=80%><color=#9AA3B5>(최대 강화 3★ +9 · 4★ +12 · 5★ +16 · 6★ +20)</color></size>\n");
+                }
+                if (s.kind == StageKind.EquipmentDungeon && s.equipmentSets != null)
+                    foreach (var id in s.equipmentSets)
+                    {
+                        var set = EquipSets.Get(id);
+                        if (set == null) continue;
+                        sb.Append($"<b>{EquipSets.Rich(id)}</b>  <size=85%>2세트 {set.desc2} / 4세트 {set.desc4}</size>\n");
+                    }
                 if (!unlocked && s.unlockAfter != null)
                     sb.Append($"<color=#FF8A8A>개방 조건: 스테이지 {s.unlockAfter.Code} {s.unlockAfter.stageName} 클리어</color>\n");
                 sb.Append("\n");
@@ -362,15 +444,27 @@ namespace SubcultureRPG.Meta.UI
                 foreach (var m in s.rewards)
                     if (m != null && m.count > 0) parts.Add($"{Materials.RichName(m.type)} ×{m.count}");
             if (s.characterExp > 0) parts.Add($"캐릭터 경험치 +{s.characterExp}");
+            if (s.equipmentDrops > 0) parts.Insert(0, $"<color=#7FE3D6>장비 ×{s.equipmentDrops}</color>");
             if (parts.Count > 0) sb.Append("  매 클리어  ").Append(string.Join(" · ", parts)).Append('\n');
 
             if (!s.IsDungeon)
             {
                 var opens = database.DungeonsUnlockedBy(s);
                 if (opens.Count > 0)
-                    sb.Append("\n<color=#B48CFF>클리어 시 개방</color>  돌파 던전 ")
-                      .Append(Materials.TierName(opens[0].dungeonTier))
-                      .Append($" <size=85%>({Materials.TierTargetLevel(opens[0].dungeonTier)} 돌파 재료 · 전 속성)</size>\n");
+                {
+                    // 종류별로 한 줄씩: 돌파 던전은 등급, 금화/교본 던전은 단계
+                    var shown = new HashSet<StageKind>();
+                    sb.Append("\n<color=#B48CFF>클리어 시 개방</color>");
+                    foreach (var d in opens)
+                    {
+                        if (!shown.Add(d.kind)) continue;
+                        sb.Append("\n  · ").Append($"<color={SpecialDungeons.Hex(d.kind)}>{SpecialDungeons.Name(d.kind)}</color> ");
+                        sb.Append(d.IsAscensionDungeon
+                            ? $"{Materials.TierName(d.dungeonTier)} <size=85%>({Materials.TierTargetLevel(d.dungeonTier)} 돌파 재료 · 전 속성)</size>"
+                            : d.Code);
+                    }
+                    sb.Append("\n");
+                }
             }
 
             _detBody.text = sb.ToString();

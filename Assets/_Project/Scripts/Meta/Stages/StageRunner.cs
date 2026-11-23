@@ -17,6 +17,7 @@ namespace SubcultureRPG.Meta
         public bool firstClear;
         public int crystals;
         public int gold;
+        public List<EquipmentItem> equipment;
         public int allyActions;
         public bool allSurvived;
     }
@@ -36,6 +37,7 @@ namespace SubcultureRPG.Meta
         [SerializeField] private PlayerWallet wallet;
         [SerializeField] private PlayerInventory inventory;
         [SerializeField] private PlayerRoster roster;
+        [SerializeField] private PlayerEquipment equipment;
         [SerializeField, Tooltip("배속 해금 판정용(비우면 StageScreen의 것을 사용).")] private StageDatabase database;
 
         [SerializeField, Tooltip("승리 후 '다음 스테이지로' 자동 진행까지 초(0 = 자동 진행 안 함).")]
@@ -43,9 +45,28 @@ namespace SubcultureRPG.Meta
 
         /// <summary>이 챕터를 클리어하면 전투 배속(×2) 해금.</summary>
         public const int SpeedUnlockChapter = 1;
+        /// <summary>이 챕터를 클리어하면 3배속 해금.</summary>
+        public const int Speed3UnlockChapter = 3;
 
         /// <summary>전투 배속 해금 여부(진행도 기준).</summary>
-        public bool SpeedUnlocked => database == null || progress == null || progress.IsChapterCleared(database, SpeedUnlockChapter);
+        public bool SpeedUnlocked => MaxSpeedIndex >= 1;
+
+        /// <summary>해금된 최대 배속 단계: 0 = ×1, 1 = ×2 (챕터 1), 2 = ×3 (챕터 3).</summary>
+        public int MaxSpeedIndex
+        {
+            get
+            {
+                if (database == null || progress == null) return 2;
+                if (progress.IsChapterCleared(database, Speed3UnlockChapter)) return 2;
+                return progress.IsChapterCleared(database, SpeedUnlockChapter) ? 1 : 0;
+            }
+        }
+
+        private string ChapterLabel(int ch)
+        {
+            string name = database != null ? database.ChapterName(ch) : "";
+            return $"챕터 {ch}" + (string.IsNullOrEmpty(name) ? "" : $" '{name}'");
+        }
 
         /// <summary>진행 중인 스테이지(스테이지 전투가 아니면 null).</summary>
         public StageData Current { get; private set; }
@@ -66,6 +87,7 @@ namespace SubcultureRPG.Meta
             if (wallet == null) wallet = FindAnyObjectByType<PlayerWallet>();
             if (inventory == null) inventory = FindAnyObjectByType<PlayerInventory>();
             if (roster == null) roster = FindAnyObjectByType<PlayerRoster>();
+            if (equipment == null) equipment = FindAnyObjectByType<PlayerEquipment>();
             if (database == null)
             {
                 var screen = FindAnyObjectByType<SubcultureRPG.Meta.UI.StageScreen>();
@@ -79,9 +101,10 @@ namespace SubcultureRPG.Meta
         public void ApplySpeedUnlock()
         {
             if (hud == null) return;
-            string chapter = database != null ? database.ChapterName(SpeedUnlockChapter) : "";
-            hud.SetSpeedUnlocked(SpeedUnlocked,
-                $"챕터 {SpeedUnlockChapter}" + (string.IsNullOrEmpty(chapter) ? "" : $" '{chapter}'") + " 클리어 시 2배속 해금");
+            int max = MaxSpeedIndex;
+            string hint = max == 0 ? $"{ChapterLabel(SpeedUnlockChapter)} 클리어 시 2배속 해금"
+                : max == 1 ? $"{ChapterLabel(Speed3UnlockChapter)} 클리어 시 3배속 해금" : "";
+            hud.SetSpeedLimit(max, hint);
         }
 
         private void OnEnable()
@@ -202,7 +225,7 @@ namespace SubcultureRPG.Meta
             result.stars = 1 + (allAlive ? 1 : 0) + (fast ? 1 : 0);
 
             // 진행도 + 보상
-            bool speedWasLocked = !SpeedUnlocked;
+            int speedBefore = MaxSpeedIndex;
             bool hardWasLocked = database != null && progress != null && !progress.IsDifficultyUnlocked(database, StageDifficulty.Hard);
             bool hellWasLocked = database != null && progress != null && !progress.IsDifficultyUnlocked(database, StageDifficulty.Hell);
             result.firstClear = progress != null && progress.RecordClear(stage, result.stars);
@@ -222,10 +245,19 @@ namespace SubcultureRPG.Meta
             if (roster != null && stage.characterExp > 0)
                 foreach (var c in _party)
                     if (c != null) roster.AddExp(c, stage.characterExp);
+            if (equipment != null && stage.equipmentDrops > 0 && stage.equipmentSets != null && stage.equipmentSets.Count > 0)
+            {
+                result.equipment = new List<EquipmentItem>();
+                for (int i = 0; i < stage.equipmentDrops; i++)
+                {
+                    var it = equipment.AddRandom(stage.equipmentSets, stage.equipmentRarityWeights);
+                    if (it != null) result.equipment.Add(it);
+                }
+            }
 
             string detail = BuildRewardText(result, allAlive, fast);
-            if (speedWasLocked && SpeedUnlocked)
-                detail += "\n<color=#FFB347>2배속 해금!</color>  <size=80%>전투 화면 오른쪽 위 '배속' 버튼</size>";
+            if (MaxSpeedIndex > speedBefore)
+                detail += $"\n<color=#FFB347>{MaxSpeedIndex + 1}배속 해금!</color>  <size=80%>전투 화면 오른쪽 위 '배속' 버튼을 눌러 조절</size>";
             if (hardWasLocked && progress.IsDifficultyUnlocked(database, StageDifficulty.Hard))
                 detail += $"\n<color={Difficulties.Hex(StageDifficulty.Hard)}>하드 난이도 개방!</color>  <size=80%>스테이지 화면 위쪽 난이도 버튼</size>";
             if (hellWasLocked && progress.IsDifficultyUnlocked(database, StageDifficulty.Hell))
@@ -262,6 +294,13 @@ namespace SubcultureRPG.Meta
                     if (m != null && m.count > 0) parts.Add($"{Materials.RichName(m.type)} ×{m.count}");
             if (s.characterExp > 0) parts.Add($"캐릭터 경험치 +{s.characterExp}");
             sb.Append(parts.Count > 0 ? string.Join("  ·  ", parts) : "없음");
+            if (r.equipment != null && r.equipment.Count > 0)
+            {
+                var eq = new List<string>();
+                foreach (var it in r.equipment)
+                    eq.Add($"{EquipStats.Stars(it.Rarity)} {EquipSets.Rich(it.set)} {EquipStats.SlotName(it.slot)} <size=80%>({EquipStats.Name(it.main)})</size>");
+                sb.Append("\n<color=#7FE3D6>장비</color>  ").Append(string.Join("  ·  ", eq));
+            }
             return sb.ToString();
         }
 

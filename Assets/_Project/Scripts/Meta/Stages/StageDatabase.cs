@@ -29,10 +29,15 @@ namespace SubcultureRPG.Meta
         {
             var list = new List<StageData>();
             if (dungeons != null) foreach (var s in dungeons) if (s != null) list.Add(s);
-            list.Sort((a, b) => a.dungeonElement != b.dungeonElement
-                ? a.dungeonElement.CompareTo(b.dungeonElement) : a.dungeonTier.CompareTo(b.dungeonTier));
+            list.Sort((a, b) => a.kind != b.kind ? a.kind.CompareTo(b.kind)
+                : a.IsAscensionDungeon && a.dungeonElement != b.dungeonElement ? a.dungeonElement.CompareTo(b.dungeonElement)
+                : a.chapter != b.chapter ? a.chapter.CompareTo(b.chapter)   // 장비 던전: 세트 묶음 순
+                : a.dungeonTier.CompareTo(b.dungeonTier));
             return list;
         }
+
+        /// <summary>특정 종류의 특수 던전.</summary>
+        public List<StageData> Dungeons(StageKind kind) => Dungeons().FindAll(d => d.kind == kind);
 
         /// <summary>이 스테이지를 클리어하면 열리는 던전들.</summary>
         public List<StageData> DungeonsUnlockedBy(StageData stage) =>

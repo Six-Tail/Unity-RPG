@@ -148,7 +148,7 @@ namespace SubcultureRPG.Meta.UI
             MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 236), () => Nav(HubScreen.Stage));
             MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 118), () => Nav(HubScreen.Gacha));
             MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, 0), () => Nav(HubScreen.Growth));
-            MenuButton("편성 · 연습 전투\n<size=52%>보상 없는 자유 전투</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(360, -118), () => Nav(HubScreen.Party));
+            MenuButton("특수 던전\n<size=52%>돌파 · 금화 · 스킬 교본</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(360, -118), () => Nav(HubScreen.Dungeon));
             MenuButton("가방\n<size=52%>재료 · 재화 확인</size>", new Color(0.25f, 0.5f, 0.55f, 0.95f), new Vector2(360, -236), () => Nav(HubScreen.Bag));
 
             // 보유 수(좌하단)
