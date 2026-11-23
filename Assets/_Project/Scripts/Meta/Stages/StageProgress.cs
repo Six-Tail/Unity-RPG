@@ -36,6 +36,14 @@ namespace SubcultureRPG.Meta
             return prev == null || IsCleared(prev);
         }
 
+        /// <summary>챕터 클리어 = 그 챕터의 마지막 스테이지(보스)를 클리어.</summary>
+        public bool IsChapterCleared(StageDatabase db, int chapter)
+        {
+            if (db == null) return false;
+            var list = db.InChapter(chapter);
+            return list.Count > 0 && IsCleared(list[list.Count - 1]);
+        }
+
         /// <summary>획득한 별 합계(전체 또는 챕터).</summary>
         public int TotalStars(StageDatabase db, int chapter = 0)
         {

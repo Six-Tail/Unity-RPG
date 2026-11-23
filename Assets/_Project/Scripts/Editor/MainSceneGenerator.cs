@@ -145,6 +145,7 @@ namespace SubcultureRPG.EditorTools
             SetField(runner, "wallet", wallet);
             SetField(runner, "inventory", inventory);
             SetField(runner, "roster", roster);
+            SetField(runner, "database", stageDbRef);
 
             var stageScrGO = new GameObject("StageScreen");
             var stageScr = stageScrGO.AddComponent<StageScreen>();

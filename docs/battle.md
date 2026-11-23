@@ -53,7 +53,8 @@ void OnClickSkill(BattleSkill skill, BattleUnit target) => battle.SubmitAction(s
 void OnClickBasic() => battle.SubmitBasicAttack();
 ```
 
-- `autoBattle`를 켜면 플레이어 턴도 AI가 진행(테스트/스킵용).
+- `AutoBattle`을 켜면 플레이어 턴도 아군 AI(`PickAutoAction`)가 진행. 적은 기존 `PickAction`.
+- `SetSpeed(배속)`: 턴 간 대기 시간에 배속 적용(`Time.timeScale` 일시정지는 그대로 존중).
 - `BattleEngine.PreviewOrder(n)` 으로 다가올 턴 순서(턴 바)를 미리 볼 수 있습니다.
 
 ## 테스트 팁

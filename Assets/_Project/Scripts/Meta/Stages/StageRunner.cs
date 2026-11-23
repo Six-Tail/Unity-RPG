@@ -35,6 +35,13 @@ namespace SubcultureRPG.Meta
         [SerializeField] private PlayerWallet wallet;
         [SerializeField] private PlayerInventory inventory;
         [SerializeField] private PlayerRoster roster;
+        [SerializeField, Tooltip("배속 해금 판정용(비우면 StageScreen의 것을 사용).")] private StageDatabase database;
+
+        /// <summary>이 챕터를 클리어하면 전투 배속(×2) 해금.</summary>
+        public const int SpeedUnlockChapter = 1;
+
+        /// <summary>전투 배속 해금 여부(진행도 기준).</summary>
+        public bool SpeedUnlocked => database == null || progress == null || progress.IsChapterCleared(database, SpeedUnlockChapter);
 
         /// <summary>진행 중인 스테이지(스테이지 전투가 아니면 null).</summary>
         public StageData Current { get; private set; }
@@ -55,10 +62,27 @@ namespace SubcultureRPG.Meta
             if (wallet == null) wallet = FindAnyObjectByType<PlayerWallet>();
             if (inventory == null) inventory = FindAnyObjectByType<PlayerInventory>();
             if (roster == null) roster = FindAnyObjectByType<PlayerRoster>();
+            if (database == null)
+            {
+                var screen = FindAnyObjectByType<SubcultureRPG.Meta.UI.StageScreen>();
+                if (screen != null) database = screen.Database;
+            }
+        }
+
+        private void Start() => ApplySpeedUnlock();
+
+        /// <summary>진행도에 맞춰 전투 HUD의 배속 버튼 잠금/해금.</summary>
+        public void ApplySpeedUnlock()
+        {
+            if (hud == null) return;
+            string chapter = database != null ? database.ChapterName(SpeedUnlockChapter) : "";
+            hud.SetSpeedUnlocked(SpeedUnlocked,
+                $"챕터 {SpeedUnlockChapter}" + (string.IsNullOrEmpty(chapter) ? "" : $" '{chapter}'") + " 클리어 시 2배속 해금");
         }
 
         private void OnEnable()
         {
+            if (progress != null) progress.OnChanged += ApplySpeedUnlock;
             if (controller == null) return;
             controller.OnBattleStart += HandleStart;
             controller.OnActionResolved += HandleAction;
@@ -67,6 +91,7 @@ namespace SubcultureRPG.Meta
 
         private void OnDisable()
         {
+            if (progress != null) progress.OnChanged -= ApplySpeedUnlock;
             if (controller == null) return;
             controller.OnBattleStart -= HandleStart;
             controller.OnActionResolved -= HandleAction;
@@ -147,6 +172,7 @@ namespace SubcultureRPG.Meta
             result.stars = 1 + (allAlive ? 1 : 0) + (fast ? 1 : 0);
 
             // 진행도 + 보상
+            bool speedWasLocked = !SpeedUnlocked;
             result.firstClear = progress != null && progress.RecordClear(stage, result.stars);
             if (result.firstClear && stage.firstClearCrystals > 0)
             {
@@ -160,7 +186,10 @@ namespace SubcultureRPG.Meta
                 foreach (var c in _party)
                     if (c != null) roster.AddExp(c, stage.characterExp);
 
-            if (hud != null) hud.SetResultDetail(BuildRewardText(result, allAlive, fast));
+            string detail = BuildRewardText(result, allAlive, fast);
+            if (speedWasLocked && SpeedUnlocked)
+                detail += "\n<color=#FFB347>2배속 해금!</color>  <size=80%>전투 화면 오른쪽 위 '배속' 버튼</size>";
+            if (hud != null) hud.SetResultDetail(detail);
             OnStageFinished?.Invoke(result);
         }
 

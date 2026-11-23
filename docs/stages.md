@@ -48,4 +48,12 @@
 - 챕터 2는 레벨 상한(20)을 넘으므로 **돌파**가 필요합니다 — 챕터 1 보스가 돌파석을 줍니다.
 - 수치는 `MainSceneGenerator.BuildStages()`에서 조정하거나, 생성된 `Assets/_Project/Demo/Stages/Stage_*.asset`을 인스펙터에서 바로 수정.
 
+## 해금 기능
+
+| 조건 | 해금 |
+|---|---|
+| 챕터 1 클리어 (1-6 보스) | 전투 **2배속** — 결과 화면에 `2배속 해금!` 표시 |
+
+- 자동 전투는 처음부터 사용 가능. 해금 판정: `StageRunner.SpeedUnlocked` (`SpeedUnlockChapter`로 챕터 변경).
+
 **테스트용**: Meta 오브젝트 → Stage Progress ⋮ → `스테이지 진행도 초기화`.

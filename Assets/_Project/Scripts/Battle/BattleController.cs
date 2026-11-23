@@ -27,6 +27,20 @@ namespace SubcultureRPG.Battle
         [SerializeField] private float betweenTurnDelay = 0.35f;
 
         public BattleEngine Engine { get; private set; }
+
+        /// <summary>자동 전투(아군 턴도 AI). 입력 대기 중에 켜면 그 턴부터 바로 자동 진행.</summary>
+        public bool AutoBattle
+        {
+            get => autoBattle;
+            set { if (autoBattle == value) return; autoBattle = value; OnAutoBattleChanged?.Invoke(value); }
+        }
+
+        /// <summary>진행 배속(턴 간 대기 시간에 적용). 1 = 기본.</summary>
+        public float Speed => _speed;
+        public void SetSpeed(float speed) => _speed = Mathf.Clamp(speed, 0.25f, 4f);
+        private float _speed = 1f;
+
+        public event Action<bool> OnAutoBattleChanged;
         public bool WaitingForInput { get; private set; }
         public BattleUnit CurrentActor { get; private set; }
 
@@ -85,7 +99,7 @@ namespace SubcultureRPG.Battle
                 int dot = Engine.StartTurn(actor);
                 if (dot > 0) OnStatusTick?.Invoke(actor, dot);
                 if (Engine.IsOver) break;
-                if (!actor.IsAlive) { yield return new WaitForSeconds(betweenTurnDelay); continue; }
+                if (!actor.IsAlive) { yield return Wait(betweenTurnDelay); continue; }
 
                 OnTurnBegin?.Invoke(actor);
 
@@ -95,29 +109,42 @@ namespace SubcultureRPG.Battle
                     WaitingForInput = true;
                     _inputSubmitted = false;
                     OnPlayerInputNeeded?.Invoke(actor);
-                    yield return new WaitUntil(() => _inputSubmitted);
+                    yield return new WaitUntil(() => _inputSubmitted || autoBattle);
                     WaitingForInput = false;
 
-                    var result = Engine.ResolveAction(actor, _inputSkill, _inputTarget);
+                    // 입력 대기 중 자동 전투를 켰으면 AI가 대신 선택
+                    var (skill, target) = _inputSubmitted ? (_inputSkill, _inputTarget) : Engine.PickAutoAction(actor);
+                    var result = Engine.ResolveAction(actor, skill, target);
                     OnActionResolved?.Invoke(result);
                 }
                 else
                 {
-                    // 적 또는 자동 전투 → AI
-                    yield return new WaitForSeconds(enemyTurnDelay);
-                    var (skill, target) = Engine.PickAction(actor);
+                    // 적 → 적 AI / 아군 자동 전투 → 아군 AI
+                    yield return Wait(enemyTurnDelay);
+                    var (skill, target) = actor.team == Team.Ally ? Engine.PickAutoAction(actor) : Engine.PickAction(actor);
                     var result = Engine.ResolveAction(actor, skill, target);
                     OnActionResolved?.Invoke(result);
                 }
 
                 if (Engine.IsOver) break;
-                yield return new WaitForSeconds(betweenTurnDelay);
+                yield return Wait(betweenTurnDelay);
             }
 
             CurrentActor = null;
             WaitingForInput = false;
             _loop = null;
             if (Engine.Winner.HasValue) OnBattleEnd?.Invoke(Engine.Winner.Value);
+        }
+
+        /// <summary>배속 적용 대기(Time.timeScale 일시정지도 존중).</summary>
+        private IEnumerator Wait(float seconds)
+        {
+            float t = 0f;
+            while (t < seconds)
+            {
+                t += Time.deltaTime * _speed;
+                yield return null;
+            }
         }
 
         /// <summary>플레이어 행동 제출. 입력 대기 중일 때만 유효(true=접수됨).</summary>
@@ -148,7 +175,7 @@ namespace SubcultureRPG.Battle
                 Debug.LogWarning("[BattleController] 플레이 모드에서 실행하세요.");
                 return;
             }
-            autoBattle = true;
+            AutoBattle = true;
             OnActionResolved -= LogAction; OnActionResolved += LogAction;
             OnBattleEnd -= LogEnd; OnBattleEnd += LogEnd;
             Begin();

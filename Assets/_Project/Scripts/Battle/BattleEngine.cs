@@ -260,6 +260,133 @@ namespace SubcultureRPG.Battle
             return (chosen, target);
         }
 
+        /// <summary>
+        /// 아군 자동 전투용 AI. 적 AI(PickAction)보다 영리하게:
+        /// 위급한 아군이 있으면 회복 → 필살기 → (SP 여유 시) 버프/공격 스킬 → 기본 공격.
+        /// 공격 대상은 스킬 속성 약점 + 브레이크 안 된 적 우선, 그다음 처치 가능/최저 체력.
+        /// </summary>
+        public (BattleSkill skill, BattleUnit target) PickAutoAction(BattleUnit actor)
+        {
+            var mates = Teammates(actor);
+            var hurt = LowestHPRatio(mates);
+            int hurtCount = 0;
+            foreach (var u in mates) if (u.IsAlive && u.HPRatio < 0.6f) hurtCount++;
+            int sp = SkillPointsOf(actor.team);
+
+            // 1) 회복: 가장 약한 아군 HP < 50% (광역 회복은 60% 미만 2명 이상이면 우선)
+            if (hurt != null && hurt.HPRatio < 0.5f)
+            {
+                BattleSkill single = null, aoe = null;
+                foreach (var s in actor.skills)
+                {
+                    if (!s.IsHeal || !CanUse(actor, s)) continue;
+                    if (s.target == TargetType.AllAllies) { if (aoe == null || s.heal > aoe.heal) aoe = s; }
+                    else if (single == null || s.heal > single.heal) single = s;
+                }
+                var heal = hurtCount >= 2 ? (aoe ?? single) : (single ?? aoe);
+                if (heal != null) return (heal, heal.target == TargetType.SingleAlly ? hurt : null);
+            }
+
+            // 2) 필살기 (회복 전용 필살기는 팀이 멀쩡하면 아껴 둠)
+            if (actor.UltimateReady && HasUltimate(actor, out var ult))
+            {
+                bool wasteful = ult.IsHeal && ult.power <= 0f && (hurt == null || hurt.HPRatio > 0.8f);
+                if (!wasteful) return (ult, PickTarget(actor, ult));
+            }
+
+            // 3) 스킬 (SP 1 이상)
+            if (sp >= 1)
+            {
+                BattleSkill best = null;
+                float bestScore = 0f;
+                foreach (var s in actor.skills)
+                {
+                    if (s.category != SkillCategory.Skill) continue;
+                    float score = ScoreSkill(actor, s);
+                    if (score > bestScore) { best = s; bestScore = score; }
+                }
+                // SP가 1뿐이면 확실히 이득일 때만 사용(나머지는 아군 차례 위해 적립)
+                if (best != null && (sp >= 2 || bestScore >= 1.5f))
+                    return (best, PickTarget(actor, best));
+            }
+
+            var basic = actor.BasicSkill;
+            return (basic, PickTarget(actor, basic));
+        }
+
+        private float ScoreSkill(BattleUnit actor, BattleSkill s)
+        {
+            if (s.IsHeal && s.power <= 0f)
+            {
+                var hurt = LowestHPRatio(Teammates(actor));
+                return hurt != null && hurt.HPRatio < 0.75f ? 2f : 0f;
+            }
+            if (s.TargetsAllies)
+            {
+                // 버프: 이미 같은 버프가 걸려 있으면 사용 안 함
+                if (s.applyEffect == StatusType.None) return 0.5f;
+                foreach (var u in Teammates(actor))
+                    if (u.IsAlive && !HasEffect(u, s.applyEffect)) return 1.6f;
+                return 0f;
+            }
+            // 공격: 피해 배율 + 약점 적 수 + 광역 가산
+            float score = s.power * s.hits;
+            int weak = 0, alive = 0;
+            foreach (var e in Opponents(actor))
+            {
+                if (!e.IsAlive) continue;
+                alive++;
+                if (!e.isBroken && e.IsWeakTo(s.element)) weak++;
+            }
+            if (s.target == TargetType.AllEnemies) score *= Mathf.Max(1, alive) * 0.7f;
+            if (weak > 0) score += 0.6f;
+            return score;
+        }
+
+        /// <summary>스킬 대상 선택(광역·자기 대상은 null).</summary>
+        private BattleUnit PickTarget(BattleUnit actor, BattleSkill s)
+        {
+            switch (s.target)
+            {
+                case TargetType.AllEnemies:
+                case TargetType.AllAllies:
+                case TargetType.Self:
+                    return null;
+                case TargetType.SingleAlly:
+                    if (s.IsHeal) return LowestHPRatio(Teammates(actor));
+                    // 버프: 효과가 없는 아군 중 공격력 높은 순
+                    BattleUnit pick = null;
+                    foreach (var u in Teammates(actor))
+                    {
+                        if (!u.IsAlive || (s.applyEffect != StatusType.None && HasEffect(u, s.applyEffect))) continue;
+                        if (pick == null || u.atk > pick.atk) pick = u;
+                    }
+                    return pick ?? LowestHPRatio(Teammates(actor));
+            }
+
+            // 단일 적: 약점(미브레이크) > 한 방에 처치 가능 > 최저 체력
+            BattleUnit best = null;
+            float bestScore = float.MinValue;
+            int estimate = Mathf.RoundToInt(actor.EffectiveAtk * s.power * s.hits);
+            foreach (var e in Opponents(actor))
+            {
+                if (!e.IsAlive) continue;
+                float score = 0f;
+                if (!e.isBroken && e.HasBreakSystem && e.IsWeakTo(s.element)) score += 100f;
+                if (e.isBroken) score += 20f;               // 브레이크 중 = 받는 피해 증가 구간
+                if (e.currentHP <= estimate) score += 50f;  // 마무리
+                score -= e.HPRatio * 10f;
+                if (score > bestScore) { best = e; bestScore = score; }
+            }
+            return best;
+        }
+
+        private static bool HasEffect(BattleUnit u, StatusType t)
+        {
+            foreach (var e in u.effects) if (e.type == t && e.remaining > 0) return true;
+            return false;
+        }
+
         private static bool HasUltimate(BattleUnit actor, out BattleSkill ult)
         {
             foreach (var s in actor.skills)

@@ -41,10 +41,22 @@ namespace SubcultureRPG.Battle.UI
         private RectTransform _retryRt;
         private System.Action _onExit;
 
+        // 자동 전투 · 배속 (설정은 PlayerPrefs에 저장 → 다음 전투에도 유지)
+        private const string AutoKey = "battle.auto", SpeedKey = "battle.speed";
+        private static readonly float[] Speeds = { 1f, 2f };
+        private Button _autoBtn, _speedBtn;
+        private Image _autoBg, _speedBg;
+        private TextMeshProUGUI _autoLabel, _speedLabel;
+        private bool _speedUnlocked = true;          // 허브가 진행도에 따라 지정(독립 전투 씬은 해금 상태)
+        private string _speedLockHint = "";
+        private int _speedIndex;
+        private Coroutine _hintRoutine;
+
         private void Awake()
         {
             if (controller == null) controller = FindAnyObjectByType<BattleController>();
             BuildUI();
+            LoadBattleSettings();
         }
 
         private void OnEnable()
@@ -56,6 +68,7 @@ namespace SubcultureRPG.Battle.UI
             controller.OnActionResolved += HandleResolved;
             controller.OnStatusTick += HandleStatusTick;
             controller.OnBattleEnd += HandleEnd;
+            controller.OnAutoBattleChanged += HandleAutoChanged;
         }
 
         private void OnDisable()
@@ -67,6 +80,7 @@ namespace SubcultureRPG.Battle.UI
             controller.OnActionResolved -= HandleResolved;
             controller.OnStatusTick -= HandleStatusTick;
             controller.OnBattleEnd -= HandleEnd;
+            controller.OnAutoBattleChanged -= HandleAutoChanged;
         }
 
         private void Start()
@@ -101,6 +115,106 @@ namespace SubcultureRPG.Battle.UI
         public void SetResultDetail(string richText)
         {
             if (_resultDetail != null) _resultDetail.text = richText ?? "";
+        }
+
+        // ---------------- 자동 전투 · 배속 ----------------
+
+        /// <summary>
+        /// 배속 해금 여부(허브에서 진행도로 지정). 잠기면 1배속으로 고정, 누르면 lockedHint 표시.
+        /// </summary>
+        public void SetSpeedUnlocked(bool unlocked, string lockedHint = "")
+        {
+            _speedUnlocked = unlocked;
+            _speedLockHint = lockedHint ?? "";
+            ApplySpeed();
+        }
+
+        private void LoadBattleSettings()
+        {
+            int savedAuto = 0, savedSpeed = 0;
+            try { savedAuto = PlayerPrefs.GetInt(AutoKey, 0); savedSpeed = PlayerPrefs.GetInt(SpeedKey, 0); } catch { }
+            _speedIndex = Mathf.Clamp(savedSpeed, 0, Speeds.Length - 1);
+            if (controller != null) controller.AutoBattle = savedAuto != 0;
+            RefreshAutoButton();
+            ApplySpeed();
+        }
+
+        private void ToggleAuto()
+        {
+            if (controller == null) return;
+            controller.AutoBattle = !controller.AutoBattle;
+            PlayerPrefs.SetInt(AutoKey, controller.AutoBattle ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        private void CycleSpeed()
+        {
+            if (!_speedUnlocked)
+            {
+                ShowHint(string.IsNullOrEmpty(_speedLockHint) ? "아직 배속을 쓸 수 없습니다" : _speedLockHint);
+                return;
+            }
+            _speedIndex = (_speedIndex + 1) % Speeds.Length;
+            PlayerPrefs.SetInt(SpeedKey, _speedIndex);
+            PlayerPrefs.Save();
+            ApplySpeed();
+        }
+
+        private void ApplySpeed()
+        {
+            float speed = _speedUnlocked ? Speeds[_speedIndex] : 1f;
+            if (controller != null) controller.SetSpeed(speed);
+            if (_speedLabel == null) return;
+            if (_speedUnlocked)
+            {
+                bool fast = speed > 1f;
+                _speedLabel.text = $"배속 ×{speed:0}";
+                _speedLabel.color = fast ? new Color(1f, 0.88f, 0.45f) : Color.white;
+                _speedBg.color = fast ? new Color(0.85f, 0.55f, 0.15f, 0.9f) : new Color(1, 1, 1, 0.14f);
+            }
+            else
+            {
+                _speedLabel.text = "배속 ×1 <size=70%><color=#8A90A0>잠김</color></size>";
+                _speedLabel.color = new Color(0.7f, 0.72f, 0.78f);
+                _speedBg.color = new Color(1, 1, 1, 0.07f);
+            }
+        }
+
+        private void HandleAutoChanged(bool on)
+        {
+            RefreshAutoButton();
+            if (on && _skillBarGO != null && (_skillBarGO.activeSelf || _selecting || controller.WaitingForInput))
+            {
+                // 입력 대기 중 켬 → 컨트롤러가 바로 AI 행동으로 진행
+                _skillBarGO.SetActive(false);
+                _selecting = false; _pendingSkill = null;
+                ClearTargetable();
+                SetInstruction("");
+            }
+        }
+
+        private void RefreshAutoButton()
+        {
+            if (_autoLabel == null) return;
+            bool on = controller != null && controller.AutoBattle;
+            _autoLabel.text = on ? "자동 ON" : "자동 OFF";
+            _autoLabel.color = on ? Color.white : new Color(0.8f, 0.82f, 0.88f);
+            _autoBg.color = on ? new Color(0.15f, 0.55f, 0.85f, 0.92f) : new Color(1, 1, 1, 0.14f);
+        }
+
+        private void ShowHint(string text)
+        {
+            if (_hintRoutine != null) StopCoroutine(_hintRoutine);
+            _hintRoutine = StartCoroutine(HintRoutine(text));
+        }
+
+        private IEnumerator HintRoutine(string text)
+        {
+            string before = _instruction.gameObject.activeSelf ? _instruction.text : "";
+            SetInstruction(text);
+            yield return new WaitForSecondsRealtime(1.8f);
+            if (_instruction.text == text) SetInstruction(controller != null && controller.WaitingForInput ? before : "");
+            _hintRoutine = null;
         }
 
         private void RequestExit()
@@ -284,7 +398,25 @@ namespace SubcultureRPG.Battle.UI
             _exitBtn.onClick.AddListener(RequestExit);
             _exitBtn.gameObject.SetActive(false);
 
+            // 자동 전투 · 배속(우상단)
+            _speedBtn = CornerButton("Speed", rootT, new Vector2(-30, -30), out _speedBg, out _speedLabel);
+            _speedBtn.onClick.AddListener(CycleSpeed);
+            _autoBtn = CornerButton("Auto", rootT, new Vector2(-200, -30), out _autoBg, out _autoLabel);
+            _autoBtn.onClick.AddListener(ToggleAuto);
+
             BuildResultOverlay(rootT);
+        }
+
+        private Button CornerButton(string name, Transform parent, Vector2 pos, out Image bg, out TextMeshProUGUI label)
+        {
+            var b = UIFactory.AddButton(name, parent, "", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var rt = (RectTransform)b.transform;
+            UIFactory.Anchor(rt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            rt.sizeDelta = new Vector2(155, 44); rt.anchoredPosition = pos;
+            bg = b.GetComponent<Image>();
+            label = b.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null) { label.fontStyle = FontStyles.Bold; label.richText = true; }
+            return b;
         }
 
         private RectTransform MakeRow(string name, Transform parent, Vector2 anchor, Vector2 pos, float spacing)

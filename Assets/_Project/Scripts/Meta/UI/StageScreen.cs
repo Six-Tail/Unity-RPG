@@ -21,6 +21,8 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private StageProgress progress;
         [SerializeField] private TMP_FontAsset font;
 
+        public StageDatabase Database => database;
+
         /// <summary>'편성 후 출격'을 눌렀을 때(선택 스테이지).</summary>
         public event System.Action<StageData> OnSortie;
 
