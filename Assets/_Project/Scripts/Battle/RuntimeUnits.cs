@@ -7,7 +7,7 @@ namespace SubcultureRPG.Battle
 {
     /// <summary>
     /// CharacterData로부터 전투 유닛(BattleUnitData)을 얻습니다.
-    /// 저작된 유닛이 있으면 그걸, 없으면 성급 기반으로 런타임 생성 → 뽑은 캐릭터가 바로 전투 가능.
+    /// 저작된 유닛이 있으면 그걸, 없으면 성급·속성·역할 기반으로 런타임 생성 → 뽑은 캐릭터가 바로 전투 가능.
     /// (Meta에 의존하지 않도록 저작 유닛 조회는 델리게이트로 주입)
     /// </summary>
     public static class RuntimeUnits
@@ -23,48 +23,94 @@ namespace SubcultureRPG.Battle
             return Generate(c, level, skillLevel);
         }
 
-        /// <summary>성급 기반 기본 유닛 생성(속성 + 기본/스킬/필살기). 스킬 레벨로 위력 스케일.</summary>
+        /// <summary>
+        /// 성급·역할 기반 유닛 생성. 속성은 캐릭터 지정값.
+        /// 스킬 레벨로 피해/회복/효과량을 스케일(+10%/Lv).
+        /// </summary>
         public static BattleUnitData Generate(CharacterData c, int level, int skillLevel = 1)
         {
             int r = c != null ? (int)c.rarity : 3;      // 3..6
             float mul = 1f + 0.35f * (r - 3);           // 3성=1.0 … 6성≈2.05
-            Element el = PickElement(c);
+            Element el = c != null ? c.element : Element.Physical;
+            Role role = c != null ? c.role : Role.Dealer;
+            var rs = RoleStats(role);
 
             var u = ScriptableObject.CreateInstance<BattleUnitData>();
             u.character = c;
             u.displayName = c != null && !string.IsNullOrEmpty(c.displayName) ? c.displayName : "유닛";
             u.level = Mathf.Max(1, level);
             u.element = el;
-            int baseHP = Mathf.RoundToInt(800 * mul);
-            int baseAtk = Mathf.RoundToInt(90 * mul);
-            int baseDef = Mathf.RoundToInt(45 * mul);
+
+            int baseHP = Mathf.RoundToInt(800 * mul * rs.hp);
+            int baseAtk = Mathf.RoundToInt(90 * mul * rs.atk);
+            int baseDef = Mathf.RoundToInt(45 * mul * rs.def);
             u.baseStats = new BattleStats
             {
                 maxHP = baseHP,
                 atk = baseAtk,
                 def = baseDef,
-                spd = 95 + 5 * (r - 3),
-                critRate = 0.05f,
+                spd = 95 + 5 * (r - 3) + rs.spd,
+                critRate = role == Role.Dealer ? 0.12f : 0.05f,
                 critDmg = 0.5f,
                 hpGrowth = Mathf.RoundToInt(baseHP * 0.06f),   // 레벨당 +6%
                 atkGrowth = Mathf.RoundToInt(baseAtk * 0.06f),
                 defGrowth = Mathf.RoundToInt(baseDef * 0.06f)
             };
-            float sMul = 1f + 0.1f * Mathf.Max(0, skillLevel - 1); // 스킬 레벨당 +10% 위력
+
+            float sMul = 1f + 0.1f * Mathf.Max(0, skillLevel - 1); // 스킬 레벨당 +10%
             u.skills = new List<BattleSkill>
             {
                 MakeSkill("기본 공격", SkillCategory.Basic, el, TargetType.SingleEnemy, 1.0f * sMul, 20, 10),
-                MakeSkill("스킬", SkillCategory.Skill, el, TargetType.SingleEnemy, 1.8f * sMul, 30, 20),
-                MakeSkill("필살기", SkillCategory.Ultimate, el, TargetType.AllEnemies, 3.2f * sMul, 0, 20),
+                RoleSkill(role, el, sMul),
+                RoleUltimate(role, el, sMul),
             };
             return u;
         }
 
-        /// <summary>이름 해시로 속성을 분산(저작 데이터가 없을 때의 임시 규칙).</summary>
-        private static Element PickElement(CharacterData c)
+        // ---------------- 역할별 구성 ----------------
+
+        private struct RoleMul { public float hp, atk, def; public int spd; }
+
+        private static RoleMul RoleStats(Role role) => role switch
         {
-            int h = c != null && !string.IsNullOrEmpty(c.displayName) ? Mathf.Abs(c.displayName.GetHashCode()) : 0;
-            return (Element)(h % 5);
+            Role.Tank => new RoleMul { hp = 1.35f, atk = 0.8f, def = 1.45f, spd = -5 },
+            Role.Support => new RoleMul { hp = 1.0f, atk = 0.95f, def = 1.0f, spd = 10 },
+            Role.Healer => new RoleMul { hp = 1.05f, atk = 0.9f, def = 1.05f, spd = 0 },
+            _ => new RoleMul { hp = 0.9f, atk = 1.25f, def = 0.9f, spd = 5 }, // 딜러
+        };
+
+        private static BattleSkill RoleSkill(Role role, Element el, float sMul)
+        {
+            switch (role)
+            {
+                case Role.Tank:
+                    return WithEffect(MakeSkill("방어 태세", SkillCategory.Skill, el, TargetType.Self, 0f, 30, 0),
+                        StatusType.DefUp, 0.5f * sMul, 2);
+                case Role.Support:
+                    return WithEffect(MakeSkill("전투 고무", SkillCategory.Skill, el, TargetType.AllAllies, 0f, 30, 0),
+                        StatusType.AtkUp, 0.25f * sMul, 2);
+                case Role.Healer:
+                    return WithHeal(MakeSkill("치유", SkillCategory.Skill, el, TargetType.SingleAlly, 0f, 30, 0), 2.0f * sMul);
+                default:
+                    return MakeSkill("스킬", SkillCategory.Skill, el, TargetType.SingleEnemy, 1.8f * sMul, 30, 20);
+            }
+        }
+
+        private static BattleSkill RoleUltimate(Role role, Element el, float sMul)
+        {
+            switch (role)
+            {
+                case Role.Tank:
+                    return WithEffect(MakeSkill("철벽 강타", SkillCategory.Ultimate, el, TargetType.AllEnemies, 2.2f * sMul, 0, 20),
+                        StatusType.DefDown, 0.2f, 2);
+                case Role.Support:
+                    return WithEffect(MakeSkill("총공격 신호", SkillCategory.Ultimate, el, TargetType.AllEnemies, 2.4f * sMul, 0, 20),
+                        StatusType.AtkDown, 0.2f, 2);
+                case Role.Healer:
+                    return WithHeal(MakeSkill("치유의 빛", SkillCategory.Ultimate, el, TargetType.AllAllies, 0f, 0, 0), 1.4f * sMul);
+                default:
+                    return MakeSkill("필살기", SkillCategory.Ultimate, el, TargetType.AllEnemies, 3.2f * sMul, 0, 20);
+            }
         }
 
         private static BattleSkill MakeSkill(string name, SkillCategory cat, Element element, TargetType target, float power, int energyGain, int breakDamage)
@@ -78,6 +124,21 @@ namespace SubcultureRPG.Battle
             s.hits = 1;
             s.energyGain = energyGain;
             s.breakDamage = breakDamage;
+            return s;
+        }
+
+        private static BattleSkill WithEffect(BattleSkill s, StatusType type, float magnitude, int duration)
+        {
+            s.applyEffect = type;
+            s.effectMagnitude = magnitude;
+            s.effectDuration = duration;
+            s.effectChance = 1f;
+            return s;
+        }
+
+        private static BattleSkill WithHeal(BattleSkill s, float heal)
+        {
+            s.heal = heal;
             return s;
         }
     }

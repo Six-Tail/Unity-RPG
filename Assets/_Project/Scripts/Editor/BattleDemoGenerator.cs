@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using TMPro;
+using SubcultureRPG.Characters;
 using SubcultureRPG.Battle;
 using SubcultureRPG.Battle.UI;
 

@@ -15,6 +15,8 @@ MonoBehaviour:
   id: c_luna
   displayName: "\uB8E8\uB098"
   rarity: 5
+  element: 2
+  role: 0
   portrait: {fileID: 0}
   thumbnail: {fileID: 0}
   live2DModelPrefab: {fileID: 0}

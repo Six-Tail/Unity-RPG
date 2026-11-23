@@ -14,6 +14,12 @@ namespace SubcultureRPG.Characters
         public string displayName;
         public Rarity rarity = Rarity.R3;
 
+        [Header("특성")]
+        [Tooltip("속성. 전투에서 이 속성으로 공격하며, 적의 약점 판정에 쓰입니다.")]
+        public Element element = Element.Physical;
+        [Tooltip("역할(포지션). 생성 유닛의 스탯 분배와 스킬 구성이 달라집니다.")]
+        public Role role = Role.Dealer;
+
         [Header("정적 일러스트 (5성 이하)")]
         [Tooltip("전투용 전신/반신 일러스트. AI 출력 PNG를 Sprite로 임포트해 연결.")]
         public Sprite portrait;

@@ -25,15 +25,7 @@ namespace SubcultureRPG.Battle
         Self,
     }
 
-    /// <summary>속성.</summary>
-    public enum Element
-    {
-        Physical, // 물리
-        Fire,     // 화염
-        Ice,      // 얼음
-        Lightning,// 번개
-        Wind,     // 바람
-    }
+    // 속성(Element)은 캐릭터 고유 특성이라 SubcultureRPG.Characters(CharacterTraits.cs)로 이동했습니다.
 
     /// <summary>버프/디버프/지속효과 종류.</summary>
     public enum StatusType

@@ -1,4 +1,5 @@
 using UnityEngine;
+using SubcultureRPG.Characters;
 
 namespace SubcultureRPG.Battle
 {

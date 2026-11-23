@@ -99,6 +99,7 @@ namespace SubcultureRPG.EditorTools
             c.id = id;
             c.displayName = name;
             c.rarity = rarity;
+            DemoCharacters.ApplyTraits(c);
             EditorUtility.SetDirty(c);
             return c;
         }
