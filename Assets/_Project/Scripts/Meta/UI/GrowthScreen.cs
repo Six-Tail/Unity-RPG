@@ -27,7 +27,8 @@ namespace SubcultureRPG.Meta.UI
         private Image _detPortrait, _expFill;
         private TextMeshProUGUI _matText, _detName, _detLevel, _detStats, _detExp, _detSkill, _toast;
         private TextMeshProUGUI _potionLbl, _crystalLbl, _ascendLbl, _skillLbl;
-        private Button _potionBtn, _crystalBtn, _ascendBtn, _skillBtn;
+        private Button _potionBtn, _crystalBtn, _ascendBtn, _skillBtn, _backBtn;
+        private System.Action _onBack;
 
         private CharacterData _selected;
         private readonly Dictionary<CharacterData, Image> _cardHL = new();
@@ -59,7 +60,22 @@ namespace SubcultureRPG.Meta.UI
             Refresh();
         }
 
-        public void Show(bool on) { if (_root != null) _root.SetActive(on); }
+        public void Show(bool on)
+        {
+            if (_root != null) _root.SetActive(on);
+            if (!on) return;
+            RebuildGrid();
+            if (_selected == null) SelectFirst();
+            RefreshHighlights();
+            Refresh();
+        }
+
+        /// <summary>'← 홈' 버튼 동작 지정(null이면 버튼 숨김).</summary>
+        public void SetBackAction(System.Action onBack)
+        {
+            _onBack = onBack;
+            if (_backBtn != null) _backBtn.gameObject.SetActive(onBack != null);
+        }
 
         private void OnRosterChanged()
         {
@@ -320,6 +336,14 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(crt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
             crt.sizeDelta = new Vector2(240, 48); crt.anchoredPosition = new Vector2(30, 30);
             charge.onClick.AddListener(() => { if (inventory != null) inventory.GrantTest(); });
+
+            // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
+            _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var bkrt = (RectTransform)_backBtn.transform;
+            UIFactory.Anchor(bkrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            bkrt.sizeDelta = new Vector2(150, 44); bkrt.anchoredPosition = new Vector2(30, -30);
+            _backBtn.onClick.AddListener(() => _onBack?.Invoke());
+            _backBtn.gameObject.SetActive(false);
 
             _toast = UIFactory.AddText("Toast", _root.transform, "", 22, font, new Color(1f, 0.6f, 0.5f), TextAlignmentOptions.Center, FontStyles.Bold);
             var tort = _toast.rectTransform;

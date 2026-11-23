@@ -36,6 +36,11 @@ namespace SubcultureRPG.Battle.UI
         private bool _selecting;
         private BattleEngine _builtEngine;
 
+        // 허브(내비게이터)용 나가기
+        private Button _exitBtn, _resultExitBtn;
+        private RectTransform _retryRt;
+        private System.Action _onExit;
+
         private void Awake()
         {
             if (controller == null) controller = FindAnyObjectByType<BattleController>();
@@ -69,6 +74,29 @@ namespace SubcultureRPG.Battle.UI
             // 컨트롤러가 먼저 시작해 OnBattleStart를 놓친 경우 대비
             if (controller != null && controller.Engine != null && _builtEngine != controller.Engine)
                 HandleStart(controller.Engine);
+        }
+
+        /// <summary>표시 on/off(허브 전환용). HUD 컴포넌트 자체는 활성 유지 → 이벤트·코루틴 유지.</summary>
+        public void Show(bool on) { if (_canvas != null) _canvas.gameObject.SetActive(on); }
+
+        /// <summary>'나가기/홈으로' 버튼 동작 지정(null이면 숨김).</summary>
+        public void SetExitAction(System.Action onExit)
+        {
+            _onExit = onExit;
+            bool v = onExit != null;
+            if (_exitBtn != null) _exitBtn.gameObject.SetActive(v);
+            if (_resultExitBtn != null) _resultExitBtn.gameObject.SetActive(v);
+            if (_retryRt != null) _retryRt.anchoredPosition = new Vector2(v ? -125 : 0, -70);
+        }
+
+        private void RequestExit()
+        {
+            _resultGO.SetActive(false);
+            _skillBarGO.SetActive(false);
+            _selecting = false; _pendingSkill = null;
+            ClearTargetable();
+            SetInstruction("");
+            _onExit?.Invoke();
         }
 
         // ---------------- 이벤트 핸들러 ----------------
@@ -233,6 +261,14 @@ namespace SubcultureRPG.Battle.UI
             _skillBarGO = _skillBar.gameObject;
             _skillBarGO.SetActive(false);
 
+            // 나가기(좌상단) — 허브에서만 표시
+            _exitBtn = UIFactory.AddButton("Exit", rootT, "← 나가기", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var exrt = (RectTransform)_exitBtn.transform;
+            UIFactory.Anchor(exrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            exrt.sizeDelta = new Vector2(150, 44); exrt.anchoredPosition = new Vector2(30, -30);
+            _exitBtn.onClick.AddListener(RequestExit);
+            _exitBtn.gameObject.SetActive(false);
+
             BuildResultOverlay(rootT);
         }
 
@@ -265,6 +301,14 @@ namespace SubcultureRPG.Battle.UI
             UIFactory.Anchor(rrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             rrt.sizeDelta = new Vector2(220, 70); rrt.anchoredPosition = new Vector2(0, -70);
             retry.onClick.AddListener(() => { _resultGO.SetActive(false); controller.Begin(); });
+            _retryRt = rrt;
+
+            _resultExitBtn = UIFactory.AddButton("Home", _resultGO.transform, "홈으로", 28, font, new Color(1, 1, 1, 0.16f), Color.white);
+            var hrt = (RectTransform)_resultExitBtn.transform;
+            UIFactory.Anchor(hrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            hrt.sizeDelta = new Vector2(220, 70); hrt.anchoredPosition = new Vector2(125, -70);
+            _resultExitBtn.onClick.AddListener(RequestExit);
+            _resultExitBtn.gameObject.SetActive(false);
 
             _resultGO.SetActive(false);
         }

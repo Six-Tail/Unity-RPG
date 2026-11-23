@@ -44,6 +44,17 @@ git -C "D:/Users/jhbae/Downloads/subculture-rpg" commit -m "chore: Unity가 생�
 
 ---
 
+## 플레이하기
+
+1. 메뉴 **`SubcultureRPG > 메인 씬 생성 (홈 허브)`** → `Assets/_Project/Scenes/Main.unity` 생성(빌드 첫 씬 등록)
+2. ▶ Play → 홈에서 **가챠 / 육성 / 편성·전투**로 이동
+
+시스템별 문서:
+[메인 허브](docs/main-hub.md) · [가챠](docs/gacha.md) · [가챠 화면](docs/gacha-screen.md) · [가챠 결과 UI](docs/gacha-ui.md) ·
+[전투](docs/battle.md) · [전투 UI](docs/battle-ui.md) · [가챠↔전투 연동](docs/gacha-battle-link.md) · [육성](docs/growth.md) · [폰트](docs/fonts.md)
+
+---
+
 ## 어디에 뭐가 있나
 
 - `Assets/_Project/` — 우리가 만드는 모든 것 (언더스코어로 맨 위 정렬)

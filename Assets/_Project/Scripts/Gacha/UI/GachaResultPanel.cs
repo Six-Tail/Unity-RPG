@@ -282,9 +282,21 @@ namespace SubcultureRPG.Gacha.UI
             var gold = new Color(0.80f, 0.60f, 0.20f, 0.95f);
             var gray = new Color(1, 1, 1, 0.14f);
 
-            MakeFooterButton("1회 뽑기", purple, () => controller?.PullOnce());
-            MakeFooterButton("10연 뽑기", gold, () => controller?.PullMulti());
+            MakeFooterButton("1회 뽑기", purple, () => RequestPull(false));
+            MakeFooterButton("10연 뽑기", gold, () => RequestPull(true));
             MakeFooterButton("닫기", gray, Close);
+        }
+
+        private System.Action<bool> _pullHandler;
+
+        /// <summary>하단 재뽑기 버튼을 외부(재화 차감 등)에 위임. null이면 컨트롤러로 바로 뽑기.</summary>
+        public void SetPullHandler(System.Action<bool> handler) => _pullHandler = handler;
+
+        private void RequestPull(bool multi)
+        {
+            if (_pullHandler != null) { _pullHandler(multi); return; }
+            if (controller == null) return;
+            if (multi) controller.PullMulti(); else controller.PullOnce();
         }
 
         private void MakeFooterButton(string label, Color bg, UnityEngine.Events.UnityAction onClick)

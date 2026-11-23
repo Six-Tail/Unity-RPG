@@ -32,6 +32,8 @@ namespace SubcultureRPG.Meta
         private bool grantAllOnStart = false;
         [SerializeField, Tooltip("grantAllOnStart 및 조회용 데이터베이스.")]
         private GameDatabase database;
+        [SerializeField, Tooltip("보유 캐릭터가 하나도 없을 때(새 세이브) 지급할 스타터 캐릭터.")]
+        private List<CharacterData> starterCharacters = new();
         [SerializeField] private string saveKey = "roster";
 
         private readonly List<OwnedCharacter> _owned = new();
@@ -54,10 +56,20 @@ namespace SubcultureRPG.Meta
 
         private void Start()
         {
+            bool changed = false;
+
+            // 새 세이브면 스타터 지급
+            if (_owned.Count == 0 && starterCharacters != null)
+                foreach (var c in starterCharacters)
+                    if (c != null && !IsOwned(c)) { Add(c, false); changed = true; }
+
+            // 테스트용 전원 지급
             if (grantAllOnStart && database != null)
-            {
                 foreach (var c in database.Characters)
-                    if (!IsOwned(c)) Add(c, false);
+                    if (!IsOwned(c)) { Add(c, false); changed = true; }
+
+            if (changed)
+            {
                 Save();
                 OnRosterChanged?.Invoke();
             }

@@ -21,12 +21,17 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private BattleLauncher launcher;
         [SerializeField] private TMP_FontAsset font;
         [SerializeField] private int maxParty = 4;
+        [SerializeField, Tooltip("시작 시 화면 표시. 허브(내비게이터)에서 쓸 땐 끄세요.")] private bool showOnStart = true;
 
         private GameObject _root;
         private RectTransform _grid;
         private GridLayoutGroup _gridLayout;
         private TextMeshProUGUI _countText;
-        private Button _startButton;
+        private Button _startButton, _backBtn;
+        private System.Action _onBack;
+
+        /// <summary>'전투 시작'으로 전투에 들어갔을 때.</summary>
+        public event System.Action OnLaunched;
 
         private readonly Vector2 _cell = new(150, 190);
         private readonly Vector2 _spacing = new(12, 12);
@@ -46,10 +51,21 @@ namespace SubcultureRPG.Meta.UI
         private void Start()
         {
             Rebuild();
-            Show(true);
+            if (_root != null) _root.SetActive(showOnStart);
         }
 
-        public void Show(bool on) { if (_root != null) _root.SetActive(on); }
+        public void Show(bool on)
+        {
+            if (on) Rebuild();
+            if (_root != null) _root.SetActive(on);
+        }
+
+        /// <summary>'← 홈' 버튼 동작 지정(null이면 버튼 숨김).</summary>
+        public void SetBackAction(System.Action onBack)
+        {
+            _onBack = onBack;
+            if (_backBtn != null) _backBtn.gameObject.SetActive(onBack != null);
+        }
 
         // ---------------- UI 구성 ----------------
 
@@ -94,6 +110,14 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(srt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
             srt.sizeDelta = new Vector2(280, 72); srt.anchoredPosition = new Vector2(0, 60);
             _startButton.onClick.AddListener(OnStart);
+
+            // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
+            _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var bkrt = (RectTransform)_backBtn.transform;
+            UIFactory.Anchor(bkrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            bkrt.sizeDelta = new Vector2(150, 44); bkrt.anchoredPosition = new Vector2(30, -34);
+            _backBtn.onClick.AddListener(() => _onBack?.Invoke());
+            _backBtn.gameObject.SetActive(false);
         }
 
         // ---------------- 목록 갱신 ----------------
@@ -209,6 +233,7 @@ namespace SubcultureRPG.Meta.UI
             if (_selected.Count == 0 || launcher == null) return;
             launcher.Launch(new List<CharacterData>(_selected));
             Show(false);
+            OnLaunched?.Invoke();
         }
 
         // ---------------- 유틸 ----------------

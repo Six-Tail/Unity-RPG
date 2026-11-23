@@ -27,7 +27,8 @@ namespace SubcultureRPG.Meta.UI
         private GameObject _root, _ratesOverlay;
         private Image _portrait;
         private TextMeshProUGUI _crystalText, _bannerText, _pityText, _featuredName, _featuredStars, _toast, _ratesText;
-        private Button _singleBtn, _multiBtn;
+        private Button _singleBtn, _multiBtn, _backBtn;
+        private System.Action _onBack;
 
         private void Awake()
         {
@@ -52,18 +53,38 @@ namespace SubcultureRPG.Meta.UI
         {
             BuildFeatured();
             Refresh();
+
+            // 결과 화면의 재뽑기도 이 화면을 거쳐 크리스탈 차감(부족하면 결과 화면을 닫고 안내)
+            var panel = FindAnyObjectByType<SubcultureRPG.Gacha.UI.GachaResultPanel>();
+            if (panel != null)
+                panel.SetPullHandler(multi => { if (!RequestPull(multi)) panel.Close(); });
         }
 
-        public void Show(bool on) { if (_root != null) _root.SetActive(on); }
+        public void Show(bool on)
+        {
+            if (_root != null) _root.SetActive(on);
+            if (on) Refresh();
+        }
+
+        /// <summary>'← 홈' 버튼 동작 지정(null이면 버튼 숨김).</summary>
+        public void SetBackAction(System.Action onBack)
+        {
+            _onBack = onBack;
+            if (_backBtn != null) _backBtn.gameObject.SetActive(onBack != null);
+        }
 
         private void OnPulled(List<GachaResult> _) => Refresh();
 
-        private void DoPull(int cost, bool multi)
+        /// <summary>비용 차감 포함 뽑기 요청(결과 화면 재뽑기 등 외부용). 성공 여부 반환.</summary>
+        public bool RequestPull(bool multi) => DoPull(multi ? multiCost : singleCost, multi);
+
+        private bool DoPull(int cost, bool multi)
         {
-            if (gacha == null) return;
-            if (wallet != null && !wallet.Spend(cost)) { Toast("크리스탈이 부족합니다"); return; }
+            if (gacha == null) return false;
+            if (wallet != null && !wallet.Spend(cost)) { Toast("크리스탈이 부족합니다"); return false; }
             if (multi) gacha.PullMulti(); else gacha.PullOnce();
             Refresh();
+            return true;
         }
 
         private void Refresh()
@@ -179,11 +200,19 @@ namespace SubcultureRPG.Meta.UI
             chrt.sizeDelta = new Vector2(260, 48); chrt.anchoredPosition = new Vector2(0, 30);
             charge.onClick.AddListener(() => { if (wallet != null) wallet.Add(chargeAmount); });
 
-            // 확률 보기 버튼(좌상단)
+            // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
+            _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var bkrt = (RectTransform)_backBtn.transform;
+            UIFactory.Anchor(bkrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            bkrt.sizeDelta = new Vector2(150, 44); bkrt.anchoredPosition = new Vector2(30, -34);
+            _backBtn.onClick.AddListener(() => _onBack?.Invoke());
+            _backBtn.gameObject.SetActive(false);
+
+            // 확률 보기 버튼(좌상단, 홈 버튼 옆)
             var ratesBtn = UIFactory.AddButton("RatesBtn", _root.transform, "확률 보기", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
             var rbrt = (RectTransform)ratesBtn.transform;
             UIFactory.Anchor(rbrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
-            rbrt.sizeDelta = new Vector2(150, 44); rbrt.anchoredPosition = new Vector2(30, -34);
+            rbrt.sizeDelta = new Vector2(150, 44); rbrt.anchoredPosition = new Vector2(196, -34);
             ratesBtn.onClick.AddListener(() => ShowRates(true));
 
             BuildRatesOverlay();
