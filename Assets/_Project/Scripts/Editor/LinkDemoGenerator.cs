@@ -175,14 +175,8 @@ namespace SubcultureRPG.EditorTools
             else Debug.LogError("[LinkDemoGenerator] 필드 못 찾음: " + field);
         }
 
-        private static TMP_FontAsset FindFont()
-        {
-            foreach (var guid in AssetDatabase.FindAssets("NanumGothic t:TMP_FontAsset"))
-                return AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(AssetDatabase.GUIDToAssetPath(guid));
-            foreach (var guid in AssetDatabase.FindAssets("t:TMP_FontAsset"))
-                return AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(AssetDatabase.GUIDToAssetPath(guid));
-            return null;
-        }
+        /// <summary>게임 폰트(공용 규칙: GameFont).</summary>
+        private static TMP_FontAsset FindFont() => GameFont.Find();
     }
 }
 #endif

@@ -166,6 +166,7 @@ MonoBehaviour:
   gacha: {fileID: 0}
   grantAllOnStart: 1
   database: {fileID: 11400000, guid: 31e5fb1d87baf324fa1590b7edd3aa3e, type: 2}
+  starterCharacters: []
   saveKey: roster
 --- !u!4 &438438234
 Transform:
@@ -306,7 +307,7 @@ MonoBehaviour:
   roster: {fileID: 438438233}
   database: {fileID: 11400000, guid: 31e5fb1d87baf324fa1590b7edd3aa3e, type: 2}
   inventory: {fileID: 438438232}
-  font: {fileID: 0}
+  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
 --- !u!4 &831307523
 Transform:
   m_ObjectHideFlags: 0
