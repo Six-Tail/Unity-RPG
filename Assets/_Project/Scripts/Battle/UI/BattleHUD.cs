@@ -28,7 +28,7 @@ namespace SubcultureRPG.Battle.UI
         private Canvas _canvas;
         private RectTransform _enemyRow, _allyRow, _turnStrip, _skillBar;
         private GameObject _skillBarGO, _resultGO;
-        private TextMeshProUGUI _instruction, _resultText, _spText;
+        private TextMeshProUGUI _instruction, _resultText, _resultDetail, _spText;
 
         private readonly Dictionary<BattleUnit, UnitPanel> _panels = new();
         private BattleUnit _inputActor;
@@ -86,7 +86,21 @@ namespace SubcultureRPG.Battle.UI
             bool v = onExit != null;
             if (_exitBtn != null) _exitBtn.gameObject.SetActive(v);
             if (_resultExitBtn != null) _resultExitBtn.gameObject.SetActive(v);
-            if (_retryRt != null) _retryRt.anchoredPosition = new Vector2(v ? -125 : 0, -70);
+            if (_retryRt != null) _retryRt.anchoredPosition = new Vector2(v ? -125 : 0, -170);
+        }
+
+        /// <summary>결과 화면 '홈으로' 버튼 문구(예: 스테이지로).</summary>
+        public void SetExitLabel(string label)
+        {
+            if (_resultExitBtn == null) return;
+            var t = _resultExitBtn.GetComponentInChildren<TextMeshProUGUI>();
+            if (t != null) t.text = string.IsNullOrEmpty(label) ? "홈으로" : label;
+        }
+
+        /// <summary>결과 화면 부가 정보(별 평가·보상 등, 리치 텍스트). 새 전투 시작 시 자동으로 비워짐.</summary>
+        public void SetResultDetail(string richText)
+        {
+            if (_resultDetail != null) _resultDetail.text = richText ?? "";
         }
 
         private void RequestExit()
@@ -107,6 +121,7 @@ namespace SubcultureRPG.Battle.UI
             _selecting = false; _pendingSkill = null; _inputActor = null;
             _skillBarGO.SetActive(false);
             _resultGO.SetActive(false);
+            SetResultDetail("");
             SetInstruction("");
 
             BuildPanels(engine);
@@ -294,19 +309,25 @@ namespace SubcultureRPG.Battle.UI
             _resultText = UIFactory.AddText("Text", _resultGO.transform, "", 72, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             var trt = _resultText.rectTransform;
             UIFactory.Anchor(trt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            trt.sizeDelta = new Vector2(800, 120); trt.anchoredPosition = new Vector2(0, 40);
+            trt.sizeDelta = new Vector2(800, 120); trt.anchoredPosition = new Vector2(0, 150);
+
+            _resultDetail = UIFactory.AddText("Detail", _resultGO.transform, "", 28, font, Color.white, TextAlignmentOptions.Center);
+            var drt = _resultDetail.rectTransform;
+            UIFactory.Anchor(drt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            drt.sizeDelta = new Vector2(1300, 200); drt.anchoredPosition = new Vector2(0, 0);
+            _resultDetail.lineSpacing = 12f;
 
             var retry = UIFactory.AddButton("Retry", _resultGO.transform, "다시", 28, font, new Color(0.8f, 0.6f, 0.2f, 0.95f), Color.white);
             var rrt = (RectTransform)retry.transform;
             UIFactory.Anchor(rrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            rrt.sizeDelta = new Vector2(220, 70); rrt.anchoredPosition = new Vector2(0, -70);
+            rrt.sizeDelta = new Vector2(220, 70); rrt.anchoredPosition = new Vector2(0, -170);
             retry.onClick.AddListener(() => { _resultGO.SetActive(false); controller.Begin(); });
             _retryRt = rrt;
 
             _resultExitBtn = UIFactory.AddButton("Home", _resultGO.transform, "홈으로", 28, font, new Color(1, 1, 1, 0.16f), Color.white);
             var hrt = (RectTransform)_resultExitBtn.transform;
             UIFactory.Anchor(hrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            hrt.sizeDelta = new Vector2(220, 70); hrt.anchoredPosition = new Vector2(125, -70);
+            hrt.sizeDelta = new Vector2(220, 70); hrt.anchoredPosition = new Vector2(125, -170);
             _resultExitBtn.onClick.AddListener(RequestExit);
             _resultExitBtn.gameObject.SetActive(false);
 

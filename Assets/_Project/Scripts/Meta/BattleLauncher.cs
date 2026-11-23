@@ -25,8 +25,11 @@ namespace SubcultureRPG.Meta
             if (roster == null) roster = FindAnyObjectByType<PlayerRoster>();
         }
 
-        /// <summary>파티 캐릭터로 전투 시작.</summary>
-        public void Launch(IList<CharacterData> party)
+        /// <summary>파티 캐릭터로 전투 시작(적 = 이 컴포넌트의 enemyTeam).</summary>
+        public void Launch(IList<CharacterData> party) => Launch(party, enemyTeam);
+
+        /// <summary>파티 캐릭터로 지정한 적과 전투 시작(스테이지 등).</summary>
+        public void Launch(IList<CharacterData> party, List<BattleUnitData> enemies)
         {
             if (controller == null || party == null || party.Count == 0) return;
 
@@ -44,7 +47,7 @@ namespace SubcultureRPG.Meta
                     allies.Add(RuntimeUnits.FromCharacter(c, lvl, lookup, skl, star, tr));
                 }
 
-            controller.SetTeams(allies, new List<BattleUnitData>(enemyTeam));
+            controller.SetTeams(allies, new List<BattleUnitData>(enemies ?? enemyTeam));
         }
     }
 }
