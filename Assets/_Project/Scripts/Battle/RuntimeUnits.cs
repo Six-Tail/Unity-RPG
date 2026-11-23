@@ -16,7 +16,7 @@ namespace SubcultureRPG.Battle
         /// <param name="transcend">초월 단계(6성일 때만 유효).</param>
         public static BattleUnitData FromCharacter(CharacterData c, int level,
             Func<CharacterData, BattleUnitData> authoredLookup = null, int skillLevel = 1,
-            int star = 0, int transcend = 0)
+            int star = 0, int transcend = 0, int[] skillLevels = null)
         {
             Rarity native = c != null ? c.rarity : Rarity.R3;
             if (star <= 0) star = (int)native;
@@ -30,7 +30,7 @@ namespace SubcultureRPG.Battle
                     return bonus ? TranscendBonus.Apply(authored, native, star, transcend, role, inPlace: false) : authored;
             }
 
-            var u = Generate(c, level, skillLevel);
+            var u = Generate(c, level, skillLevel, skillLevels);
             return bonus ? TranscendBonus.Apply(u, native, star, transcend, role, inPlace: true) : u;
         }
 
@@ -38,7 +38,7 @@ namespace SubcultureRPG.Battle
         /// 성급·역할 기반 유닛 생성. 속성은 캐릭터 지정값.
         /// 스킬 레벨로 피해/회복/효과량을 스케일(+10%/Lv).
         /// </summary>
-        public static BattleUnitData Generate(CharacterData c, int level, int skillLevel = 1)
+        public static BattleUnitData Generate(CharacterData c, int level, int skillLevel = 1, int[] skillLevels = null)
         {
             int r = c != null ? (int)c.rarity : 3;      // 3..6
             float mul = 1f + 0.35f * (r - 3);           // 3성=1.0 … 6성≈2.05
@@ -68,12 +68,13 @@ namespace SubcultureRPG.Battle
                 defGrowth = Mathf.RoundToInt(baseDef * 0.06f)
             };
 
-            float sMul = 1f + 0.1f * Mathf.Max(0, skillLevel - 1); // 스킬 레벨당 +10%
+            // 스킬 레벨당 +10% (기본 공격·스킬·궁극기 각각)
+            float Mul(int i) => 1f + 0.1f * Mathf.Max(0, (skillLevels != null && skillLevels.Length > i ? skillLevels[i] : skillLevel) - 1);
             u.skills = new List<BattleSkill>
             {
-                MakeSkill("기본 공격", SkillCategory.Basic, el, TargetType.SingleEnemy, 1.0f * sMul, 20, 10),
-                RoleSkill(role, el, sMul),
-                RoleUltimate(role, el, sMul),
+                MakeSkill("기본 공격", SkillCategory.Basic, el, TargetType.SingleEnemy, 1.0f * Mul(0), 20, 10),
+                RoleSkill(role, el, Mul(1)),
+                RoleUltimate(role, el, Mul(2)),
             };
             return u;
         }

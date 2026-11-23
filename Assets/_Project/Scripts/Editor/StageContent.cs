@@ -155,6 +155,7 @@ namespace SubcultureRPG.EditorTools
                 var after = Find(TierUnlockChapters[t - 1], StagesPerChapter);
                 dungeons.Add(ResourceDungeon(StageKind.GoldDungeon, t, after));
                 dungeons.Add(ResourceDungeon(StageKind.SkillBookDungeon, t, after));
+                dungeons.Add(ResourceDungeon(StageKind.ExpDungeon, t, after));
             }
 
             var db = LoadOrCreate<StageDatabase>(Root + "/StageDatabase.asset");
@@ -325,9 +326,29 @@ namespace SubcultureRPG.EditorTools
 
         public const string GoldMinion = "황금 정령", GoldBoss = "황금 골렘";
         public const string BookMinion = "떠도는 마도서", BookBoss = "금서의 파수꾼";
+        public const string ExpMinion = "경험의 정령", ExpBoss = "지혜의 고목";
 
         private static readonly int[] GoldReward = { 12000, 30000, 55000, 85000, 120000 };
-        private static readonly int[] BookReward = { 2, 4, 6, 9, 12 };
+        // 스킬 교본 던전: 단계가 오를수록 높은 등급 교본 (전설의 비전서는 이벤트·상점 전용)
+        private static readonly (MaterialType type, int n)[][] BookReward =
+        {
+            new[] { (MaterialType.SkillBook, 4) },
+            new[] { (MaterialType.SkillBook, 3), (MaterialType.SkillBookBlue, 2) },
+            new[] { (MaterialType.SkillBookBlue, 3), (MaterialType.SkillBookPurple, 1) },
+            new[] { (MaterialType.SkillBookBlue, 2), (MaterialType.SkillBookPurple, 3) },
+            new[] { (MaterialType.SkillBookBlue, 2), (MaterialType.SkillBookPurple, 5) },
+        };
+
+        // 경험치 던전: 총 EXP 5,000 / 12,000 / 25,000 / 40,000 / 60,000
+        private static readonly (MaterialType type, int n)[][] ExpDungeonReward =
+        {
+            new[] { (MaterialType.ExpSmall, 20), (MaterialType.ExpPotion, 6) },
+            new[] { (MaterialType.ExpPotion, 12), (MaterialType.ExpLarge, 6) },
+            new[] { (MaterialType.ExpLarge, 15), (MaterialType.ExpCrystal, 2) },
+            new[] { (MaterialType.ExpLarge, 10), (MaterialType.ExpCrystal, 6) },
+            new[] { (MaterialType.ExpCrystal, 12) },
+        };
+        private static readonly int[] ExpGold = { 1000, 2000, 3000, 4500, 6000 };
         private static readonly int[] BookGold = { 2000, 4000, 6000, 9000, 12000 };
         private static readonly int[] TierCharExp = { 500, 1200, 2500, 4000, 6000 };
         private static readonly int[] TierCrystals = { 30, 40, 50, 60, 80 };
@@ -336,9 +357,9 @@ namespace SubcultureRPG.EditorTools
         private static StageData ResourceDungeon(StageKind kind, int tier, StageData unlockAfter)
         {
             int t = tier - 1;
-            bool gold = kind == StageKind.GoldDungeon;
+            bool gold = kind == StageKind.GoldDungeon, exp = kind == StageKind.ExpDungeon;
             int lv = EnemyLevel(TierUnlockChapters[t], StagesPerChapter, StageDifficulty.Easy) + 2;
-            string tag = gold ? "Gold" : "Book";
+            string tag = gold ? "Gold" : exp ? "Exp" : "Book";
 
             var s = LoadOrCreate<StageData>($"{Root}/Stages/Dungeon_{tag}_{tier}.asset");
             s.id = $"dungeon_{tag.ToLowerInvariant()}_{tier}";
@@ -357,11 +378,13 @@ namespace SubcultureRPG.EditorTools
             s.turnLimit = 8 + tier;
             s.firstClearCrystals = TierCrystals[t];
             s.characterExp = TierCharExp[t];
-            s.gold = gold ? GoldReward[t] : BookGold[t];
-            s.enemies = gold
-                ? new List<StageEnemy> { E(GoldMinion, lv - 2), E(GoldBoss, lv), E(GoldMinion, lv - 2) }
-                : new List<StageEnemy> { E(BookMinion, lv - 2), E(BookBoss, lv), E(BookMinion, lv - 2) };
-            s.rewards = gold ? new List<MaterialReward>() : new List<MaterialReward> { M(MaterialType.SkillBook, BookReward[t]) };
+            s.gold = gold ? GoldReward[t] : exp ? ExpGold[t] : BookGold[t];
+            string minion = gold ? GoldMinion : exp ? ExpMinion : BookMinion;
+            string boss = gold ? GoldBoss : exp ? ExpBoss : BookBoss;
+            s.enemies = new List<StageEnemy> { E(minion, lv - 2), E(boss, lv), E(minion, lv - 2) };
+            s.rewards = new List<MaterialReward>();
+            if (!gold)
+                foreach (var (type, n) in (exp ? ExpDungeonReward : BookReward)[t]) s.rewards.Add(M(type, n));
             EditorUtility.SetDirty(s);
             return s;
         }

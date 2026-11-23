@@ -78,6 +78,9 @@ namespace SubcultureRPG.EditorTools
             Enemy(StageContent.GoldBoss, 80, 2600, 105, 120, enemyBasic, 140, new[] { Element.Lightning, Element.Ice });
             Enemy(StageContent.BookMinion, 125, 700, 112, 40, enemyBasic, 40, new[] { Element.Fire, Element.Wind }, Element.Wind);
             Enemy(StageContent.BookBoss, 105, 1800, 120, 75, enemyBasic, 110, new[] { Element.Fire, Element.Physical }, Element.Lightning);
+            // 경험치 던전(느리고 단단한 고목 · 약점 화염·바람)
+            Enemy(StageContent.ExpMinion, 100, 850, 104, 55, enemyBasic, 45, new[] { Element.Fire, Element.Ice }, Element.Wind);
+            Enemy(StageContent.ExpBoss, 80, 2400, 110, 100, enemyBasic, 130, new[] { Element.Fire, Element.Wind }, Element.Physical);
 
             // 4-2) 스테이지 (챕터 1 그림자 숲 · 챕터 2 얼어붙은 성채)
             AssetDatabase.SaveAssets();
@@ -111,7 +114,7 @@ namespace SubcultureRPG.EditorTools
             }
 
             // 6) 씬 구성
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+            var scene = SceneSetupUtil.NewSceneWithCamera();
 
             var gachaGO = new GameObject("Gacha");
             var gachaCtrl = gachaGO.AddComponent<GachaController>();

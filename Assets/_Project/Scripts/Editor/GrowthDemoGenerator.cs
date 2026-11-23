@@ -48,7 +48,7 @@ namespace SubcultureRPG.EditorTools
             var dbRef = AssetDatabase.LoadAssetAtPath<GameDatabase>(Root + "/GameDatabase.asset");
             var font = FindFont();
 
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+            var scene = SceneSetupUtil.NewSceneWithCamera();
 
             var metaGO = new GameObject("Meta");
             var inventory = metaGO.AddComponent<PlayerInventory>();

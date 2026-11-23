@@ -39,6 +39,6 @@ MonoBehaviour:
   firstClearCrystals: 30
   rewards:
   - type: 3
-    count: 2
+    count: 4
   characterExp: 500
   gold: 2000

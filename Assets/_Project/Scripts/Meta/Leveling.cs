@@ -2,12 +2,60 @@ using UnityEngine;
 
 namespace SubcultureRPG.Meta
 {
+    /// <summary>스킬 3종(개별 레벨업).</summary>
+    public enum SkillSlot
+    {
+        Basic = 0,     // 기본 공격
+        Skill = 1,     // 스킬
+        Ultimate = 2,  // 궁극기
+    }
+
+    /// <summary>스킬 1단계 레벨업 비용.</summary>
+    public struct SkillCost
+    {
+        public MaterialType book;   // 등급 교본
+        public int books;
+        public int legend;          // 전설의 비전서
+        public int gold;
+    }
+
     /// <summary>레벨/돌파/스킬 규칙(튜닝 지점).</summary>
     public static class Leveling
     {
         public const int MaxLevel = 80;
         public const int MaxAscension = 3;   // 돌파 0~3 → 레벨 상한 20/40/60/80
         public const int MaxSkillLevel = 10;
+        public static readonly SkillSlot[] SkillSlots = { SkillSlot.Basic, SkillSlot.Skill, SkillSlot.Ultimate };
+
+        public static string SkillSlotName(SkillSlot s) => s switch
+        {
+            SkillSlot.Basic => "기본 공격",
+            SkillSlot.Skill => "스킬",
+            _ => "궁극기",
+        };
+
+        /// <summary>
+        /// 스킬 Lv → Lv+1 비용(기본 공격·스킬·궁극기 각각).
+        /// 1→3 초급(초록) · 3→5 중급(파랑) · 5→10 상급(보라) 교본, 8 · 9 · 10으로 올릴 때는 전설의 비전서(금색)도 필요.
+        /// </summary>
+        public static SkillCost SkillUpgrade(int level)
+        {
+            int lv = Mathf.Clamp(level, 1, MaxSkillLevel - 1);
+            var c = lv switch
+            {
+                1 => new SkillCost { book = MaterialType.SkillBook, books = 2 },
+                2 => new SkillCost { book = MaterialType.SkillBook, books = 3 },
+                3 => new SkillCost { book = MaterialType.SkillBookBlue, books = 2 },
+                4 => new SkillCost { book = MaterialType.SkillBookBlue, books = 3 },
+                5 => new SkillCost { book = MaterialType.SkillBookPurple, books = 2 },
+                6 => new SkillCost { book = MaterialType.SkillBookPurple, books = 3 },
+                7 => new SkillCost { book = MaterialType.SkillBookPurple, books = 4, legend = 1 },
+                8 => new SkillCost { book = MaterialType.SkillBookPurple, books = 5, legend = 1 },
+                _ => new SkillCost { book = MaterialType.SkillBookPurple, books = 6, legend = 2 },
+            };
+            c.gold = Economy.SkillUpGold(lv);
+            return c;
+        }
 
         /// <summary>돌파 단계별 레벨 상한.</summary>
         public static int LevelCap(int ascension) =>
@@ -68,7 +116,5 @@ namespace SubcultureRPG.Meta
             return (int)Mathf.Max(0, Mathf.Min(int.MaxValue, sum - exp));
         }
 
-        /// <summary>이번 스킬 레벨업에 필요한 스킬 교본 수.</summary>
-        public static int SkillUpgradeCost(int skillLevel) => Mathf.Max(1, skillLevel);
-    }
+            }
 }

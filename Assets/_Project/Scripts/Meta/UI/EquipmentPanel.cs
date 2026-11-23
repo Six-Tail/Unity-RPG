@@ -23,8 +23,8 @@ namespace SubcultureRPG.Meta.UI
 
         private GameObject _root;
         private TextMeshProUGUI _title, _summary, _listHeader, _detSet, _detLevel, _detMain, _detSubs, _detSetBonus, _detCost, _detNote;
-        private TextMeshProUGUI _equipLbl, _lockLbl, _plusLbl, _mileLbl, _dismantleLbl;
-        private Button _equipBtn, _lockBtn, _plusBtn, _mileBtn, _dismantleBtn;
+        private TextMeshProUGUI _equipLbl, _lockLbl, _plusLbl, _mileLbl, _dismantleLbl, _transLbl;
+        private Button _equipBtn, _lockBtn, _plusBtn, _mileBtn, _dismantleBtn, _transBtn;
         private RectTransform _listContent;
         private GameObject _detailGroup, _emptyDetail;
 
@@ -110,7 +110,7 @@ namespace SubcultureRPG.Meta.UI
                 {
                     var col = EquipSets.Get(it.set)?.color ?? Color.white;
                     card.frame.color = new Color(col.r, col.g, col.b, 0.9f);
-                    card.set.text = $"{EquipSets.Rich(it.set)}  <size=75%>{EquipStats.Stars(it.Rarity)}</size>";
+                    card.set.text = $"{EquipSets.Rich(it.set)}  <size=75%>{EquipStats.Stars(it.Rarity, it.transcend)}</size>";
                     card.main.text = EquipStats.Format(it.main, it.MainValue);
                     card.level.text = $"+{it.level}";
                 }
@@ -196,7 +196,7 @@ namespace SubcultureRPG.Meta.UI
             var inner = UIFactory.AddImage("Inner", frame.transform, new Color(0.08f, 0.09f, 0.12f, 0.95f));
             UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
 
-            Text(inner.transform, $"{EquipSets.Rich(it.set)} <size=70%>{EquipStats.Stars(it.Rarity)}</size>", 16, FontStyles.Bold, TextAlignmentOptions.TopLeft, 10, -8, 190, 24);
+            Text(inner.transform, $"{EquipSets.Rich(it.set)} <size=70%>{EquipStats.Stars(it.Rarity, it.transcend)}</size>", 16, FontStyles.Bold, TextAlignmentOptions.TopLeft, 10, -8, 190, 24);
             Text(inner.transform, $"+{it.level}", 20, FontStyles.Bold, TextAlignmentOptions.TopRight, -10, -6, 70, 26, right: true);
             Text(inner.transform, EquipStats.Format(it.main, it.MainValue), 15, FontStyles.Normal, TextAlignmentOptions.TopLeft, 10, -36, 230, 22);
             string sub = $"<color=#9AA3B5>보조 {it.subs.Count}줄</color>";
@@ -222,16 +222,17 @@ namespace SubcultureRPG.Meta.UI
 
             var it = _item;
             var set = EquipSets.Get(it.set);
-            _detSet.text = $"{EquipSets.Rich(it.set)}  <size=75%>{EquipStats.Stars(it.Rarity)}</size>";
-            _detLevel.text = $"{EquipStats.SlotName(it.slot)}  ·  <color=#FFD36B>+{it.level}</color> / {it.MaxLevel}" +
+            _detSet.text = $"{EquipSets.Rich(it.set)}  <size=75%>{EquipStats.Stars(it.Rarity, it.transcend)}</size>";
+            _detLevel.text = $"{EquipStats.GradeTag(it.Rarity)}  ·  {EquipStats.SlotName(it.slot)}  ·  <color=#FFD36B>+{it.level}</color> / {it.MaxLevel}" +
                              $"  <size=80%><color=#9AA3B5>태생 {it.initialSubs}옵션</color></size>";
             _detMain.text = $"{EquipStats.Name(it.main).Replace("%", "")}  <color=#FFFFFF>{EquipStats.ValueText(it.main, it.MainValue)}</color>";
 
             var sb = new StringBuilder();
             foreach (var s in it.subs)
-                sb.Append($"·  {EquipStats.Name(s.stat).Replace("%", "")}  <b>{EquipStats.ValueText(s.stat, s.value)}</b>  ")
+                sb.Append($"·  {EquipStats.Name(s.stat).Replace("%", "")}  <b>{EquipStats.ValueText(s.stat, it.SubValue(s))}</b>  ")
                   .Append($"<color=#7FE3FF>{new string('●', Mathf.Clamp(s.rolls, 1, 6))}</color>\n");
             if (it.subs.Count < 4) sb.Append("<color=#6B7280>·  (+4 강화 시 새 보조 옵션 추가)</color>\n");
+            if (it.transcend > 0) sb.Append($"<color=#C3BEFF>초월 +{it.transcend}: 주옵션 +{6 * it.transcend}% · 보조 옵션 +{4 * it.transcend}%</color>\n");
             int next = (it.level / EquipStats.RollEvery + 1) * EquipStats.RollEvery;
             if (next <= it.MaxLevel)
                 sb.Append($"<size=85%><color=#9AA3B5>다음 보조 옵션 강화: +{next}</color></size>");
@@ -268,6 +269,17 @@ namespace SubcultureRPG.Meta.UI
             int target = Mathf.Min(it.MaxLevel, (it.level / EquipStats.RollEvery + 1) * EquipStats.RollEvery);
             _plusLbl.text = "강화 +1";
             _mileLbl.text = it.IsMaxed ? "최대" : $"+{target}까지 강화";
+            // 초월
+            int fodder = _equip.TranscendFodder(it).Count;
+            if (it.transcend >= EquipStats.MaxTranscend) { _transLbl.text = "초월 완료"; _transBtn.interactable = false; }
+            else if (!it.IsMaxed) { _transLbl.text = $"초월 <size=70%>(+{it.MaxLevel} 강화 후)</size>"; _transBtn.interactable = false; }
+            else
+            {
+                int g = EquipStats.TranscendGold(it.Rarity, it.transcend);
+                _transLbl.text = $"초월 +{it.transcend + 1} <size=65%>(재료 {fodder}개 · {(_equip.Gold >= g ? "" : "<color=#FF8A8A>")}금화 {g:N0}{(_equip.Gold >= g ? "" : "</color>")})</size>";
+                _transBtn.interactable = _equip.CanTranscend(it);
+            }
+
             bool canDis = !it.locked && !it.IsEquipped;
             _dismantleBtn.interactable = canDis;
             _dismantleLbl.text = !canDis ? (it.locked ? "분해 불가 (잠금)" : "분해 불가 (장착 중)")
@@ -305,6 +317,13 @@ namespace SubcultureRPG.Meta.UI
             var sb = new StringBuilder($"<color=#7FE3FF>강화 +{before} → +{_item.level}</color>");
             foreach (var n in notes) sb.Append('\n').Append(n);
             _detNote.text = sb.ToString();
+        }
+
+        private void OnTranscend()
+        {
+            if (_item == null) return;
+            if (!_equip.Transcend(_item)) { _detNote.text = "<color=#FF8A8A>초월 재료(같은 세트·부위·성급, 미장착·미잠금) 또는 금화가 부족합니다</color>"; return; }
+            _detNote.text = $"<color=#C3BEFF>장비 초월 +{_item.transcend}!</color>  주옵션 +{6 * _item.transcend}% · 보조 옵션 +{4 * _item.transcend}%";
         }
 
         private void OnDismantle()
@@ -403,7 +422,9 @@ namespace SubcultureRPG.Meta.UI
             _lockBtn = Btn(d, 1485, -600, 265, 60, new Color(1, 1, 1, 0.14f), OnLock, out _lockLbl);
             _plusBtn = Btn(d, 1210, -670, 265, 60, new Color(0.3f, 0.62f, 0.4f, 0.95f), () => OnEnhance(false), out _plusLbl);
             _mileBtn = Btn(d, 1485, -670, 265, 60, new Color(0.25f, 0.5f, 0.35f, 0.95f), () => OnEnhance(true), out _mileLbl);
-            _dismantleBtn = Btn(d, 1210, -740, 540, 56, new Color(0.6f, 0.25f, 0.25f, 0.9f), OnDismantle, out _dismantleLbl);
+            _transBtn = Btn(d, 1210, -740, 265, 56, new Color(0.55f, 0.4f, 0.85f, 0.95f), OnTranscend, out _transLbl);
+            _dismantleBtn = Btn(d, 1485, -740, 265, 56, new Color(0.6f, 0.25f, 0.25f, 0.9f), OnDismantle, out _dismantleLbl);
+            foreach (var l in new[] { _transLbl, _dismantleLbl, _equipLbl }) { l.enableAutoSizing = true; l.fontSizeMin = 12; l.fontSizeMax = 21; }
             _detNote = Text(p, "", 18, FontStyles.Normal, TextAlignmentOptions.TopLeft, 1210, -810, 540, 150);
             _detNote.enableAutoSizing = true; _detNote.fontSizeMin = 12; _detNote.fontSizeMax = 18;
 

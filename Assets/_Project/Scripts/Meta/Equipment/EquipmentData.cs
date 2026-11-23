@@ -48,13 +48,18 @@ namespace SubcultureRPG.Meta
         public List<EquipSub> subs = new();
         public string owner = "";       // 장착 캐릭터 키(PlayerRoster.KeyOf), 비면 미장착
         public bool locked;
+        public int transcend;           // 장비 초월 0~5 (최대 강화 후, 같은 세트·부위·성급 장비 소모)
 
         public bool IsEquipped => !string.IsNullOrEmpty(owner);
         /// <summary>성급(옛 세이브 = 0 → 6성 취급).</summary>
         public int Rarity => rarity >= EquipStats.MinRarity && rarity <= EquipStats.MaxRarity ? rarity : EquipStats.MaxRarity;
         public int MaxLevel => EquipStats.MaxLevelOf(Rarity);
         public bool IsMaxed => level >= MaxLevel;
-        public float MainValue => EquipStats.MainValue(main, level, Rarity);
+        public float MainValue => EquipStats.MainValue(main, level, Rarity) * EquipStats.TranscendMainMul(transcend);
+
+        /// <summary>보조 옵션 실제 수치(초월 보정 포함).</summary>
+        public float SubValue(EquipSub s) => s.value * EquipStats.TranscendSubMul(transcend);
+        public bool CanTranscendMore => IsMaxed && transcend < EquipStats.MaxTranscend;
     }
 
     /// <summary>옵션 이름·표시·수치 규칙.</summary>
@@ -70,17 +75,37 @@ namespace SubcultureRPG.Meta
         /// <summary>성급별 수치 배율(주옵션·보조 옵션): 3성 50% · 4성 65% · 5성 80% · 6성 100%.</summary>
         public static float RarityScale(int rarity) => rarity switch { 3 => 0.5f, 4 => 0.65f, 5 => 0.8f, _ => 1f };
 
-        public static Color RarityColor(int rarity) => rarity switch
-        {
-            3 => new Color(0.45f, 0.7f, 1f),
-            4 => new Color(0.75f, 0.5f, 1f),
-            5 => new Color(1f, 0.8f, 0.35f),
-            _ => new Color(1f, 0.5f, 0.7f),
-        };
+        /// <summary>성급 색 = 아이템 등급 색(3 고급 초록 · 4 희귀 파랑 · 5 영웅 보라 · 6 전설 금색).</summary>
+        public static Color RarityColor(int rarity) => Grades.ColorOf(rarity);
 
-        /// <summary>'★★★★' (성급 색).</summary>
-        public static string Stars(int rarity) =>
-            $"<color=#{ColorUtility.ToHtmlStringRGB(RarityColor(rarity))}>{new string('★', Mathf.Clamp(rarity, 1, 6))}</color>";
+        // ---------------- 장비 초월 ----------------
+
+        public const int MaxTranscend = 5;
+
+        /// <summary>초월 단계별 보정: 주옵션 +6%/단계, 보조 옵션 +4%/단계.</summary>
+        public static float TranscendMainMul(int t) => 1f + 0.06f * Mathf.Clamp(t, 0, MaxTranscend);
+        public static float TranscendSubMul(int t) => 1f + 0.04f * Mathf.Clamp(t, 0, MaxTranscend);
+
+        /// <summary>초월 1단계 금화: 5,000 × (성급-2) × (다음 단계).</summary>
+        public static int TranscendGold(int rarity, int currentTranscend) => 5000 * Mathf.Max(1, rarity - 2) * (currentTranscend + 1);
+
+        /// <summary>
+        /// '★★★★' (성급 색). 초월하면 앞에서부터 초월 단계만큼 별이 무지개 색 + '+N' (캐릭터 초월과 같은 표시).
+        /// </summary>
+        public static string Stars(int rarity, int transcend = 0)
+        {
+            int n = Mathf.Clamp(rarity, 1, 6);
+            int t = Mathf.Clamp(transcend, 0, MaxTranscend);
+            string baseHex = "#" + ColorUtility.ToHtmlStringRGB(RarityColor(rarity));
+            var rainbow = SubcultureRPG.Meta.UI.StarText.Rainbow;
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < n; i++)
+                sb.Append("<color=").Append(i < t ? rainbow[i % rainbow.Length] : baseHex).Append(">★</color>");
+            if (t > 0) sb.Append(" <color=").Append(rainbow[(t - 1) % rainbow.Length]).Append(">+").Append(t).Append("</color>");
+            return sb.ToString();
+        }
+
+        public static string GradeTag(int rarity) => Grades.Tag(rarity);
 
         public static readonly EquipSlot[] AllSlots =
             { EquipSlot.Head, EquipSlot.Hands, EquipSlot.Body, EquipSlot.Feet, EquipSlot.Neck, EquipSlot.Ring };
@@ -400,7 +425,7 @@ namespace SubcultureRPG.Meta
             {
                 if (it == null) continue;
                 EquipStats.Apply(b, it.main, it.MainValue);
-                foreach (var s in it.subs) EquipStats.Apply(b, s.stat, s.value);
+                foreach (var s in it.subs) EquipStats.Apply(b, s.stat, it.SubValue(s));
                 counts[it.set] = counts.TryGetValue(it.set, out var n) ? n + 1 : 1;
             }
             foreach (var kv in counts)

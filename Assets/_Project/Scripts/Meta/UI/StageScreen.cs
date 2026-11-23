@@ -327,7 +327,8 @@ namespace SubcultureRPG.Meta.UI
             string sub = asc ? $"{Materials.Name(s.DungeonMaterial)}  <size=80%>· {Materials.TierTargetLevel(s.dungeonTier)} 돌파</size>"
                 : s.kind == StageKind.GoldDungeon ? $"금화 {s.gold:N0}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>"
                 : s.kind == StageKind.EquipmentDungeon ? $"최대 {EquipStats.Stars(s.MaxEquipRarity)}  <size=80%>· Lv.{s.recommendedLevel}</size>"
-                : $"스킬 교본 ×{BookCount(s)}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>";
+                : s.kind == StageKind.ExpDungeon ? $"EXP {ExpTotal(s):N0}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>"
+                : $"교본 ×{BookCount(s)}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>";
             var mat = UIFactory.AddText("Mat", inner, sub,
                 17, font, unlocked ? new Color(0.85f, 0.88f, 0.95f) : new Color(0.45f, 0.45f, 0.5f), TextAlignmentOptions.Center);
             mat.enableAutoSizing = true; mat.fontSizeMin = 12; mat.fontSizeMax = 17;
@@ -346,7 +347,14 @@ namespace SubcultureRPG.Meta.UI
         private static int BookCount(StageData s)
         {
             int n = 0;
-            if (s.rewards != null) foreach (var m in s.rewards) if (m != null && m.type == MaterialType.SkillBook) n += m.count;
+            if (s.rewards != null) foreach (var m in s.rewards) if (m != null && Materials.IsSkillBook(m.type)) n += m.count;
+            return n;
+        }
+
+        private static int ExpTotal(StageData s)
+        {
+            int n = 0;
+            if (s.rewards != null) foreach (var m in s.rewards) if (m != null) n += m.count * Materials.ExpValue(m.type);
             return n;
         }
 
@@ -388,7 +396,7 @@ namespace SubcultureRPG.Meta.UI
                     var rates = new List<string>();
                     for (int i = 0; i < s.equipmentRarityWeights.Count; i++)
                         if (s.equipmentRarityWeights[i] > 0 && total > 0)
-                            rates.Add($"{EquipStats.Stars(3 + i)} {Mathf.RoundToInt(100f * s.equipmentRarityWeights[i] / total)}%");
+                            rates.Add($"{EquipStats.Stars(3 + i)} {Grades.Tag(3 + i)} {Mathf.RoundToInt(100f * s.equipmentRarityWeights[i] / total)}%");
                     sb.Append("<color=#FFD36B>드롭 성급</color>  ").Append(string.Join("  ·  ", rates))
                       .Append("  <size=80%><color=#9AA3B5>(최대 강화 3★ +9 · 4★ +12 · 5★ +16 · 6★ +20)</color></size>\n");
                 }

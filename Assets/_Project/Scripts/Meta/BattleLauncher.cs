@@ -46,7 +46,8 @@ namespace SubcultureRPG.Meta
                     int skl = roster != null ? roster.SkillLevelOf(c) : 1;
                     int star = roster != null ? roster.StarOf(c) : 0;
                     int tr = roster != null ? roster.TranscendOf(c) : 0;
-                    var u = RuntimeUnits.FromCharacter(c, lvl, lookup, skl, star, tr);
+                    var sk = roster != null ? roster.SkillLevels(c) : null;
+                    var u = RuntimeUnits.FromCharacter(c, lvl, lookup, skl, star, tr, sk);
                     if (equipment != null && equipment.EquippedOn(c).Count > 0)
                     {
                         if (lookup != null && lookup(c) == u) u = Instantiate(u);   // 저작 에셋은 건드리지 않음

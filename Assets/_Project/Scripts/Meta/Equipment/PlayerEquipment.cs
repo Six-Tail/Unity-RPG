@@ -144,6 +144,39 @@ namespace SubcultureRPG.Meta
             return (gold, ore);
         }
 
+        // ---------------- 초월 ----------------
+
+        /// <summary>초월 재료 후보: 같은 세트·부위·성급, 미장착·미잠금, 자기 자신 제외 (강화 낮은 순).</summary>
+        public List<EquipmentItem> TranscendFodder(EquipmentItem it)
+        {
+            var list = new List<EquipmentItem>();
+            if (it == null) return list;
+            foreach (var x in _items)
+                if (x != it && x.set == it.set && x.slot == it.slot && x.Rarity == it.Rarity && !x.IsEquipped && !x.locked)
+                    list.Add(x);
+            list.Sort((a, b) => a.level != b.level ? a.level.CompareTo(b.level) : a.transcend.CompareTo(b.transcend));
+            return list;
+        }
+
+        public bool CanTranscend(EquipmentItem it) =>
+            it != null && it.CanTranscendMore && TranscendFodder(it).Count > 0 &&
+            Gold >= EquipStats.TranscendGold(it.Rarity, it.transcend);
+
+        /// <summary>장비 초월: 재료 장비 1개(가장 낮은 강화) + 금화 소모 → 초월 +1. 재료에 쓴 강화석 일부는 돌려받음.</summary>
+        public bool Transcend(EquipmentItem it)
+        {
+            if (!CanTranscend(it)) return false;
+            var fodder = TranscendFodder(it)[0];
+            int gold = EquipStats.TranscendGold(it.Rarity, it.transcend);
+            if (wallet != null && !wallet.SpendGold(gold)) return false;
+            int refund = fodder.level > 0 ? EquipRules.DismantleOre(fodder) - EquipRules.DismantleOre(new EquipmentItem { rarity = fodder.rarity }) : 0;
+            _items.Remove(fodder);
+            if (refund > 0 && inventory != null) inventory.Add(MaterialType.EquipOre, refund);
+            it.transcend++;
+            Changed();
+            return true;
+        }
+
         // ---------------- 분해 ----------------
 
         /// <summary>분해(잠금·장착 중이면 불가) → 장비 강화석.</summary>

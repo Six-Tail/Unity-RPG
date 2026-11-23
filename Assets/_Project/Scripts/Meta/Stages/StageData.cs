@@ -30,13 +30,15 @@ namespace SubcultureRPG.Meta
         GoldDungeon,       // 특수 던전: 금화 던전(단계) — 금화
         SkillBookDungeon,  // 특수 던전: 스킬 교본 던전(단계) — 스킬 교본
         EquipmentDungeon,  // 특수 던전: 장비 던전(세트 2종) — 장비 + 장비 강화석
+        ExpDungeon,        // 특수 던전: 경험치 던전(단계) — 경험치 재료
         // 이후 장비 던전 등은 뒤에 추가(세이브/에셋은 정수값으로 저장)
     }
 
     /// <summary>특수 던전 종류별 표시 정보.</summary>
     public static class SpecialDungeons
     {
-        public static readonly StageKind[] All = { StageKind.EquipmentDungeon, StageKind.AscensionDungeon, StageKind.GoldDungeon, StageKind.SkillBookDungeon };
+        public static readonly StageKind[] All =
+            { StageKind.EquipmentDungeon, StageKind.AscensionDungeon, StageKind.ExpDungeon, StageKind.GoldDungeon, StageKind.SkillBookDungeon };
 
         public static string Name(StageKind k) => k switch
         {
@@ -44,6 +46,7 @@ namespace SubcultureRPG.Meta
             StageKind.GoldDungeon => "금화 던전",
             StageKind.SkillBookDungeon => "스킬 교본 던전",
             StageKind.EquipmentDungeon => "장비 던전",
+            StageKind.ExpDungeon => "경험치 던전",
             _ => "메인 스토리",
         };
 
@@ -53,6 +56,7 @@ namespace SubcultureRPG.Meta
             StageKind.GoldDungeon => new Color(0.95f, 0.74f, 0.25f),
             StageKind.SkillBookDungeon => new Color(0.38f, 0.58f, 0.95f),
             StageKind.EquipmentDungeon => new Color(0.3f, 0.72f, 0.68f),
+            StageKind.ExpDungeon => new Color(0.45f, 0.8f, 0.4f),
             _ => Color.white,
         };
 
@@ -65,6 +69,7 @@ namespace SubcultureRPG.Meta
             StageKind.GoldDungeon => "레벨업 · 돌파 · 스킬 · 합성에 필요한 금화를 대량으로 획득",
             StageKind.SkillBookDungeon => "스킬 레벨업에 필요한 스킬 교본 획득",
             StageKind.EquipmentDungeon => "세트 2종 중 무작위 장비 + 장비 강화석",
+            StageKind.ExpDungeon => "레벨업에 필요한 경험치 재료 대량 획득",
             _ => "",
         };
     }

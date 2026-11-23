@@ -15,7 +15,8 @@ namespace SubcultureRPG.Meta
         public int level = 1;
         public int exp = 0;
         public int ascension = 0;   // 돌파 단계(레벨 상한)
-        public int skillLevel = 1;  // 스킬 레벨
+        public int skillLevel = 1;  // (구) 단일 스킬 레벨 — 지금은 skills의 최고값으로 유지
+        public List<int> skills = new();   // 스킬별 레벨 [기본 공격, 스킬, 궁극기]
         public int star = 0;        // 현재 성급(합성으로 상승). 0 = 태생 성급
         public int transcend = 0;   // 초월 단계(6성에서 +1~+6)
 
@@ -167,6 +168,39 @@ namespace SubcultureRPG.Meta
             Save();
             OnRosterChanged?.Invoke();
             return true;
+        }
+
+        /// <summary>스킬별 레벨 [기본 공격, 스킬, 궁극기] (옛 세이브는 단일 스킬 레벨로 채움).</summary>
+        public int[] SkillLevels(CharacterData c)
+        {
+            var o = GetOwned(c);
+            if (o == null) return new[] { 1, 1, 1 };
+            EnsureSkills(o);
+            return o.skills.ToArray();
+        }
+
+        public int SkillLevelOf(CharacterData c, SkillSlot slot) => SkillLevels(c)[(int)slot];
+
+        public bool CanUpgradeSkill(CharacterData c, SkillSlot slot) =>
+            GetOwned(c) != null && SkillLevelOf(c, slot) < Leveling.MaxSkillLevel;
+
+        /// <summary>스킬 1개 레벨업(비용 차감은 호출자).</summary>
+        public bool UpgradeSkill(CharacterData c, SkillSlot slot)
+        {
+            var o = GetOwned(c);
+            if (o == null || !CanUpgradeSkill(c, slot)) return false;
+            EnsureSkills(o);
+            o.skills[(int)slot]++;
+            o.skillLevel = Mathf.Max(o.skills[0], Mathf.Max(o.skills[1], o.skills[2]));
+            Save();
+            OnRosterChanged?.Invoke();
+            return true;
+        }
+
+        private static void EnsureSkills(OwnedCharacter o)
+        {
+            if (o.skills == null) o.skills = new List<int>();
+            while (o.skills.Count < 3) o.skills.Add(Mathf.Clamp(o.skillLevel, 1, Leveling.MaxSkillLevel));
         }
 
         public bool CanUpgradeSkill(CharacterData c)

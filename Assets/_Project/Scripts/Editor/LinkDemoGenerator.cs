@@ -64,7 +64,7 @@ namespace SubcultureRPG.EditorTools
             var font = FindFont();
 
             // 3) 씬 구성 (private [SerializeField]는 리플렉션으로 주입)
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+            var scene = SceneSetupUtil.NewSceneWithCamera();
 
             var battleGO = new GameObject("Battle");
             var controller = battleGO.AddComponent<BattleController>();

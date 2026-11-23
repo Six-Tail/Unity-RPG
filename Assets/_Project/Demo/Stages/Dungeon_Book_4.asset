@@ -38,7 +38,9 @@ MonoBehaviour:
   turnLimit: 12
   firstClearCrystals: 60
   rewards:
-  - type: 3
-    count: 9
+  - type: 7
+    count: 2
+  - type: 8
+    count: 3
   characterExp: 4000
   gold: 9000

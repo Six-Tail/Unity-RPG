@@ -55,7 +55,7 @@ namespace SubcultureRPG.EditorTools
             var font = FindFont();
 
             // --- 씬 ---
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+            var scene = SceneSetupUtil.NewSceneWithCamera();
 
             var gachaGO = new GameObject("Gacha");
             var controller = gachaGO.AddComponent<GachaController>();

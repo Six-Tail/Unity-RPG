@@ -44,7 +44,7 @@ namespace SubcultureRPG.UI
             t.alignment = align;
             t.fontStyle = style;
             t.raycastTarget = false;
-            t.overflowMode = TextOverflowModes.Ellipsis;
+            t.overflowMode = TextOverflowModes.Truncate;   // 폰트에 말줄임표(…) 글리프가 없어 Ellipsis는 경고만 남김
             return t;
         }
 

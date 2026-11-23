@@ -64,7 +64,7 @@ namespace SubcultureRPG.EditorTools
             }
 
             // --- 씬 구성 ---
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+            var scene = SceneSetupUtil.NewSceneWithCamera();
 
             var controllerGO = new GameObject("Battle");
             var controller = controllerGO.AddComponent<BattleController>();
