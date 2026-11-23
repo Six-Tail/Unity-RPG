@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using SubcultureRPG.Characters;
 
 namespace SubcultureRPG.Meta
 {
@@ -26,7 +27,6 @@ namespace SubcultureRPG.Meta
             {
                 _items[MaterialType.ExpPotion] = 60;
                 _items[MaterialType.ExpCrystal] = 12;
-                _items[MaterialType.AscensionStone] = 12;
                 _items[MaterialType.SkillBook] = 24;
                 Save();
             }
@@ -79,8 +79,16 @@ namespace SubcultureRPG.Meta
         {
             Add(MaterialType.ExpPotion, 30);
             Add(MaterialType.ExpCrystal, 6);
-            Add(MaterialType.AscensionStone, 6);
             Add(MaterialType.SkillBook, 12);
+            // 속성별 돌파 재료(40/60/80 돌파 각 1회분 정도)
+            for (int e = 0; e <= (int)Element.Wind; e++)
+            {
+                _items[Materials.Ascension((Element)e, 1)] = Count(Materials.Ascension((Element)e, 1)) + 5;
+                _items[Materials.Ascension((Element)e, 2)] = Count(Materials.Ascension((Element)e, 2)) + 8;
+                _items[Materials.Ascension((Element)e, 3)] = Count(Materials.Ascension((Element)e, 3)) + 12;
+            }
+            Save();
+            OnChanged?.Invoke();
         }
     }
 }

@@ -32,6 +32,7 @@ namespace SubcultureRPG.Meta
         public bool IsUnlocked(StageData s, StageDatabase db)
         {
             if (s == null) return false;
+            if (s.IsDungeon) return s.unlockAfter == null || IsCleared(s.unlockAfter);
             var prev = db != null ? db.Previous(s) : null;
             return prev == null || IsCleared(prev);
         }

@@ -13,6 +13,22 @@ namespace SubcultureRPG.Meta
         [Tooltip("챕터 이름(인덱스 0 = 챕터 1).")]
         public List<string> chapterNames = new();
         public List<StageData> stages = new();
+        [Tooltip("돌파 던전(속성 × 등급). 챕터 진행 순서와 무관.")]
+        public List<StageData> dungeons = new();
+
+        /// <summary>돌파 던전 목록(속성 → 등급 순).</summary>
+        public List<StageData> Dungeons()
+        {
+            var list = new List<StageData>();
+            if (dungeons != null) foreach (var s in dungeons) if (s != null) list.Add(s);
+            list.Sort((a, b) => a.dungeonElement != b.dungeonElement
+                ? a.dungeonElement.CompareTo(b.dungeonElement) : a.dungeonTier.CompareTo(b.dungeonTier));
+            return list;
+        }
+
+        /// <summary>이 스테이지를 클리어하면 열리는 던전들.</summary>
+        public List<StageData> DungeonsUnlockedBy(StageData stage) =>
+            Dungeons().FindAll(d => d.unlockAfter == stage);
 
         /// <summary>진행 순서대로 정렬된 스테이지.</summary>
         public List<StageData> Ordered()

@@ -3,15 +3,20 @@ using UnityEngine;
 
 namespace SubcultureRPG.Meta
 {
-    /// <summary>간단한 재화(크리스탈) 지갑. PlayerPrefs 저장.</summary>
+    /// <summary>
+    /// 재화 지갑. PlayerPrefs 저장.
+    /// 크리스탈 = 가챠 재화(첫 클리어 등), 금화 = 육성 공용 재화(레벨업·돌파·스킬·합성/초월).
+    /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SubcultureRPG/Meta/Player Wallet")]
     public class PlayerWallet : MonoBehaviour
     {
         [SerializeField] private int startingCrystals = 16000;
+        [SerializeField] private int startingGold = 100000;
         [SerializeField] private string saveKey = "wallet";
 
         public int Crystals { get; private set; }
+        public int Gold { get; private set; }
         public event Action OnChanged;
 
         private void Awake() => Load();
@@ -36,32 +41,62 @@ namespace SubcultureRPG.Meta
             OnChanged?.Invoke();
         }
 
-        [Serializable]
-        private class SaveData { public int crystals; public bool init; }
+        // ---------------- 금화 ----------------
 
-        private void Save() =>
-            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(new SaveData { crystals = Crystals, init = true }));
+        public bool CanAffordGold(int cost) => Gold >= cost;
+
+        public bool SpendGold(int cost)
+        {
+            if (cost <= 0) return true;
+            if (Gold < cost) return false;
+            Gold -= cost;
+            Save();
+            OnChanged?.Invoke();
+            return true;
+        }
+
+        public void AddGold(int amount)
+        {
+            if (amount <= 0) return;
+            Gold = (int)Mathf.Min(int.MaxValue, (long)Gold + amount);
+            Save();
+            OnChanged?.Invoke();
+        }
+
+        [Serializable]
+        private class SaveData { public int crystals; public bool init; public int gold; public bool goldInit; }
+
+        private void Save()
+        {
+            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(new SaveData { crystals = Crystals, init = true, gold = Gold, goldInit = true }));
+            PlayerPrefs.Save();
+        }
 
         private void Load()
         {
-            if (PlayerPrefs.HasKey(saveKey))
+            Crystals = startingCrystals;
+            Gold = startingGold;
+            if (!PlayerPrefs.HasKey(saveKey)) return;
+            try
             {
-                try
-                {
-                    var d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
-                    Crystals = d != null && d.init ? d.crystals : startingCrystals;
-                }
-                catch { Crystals = startingCrystals; }
+                var d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
+                if (d == null) return;
+                if (d.init) Crystals = d.crystals;
+                if (d.goldInit) Gold = d.gold;   // 금화 도입 전 세이브 → 시작 금화 지급
             }
-            else Crystals = startingCrystals;
+            catch { }
         }
 
         [ContextMenu("지갑 초기화")]
         public void ResetWallet()
         {
             Crystals = startingCrystals;
+            Gold = startingGold;
             Save();
             OnChanged?.Invoke();
         }
+
+        [ContextMenu("금화 테스트 지급 (+100,000)")]
+        public void GrantTestGold() => AddGold(100000);
     }
 }

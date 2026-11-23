@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using TMPro;
 using SubcultureRPG.UI;
 using SubcultureRPG.Gacha;
+using SubcultureRPG.Characters;
 
 namespace SubcultureRPG.Meta.UI
 {
@@ -59,15 +60,24 @@ namespace SubcultureRPG.Meta.UI
             if (on) Refresh();
         }
 
+        private int AscensionTotal()
+        {
+            int n = 0;
+            for (int e = 0; e <= (int)Element.Wind; e++)
+                for (int t = 1; t <= Materials.AscensionTiers; t++)
+                    n += inventory.Count(Materials.Ascension((Element)e, t));
+            return n;
+        }
+
         public void Refresh()
         {
             if (_crystalText != null)
-                _crystalText.text = wallet != null ? $"크리스탈  {wallet.Crystals:N0}" : "";
+                _crystalText.text = wallet != null ? $"크리스탈  {wallet.Crystals:N0}    <color=#FFD36B>금화  {wallet.Gold:N0}</color>" : "";
 
             if (_matText != null)
                 _matText.text = inventory == null ? "" :
                     $"물약 {inventory.Count(MaterialType.ExpPotion)}   결정 {inventory.Count(MaterialType.ExpCrystal)}   " +
-                    $"돌파석 {inventory.Count(MaterialType.AscensionStone)}   교본 {inventory.Count(MaterialType.SkillBook)}";
+                    $"교본 {inventory.Count(MaterialType.SkillBook)}   돌파 재료 {AscensionTotal()}";
 
             if (_rosterText != null)
                 _rosterText.text = roster != null ? $"보유 캐릭터  {roster.Owned.Count}명" : "";

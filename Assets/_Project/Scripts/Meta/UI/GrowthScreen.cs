@@ -20,6 +20,7 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private PlayerRoster roster;
         [SerializeField] private GameDatabase database;
         [SerializeField] private PlayerInventory inventory;
+        [SerializeField] private PlayerWallet wallet;
         [SerializeField] private TMP_FontAsset font;
 
         private GameObject _root, _detPanel;
@@ -40,6 +41,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (roster == null) roster = FindAnyObjectByType<PlayerRoster>();
             if (inventory == null) inventory = FindAnyObjectByType<PlayerInventory>();
+            if (wallet == null) wallet = FindAnyObjectByType<PlayerWallet>();
             BuildUI();
         }
 
@@ -47,12 +49,14 @@ namespace SubcultureRPG.Meta.UI
         {
             if (roster != null) roster.OnRosterChanged += OnRosterChanged;
             if (inventory != null) inventory.OnChanged += Refresh;
+            if (wallet != null) wallet.OnChanged += Refresh;
         }
 
         private void OnDisable()
         {
             if (roster != null) roster.OnRosterChanged -= OnRosterChanged;
             if (inventory != null) inventory.OnChanged -= Refresh;
+            if (wallet != null) wallet.OnChanged -= Refresh;
         }
 
         private void Start()
@@ -205,7 +209,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_matText != null)
                 _matText.text = inventory == null ? "" :
-                    $"물약 {inventory.Count(MaterialType.ExpPotion)}    결정 {inventory.Count(MaterialType.ExpCrystal)}    돌파석 {inventory.Count(MaterialType.AscensionStone)}    교본 {inventory.Count(MaterialType.SkillBook)}";
+                    $"<color=#FFD36B>금화 {Gold:N0}</color>    물약 {inventory.Count(MaterialType.ExpPotion)}    결정 {inventory.Count(MaterialType.ExpCrystal)}    교본 {inventory.Count(MaterialType.SkillBook)}";
             RefreshDetail();
         }
 
@@ -249,10 +253,11 @@ namespace SubcultureRPG.Meta.UI
 
             // 버튼 라벨/활성
             int potion = Mat(MaterialType.ExpPotion), crystal = Mat(MaterialType.ExpCrystal);
-            _potionLbl.text = $"물약 +500\n<size=60%>보유 {potion}</size>";
-            _crystalLbl.text = $"결정 +2500\n<size=60%>보유 {crystal}</size>";
-            _potionBtn.interactable = !atCap && potion > 0;
-            _crystalBtn.interactable = !atCap && crystal > 0;
+            int potionG = Economy.LevelUpGold(MaterialType.ExpPotion), crystalG = Economy.LevelUpGold(MaterialType.ExpCrystal);
+            _potionLbl.text = $"물약 +500\n<size=60%>보유 {potion} · {GoldTag(potionG)}</size>";
+            _crystalLbl.text = $"결정 +2500\n<size=60%>보유 {crystal} · {GoldTag(crystalG)}</size>";
+            _potionBtn.interactable = !atCap && potion > 0 && Gold >= potionG;
+            _crystalBtn.interactable = !atCap && crystal > 0 && Gold >= crystalG;
 
             if (o.ascension >= Leveling.MaxAscension)
             {
@@ -261,9 +266,14 @@ namespace SubcultureRPG.Meta.UI
             }
             else
             {
-                int cost = Leveling.AscensionCost(o.ascension);
-                _ascendLbl.text = $"돌파 → Lv.{Leveling.LevelCap(o.ascension + 1)}\n<size=60%>돌파석 {Mat(MaterialType.AscensionStone)} / {cost}</size>";
-                _ascendBtn.interactable = roster.CanAscend(_selected) && Mat(MaterialType.AscensionStone) >= cost;
+                var am = Economy.AscensionMaterial(_selected.element, o.ascension);
+                int cost = Economy.AscensionMaterialCount(o.ascension);
+                int gold = Economy.AscensionGold(o.ascension);
+                int have = Mat(am);
+                string haveStr = have >= cost ? $"{have}" : $"<color=#FF8A8A>{have}</color>";
+                _ascendLbl.text = $"돌파 → Lv.{Leveling.LevelCap(o.ascension + 1)}\n" +
+                    $"<size=55%>{Materials.RichName(am)} {haveStr}/{cost} · {GoldTag(gold)}</size>";
+                _ascendBtn.interactable = roster.CanAscend(_selected) && have >= cost && Gold >= gold;
             }
 
             if (o.skillLevel >= Leveling.MaxSkillLevel)
@@ -274,21 +284,23 @@ namespace SubcultureRPG.Meta.UI
             else
             {
                 int cost = Leveling.SkillUpgradeCost(o.skillLevel);
-                _skillLbl.text = $"스킬 Lv.{o.skillLevel} → {o.skillLevel + 1}\n<size=60%>교본 {Mat(MaterialType.SkillBook)} / {cost}</size>";
-                _skillBtn.interactable = Mat(MaterialType.SkillBook) >= cost;
+                int gold = Economy.SkillUpGold(o.skillLevel);
+                _skillLbl.text = $"스킬 Lv.{o.skillLevel} → {o.skillLevel + 1}\n<size=60%>교본 {Mat(MaterialType.SkillBook)}/{cost} · {GoldTag(gold)}</size>";
+                _skillBtn.interactable = Mat(MaterialType.SkillBook) >= cost && Gold >= gold;
             }
 
             // 합성 / 초월
             int mcost = roster.MergeCost(_selected);
+            int mgold = Economy.MergeGold(starN, tr);
             if (starN < Transcendence.MaxStar)
             {
-                _mergeLbl.text = $"합성 → {starN + 1}★\n<size=60%>중복 {o.Duplicates} / {mcost}</size>";
-                _mergeBtn.interactable = roster.CanPromote(_selected);
+                _mergeLbl.text = $"합성 → {starN + 1}★\n<size=60%>중복 {o.Duplicates}/{mcost} · {GoldTag(mgold)}</size>";
+                _mergeBtn.interactable = roster.CanPromote(_selected) && Gold >= mgold;
             }
             else if (tr < Transcendence.MaxTranscend)
             {
-                _mergeLbl.text = $"초월 → {StarText.Plus(tr + 1)}\n<size=60%>중복 {o.Duplicates} / {mcost}</size>";
-                _mergeBtn.interactable = roster.CanTranscend(_selected);
+                _mergeLbl.text = $"초월 → {StarText.Plus(tr + 1)}\n<size=60%>중복 {o.Duplicates}/{mcost} · {GoldTag(mgold)}</size>";
+                _mergeBtn.interactable = roster.CanTranscend(_selected) && Gold >= mgold;
             }
             else
             {
@@ -316,6 +328,21 @@ namespace SubcultureRPG.Meta.UI
 
         private int Mat(MaterialType t) => inventory != null ? inventory.Count(t) : 0;
 
+        private int Gold => wallet != null ? wallet.Gold : int.MaxValue;
+
+        /// <summary>금화 표시(부족하면 빨강).</summary>
+        private string GoldTag(int cost) =>
+            Gold >= cost ? $"<color=#FFD36B>금화 {cost:N0}</color>" : $"<color=#FF8A8A>금화 {cost:N0}</color>";
+
+        /// <summary>금화 차감(지갑이 없으면 무료). 부족하면 토스트 후 false.</summary>
+        private bool PayGold(int cost)
+        {
+            if (wallet == null || cost <= 0) return true;
+            if (wallet.SpendGold(cost)) return true;
+            Toast($"금화가 부족합니다 (필요 {cost:N0})");
+            return false;
+        }
+
         // ---------------- 액션 ----------------
 
         private void UseExp(MaterialType mt)
@@ -324,7 +351,11 @@ namespace SubcultureRPG.Meta.UI
             var o = roster.GetOwned(_selected);
             if (o == null) return;
             if (o.level >= Leveling.LevelCap(o.ascension)) { Toast("레벨 상한 — 돌파가 필요합니다"); return; }
+            if (Mat(mt) < 1) { Toast($"{Materials.Name(mt)} 부족"); return; }
+            int gold = Economy.LevelUpGold(mt);
+            if (Gold < gold) { Toast($"금화가 부족합니다 (필요 {gold:N0})"); return; }
             if (inventory != null && !inventory.Spend(mt, 1)) { Toast($"{Materials.Name(mt)} 부족"); return; }
+            PayGold(gold);
             roster.AddExp(_selected, Materials.ExpValue(mt));
         }
 
@@ -332,17 +363,33 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_selected == null || roster == null) return;
             if (!roster.CanAscend(_selected)) { Toast("상한까지 레벨을 올리세요"); return; }
-            int cost = Leveling.AscensionCost(roster.AscensionOf(_selected));
-            if (inventory != null && !inventory.Spend(MaterialType.AscensionStone, cost)) { Toast("돌파석 부족"); return; }
+            int asc = roster.AscensionOf(_selected);
+            var am = Economy.AscensionMaterial(_selected.element, asc);
+            int cost = Economy.AscensionMaterialCount(asc);
+            int gold = Economy.AscensionGold(asc);
+            if (Mat(am) < cost)
+            {
+                Toast($"{Materials.Name(am)} 부족 ({Mat(am)}/{cost}) — 돌파 던전 {Materials.TierName(Materials.TierOf(am))}에서 획득");
+                return;
+            }
+            if (Gold < gold) { Toast($"금화가 부족합니다 (필요 {gold:N0})"); return; }
+            if (inventory != null && !inventory.Spend(am, cost)) return;
+            PayGold(gold);
             roster.Ascend(_selected);
+            Toast($"돌파 완료! 레벨 상한 {Leveling.LevelCap(asc + 1)}");
         }
 
         private void SkillUp()
         {
             if (_selected == null || roster == null) return;
             if (!roster.CanUpgradeSkill(_selected)) { Toast("이미 최대 스킬 레벨"); return; }
-            int cost = Leveling.SkillUpgradeCost(roster.SkillLevelOf(_selected));
-            if (inventory != null && !inventory.Spend(MaterialType.SkillBook, cost)) { Toast("스킬 교본 부족"); return; }
+            int lv = roster.SkillLevelOf(_selected);
+            int cost = Leveling.SkillUpgradeCost(lv);
+            int gold = Economy.SkillUpGold(lv);
+            if (Mat(MaterialType.SkillBook) < cost) { Toast("스킬 교본 부족"); return; }
+            if (Gold < gold) { Toast($"금화가 부족합니다 (필요 {gold:N0})"); return; }
+            if (inventory != null && !inventory.Spend(MaterialType.SkillBook, cost)) return;
+            PayGold(gold);
             roster.UpgradeSkill(_selected);
         }
 
@@ -350,6 +397,10 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_selected == null || roster == null) return;
             int cost = roster.MergeCost(_selected);
+            int gold = Economy.MergeGold(roster.StarOf(_selected), roster.TranscendOf(_selected));
+            bool canMerge = roster.StarOf(_selected) < Transcendence.MaxStar ? roster.CanPromote(_selected) : roster.CanTranscend(_selected);
+            if (canMerge && Gold < gold) { Toast($"금화가 부족합니다 (필요 {gold:N0})"); return; }
+            if (canMerge) PayGold(gold);
             if (roster.StarOf(_selected) < Transcendence.MaxStar)
             {
                 if (!roster.Promote(_selected)) { Toast($"중복 캐릭터가 부족합니다 (필요 {cost})"); return; }
@@ -446,11 +497,15 @@ namespace SubcultureRPG.Meta.UI
             BuildDetail();
 
             // 테스트 재료 충전
-            var charge = UIFactory.AddButton("Charge", _root.transform, "재료 충전(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var charge = UIFactory.AddButton("Charge", _root.transform, "재료·금화 충전(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
             var crt = (RectTransform)charge.transform;
             UIFactory.Anchor(crt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
             crt.sizeDelta = new Vector2(240, 48); crt.anchoredPosition = new Vector2(30, 30);
-            charge.onClick.AddListener(() => { if (inventory != null) inventory.GrantTest(); });
+            charge.onClick.AddListener(() =>
+            {
+                if (inventory != null) inventory.GrantTest();
+                if (wallet != null) wallet.AddGold(100000);
+            });
 
             // 테스트: 선택 캐릭터 중복 +6 (합성/초월 확인용)
             var dup = UIFactory.AddButton("DupTest", _root.transform, "선택 캐릭 중복 +6(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);

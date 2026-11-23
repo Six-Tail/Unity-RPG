@@ -17,9 +17,7 @@ namespace SubcultureRPG.Meta
         public static int ExpForNext(int level) =>
             level >= MaxLevel ? int.MaxValue : 100 * Mathf.Max(1, level);
 
-        /// <summary>이번 돌파에 필요한 돌파석 수.</summary>
-        public static int AscensionCost(int ascension) =>
-            2 * (Mathf.Clamp(ascension, 0, MaxAscension) + 1); // 2 / 4 / 6 / 8
+        // 돌파 비용(속성별 돌파 재료 + 금화)은 Economy 참고.
 
         /// <summary>이번 스킬 레벨업에 필요한 스킬 교본 수.</summary>
         public static int SkillUpgradeCost(int skillLevel) => Mathf.Max(1, skillLevel);

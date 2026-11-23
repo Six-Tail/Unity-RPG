@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using SubcultureRPG.Battle;
+using SubcultureRPG.Characters;
 
 namespace SubcultureRPG.Meta
 {
@@ -21,6 +22,13 @@ namespace SubcultureRPG.Meta
         [Min(1)] public int count = 1;
     }
 
+    /// <summary>스테이지 종류.</summary>
+    public enum StageKind
+    {
+        Main,              // 메인 스토리(챕터 진행) — 경험치 재료·금화
+        AscensionDungeon,  // 돌파 던전(속성 × 등급) — 속성 돌파 재료, 반복 파밍
+    }
+
     /// <summary>
     /// 스테이지 1개. 메뉴: Create > SubcultureRPG > Stage.
     /// 별 평가: ★1 클리어 · ★2 아군 전원 생존 · ★3 아군 행동 turnLimit회 이내 클리어.
@@ -37,6 +45,14 @@ namespace SubcultureRPG.Meta
         [TextArea] public string description;
         public bool isBoss;
 
+        [Header("종류 (돌파 던전)")]
+        public StageKind kind = StageKind.Main;
+        [Tooltip("돌파 던전: 드롭하는 돌파 재료의 속성.")] public Element dungeonElement = Element.Physical;
+        [Tooltip("돌파 던전 등급 1~3 = 초급(40 돌파) / 중급(60) / 상급(80).")]
+        [Range(1, 3)] public int dungeonTier = 1;
+        [Tooltip("이 스테이지를 클리어하면 개방(돌파 던전용). 비우면 항상 개방.")]
+        public StageData unlockAfter;
+
         [Header("적")]
         public List<StageEnemy> enemies = new();
         [Min(1)] public int recommendedLevel = 1;
@@ -52,9 +68,16 @@ namespace SubcultureRPG.Meta
         public List<MaterialReward> rewards = new();
         [Tooltip("클리어할 때마다 출전 캐릭터가 받는 경험치.")]
         [Min(0)] public int characterExp = 200;
+        [Tooltip("클리어할 때마다 받는 금화.")]
+        [Min(0)] public int gold = 1000;
 
-        /// <summary>표시용 번호(예: 1-3).</summary>
-        public string Code => $"{chapter}-{number}";
+        public bool IsDungeon => kind == StageKind.AscensionDungeon;
+
+        /// <summary>표시용 번호(예: 1-3, 던전은 '초급' 등).</summary>
+        public string Code => IsDungeon ? Materials.TierName(dungeonTier) : $"{chapter}-{number}";
+
+        /// <summary>돌파 던전이 주는 대표 재료.</summary>
+        public MaterialType DungeonMaterial => Materials.Ascension(dungeonElement, dungeonTier);
         public string Key => !string.IsNullOrEmpty(id) ? id : name;
 
         /// <summary>적 중 최고 레벨.</summary>

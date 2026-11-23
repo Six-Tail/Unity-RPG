@@ -16,6 +16,7 @@ namespace SubcultureRPG.Meta
         public int stars;
         public bool firstClear;
         public int crystals;
+        public int gold;
         public int allyActions;
         public bool allSurvived;
     }
@@ -179,6 +180,11 @@ namespace SubcultureRPG.Meta
                 result.crystals = stage.firstClearCrystals;
                 if (wallet != null) wallet.Add(stage.firstClearCrystals);
             }
+            if (stage.gold > 0)
+            {
+                result.gold = stage.gold;
+                if (wallet != null) wallet.AddGold(stage.gold);
+            }
             if (inventory != null && stage.rewards != null)
                 foreach (var m in stage.rewards)
                     if (m != null && m.count > 0) inventory.Add(m.type, m.count);
@@ -209,9 +215,10 @@ namespace SubcultureRPG.Meta
             sb.Append("<color=#FFD36B>획득</color>  ");
             var parts = new List<string>();
             if (r.crystals > 0) parts.Add($"<color=#8FE9FF>크리스탈 {r.crystals}</color> <size=75%>(첫 클리어)</size>");
+            if (r.gold > 0) parts.Add($"<color=#FFD36B>금화 {r.gold:N0}</color>");
             if (s.rewards != null)
                 foreach (var m in s.rewards)
-                    if (m != null && m.count > 0) parts.Add($"{Materials.Name(m.type)} ×{m.count}");
+                    if (m != null && m.count > 0) parts.Add($"{Materials.RichName(m.type)} ×{m.count}");
             if (s.characterExp > 0) parts.Add($"캐릭터 경험치 +{s.characterExp}");
             sb.Append(parts.Count > 0 ? string.Join("  ·  ", parts) : "없음");
             return sb.ToString();
