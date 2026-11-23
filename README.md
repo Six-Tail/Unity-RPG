@@ -51,7 +51,7 @@ git -C "D:/Users/jhbae/Downloads/subculture-rpg" commit -m "chore: Unity가 생�
 
 시스템별 문서:
 [메인 허브](docs/main-hub.md) · [가챠](docs/gacha.md) · [가챠 화면](docs/gacha-screen.md) · [가챠 결과 UI](docs/gacha-ui.md) ·
-[전투](docs/battle.md) · [전투 UI](docs/battle-ui.md) · [가챠↔전투 연동](docs/gacha-battle-link.md) · [육성](docs/growth.md) · [폰트](docs/fonts.md)
+[전투](docs/battle.md) · [전투 UI](docs/battle-ui.md) · [가챠↔전투 연동](docs/gacha-battle-link.md) · [육성](docs/growth.md) · [캐릭터 특성·정렬/필터](docs/characters.md) · [폰트](docs/fonts.md)
 
 ---
 

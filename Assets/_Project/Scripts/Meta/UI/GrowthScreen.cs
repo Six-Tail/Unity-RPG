@@ -29,6 +29,7 @@ namespace SubcultureRPG.Meta.UI
         private TextMeshProUGUI _potionLbl, _crystalLbl, _ascendLbl, _skillLbl;
         private Button _potionBtn, _crystalBtn, _ascendBtn, _skillBtn, _backBtn;
         private System.Action _onBack;
+        private RosterFilterBar _filterBar;
 
         private CharacterData _selected;
         private readonly Dictionary<CharacterData, Image> _cardHL = new();
@@ -85,14 +86,26 @@ namespace SubcultureRPG.Meta.UI
             Refresh();
         }
 
+        /// <summary>정렬·필터된 목록의 맨 앞 캐릭터를 선택.</summary>
         private void SelectFirst()
         {
             if (_selected != null || roster == null || database == null) return;
+            if (_filterBar != null)
+            {
+                var entries = _filterBar.filter.Apply(roster, database);
+                if (entries.Count > 0) { Select(entries[0].character); return; }
+            }
             foreach (var o in roster.Owned)
             {
                 var c = database.GetCharacter(o.id);
                 if (c != null) { Select(c); return; }
             }
+        }
+
+        private void OnFilterChanged()
+        {
+            RebuildGrid();
+            RefreshHighlights();
         }
 
         // ---------------- 목록 ----------------
@@ -107,12 +120,9 @@ namespace SubcultureRPG.Meta.UI
             }
             _cardHL.Clear();
 
-            if (roster == null || database == null) return;
-            foreach (var o in roster.Owned)
-            {
-                var c = database.GetCharacter(o.id);
-                if (c != null) BuildCard(c, o.level, o.ascension);
-            }
+            var entries = _filterBar != null ? _filterBar.filter.Apply(roster, database) : new List<RosterEntry>();
+            foreach (var e in entries) BuildCard(e.character, e.owned.level, e.owned.ascension);
+            if (_filterBar != null) _filterBar.SetCount(entries.Count, roster != null ? roster.Owned.Count : 0);
         }
 
         private void BuildCard(CharacterData c, int level, int ascension)
@@ -148,6 +158,14 @@ namespace SubcultureRPG.Meta.UI
             var lrt = lv.rectTransform;
             UIFactory.Anchor(lrt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
             lrt.sizeDelta = new Vector2(0, 20); lrt.anchoredPosition = new Vector2(0, 2);
+
+            // 속성(색) · 역할 (상단)
+            var traits = UIFactory.AddText("Traits", inner.transform,
+                $"<color={Traits.Hex(c.element)}>{Traits.Name(c.element)}</color>·{Traits.Name(c.role)}",
+                11, font, new Color(0.88f, 0.88f, 0.92f), TextAlignmentOptions.Center, FontStyles.Bold);
+            var trrt = traits.rectTransform;
+            UIFactory.Anchor(trrt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            trrt.sizeDelta = new Vector2(0, 16); trrt.anchoredPosition = new Vector2(0, -3);
         }
 
         private void Select(CharacterData c)
@@ -185,7 +203,8 @@ namespace SubcultureRPG.Meta.UI
             var sprite = _selected.thumbnail != null ? _selected.thumbnail : _selected.portrait;
             _detPortrait.sprite = sprite; _detPortrait.enabled = sprite != null;
 
-            _detName.text = $"{new string('★', (int)_selected.rarity)}  {_selected.displayName}";
+            _detName.text = $"{new string('★', (int)_selected.rarity)}  {_selected.displayName}" +
+                $"  <size=70%><color={Traits.Hex(_selected.element)}>{Traits.Name(_selected.element)}</color> · {Traits.Name(_selected.role)}</size>";
 
             int cap = Leveling.LevelCap(o.ascension);
             string asc = o.ascension > 0 ? $"  <color=#FFD36B>돌파 {o.ascension}</color>" : "";
@@ -321,12 +340,17 @@ namespace SubcultureRPG.Meta.UI
             // 좌: 보유 그리드
             _grid = UIFactory.NewRect("Grid", _root.transform);
             UIFactory.Anchor(_grid, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            _grid.anchoredPosition = new Vector2(-430, -20);
+            float gridW = 4 * _cell.x + 3 * 12;
+            _grid.anchoredPosition = new Vector2(-420, -70);
             var gl = _grid.gameObject.AddComponent<GridLayoutGroup>();
             gl.cellSize = _cell; gl.spacing = new Vector2(12, 12);
-            gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = 3;
-            gl.childAlignment = TextAnchor.MiddleCenter;
-            _grid.sizeDelta = new Vector2(3 * _cell.x + 2 * 12, 620);
+            gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = 4;
+            gl.childAlignment = TextAnchor.UpperCenter;
+            _grid.sizeDelta = new Vector2(gridW, 520);
+
+            // 정렬/필터 바(그리드 위)
+            _filterBar = RosterFilterBar.Build(_root.transform, new Vector2(-420, -116), gridW, font);
+            _filterBar.OnChanged += OnFilterChanged;
 
             BuildDetail();
 

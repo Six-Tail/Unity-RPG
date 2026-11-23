@@ -29,6 +29,7 @@ namespace SubcultureRPG.Meta.UI
         private TextMeshProUGUI _countText;
         private Button _startButton, _backBtn;
         private System.Action _onBack;
+        private RosterFilterBar _filterBar;
 
         /// <summary>'전투 시작'으로 전투에 들어갔을 때.</summary>
         public event System.Action OnLaunched;
@@ -98,6 +99,11 @@ namespace SubcultureRPG.Meta.UI
             _gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             _gridLayout.constraintCount = 5;
             _gridLayout.childAlignment = TextAnchor.MiddleCenter;
+            _grid.anchoredPosition = new Vector2(0, -40);
+
+            // 정렬/필터 바(타이틀 아래)
+            _filterBar = RosterFilterBar.Build(_root.transform, new Vector2(0, -112), 1000, font);
+            _filterBar.OnChanged += Rebuild;
 
             // 하단 바: 선택 수 + 전투 시작
             _countText = UIFactory.AddText("Count", _root.transform, "", 24, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
@@ -135,14 +141,9 @@ namespace SubcultureRPG.Meta.UI
             }
             _highlights.Clear();
 
-            if (roster != null && database != null)
-            {
-                foreach (var o in roster.Owned)
-                {
-                    var c = database.GetCharacter(o.id);
-                    if (c != null) BuildCard(c, o.count);
-                }
-            }
+            var entries = _filterBar != null ? _filterBar.filter.Apply(roster, database) : new List<RosterEntry>();
+            foreach (var e in entries) BuildCard(e.character, e.owned.count);
+            if (_filterBar != null) _filterBar.SetCount(entries.Count, roster != null ? roster.Owned.Count : 0);
 
             int n = _grid.childCount;
             int cols = Mathf.Clamp(n, 1, 5);
@@ -190,6 +191,14 @@ namespace SubcultureRPG.Meta.UI
             var strt = stars.rectTransform;
             UIFactory.Anchor(strt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
             strt.sizeDelta = new Vector2(0, 20); strt.anchoredPosition = new Vector2(6, -2);
+
+            // 속성(색) · 역할
+            var traits = UIFactory.AddText("Traits", inner.transform,
+                $"<color={Traits.Hex(c.element)}>{Traits.Name(c.element)}</color> · {Traits.Name(c.role)}",
+                12, font, new Color(0.88f, 0.88f, 0.92f), TextAlignmentOptions.Center, FontStyles.Bold);
+            var trrt = traits.rectTransform;
+            UIFactory.Anchor(trrt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            trrt.sizeDelta = new Vector2(0, 16); trrt.anchoredPosition = new Vector2(0, 33);
 
             if (count > 1)
             {
