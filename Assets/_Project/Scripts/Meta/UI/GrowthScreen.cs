@@ -25,11 +25,12 @@ namespace SubcultureRPG.Meta.UI
         private GameObject _root, _detPanel;
         private RectTransform _grid;
         private Image _detPortrait, _expFill;
-        private TextMeshProUGUI _matText, _detName, _detLevel, _detStats, _detExp, _detSkill, _toast;
-        private TextMeshProUGUI _potionLbl, _crystalLbl, _ascendLbl, _skillLbl;
-        private Button _potionBtn, _crystalBtn, _ascendBtn, _skillBtn, _backBtn;
+        private TextMeshProUGUI _matText, _detName, _detLevel, _detInfo, _detStats, _detExp, _detSkill, _detPassives, _toast;
+        private TextMeshProUGUI _potionLbl, _crystalLbl, _ascendLbl, _skillLbl, _mergeLbl;
+        private Button _potionBtn, _crystalBtn, _ascendBtn, _skillBtn, _mergeBtn, _backBtn;
         private System.Action _onBack;
         private RosterFilterBar _filterBar;
+        private StarRow _detStars;
 
         private CharacterData _selected;
         private readonly Dictionary<CharacterData, Image> _cardHL = new();
@@ -121,19 +122,20 @@ namespace SubcultureRPG.Meta.UI
             _cardHL.Clear();
 
             var entries = _filterBar != null ? _filterBar.filter.Apply(roster, database) : new List<RosterEntry>();
-            foreach (var e in entries) BuildCard(e.character, e.owned.level, e.owned.ascension);
+            foreach (var e in entries) BuildCard(e.character, e.owned);
             if (_filterBar != null) _filterBar.SetCount(entries.Count, roster != null ? roster.Owned.Count : 0);
         }
 
-        private void BuildCard(CharacterData c, int level, int ascension)
+        private void BuildCard(CharacterData c, OwnedCharacter o)
         {
             var card = UIFactory.NewRect("Card", _grid);
+            int starN = Transcendence.CurrentStar(c.rarity, o.star);
 
             var hl = UIFactory.AddImage("HL", card, new Color(0.3f, 0.8f, 1f, 0f));
             UIFactory.Stretch(hl.rectTransform, -3, -3, -3, -3);
             _cardHL[c] = hl;
 
-            var frame = UIFactory.AddImage("Frame", card, RarityColor(c.rarity), null, raycast: true);
+            var frame = UIFactory.AddImage("Frame", card, StarText.FrameColor(starN, o.transcend), null, raycast: true);
             UIFactory.Stretch(frame.rectTransform);
             var btn = frame.gameObject.AddComponent<Button>();
             btn.targetGraphic = frame;
@@ -153,8 +155,8 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(nrt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
             nrt.sizeDelta = new Vector2(0, 22); nrt.anchoredPosition = new Vector2(0, 22);
 
-            string star = ascension > 0 ? $"Lv.{level} <color=#FFD36B>★{ascension}</color>" : $"Lv.{level}";
-            var lv = UIFactory.AddText("Lv", inner.transform, star, 13, font, new Color(1f, 0.85f, 0.4f), TextAlignmentOptions.Center, FontStyles.Bold);
+            string lvText = o.ascension > 0 ? $"Lv.{o.level} <color=#FFD36B>돌파{o.ascension}</color>" : $"Lv.{o.level}";
+            var lv = UIFactory.AddText("Lv", inner.transform, lvText, 13, font, new Color(1f, 0.85f, 0.4f), TextAlignmentOptions.Center, FontStyles.Bold);
             var lrt = lv.rectTransform;
             UIFactory.Anchor(lrt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
             lrt.sizeDelta = new Vector2(0, 20); lrt.anchoredPosition = new Vector2(0, 2);
@@ -166,6 +168,22 @@ namespace SubcultureRPG.Meta.UI
             var trrt = traits.rectTransform;
             UIFactory.Anchor(trrt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
             trrt.sizeDelta = new Vector2(0, 16); trrt.anchoredPosition = new Vector2(0, -3);
+
+            // 별(초월 = 무지개) — 초상 하단
+            var stars = StarRow.Create(inner.transform, 19, TextAnchor.MiddleCenter, font);
+            var srt = stars.Rect;
+            UIFactory.Anchor(srt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            srt.sizeDelta = new Vector2(0, 19); srt.anchoredPosition = new Vector2(0, 42);
+            stars.Set(starN, o.transcend);
+
+            // 합성/초월 가능 표시
+            if (roster != null && (roster.CanPromote(c) || roster.CanTranscend(c)))
+            {
+                var up = UIFactory.AddText("Up", inner.transform, roster.CanPromote(c) ? "합성!" : "초월!", 11, font, new Color(0.45f, 1f, 0.55f), TextAlignmentOptions.TopRight, FontStyles.Bold);
+                var urt = up.rectTransform;
+                UIFactory.Anchor(urt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+                urt.sizeDelta = new Vector2(48, 16); urt.anchoredPosition = new Vector2(-3, -18);
+            }
         }
 
         private void Select(CharacterData c)
@@ -203,14 +221,20 @@ namespace SubcultureRPG.Meta.UI
             var sprite = _selected.thumbnail != null ? _selected.thumbnail : _selected.portrait;
             _detPortrait.sprite = sprite; _detPortrait.enabled = sprite != null;
 
-            _detName.text = $"{new string('★', (int)_selected.rarity)}  {_selected.displayName}" +
+            int starN = roster.StarOf(_selected);
+            int tr = roster.TranscendOf(_selected);
+            _detStars.Set(starN, tr);
+            _detName.text = $"{_selected.displayName}" +
                 $"  <size=70%><color={Traits.Hex(_selected.element)}>{Traits.Name(_selected.element)}</color> · {Traits.Name(_selected.role)}</size>";
+            string promoted = starN > (int)_selected.rarity ? $" → 현재 {starN}★" : "";
+            _detInfo.text = $"태생 {(int)_selected.rarity}★{promoted}    중복 {o.Duplicates}장    " +
+                $"<color=#9AA3B5>풀 초월까지 {Transcendence.RemainingCost(_selected.rarity, starN, tr)} / {Transcendence.TotalCost(_selected.rarity)}장</color>";
 
             int cap = Leveling.LevelCap(o.ascension);
             string asc = o.ascension > 0 ? $"  <color=#FFD36B>돌파 {o.ascension}</color>" : "";
             _detLevel.text = $"Lv. {o.level} / {cap}{asc}";
 
-            var (hp, atk, def, spd) = StatsAt(_selected, o.level, o.skillLevel);
+            var (hp, atk, def, spd) = StatsAt(_selected, o.level, o.skillLevel, starN, tr);
             _detStats.text = $"HP {hp}    ATK {atk}\nDEF {def}    SPD {spd}";
 
             bool atCap = o.level >= cap;
@@ -218,7 +242,10 @@ namespace SubcultureRPG.Meta.UI
             _detExp.text = atCap ? (o.ascension >= Leveling.MaxAscension ? "MAX" : "상한 — 돌파 필요") : $"EXP {o.exp} / {need}";
             SetExpFill(atCap ? 1f : (need > 0 ? (float)o.exp / need : 0f));
 
-            _detSkill.text = $"스킬 레벨  {o.skillLevel} / {Leveling.MaxSkillLevel}";
+            float sk = Transcendence.SkillMultiplier(tr);
+            _detSkill.text = $"스킬 레벨  {o.skillLevel} / {Leveling.MaxSkillLevel}" +
+                (tr > 0 ? $"    <color=#B47CFF>초월 스킬 계수 +{Mathf.RoundToInt((sk - 1f) * 100)}%</color>" : "");
+            _detPassives.text = PassiveText(_selected.role, starN, tr);
 
             // 버튼 라벨/활성
             int potion = Mat(MaterialType.ExpPotion), crystal = Mat(MaterialType.ExpCrystal);
@@ -250,6 +277,41 @@ namespace SubcultureRPG.Meta.UI
                 _skillLbl.text = $"스킬 Lv.{o.skillLevel} → {o.skillLevel + 1}\n<size=60%>교본 {Mat(MaterialType.SkillBook)} / {cost}</size>";
                 _skillBtn.interactable = Mat(MaterialType.SkillBook) >= cost;
             }
+
+            // 합성 / 초월
+            int mcost = roster.MergeCost(_selected);
+            if (starN < Transcendence.MaxStar)
+            {
+                _mergeLbl.text = $"합성 → {starN + 1}★\n<size=60%>중복 {o.Duplicates} / {mcost}</size>";
+                _mergeBtn.interactable = roster.CanPromote(_selected);
+            }
+            else if (tr < Transcendence.MaxTranscend)
+            {
+                _mergeLbl.text = $"초월 → {StarText.Plus(tr + 1)}\n<size=60%>중복 {o.Duplicates} / {mcost}</size>";
+                _mergeBtn.interactable = roster.CanTranscend(_selected);
+            }
+            else
+            {
+                _mergeLbl.text = "초월 완료 " + StarText.Plus(tr);
+                _mergeBtn.interactable = false;
+            }
+        }
+
+        /// <summary>초월 고유 패시브 목록(해금 = 밝게, 미해금 = 회색).</summary>
+        private static string PassiveText(Role role, int star, int transcend)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<b>초월 고유 패시브</b>");
+            if (star < Transcendence.MaxStar) sb.Append("  <color=#9AA3B5><size=85%>(6★ 달성 후 초월)</size></color>");
+            foreach (var p in Transcendence.Passives(role))
+            {
+                bool on = transcend >= p.level;
+                string lvl = $"<color={StarText.Rainbow[p.level - 1]}>+{p.level}</color>";
+                sb.Append('\n');
+                if (on) sb.Append($"{lvl} <b>{p.name}</b> — {p.desc}");
+                else sb.Append($"<color=#6B7280>+{p.level} {p.name} — {p.desc}</color>");
+            }
+            return sb.ToString();
         }
 
         private int Mat(MaterialType t) => inventory != null ? inventory.Count(t) : 0;
@@ -284,13 +346,42 @@ namespace SubcultureRPG.Meta.UI
             roster.UpgradeSkill(_selected);
         }
 
-        private (int hp, int atk, int def, int spd) StatsAt(CharacterData c, int level, int skillLevel)
+        private void MergeOrTranscend()
+        {
+            if (_selected == null || roster == null) return;
+            int cost = roster.MergeCost(_selected);
+            if (roster.StarOf(_selected) < Transcendence.MaxStar)
+            {
+                if (!roster.Promote(_selected)) { Toast($"중복 캐릭터가 부족합니다 (필요 {cost})"); return; }
+                Toast($"합성 완료! {roster.StarOf(_selected)}★ 달성");
+            }
+            else
+            {
+                if (roster.TranscendOf(_selected) >= Transcendence.MaxTranscend) { Toast("이미 최대 초월(+6)"); return; }
+                if (!roster.Transcend(_selected)) { Toast($"중복 캐릭터가 부족합니다 (필요 {cost})"); return; }
+                int t = roster.TranscendOf(_selected);
+                string unlocked = "";
+                foreach (var p in Transcendence.Passives(_selected.role))
+                    if (p.level == t) unlocked = $" — 패시브 해금: {p.name}";
+                Toast($"초월 +{t} 달성!{unlocked}");
+            }
+        }
+
+        private (int hp, int atk, int def, int spd) StatsAt(CharacterData c, int level, int skillLevel, int star, int transcend)
         {
             System.Func<CharacterData, BattleUnitData> lookup = null;
             if (database != null) lookup = database.GetUnit;
-            var u = RuntimeUnits.FromCharacter(c, level, lookup, skillLevel);
+            var u = RuntimeUnits.FromCharacter(c, level, lookup, skillLevel, star, transcend);
             var s = u.baseStats;
-            return (s.MaxHPAt(level), s.AtkAt(level), s.DefAt(level), s.spd);
+            var result = (s.MaxHPAt(level), s.AtkAt(level), s.DefAt(level), s.spd);
+
+            // 미리보기용으로 새로 만든 유닛(생성/초월 복제본)은 바로 정리 — 저작 에셋은 건드리지 않음
+            if (lookup == null || lookup(c) != u)
+            {
+                if (u.skills != null) foreach (var sk in u.skills) if (sk != null) Destroy(sk);
+                Destroy(u);
+            }
+            return result;
         }
 
         private void SetExpFill(float ratio)
@@ -305,7 +396,7 @@ namespace SubcultureRPG.Meta.UI
             if (_toast == null) return;
             _toast.text = msg;
             CancelInvoke(nameof(ClearToast));
-            Invoke(nameof(ClearToast), 1.6f);
+            Invoke(nameof(ClearToast), 2.2f);
         }
         private void ClearToast() { if (_toast != null) _toast.text = ""; }
 
@@ -361,6 +452,13 @@ namespace SubcultureRPG.Meta.UI
             crt.sizeDelta = new Vector2(240, 48); crt.anchoredPosition = new Vector2(30, 30);
             charge.onClick.AddListener(() => { if (inventory != null) inventory.GrantTest(); });
 
+            // 테스트: 선택 캐릭터 중복 +6 (합성/초월 확인용)
+            var dup = UIFactory.AddButton("DupTest", _root.transform, "선택 캐릭 중복 +6(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var drt = (RectTransform)dup.transform;
+            UIFactory.Anchor(drt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            drt.sizeDelta = new Vector2(280, 48); drt.anchoredPosition = new Vector2(290, 30);
+            dup.onClick.AddListener(() => { if (roster != null && _selected != null) roster.GrantTestDuplicates(_selected, 6); });
+
             // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
             _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
             var bkrt = (RectTransform)_backBtn.transform;
@@ -381,21 +479,27 @@ namespace SubcultureRPG.Meta.UI
             _detPanel = panel.gameObject;
             var prt = panel.rectTransform;
             UIFactory.Anchor(prt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            prt.sizeDelta = new Vector2(540, 780); prt.anchoredPosition = new Vector2(440, -20);
+            prt.sizeDelta = new Vector2(560, 880); prt.anchoredPosition = new Vector2(440, -20);
 
-            _detPortrait = TopImg(panel.transform, "Portrait", new Vector2(200, 250), -16);
+            _detPortrait = TopImg(panel.transform, "Portrait", new Vector2(150, 186), -12);
             _detPortrait.color = new Color(1, 1, 1, 0.1f); _detPortrait.preserveAspect = true;
 
-            _detName = TopText(panel.transform, "Name", 26, FontStyles.Bold, new Vector2(500, 36), -278);
-            _detLevel = TopText(panel.transform, "Level", 23, FontStyles.Bold, new Vector2(500, 30), -316);
+            _detStars = StarRow.Create(panel.transform, 36, TextAnchor.MiddleCenter, font);
+            var dsrt = _detStars.Rect;
+            UIFactory.Anchor(dsrt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            dsrt.sizeDelta = new Vector2(520, 36); dsrt.anchoredPosition = new Vector2(0, -200);
+            _detName = TopText(panel.transform, "Name", 26, FontStyles.Bold, new Vector2(520, 36), -236);
+            _detLevel = TopText(panel.transform, "Level", 22, FontStyles.Bold, new Vector2(520, 30), -272);
             _detLevel.color = new Color(1f, 0.85f, 0.4f);
-            _detStats = TopText(panel.transform, "Stats", 21, FontStyles.Normal, new Vector2(500, 70), -352);
+            _detInfo = TopText(panel.transform, "Info", 17, FontStyles.Normal, new Vector2(520, 26), -302);
+            _detInfo.color = new Color(0.85f, 0.88f, 0.95f);
+            _detStats = TopText(panel.transform, "Stats", 21, FontStyles.Normal, new Vector2(520, 64), -330);
             _detStats.lineSpacing = 6f;
 
             // EXP 바
             var expBar = UIFactory.NewRect("ExpBar", panel.transform);
             UIFactory.Anchor(expBar, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            expBar.sizeDelta = new Vector2(480, 20); expBar.anchoredPosition = new Vector2(0, -452);
+            expBar.sizeDelta = new Vector2(480, 20); expBar.anchoredPosition = new Vector2(0, -400);
             var expBg = UIFactory.AddImage("BG", expBar, new Color(0, 0, 0, 0.5f));
             UIFactory.Stretch(expBg.rectTransform);
             _expFill = UIFactory.AddImage("Fill", expBar, new Color(0.4f, 0.85f, 1f, 1f));
@@ -403,16 +507,26 @@ namespace SubcultureRPG.Meta.UI
             _detExp = UIFactory.AddText("ExpText", expBar.transform, "", 13, font, Color.white, TextAlignmentOptions.Center);
             UIFactory.Stretch(_detExp.rectTransform);
 
-            _detSkill = TopText(panel.transform, "Skill", 20, FontStyles.Normal, new Vector2(500, 26), -486);
+            _detSkill = TopText(panel.transform, "Skill", 19, FontStyles.Normal, new Vector2(520, 26), -428);
             _detSkill.color = new Color(0.8f, 0.85f, 1f);
 
+            // 초월 고유 패시브
+            _detPassives = TopText(panel.transform, "Passives", 16, FontStyles.Normal, new Vector2(500, 118), -460);
+            _detPassives.alignment = TextAlignmentOptions.TopLeft;
+            _detPassives.lineSpacing = 4f;
+            _detPassives.enableAutoSizing = true;
+            _detPassives.fontSizeMin = 12; _detPassives.fontSizeMax = 16;
+            _detPassives.color = new Color(0.92f, 0.93f, 0.97f);
+
             // 레벨업(물약/결정)
-            _potionBtn = DetailButton(panel.transform, new Color(0.35f, 0.55f, 0.35f, 0.95f), new Vector2(238, 54), new Vector2(-126, -548), UseExpPotion, out _potionLbl);
-            _crystalBtn = DetailButton(panel.transform, new Color(0.3f, 0.5f, 0.6f, 0.95f), new Vector2(238, 54), new Vector2(126, -548), UseExpCrystal, out _crystalLbl);
+            _potionBtn = DetailButton(panel.transform, new Color(0.35f, 0.55f, 0.35f, 0.95f), new Vector2(238, 52), new Vector2(-126, -590), UseExpPotion, out _potionLbl);
+            _crystalBtn = DetailButton(panel.transform, new Color(0.3f, 0.5f, 0.6f, 0.95f), new Vector2(238, 52), new Vector2(126, -590), UseExpCrystal, out _crystalLbl);
             // 돌파
-            _ascendBtn = DetailButton(panel.transform, new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(492, 54), new Vector2(0, -610), Ascend, out _ascendLbl);
+            _ascendBtn = DetailButton(panel.transform, new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(492, 52), new Vector2(0, -650), Ascend, out _ascendLbl);
             // 스킬업
-            _skillBtn = DetailButton(panel.transform, new Color(0.5f, 0.35f, 0.75f, 0.95f), new Vector2(492, 54), new Vector2(0, -672), SkillUp, out _skillLbl);
+            _skillBtn = DetailButton(panel.transform, new Color(0.5f, 0.35f, 0.75f, 0.95f), new Vector2(492, 52), new Vector2(0, -710), SkillUp, out _skillLbl);
+            // 합성 / 초월 (중복 캐릭터 소모)
+            _mergeBtn = DetailButton(panel.transform, new Color(0.85f, 0.35f, 0.55f, 0.95f), new Vector2(492, 56), new Vector2(0, -774), MergeOrTranscend, out _mergeLbl);
 
             _detPanel.SetActive(false);
         }
@@ -448,14 +562,6 @@ namespace SubcultureRPG.Meta.UI
             label = btn.GetComponentInChildren<TextMeshProUGUI>();
             return btn;
         }
-
-        private static Color RarityColor(Rarity r) => r switch
-        {
-            Rarity.R6 => new Color(1f, 0.78f, 0.25f),
-            Rarity.R5 => new Color(0.72f, 0.42f, 1f),
-            Rarity.R4 => new Color(0.33f, 0.62f, 1f),
-            _ => new Color(0.62f, 0.67f, 0.75f),
-        };
 
         private void EnsureEventSystem()
         {

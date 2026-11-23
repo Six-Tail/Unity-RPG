@@ -142,7 +142,7 @@ namespace SubcultureRPG.Meta.UI
             _highlights.Clear();
 
             var entries = _filterBar != null ? _filterBar.filter.Apply(roster, database) : new List<RosterEntry>();
-            foreach (var e in entries) BuildCard(e.character, e.owned.count);
+            foreach (var e in entries) BuildCard(e.character, e.owned);
             if (_filterBar != null) _filterBar.SetCount(entries.Count, roster != null ? roster.Owned.Count : 0);
 
             int n = _grid.childCount;
@@ -155,15 +155,18 @@ namespace SubcultureRPG.Meta.UI
             UpdateBottom();
         }
 
-        private void BuildCard(CharacterData c, int count)
+        private void BuildCard(CharacterData c, OwnedCharacter owned)
         {
             var card = UIFactory.NewRect("Card", _grid);
+            int star = Transcendence.CurrentStar(c.rarity, owned.star);
+            int tr = owned.transcend;
+            var starColor = StarText.ColorOf(star);
 
             var hl = UIFactory.AddImage("HL", card, new Color(0.3f, 0.8f, 1f, 0f));
             UIFactory.Stretch(hl.rectTransform, -4, -4, -4, -4);
             _highlights[c] = hl;
 
-            var frame = UIFactory.AddImage("Frame", card, RarityColor(c.rarity), null, raycast: true);
+            var frame = UIFactory.AddImage("Frame", card, StarText.FrameColor(star, tr), null, raycast: true);
             UIFactory.Stretch(frame.rectTransform);
             var btn = frame.gameObject.AddComponent<Button>();
             btn.targetGraphic = frame;
@@ -180,17 +183,18 @@ namespace SubcultureRPG.Meta.UI
             portrait.enabled = sprite != null;
             portrait.preserveAspect = true;
 
-            var bar = UIFactory.AddImage("Bar", inner.transform, new Color(RarityColor(c.rarity).r, RarityColor(c.rarity).g, RarityColor(c.rarity).b, 0.9f));
+            var bar = UIFactory.AddImage("Bar", inner.transform, new Color(starColor.r, starColor.g, starColor.b, 0.9f));
             var brt = bar.rectTransform;
             UIFactory.Anchor(brt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
             brt.sizeDelta = new Vector2(0, 30); brt.anchoredPosition = Vector2.zero;
             var nameT = UIFactory.AddText("Name", bar.transform, c.displayName, 13, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             UIFactory.Stretch(nameT.rectTransform);
 
-            var stars = UIFactory.AddText("Stars", inner.transform, new string('★', (int)c.rarity), 13, font, RarityColor(c.rarity), TextAlignmentOptions.TopLeft);
-            var strt = stars.rectTransform;
+            var stars = StarRow.Create(inner.transform, 20, TextAnchor.MiddleLeft, font);
+            var strt = stars.Rect;
             UIFactory.Anchor(strt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            strt.sizeDelta = new Vector2(0, 20); strt.anchoredPosition = new Vector2(6, -2);
+            strt.sizeDelta = new Vector2(-6, 20); strt.anchoredPosition = new Vector2(3, -2);
+            stars.Set(star, tr);
 
             // 속성(색) · 역할
             var traits = UIFactory.AddText("Traits", inner.transform,
@@ -200,12 +204,12 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(trrt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
             trrt.sizeDelta = new Vector2(0, 16); trrt.anchoredPosition = new Vector2(0, 33);
 
-            if (count > 1)
+            if (owned.Duplicates > 0)
             {
-                var badge = UIFactory.AddText("Count", inner.transform, "x" + count, 12, font, new Color(1f, 0.9f, 0.5f), TextAlignmentOptions.TopRight);
+                var badge = UIFactory.AddText("Count", inner.transform, "중복 " + owned.Duplicates, 11, font, new Color(1f, 0.9f, 0.5f), TextAlignmentOptions.TopRight);
                 var cbrt = badge.rectTransform;
                 UIFactory.Anchor(cbrt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
-                cbrt.sizeDelta = new Vector2(44, 20); cbrt.anchoredPosition = new Vector2(-4, -2);
+                cbrt.sizeDelta = new Vector2(54, 20); cbrt.anchoredPosition = new Vector2(-4, -20);
             }
 
             SetHighlight(c, _selected.Contains(c));
@@ -246,14 +250,6 @@ namespace SubcultureRPG.Meta.UI
         }
 
         // ---------------- 유틸 ----------------
-
-        private static Color RarityColor(Rarity r) => r switch
-        {
-            Rarity.R6 => new Color(1f, 0.78f, 0.25f),
-            Rarity.R5 => new Color(0.72f, 0.42f, 1f),
-            Rarity.R4 => new Color(0.33f, 0.62f, 1f),
-            _ => new Color(0.62f, 0.67f, 0.75f),
-        };
 
         private void EnsureEventSystem()
         {

@@ -58,18 +58,24 @@ namespace SubcultureRPG.Meta.UI
             roles.Clear();
         }
 
+        /// <summary>정렬용 등급(현재 성급 × 10 + 초월). 합성·초월 반영.</summary>
+        public static int Grade(RosterEntry e) =>
+            Transcendence.GradeValue(Transcendence.CurrentStar(e.character.rarity, e.owned.star), e.owned.transcend);
+
         private int Compare(RosterEntry a, RosterEntry b)
         {
             int r = sort switch
             {
                 RosterSort.Level => a.owned.level.CompareTo(b.owned.level),
                 RosterSort.Name => string.Compare(a.character.displayName, b.character.displayName, StringComparison.CurrentCulture),
-                _ => ((int)a.character.rarity).CompareTo((int)b.character.rarity),
+                _ => Grade(a).CompareTo(Grade(b)),
             };
             if (descending) r = -r;
             if (r != 0) return r;
 
-            // 동률이면 성급↓ → 레벨↓ → 이름↑
+            // 동률이면 등급↓ → 태생 성급↓ → 레벨↓ → 이름↑
+            r = Grade(b).CompareTo(Grade(a));
+            if (r != 0) return r;
             r = ((int)b.character.rarity).CompareTo((int)a.character.rarity);
             if (r != 0) return r;
             r = b.owned.level.CompareTo(a.owned.level);
