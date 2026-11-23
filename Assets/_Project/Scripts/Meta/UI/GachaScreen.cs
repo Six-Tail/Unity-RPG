@@ -28,7 +28,8 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField, Tooltip("테스트 충전 버튼이 주는 뽑기권(현재 종류).")] private int chargeTickets = 10;
 
         private GameObject _root, _ratesOverlay;
-        private Image _portrait;
+        private Image _portrait, _frame;
+        private TextMeshProUGUI _frameFallback;
         private TextMeshProUGUI _crystalText, _ticketText, _bannerText, _pityText, _featuredName, _featuredStars, _lineup, _toast, _ratesText;
         private TextMeshProUGUI _singleLabel, _multiLabel, _chargeLabel;
         private RectTransform _catTabs, _bannerTabs;
@@ -263,20 +264,26 @@ namespace SubcultureRPG.Meta.UI
 
             // 배경: 배너 그림(Banners/{픽업 캐릭터 id} · Banners/standard) → 없으면 공용 가챠 배경
             string bannerKey = b == null ? null : (feat != null ? "Banners/" + (!string.IsNullOrEmpty(feat.id) ? feat.id : feat.name) : "Banners/standard");
-            bool bannerArt = bannerKey != null && GameArt.Load(bannerKey) != null;
             if (_bg != null) _bg.Set(bannerKey, "Backgrounds/gacha");
+            _frame.gameObject.SetActive(feat != null);
             if (feat != null)
             {
+                // 가운데 액자: 픽업 캐릭터 일러스트(Live2D 모델이 있으면 움직이는 모델)
                 var sprite = GameArt.Portrait(feat);
+                var starColor = StarText.ColorOf((int)feat.rarity);
+                _frame.color = new Color(starColor.r, starColor.g, starColor.b, 1f);
+                bool live = Live2DUI.Show(_portrait, feat);
                 _portrait.sprite = sprite;
-                _portrait.enabled = !bannerArt;   // 배너 그림에 픽업 캐릭터가 있으면 가운데 미리보기는 숨김
-                _portrait.color = sprite != null ? Color.white : new Color(1, 1, 1, 0.1f);
+                _portrait.enabled = !live && sprite != null;
+                _portrait.color = Color.white;
+                _frameFallback.text = !live && sprite == null ? feat.displayName : "";
                 _featuredName.text = $"{feat.displayName}  <size=70%><color={Traits.Hex(feat.element)}>{Traits.Name(feat.element)}</color> · {Traits.Name(feat.role)}</size>";
                 _featuredStars.text = new string('★', (int)feat.rarity) + "  <size=70%>픽업</size>";
             }
             else
             {
                 // 상시: 6성 라인업
+                Live2DUI.Hide(_portrait);
                 _portrait.enabled = false;
                 _featuredStars.text = "";
                 _featuredName.text = "";
@@ -338,10 +345,19 @@ namespace SubcultureRPG.Meta.UI
             _ticketText = UIFactory.AddText("Tickets", root, "", 20, font, Color.white, TextAlignmentOptions.Right, FontStyles.Bold);
             Place(_ticketText.rectTransform, new Vector2(1, 1), new Vector2(620, 30), new Vector2(-30, -70), new Vector2(1, 1));
 
-            // 픽업 캐릭터 미리보기(중앙)
-            _portrait = UIFactory.AddImage("Featured", root, new Color(1, 1, 1, 0.1f));
-            Place(_portrait.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(320, 400), new Vector2(0, 20), new Vector2(0.5f, 0.5f));
+            // 픽업 캐릭터 액자(중앙, 이름 위) — 성급 색 테두리 + 그림자, 안쪽 3:4
+            _frame = UIFactory.AddImage("FeaturedFrame", root, new Color(1f, 0.8f, 0.3f, 1f));
+            Place(_frame.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(318, 420), new Vector2(0, 32), new Vector2(0.5f, 0.5f));
+            var frameShadow = _frame.gameObject.AddComponent<Shadow>();
+            frameShadow.effectColor = new Color(0f, 0f, 0f, 0.6f);
+            frameShadow.effectDistance = new Vector2(0f, -6f);
+            var frameInner = UIFactory.AddImage("Inner", _frame.transform, new Color(0.08f, 0.08f, 0.12f, 1f));
+            UIFactory.Stretch(frameInner.rectTransform, 5, 5, 5, 5);
+            _portrait = UIFactory.AddImage("Featured", frameInner.transform, Color.white);
+            UIFactory.Stretch(_portrait.rectTransform, 1, 1, 1, 1);
             _portrait.preserveAspect = true;
+            _frameFallback = UIFactory.AddText("Fallback", frameInner.transform, "", 34, font, new Color(1f, 0.85f, 0.45f), TextAlignmentOptions.Center, FontStyles.Bold);
+            UIFactory.Stretch(_frameFallback.rectTransform, 10, 10, 10, 10);
 
             _featuredStars = UIFactory.AddText("FStars", root, "", 26, font, new Color(1f, 0.8f, 0.3f), TextAlignmentOptions.Center, FontStyles.Bold);
             Place(_featuredStars.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(400, 32), new Vector2(0, -196), new Vector2(0.5f, 0.5f));
