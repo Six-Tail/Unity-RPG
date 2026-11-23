@@ -104,4 +104,4 @@ node tools/art/generate-art.js --write-prompts
 
 - 육성 화면의 재료 칸, 스테이지 보상 목록(글자 표시 그대로)
 - 재화(크리스탈·뽑기권) 아이콘
-- 6성 Live2D — `Assets/_Project/Art/Characters/Live2D/` + `CharacterData.live2DModelPrefab`(Cubism SDK 임포트 후)
+- 6성 Live2D는 따로 [live2d.md](live2d.md) — 모델 폴더를 `Assets/_Project/Art/Characters/Live2D/{id}/`에 두면 연결됩니다(Cubism SDK 필요)

@@ -61,3 +61,11 @@ desktop.ini
 
 # 이미지 확인용 모아보기(생성 결과 미리보기) — 커밋하지 않음
 /docs/art-preview/
+
+# Live2D Cubism SDK — 라이선스상 저장소에 올리지 않음(각자 내려받아 임포트: docs/live2d.md)
+/Assets/Live2D/
+/Assets/Live2D.meta
+/Assets/csc.rsp
+/Assets/csc.rsp.meta
+/Assets/mcs.rsp
+/Assets/mcs.rsp.meta

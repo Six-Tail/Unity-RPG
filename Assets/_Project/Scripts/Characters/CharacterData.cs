@@ -42,5 +42,8 @@ namespace SubcultureRPG.Characters
         [Header("Live2D (6성만)")]
         [Tooltip("Cubism 모델을 프리팹으로 만들어 연결. 6성이 아니면 비워 둬도 됩니다.")]
         public GameObject live2DModelPrefab;
+
+        [Tooltip("Live2D 대기 모션(반복 재생). 모델 폴더의 모션에서 자동 연결됩니다(이름에 idle 이 들어간 것 우선).")]
+        public AnimationClip live2DIdleMotion;
     }
 }

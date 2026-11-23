@@ -3,9 +3,9 @@ using UnityEngine;
 namespace SubcultureRPG.Characters
 {
     /// <summary>
-    /// 6성: Live2D(Cubism) 모델을 표시.
-    /// ⚠️ Live2D Cubism SDK를 아직 임포트하지 않아도 컴파일되도록 '스텁'으로 둡니다.
-    ///    SDK 임포트 후 CubismModel / CubismMotionController 연결부(아래 TODO)를 채우세요.
+    /// 6성: Live2D(Cubism) 모델을 월드에 직접 표시(월드 공간 연출용).
+    /// 게임 화면(UI)에 띄우는 것은 <see cref="Live2DStage"/> + SubcultureRPG.UI.Live2DUI 가 맡습니다 — docs/live2d.md.
+    /// ⚠️ Live2D Cubism SDK를 임포트하지 않아도 컴파일되도록 SDK 타입을 직접 쓰지 않습니다.
     ///    SDK: https://www.live2d.com/sdk/download/unity/  (개인·소규모 무료 라이선스)
     /// </summary>
     public class Live2DCharacterView : MonoBehaviour, ICharacterView

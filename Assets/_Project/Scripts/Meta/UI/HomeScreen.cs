@@ -115,14 +115,16 @@ namespace SubcultureRPG.Meta.UI
             if (feat != null)
             {
                 var sprite = GameArt.Portrait(feat);
+                bool live = Live2DUI.Show(_featPortrait, feat);   // Live2D 모델이 있으면 움직이는 모델로
                 _featPortrait.sprite = sprite;
-                _featPortrait.enabled = sprite != null;
+                _featPortrait.enabled = !live && sprite != null;
                 _featPortrait.color = Color.white;
                 _featName.text = $"{new string('★', (int)feat.rarity)}  {feat.displayName}";
                 _featBanner.text = $"픽업 진행 중 · {banner.bannerName}";
             }
             else
             {
+                Live2DUI.Hide(_featPortrait);
                 _featPortrait.enabled = false;
                 _featName.text = "";
                 _featBanner.text = "";

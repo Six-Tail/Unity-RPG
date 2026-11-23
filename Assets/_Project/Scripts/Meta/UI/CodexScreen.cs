@@ -209,6 +209,7 @@ namespace SubcultureRPG.Meta.UI
             var c = _selected;
             if (c == null)
             {
+                Live2DUI.Hide(_portrait);
                 _portrait.enabled = false;
                 _name.text = ""; _stars.text = ""; _traits.text = ""; _line.text = ""; _source.text = ""; _owned.text = "";
                 _lockLabel.text = "";
@@ -218,8 +219,11 @@ namespace SubcultureRPG.Meta.UI
 
             bool have = codex.IsOwned(c);
             var sprite = GameArt.Portrait(c);
+            // 보유한 캐릭터에 Live2D 모델이 있으면 움직이는 모델로(미보유는 어두운 정적 그림)
+            bool live = have && Live2DUI.Show(_portrait, c);
+            if (!live) Live2DUI.Hide(_portrait);
             _portrait.sprite = sprite;
-            _portrait.enabled = sprite != null;
+            _portrait.enabled = !live && sprite != null;
             _portrait.color = have ? Color.white : Locked;
             _lockLabel.text = have ? "" : "미보유";
 
@@ -242,15 +246,18 @@ namespace SubcultureRPG.Meta.UI
             }
             else _owned.text = "<color=#FFD36B>보유 정보</color>\n<color=#9AA3B5>아직 획득하지 못한 캐릭터입니다</color>";
 
-            _viewBtn.gameObject.SetActive(have && sprite != null);
+            _viewBtn.gameObject.SetActive(have && (sprite != null || live));
         }
 
         private void OpenViewer()
         {
+            if (_selected == null || !codex.IsOwned(_selected)) return;
             var sprite = GameArt.Portrait(_selected);
-            if (sprite == null || !codex.IsOwned(_selected)) return;
+            _viewer.SetActive(true);   // 먼저 켜야 Live2D 가 이 자리에 붙음
+            bool live = Live2DUI.Show(_viewerImage, _selected);
+            if (!live && sprite == null) { _viewer.SetActive(false); return; }
             _viewerImage.sprite = sprite;
-            _viewer.SetActive(true);
+            _viewerImage.enabled = !live;
         }
 
         private void Toast(string msg)

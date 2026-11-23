@@ -402,10 +402,12 @@ namespace SubcultureRPG.Gacha.UI
             _cutName.alpha = 0f;
             foreach (var s in _cutStars) { s.alpha = 0f; s.rectTransform.localScale = Vector3.one; }
             var sprite = GameArt.Portrait(c);
+            bool live = SubcultureRPG.UI.Live2DUI.Show(_cutArtImg, c);   // Live2D 모델이 있으면 움직이는 모델로 등장
+            SubcultureRPG.UI.Live2DUI.SetAlpha(_cutArtImg, 0f);
             _cutArtImg.sprite = sprite;
-            _cutArtImg.enabled = sprite != null;
+            _cutArtImg.enabled = !live && sprite != null;
             _cutArtImg.color = new Color(1, 1, 1, 0);
-            _cutArtFallback.text = sprite == null && c != null ? c.displayName : "";
+            _cutArtFallback.text = !live && sprite == null && c != null ? c.displayName : "";
             _cutArtFallback.alpha = 0f;
             _cutArt.anchoredPosition = new Vector2(0, 40);
             _cutArt.sizeDelta = new Vector2(640, 860);
@@ -430,6 +432,7 @@ namespace SubcultureRPG.Gacha.UI
                 _cutGlow.color = new Color(Gold.r, Gold.g, Gold.b, 0.9f * k);
                 _cutGlow.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.5f, 1.25f, k);
                 _cutArtImg.color = new Color(1, 1, 1, k);
+                SubcultureRPG.UI.Live2DUI.SetAlpha(_cutArtImg, k);
                 _cutArtFallback.alpha = k;
                 _cutArt.localScale = Vector3.one * Mathf.Lerp(1.15f, 1f, k);
                 yield return null;
@@ -468,6 +471,7 @@ namespace SubcultureRPG.Gacha.UI
                 if (k > 0.6f) v.group.alpha = (k - 0.6f) / 0.4f;   // 카드가 서서히 나타나며 일러스트를 받음
                 yield return null;
             }
+            SubcultureRPG.UI.Live2DUI.Hide(_cutArtImg);
             _cutIn.gameObject.SetActive(false);
         }
 
