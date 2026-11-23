@@ -15,6 +15,7 @@ MonoBehaviour:
   id: c_pin
   displayName: "\uD540"
   rarity: 3
+  signatureLine: 
   element: 0
   role: 0
   portrait: {fileID: 0}

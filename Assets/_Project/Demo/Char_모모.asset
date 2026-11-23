@@ -15,6 +15,7 @@ MonoBehaviour:
   id: c_momo
   displayName: "\uBAA8\uBAA8"
   rarity: 3
+  signatureLine: 
   element: 1
   role: 1
   portrait: {fileID: 0}

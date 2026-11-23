@@ -80,7 +80,7 @@ namespace SubcultureRPG.Meta.UI
             _selected = s;
         }
 
-        /// <summary>특수 던전 탭으로 열기(홈의 '특수 던전' 메뉴).</summary>
+        /// <summary>특수 던전 탭으로 열기(HubScreen.Dungeon).</summary>
         public void OpenSpecial(StageKind kind = StageKind.AscensionDungeon)
         {
             _dungeonMode = true;
@@ -221,7 +221,7 @@ namespace SubcultureRPG.Meta.UI
             var spacer = UIFactory.NewRect("Spacer", _modeTabs);
             spacer.gameObject.AddComponent<LayoutElement>().preferredWidth = 40;
             int openCount = dungeons.FindAll(d => progress == null || progress.IsUnlocked(d, database)).Count;
-            var db = UIFactory.AddButton("DungeonTab", _modeTabs, openCount > 0 ? "특수 던전" : "특수 던전 (잠김)", 20, font,
+            var db = UIFactory.AddButton("DungeonTab", _modeTabs, "특수 던전", 20, font,
                 _dungeonMode ? new Color(0.55f, 0.35f, 0.85f, 0.95f) : new Color(0.55f, 0.35f, 0.85f, openCount > 0 ? 0.35f : 0.12f), Color.white);
             var dle = db.gameObject.AddComponent<LayoutElement>();
             dle.preferredWidth = 230; dle.preferredHeight = 44;

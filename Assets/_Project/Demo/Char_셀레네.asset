@@ -15,6 +15,7 @@ MonoBehaviour:
   id: c_selene
   displayName: "\uC140\uB808\uB124"
   rarity: 5
+  signatureLine: 
   element: 2
   role: 3
   portrait: {fileID: 0}

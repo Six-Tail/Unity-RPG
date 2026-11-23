@@ -15,6 +15,7 @@ MonoBehaviour:
   id: c_bella
   displayName: "\uBCA8\uB77C"
   rarity: 4
+  signatureLine: 
   element: 3
   role: 2
   portrait: {fileID: 0}

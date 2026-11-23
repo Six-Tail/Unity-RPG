@@ -148,12 +148,11 @@ namespace SubcultureRPG.Meta.UI
             fbnrt.sizeDelta = new Vector2(0, 26); fbnrt.anchoredPosition = new Vector2(0, 10);
 
             // 메뉴 버튼(우측)
-            MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 285), () => Nav(HubScreen.Stage));
-            MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 171), () => Nav(HubScreen.Gacha));
-            MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, 57), () => Nav(HubScreen.Growth));
-            MenuButton("특수 던전\n<size=52%>돌파 · 금화 · 스킬 교본</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(360, -57), () => Nav(HubScreen.Dungeon));
-            MenuButton("상점\n<size=52%>재료 구매 · 교환</size>", new Color(0.75f, 0.35f, 0.5f, 0.95f), new Vector2(360, -171), () => Nav(HubScreen.Shop));
-            MenuButton("가방\n<size=52%>재료 · 재화 확인</size>", new Color(0.25f, 0.5f, 0.55f, 0.95f), new Vector2(360, -285), () => Nav(HubScreen.Bag));
+            MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 236), () => Nav(HubScreen.Stage));
+            MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 118), () => Nav(HubScreen.Gacha));
+            MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, 0), () => Nav(HubScreen.Growth));
+            MenuButton("상점\n<size=52%>재료 구매 · 교환</size>", new Color(0.75f, 0.35f, 0.5f, 0.95f), new Vector2(360, -118), () => Nav(HubScreen.Shop));
+            MenuButton("가방\n<size=52%>재료 · 재화 확인</size>", new Color(0.25f, 0.5f, 0.55f, 0.95f), new Vector2(360, -236), () => Nav(HubScreen.Bag));
 
             // 보유 수(좌하단)
             _rosterText = UIFactory.AddText("Roster", _root.transform, "", 22, font, new Color(0.85f, 0.85f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);
@@ -167,7 +166,7 @@ namespace SubcultureRPG.Meta.UI
             var btn = UIFactory.AddButton("Menu", _root.transform, label, 40, font, bg, Color.white);
             var rt = (RectTransform)btn.transform;
             UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            rt.sizeDelta = new Vector2(460, 100); rt.anchoredPosition = pos;
+            rt.sizeDelta = new Vector2(460, 104); rt.anchoredPosition = pos;
             btn.onClick.AddListener(onClick);
         }
 
