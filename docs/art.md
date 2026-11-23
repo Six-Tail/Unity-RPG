@@ -18,6 +18,7 @@
 | `Equipment/` | `slot_{부위}.png` — `head` `hands` `body` `feet` `neck` `ring` | 256×256 | 장비 칸·장비 목록(글자 뒤에 옅게) |
 | `Backgrounds/` | `{키}.jpg` — 아래 표 | 1920×1080 (16:9) | 각 화면 배경 |
 | `Banners/` | `{픽업 캐릭터 id}.jpg` · `standard.jpg` | 1920×1080 | 가챠 화면 배경(배너별) |
+| `Motion/` | `{캐릭터 id}.mp4` | 832×1088 · 6초 반복 | 6성 일러스트 자리의 움직이는 일러스트 — [live2d.md](live2d.md) |
 
 - 캐릭터 id는 `CharacterData.id`입니다([characters.md](characters.md)). 에셋 인스펙터에서 `portrait`·`thumbnail`을 직접 연결하면 그쪽이 우선합니다.
 - 확장자는 png·jpg 아무거나 됩니다(이름만 맞으면 됨). 배경은 용량 때문에 jpg를 권장합니다.

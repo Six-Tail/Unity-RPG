@@ -228,7 +228,7 @@ function build() {
     const prompt = `${LOOK_KIND(look)}, ${look}, ${ELEMENT[el].mood}, ${RARITY[star]}. ${STYLE.character}`;
     charById[id] = { look, el };
     list.push({
-      group: 'characters', key: id, label: `${name} · ${star}★ ${ELEMENT[el].name} ${role}`,
+      group: 'characters', key: id, label: `${name} · ${star}★ ${ELEMENT[el].name} ${role}`, name, star, look,
       out: `Characters/${id}.png`, aspect: '3:4', resolution: '1K', width: 768, height: 1024, format: 'png',
       thumb: `Thumbs/${id}.png`, prompt, negative: NEGATIVE,
     });

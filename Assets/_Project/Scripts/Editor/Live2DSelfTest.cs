@@ -7,12 +7,13 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 using SubcultureRPG.Characters;
+using SubcultureRPG.UI;
 
 namespace SubcultureRPG.EditorTools
 {
     /// <summary>
-    /// Live2D 표시 자동 시험. 메인 씬을 플레이 모드로 돌려 캐릭터의 Live2D 모델을 무대(Live2DStage)에 올리고,
-    /// 무대가 그린 텍스처를 PNG 로 저장합니다(모델이 실제로 그려지는지 · 움직이는지 확인용).
+    /// 움직이는 일러스트 표시 자동 시험. 메인 씬을 플레이 모드로 돌려 캐릭터의 Live2D 모델(없으면 반복 영상)을
+    /// Live2DUI 로 띄우고, 그려진 텍스처를 PNG 로 저장합니다(실제로 그려지는지 · 움직이는지 확인용).
     ///
     /// 배치 모드:
     ///   Unity.exe -batchmode -projectPath . -executeMethod SubcultureRPG.EditorTools.Live2DSelfTest.RunBatch
@@ -94,39 +95,45 @@ namespace SubcultureRPG.EditorTools
             foreach (var guid in AssetDatabase.FindAssets("t:CharacterData"))
             {
                 var c = AssetDatabase.LoadAssetAtPath<CharacterData>(AssetDatabase.GUIDToAssetPath(guid));
-                if (c != null && c.id == id && Live2DStage.Has(c)) { _character = c; break; }
+                if (c != null && c.id == id && Live2DUI.Has(c)) { _character = c; break; }
             }
             Report.AppendLine("sdkInstalled=" + Live2DLinker.SdkInstalled);
             Report.AppendLine("pipeline=" + (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null
                 ? UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline.name : "(built-in)"));
-            if (_character == null) { Report.AppendLine("character '" + id + "' has no Live2D model linked"); Finish(false, "no model"); return; }
+            if (_character == null) { Report.AppendLine("character '" + id + "' has no Live2D model or motion video"); Finish(false, "no model"); return; }
 
-            Report.AppendLine("character=" + _character.displayName + " prefab=" + _character.live2DModelPrefab +
-                              " idle=" + (_character.live2DIdleMotion != null ? _character.live2DIdleMotion.name : "(none)"));
+            bool model = Live2DStage.Has(_character);
+            Report.AppendLine("character=" + _character.displayName + " source=" + (model ? "live2d" : "video") +
+                              (model ? " prefab=" + _character.live2DModelPrefab + " idle=" + (_character.live2DIdleMotion != null ? _character.live2DIdleMotion.name : "(none)")
+                                     : " clip=" + MotionVideoStage.ClipOf(_character)));
 
-            // 무대는 '표시하는 곳'이 살아 있어야 유지되므로, 시험용 RawImage 를 하나 둠
+            // 게임 화면과 같은 경로(Live2DUI)로 띄움: 일러스트 자리(Image) 하나를 시험용으로 만듦
             var canvasGO = new GameObject("Live2DSelfTestCanvas", typeof(Canvas));
-            var rawGO = new GameObject("User", typeof(RectTransform), typeof(RawImage));
-            rawGO.transform.SetParent(canvasGO.transform, false);
-            _user = rawGO.GetComponent<RawImage>();
-            _rt = Live2DStage.Instance.Show(_character, _user) as RenderTexture;
-            _user.texture = _rt;
-            Report.AppendLine("stageTexture=" + (_rt != null ? _rt.width + "x" + _rt.height + " " + _rt.format : "null"));
+            var hostGO = new GameObject("Portrait", typeof(RectTransform), typeof(Image));
+            hostGO.transform.SetParent(canvasGO.transform, false);
+            bool shown = Live2DUI.Show(hostGO.GetComponent<Image>(), _character);
+            _user = hostGO.GetComponentInChildren<RawImage>();
+            _rt = _user != null ? _user.texture as RenderTexture : null;
+            Report.AppendLine("shown=" + shown + " texture=" + (_rt != null ? _rt.width + "x" + _rt.height + " " + _rt.format : "null"));
         }
 
         private static void Capture(string file)
         {
             if (_rt == null) { Report.AppendLine(file + ": no texture"); return; }
-            var stage = Live2DStage.Instance;
             int renderers = 0;
             Bounds b = default; bool any = false;
-            foreach (var r in stage.GetComponentsInChildren<Renderer>())
+            Camera cam = null;
+            if (Live2DStage.Has(_character))
             {
-                renderers++;
-                if (r.bounds.size.sqrMagnitude <= 0f) continue;
-                if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
+                var stage = Live2DStage.Instance;
+                foreach (var r in stage.GetComponentsInChildren<Renderer>())
+                {
+                    renderers++;
+                    if (r.bounds.size.sqrMagnitude <= 0f) continue;
+                    if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
+                }
+                cam = stage.GetComponentInChildren<Camera>();
             }
-            var cam = stage.GetComponentInChildren<Camera>();
 
             var prev = RenderTexture.active;
             RenderTexture.active = _rt;
