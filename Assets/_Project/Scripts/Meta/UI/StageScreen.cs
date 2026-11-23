@@ -28,9 +28,10 @@ namespace SubcultureRPG.Meta.UI
         public event System.Action<StageData> OnSortie;
 
         private GameObject _root, _detPanel;
-        private RectTransform _tabs, _nodes;
+        private RectTransform _modeTabs, _tabs, _nodes;
         private GridLayoutGroup _grid;
         private bool _dungeonMode;
+        private StageDifficulty _difficulty = StageDifficulty.Easy;
         private TextMeshProUGUI _totalStars, _chapterTitle, _detTitle, _detBody, _sortieLbl;
         private Button _backBtn, _sortieBtn;
         private System.Action _onBack;
@@ -73,7 +74,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (s == null) return;
             _dungeonMode = s.IsDungeon;
-            if (!s.IsDungeon) _chapter = s.chapter;
+            if (!s.IsDungeon) { _chapter = s.chapter; _difficulty = s.difficulty; }
             _selected = s;
         }
 
@@ -88,7 +89,7 @@ namespace SubcultureRPG.Meta.UI
                 target = s;
                 if (progress == null || !progress.IsCleared(s)) break;
             }
-            if (target != null) { _chapter = target.chapter; _selected = target; }
+            if (target != null) { _chapter = target.chapter; _difficulty = target.difficulty; _selected = target; }
         }
 
         // ---------------- 갱신 ----------------
@@ -103,12 +104,13 @@ namespace SubcultureRPG.Meta.UI
                 return;
             }
 
-            var chapters = database.Chapters();
+            if (progress != null && !progress.IsDifficultyUnlocked(database, _difficulty)) _difficulty = StageDifficulty.Easy;
+            var chapters = database.Chapters(_difficulty);
             if (chapters.Count > 0 && !chapters.Contains(_chapter)) _chapter = chapters[0];
 
             int total = 0, max = 0;
-            foreach (var s in database.Ordered()) { total += progress != null ? progress.StarsOf(s) : 0; max += 3; }
-            _totalStars.text = $"<color=#FFD36B>★</color> {total} / {max}";
+            foreach (var s in database.Ordered(_difficulty)) { total += progress != null ? progress.StarsOf(s) : 0; max += 3; }
+            _totalStars.text = $"<size=75%><color={Difficulties.Hex(_difficulty)}>{Difficulties.Name(_difficulty)}</color></size>  <color=#FFD36B>★</color> {total} / {max}";
 
             if (_dungeonMode)
             {
@@ -116,9 +118,10 @@ namespace SubcultureRPG.Meta.UI
             }
             else
             {
-                int chStars = progress != null ? progress.TotalStars(database, _chapter) : 0;
-                int chMax = database.InChapter(_chapter).Count * 3;
-                _chapterTitle.text = $"챕터 {_chapter}  ·  {database.ChapterName(_chapter)}    <size=70%><color=#FFD36B>★</color> {chStars} / {chMax}</size>";
+                int chStars = progress != null ? progress.TotalStars(database, _chapter, _difficulty) : 0;
+                int chMax = database.InChapter(_chapter, _difficulty).Count * 3;
+                string diff = _difficulty == StageDifficulty.Easy ? "" : $"<color={Difficulties.Hex(_difficulty)}>{Difficulties.Name(_difficulty)}</color>  ";
+                _chapterTitle.text = $"{diff}챕터 {_chapter}  ·  {database.ChapterName(_chapter)}    <size=70%><color=#FFD36B>★</color> {chStars} / {chMax}</size>";
             }
 
             RebuildTabs(chapters);
@@ -132,9 +135,9 @@ namespace SubcultureRPG.Meta.UI
                     if (_selected == null && list.Count > 0) _selected = list[0];
                 }
             }
-            else if (_selected == null || _selected.IsDungeon || _selected.chapter != _chapter)
+            else if (_selected == null || _selected.IsDungeon || _selected.chapter != _chapter || _selected.difficulty != _difficulty)
             {
-                var list = database.InChapter(_chapter);
+                var list = database.InChapter(_chapter, _difficulty);
                 _selected = list.Count > 0 ? list[0] : null;
             }
             RefreshHighlights();
@@ -143,25 +146,57 @@ namespace SubcultureRPG.Meta.UI
 
         private void RebuildTabs(List<int> chapters)
         {
+            Clear(_modeTabs);
             Clear(_tabs);
-            foreach (int ch in chapters)
+
+            // 난이도
+            foreach (var d in Difficulties.All)
             {
-                int c = ch;
-                var first = database.InChapter(ch);
-                bool open = first.Count > 0 && (progress == null || progress.IsUnlocked(first[0], database));
-                bool on = !_dungeonMode && ch == _chapter;
-                var b = UIFactory.AddButton("Tab", _tabs, open ? $"챕터 {ch}" : $"챕터 {ch} (잠김)", 20, font,
-                    on ? new Color(0.78f, 0.58f, 0.22f, 0.95f) : new Color(1, 1, 1, open ? 0.12f : 0.05f), Color.white);
+                var dd = d;
+                if (database.Ordered(d).Count == 0) continue;
+                bool open = progress == null || progress.IsDifficultyUnlocked(database, d);
+                bool on = !_dungeonMode && d == _difficulty;
+                var col = Difficulties.ColorOf(d);
+                string label = open ? Difficulties.Name(d) : $"{Difficulties.Name(d)} <size=70%>({database.UnlockChapterOf(d)}챕터 클리어)</size>";
+                var b = UIFactory.AddButton("Diff", _modeTabs, label, 20, font,
+                    on ? new Color(col.r, col.g, col.b, 0.95f) : new Color(col.r, col.g, col.b, open ? 0.3f : 0.1f), Color.white);
                 var le = b.gameObject.AddComponent<LayoutElement>();
-                le.preferredWidth = 190; le.preferredHeight = 44;
+                le.preferredWidth = open ? 140 : 230; le.preferredHeight = 44;
                 b.interactable = open;
-                b.onClick.AddListener(() => { _dungeonMode = false; _chapter = c; _selected = null; Refresh(); });
+                b.onClick.AddListener(() =>
+                {
+                    _dungeonMode = false;
+                    if (_difficulty != dd) { _difficulty = dd; _selected = null; JumpToFrontierIn(dd); }
+                    Refresh();
+                });
             }
+
+            // 챕터 번호(1~15) — 던전 모드에서는 숨김
+            _tabs.gameObject.SetActive(!_dungeonMode);
+            if (!_dungeonMode)
+                foreach (int ch in chapters)
+                {
+                    int c = ch;
+                    var first = database.InChapter(ch, _difficulty);
+                    bool open = first.Count > 0 && (progress == null || progress.IsUnlocked(first[0], database));
+                    bool on = ch == _chapter;
+                    var cleared = progress != null && progress.IsChapterCleared(database, ch, _difficulty);
+                    var b = UIFactory.AddButton("Tab", _tabs, ch.ToString(), 19, font,
+                        on ? new Color(0.78f, 0.58f, 0.22f, 0.95f)
+                           : (cleared ? new Color(1f, 0.83f, 0.42f, 0.28f) : new Color(1, 1, 1, open ? 0.12f : 0.04f)),
+                        open ? Color.white : new Color(0.45f, 0.45f, 0.5f));
+                    var le = b.gameObject.AddComponent<LayoutElement>();
+                    le.preferredWidth = 58; le.preferredHeight = 40;
+                    b.interactable = open;
+                    b.onClick.AddListener(() => { _chapter = c; _selected = null; Refresh(); });
+                }
 
             var dungeons = database.Dungeons();
             if (dungeons.Count == 0) return;
+            var spacer = UIFactory.NewRect("Spacer", _modeTabs);
+            spacer.gameObject.AddComponent<LayoutElement>().preferredWidth = 40;
             int openCount = dungeons.FindAll(d => progress == null || progress.IsUnlocked(d, database)).Count;
-            var db = UIFactory.AddButton("DungeonTab", _tabs, openCount > 0 ? "돌파 던전" : "돌파 던전 (잠김)", 20, font,
+            var db = UIFactory.AddButton("DungeonTab", _modeTabs, openCount > 0 ? "돌파 던전" : "돌파 던전 (잠김)", 20, font,
                 _dungeonMode ? new Color(0.55f, 0.35f, 0.85f, 0.95f) : new Color(0.55f, 0.35f, 0.85f, openCount > 0 ? 0.35f : 0.12f), Color.white);
             var dle = db.gameObject.AddComponent<LayoutElement>();
             dle.preferredWidth = 230; dle.preferredHeight = 44;
@@ -181,7 +216,7 @@ namespace SubcultureRPG.Meta.UI
             else
             {
                 _grid.cellSize = new Vector2(300, 170); _grid.spacing = new Vector2(30, 30);
-                foreach (var s in database.InChapter(_chapter)) BuildNode(s);
+                foreach (var s in database.InChapter(_chapter, _difficulty)) BuildNode(s);
             }
         }
 
@@ -288,6 +323,9 @@ namespace SubcultureRPG.Meta.UI
             }
             else if (!string.IsNullOrEmpty(s.description)) sb.Append("<color=#AEB6C8>").Append(s.description).Append("</color>\n\n");
 
+            if (!s.IsDungeon && s.difficulty != StageDifficulty.Easy)
+                sb.Append($"<color={Difficulties.Hex(s.difficulty)}>{Difficulties.Name(s.difficulty)} 난이도</color>  " +
+                          $"<size=85%>적 능력치 +{Mathf.RoundToInt((s.enemyStatMultiplier - 1f) * 100)}%</size>\n");
             sb.Append($"<color=#FFD36B>권장 레벨</color>  Lv.{s.recommendedLevel}");
             if (cleared) sb.Append($"      <color=#FFD36B>최고 기록</color>  {StageRunner.Stars(best)}  <size=80%>({progress.ClearsOf(s)}회 클리어)</size>");
             sb.Append("\n\n<color=#FFD36B>적 구성</color>\n");
@@ -370,24 +408,19 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(tsrt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
             tsrt.sizeDelta = new Vector2(300, 40); tsrt.anchoredPosition = new Vector2(-50, -36);
 
-            // 챕터 탭
-            _tabs = UIFactory.NewRect("Tabs", _root.transform);
-            UIFactory.Anchor(_tabs, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            _tabs.sizeDelta = new Vector2(1000, 44); _tabs.anchoredPosition = new Vector2(-380, -104);
-            var th = _tabs.gameObject.AddComponent<HorizontalLayoutGroup>();
-            th.spacing = 10; th.childAlignment = TextAnchor.MiddleLeft;
-            th.childControlWidth = true; th.childControlHeight = true;
-            th.childForceExpandWidth = false; th.childForceExpandHeight = false;
+            // 위: 난이도 + 돌파 던전 · 아래: 챕터 번호
+            _modeTabs = TabRow("ModeTabs", -98, 44, 10);
+            _tabs = TabRow("Tabs", -150, 40, 6);
 
             _chapterTitle = UIFactory.AddText("Chapter", _root.transform, "", 30, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
             var chrt = _chapterTitle.rectTransform;
             UIFactory.Anchor(chrt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            chrt.sizeDelta = new Vector2(1000, 44); chrt.anchoredPosition = new Vector2(-380, -166);
+            chrt.sizeDelta = new Vector2(1000, 44); chrt.anchoredPosition = new Vector2(-380, -200);
 
             // 스테이지 노드(3열)
             _nodes = UIFactory.NewRect("Nodes", _root.transform);
             UIFactory.Anchor(_nodes, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            _nodes.sizeDelta = new Vector2(1000, 700); _nodes.anchoredPosition = new Vector2(-380, -230);
+            _nodes.sizeDelta = new Vector2(1000, 700); _nodes.anchoredPosition = new Vector2(-380, -256);
             var gl = _nodes.gameObject.AddComponent<GridLayoutGroup>();
             _grid = gl;
             gl.cellSize = new Vector2(300, 170); gl.spacing = new Vector2(30, 30);
@@ -432,6 +465,32 @@ namespace SubcultureRPG.Meta.UI
             _sortieLbl = _sortieBtn.GetComponentInChildren<TextMeshProUGUI>();
 
             _detPanel.SetActive(false);
+        }
+
+        private RectTransform TabRow(string name, float y, float h, float spacing)
+        {
+            var rt = UIFactory.NewRect(name, _root.transform);
+            UIFactory.Anchor(rt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            rt.sizeDelta = new Vector2(1000, h); rt.anchoredPosition = new Vector2(-380, y);
+            var hl = rt.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hl.spacing = spacing; hl.childAlignment = TextAnchor.MiddleLeft;
+            hl.childControlWidth = true; hl.childControlHeight = true;
+            hl.childForceExpandWidth = false; hl.childForceExpandHeight = false;
+            return rt;
+        }
+
+        /// <summary>난이도를 바꿨을 때 그 난이도의 진행 지점으로 이동.</summary>
+        private void JumpToFrontierIn(StageDifficulty d)
+        {
+            StageData target = null;
+            foreach (var s in database.Ordered(d))
+            {
+                if (progress != null && !progress.IsUnlocked(s, database)) break;
+                target = s;
+                if (progress == null || !progress.IsCleared(s)) break;
+            }
+            if (target != null) { _chapter = target.chapter; _selected = target; }
+            else _chapter = 1;
         }
 
         private static void Clear(RectTransform rt)

@@ -18,18 +18,20 @@ MonoBehaviour:
   stageName: "\uBC88\uAC1C \uB3CC\uD30C \uB358\uC804"
   description: 
   isBoss: 0
+  difficulty: 0
+  enemyStatMultiplier: 1
   kind: 1
   dungeonElement: 3
   dungeonTier: 3
-  unlockAfter: {fileID: 11400000, guid: 720048dfcffdaa745bab3581c1195784, type: 2}
+  unlockAfter: {fileID: 11400000, guid: af26c4aff5aa752408f2f05a68e441f8, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: 2ab082b95980b8c4aaf95e1151656fca, type: 2}
-    level: 48
+    level: 52
   - unit: {fileID: 11400000, guid: 14babb2f2c69afd47bea05003247ffe8, type: 2}
-    level: 50
+    level: 54
   - unit: {fileID: 11400000, guid: 2ab082b95980b8c4aaf95e1151656fca, type: 2}
-    level: 48
-  recommendedLevel: 50
+    level: 52
+  recommendedLevel: 54
   turnLimit: 14
   firstClearCrystals: 80
   rewards:
@@ -37,5 +39,5 @@ MonoBehaviour:
     count: 4
   - type: 3
     count: 3
-  characterExp: 2500
-  gold: 10000
+  characterExp: 3500
+  gold: 15000

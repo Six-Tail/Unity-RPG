@@ -209,7 +209,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_matText != null)
                 _matText.text = inventory == null ? "" :
-                    $"<color=#FFD36B>금화 {Gold:N0}</color>    교본 {inventory.Count(MaterialType.SkillBook)}";
+                    $"<color=#FFD36B>금화 {Gold:N0}</color>";
             RefreshDetail();
             RefreshLevelPanel();
         }

@@ -71,7 +71,8 @@ namespace SubcultureRPG.Meta
             {
                 var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
                 if (data != null && data.items != null)
-                    foreach (var e in data.items) _items[e.type] = e.count;
+                    foreach (var e in data.items)
+                        if (Enum.IsDefined(typeof(MaterialType), e.type)) _items[e.type] = e.count;   // 삭제된 재료(구 돌파석 등)는 버림
             }
             catch { }
         }

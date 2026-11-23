@@ -38,7 +38,17 @@ namespace SubcultureRPG.Meta.UI
         private readonly Vector2 _cell = new(150, 190);
         private readonly Vector2 _spacing = new(12, 12);
         private readonly List<CharacterData> _selected = new();
-        private readonly Dictionary<CharacterData, Image> _highlights = new();
+        // 카드별 선택 표시 요소
+        private class CardView
+        {
+            public RectTransform card;
+            public Image glow, wash;
+            public GameObject ribbon;
+            public TextMeshProUGUI ribbonText;
+            public CanvasGroup group;
+        }
+        private readonly Dictionary<CharacterData, CardView> _cards = new();
+        private static readonly Color SelectColor = new(0.25f, 0.85f, 1f);
 
         private void Awake()
         {
@@ -125,7 +135,7 @@ namespace SubcultureRPG.Meta.UI
             _countText = UIFactory.AddText("Count", _root.transform, "", 24, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             var crt = _countText.rectTransform;
             UIFactory.Anchor(crt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            crt.sizeDelta = new Vector2(400, 36); crt.anchoredPosition = new Vector2(0, 130);
+            crt.sizeDelta = new Vector2(1200, 36); crt.anchoredPosition = new Vector2(0, 130);
 
             _startButton = UIFactory.AddButton("Start", _root.transform, "전투 시작", 26, font, new Color(0.8f, 0.6f, 0.2f, 0.95f), Color.white);
             var srt = (RectTransform)_startButton.transform;
@@ -157,7 +167,7 @@ namespace SubcultureRPG.Meta.UI
                 ch.SetParent(null, false);
                 Destroy(ch.gameObject);
             }
-            _highlights.Clear();
+            _cards.Clear();
 
             var entries = _filterBar != null ? _filterBar.filter.Apply(roster, database) : new List<RosterEntry>();
             foreach (var e in entries) BuildCard(e.character, e.owned);
@@ -180,9 +190,10 @@ namespace SubcultureRPG.Meta.UI
             int tr = owned.transcend;
             var starColor = StarText.ColorOf(star);
 
-            var hl = UIFactory.AddImage("HL", card, new Color(0.3f, 0.8f, 1f, 0f));
-            UIFactory.Stretch(hl.rectTransform, -4, -4, -4, -4);
-            _highlights[c] = hl;
+            var view = new CardView { card = card, group = card.gameObject.AddComponent<CanvasGroup>() };
+            view.glow = UIFactory.AddImage("Glow", card, new Color(SelectColor.r, SelectColor.g, SelectColor.b, 0f));
+            UIFactory.Stretch(view.glow.rectTransform, -8, -8, -8, -8);
+            _cards[c] = view;
 
             var frame = UIFactory.AddImage("Frame", card, StarText.FrameColor(star, tr), null, raycast: true);
             UIFactory.Stretch(frame.rectTransform);
@@ -230,7 +241,18 @@ namespace SubcultureRPG.Meta.UI
                 cbrt.sizeDelta = new Vector2(54, 20); cbrt.anchoredPosition = new Vector2(-4, -20);
             }
 
-            SetHighlight(c, _selected.Contains(c));
+            // 선택 시: 초상화 위 하늘색 덮개 + 가운데 '출전 N' 리본
+            view.wash = UIFactory.AddImage("Wash", inner.transform, new Color(SelectColor.r, SelectColor.g, SelectColor.b, 0f));
+            UIFactory.Stretch(view.wash.rectTransform);
+            var ribbon = UIFactory.AddImage("Ribbon", inner.transform, new Color(0.05f, 0.45f, 0.65f, 0.95f));
+            var rrt = ribbon.rectTransform;
+            UIFactory.Anchor(rrt, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 0.5f));
+            rrt.sizeDelta = new Vector2(0, 40); rrt.anchoredPosition = new Vector2(0, 14);
+            view.ribbonText = UIFactory.AddText("Text", ribbon.transform, "", 22, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            UIFactory.Stretch(view.ribbonText.rectTransform);
+            view.ribbon = ribbon.gameObject;
+
+            RefreshSelection();
         }
 
         // ---------------- 선택 ----------------
@@ -243,19 +265,37 @@ namespace SubcultureRPG.Meta.UI
                 if (_selected.Count >= maxParty) return;
                 _selected.Add(c);
             }
-            SetHighlight(c, _selected.Contains(c));
+            RefreshSelection();
             UpdateBottom();
         }
 
-        private void SetHighlight(CharacterData c, bool on)
+        /// <summary>선택 표시 갱신: 출전 순서 리본, 두꺼운 테두리, 덮개, 살짝 확대. 파티가 차면 나머지는 흐리게.</summary>
+        private void RefreshSelection()
         {
-            if (_highlights.TryGetValue(c, out var hl))
-                hl.color = new Color(0.3f, 0.8f, 1f, on ? 0.9f : 0f);
+            bool full = _selected.Count >= maxParty;
+            foreach (var kv in _cards)
+            {
+                var v = kv.Value;
+                int order = _selected.IndexOf(kv.Key);
+                bool on = order >= 0;
+                v.glow.color = new Color(SelectColor.r, SelectColor.g, SelectColor.b, on ? 1f : 0f);
+                if (v.wash != null) v.wash.color = new Color(SelectColor.r, SelectColor.g, SelectColor.b, on ? 0.22f : 0f);
+                if (v.ribbon != null)
+                {
+                    v.ribbon.SetActive(on);
+                    v.ribbonText.text = on ? $"출전 {order + 1}" : "";
+                }
+                v.card.localScale = on ? new Vector3(1.06f, 1.06f, 1f) : Vector3.one;
+                v.group.alpha = on || !full ? 1f : 0.45f;
+            }
         }
 
         private void UpdateBottom()
         {
-            _countText.text = $"선택 {_selected.Count} / {maxParty}";
+            var names = new List<string>();
+            foreach (var c in _selected) names.Add(c.displayName);
+            _countText.text = _selected.Count == 0 ? $"선택 0 / {maxParty}   <size=80%><color=#9AA3B5>캐릭터를 눌러 파티에 넣으세요</color></size>"
+                : $"선택 {_selected.Count} / {maxParty}   <size=80%><color=#7FE3FF>{string.Join(" · ", names)}</color></size>";
             _startButton.interactable = _selected.Count >= 1;
         }
 

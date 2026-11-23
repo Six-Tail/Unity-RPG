@@ -13,6 +13,14 @@ namespace SubcultureRPG.Meta
         [Tooltip("챕터 이름(인덱스 0 = 챕터 1).")]
         public List<string> chapterNames = new();
         public List<StageData> stages = new();
+
+        [Header("난이도 개방 (쉬움 기준 챕터 클리어)")]
+        [Min(1)] public int hardUnlockChapter = 7;
+        [Min(1)] public int hellUnlockChapter = 15;
+
+        /// <summary>이 난이도를 여는 쉬움 챕터(쉬움은 0 = 처음부터).</summary>
+        public int UnlockChapterOf(StageDifficulty d) =>
+            d == StageDifficulty.Hard ? hardUnlockChapter : d == StageDifficulty.Hell ? hellUnlockChapter : 0;
         [Tooltip("돌파 던전(속성 × 등급). 챕터 진행 순서와 무관.")]
         public List<StageData> dungeons = new();
 
@@ -30,29 +38,31 @@ namespace SubcultureRPG.Meta
         public List<StageData> DungeonsUnlockedBy(StageData stage) =>
             Dungeons().FindAll(d => d.unlockAfter == stage);
 
-        /// <summary>진행 순서대로 정렬된 스테이지.</summary>
-        public List<StageData> Ordered()
+        /// <summary>진행 순서대로 정렬된 메인 스테이지(난이도별).</summary>
+        public List<StageData> Ordered(StageDifficulty difficulty = StageDifficulty.Easy)
         {
             var list = new List<StageData>();
-            if (stages != null) foreach (var s in stages) if (s != null) list.Add(s);
+            if (stages != null) foreach (var s in stages) if (s != null && s.difficulty == difficulty) list.Add(s);
             list.Sort((a, b) => a.chapter != b.chapter ? a.chapter.CompareTo(b.chapter) : a.number.CompareTo(b.number));
             return list;
         }
 
         /// <summary>존재하는 챕터 번호(오름차순).</summary>
-        public List<int> Chapters()
+        public List<int> Chapters(StageDifficulty difficulty = StageDifficulty.Easy)
         {
             var set = new SortedSet<int>();
-            foreach (var s in Ordered()) set.Add(s.chapter);
+            foreach (var s in Ordered(difficulty)) set.Add(s.chapter);
             return new List<int>(set);
         }
 
-        public List<StageData> InChapter(int chapter) => Ordered().FindAll(s => s.chapter == chapter);
+        public List<StageData> InChapter(int chapter, StageDifficulty difficulty = StageDifficulty.Easy) =>
+            Ordered(difficulty).FindAll(s => s.chapter == chapter);
 
         /// <summary>진행 순서상 바로 앞 스테이지(첫 스테이지면 null).</summary>
         public StageData Previous(StageData stage)
         {
-            var list = Ordered();
+            if (stage == null) return null;
+            var list = Ordered(stage.difficulty);
             int i = list.IndexOf(stage);
             return i > 0 ? list[i - 1] : null;
         }
@@ -60,7 +70,8 @@ namespace SubcultureRPG.Meta
         /// <summary>진행 순서상 다음 스테이지(마지막이면 null).</summary>
         public StageData Next(StageData stage)
         {
-            var list = Ordered();
+            if (stage == null) return null;
+            var list = Ordered(stage.difficulty);
             int i = list.IndexOf(stage);
             return i >= 0 && i + 1 < list.Count ? list[i + 1] : null;
         }

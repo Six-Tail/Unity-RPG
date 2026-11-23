@@ -10,7 +10,7 @@ namespace SubcultureRPG.Meta
     {
         ExpPotion = 0,      // 경험치 물약 (+500)
         ExpCrystal = 1,     // 경험치 결정 (+5000)
-        AscensionStone = 2, // (구) 공용 돌파석 — 더 이상 쓰이지 않음. 기존 세이브 호환용
+        // 2 = 삭제된 구 공용 돌파석. 값 재사용 금지(옛 세이브는 불러올 때 제거됨)
         SkillBook = 3,      // 스킬 교본 (스킬 레벨업)
         ExpSmall = 4,       // 소형 경험치 물약 (+100)
         ExpLarge = 5,       // 대형 경험치 물약 (+1000)
@@ -45,7 +45,6 @@ namespace SubcultureRPG.Meta
                 MaterialType.ExpPotion => "경험치 물약",
                 MaterialType.ExpLarge => "대형 경험치 물약",
                 MaterialType.ExpCrystal => "경험치 결정",
-                MaterialType.AscensionStone => "구 돌파석",
                 MaterialType.SkillBook => "스킬 교본",
                 _ => t.ToString(),
             };
@@ -94,7 +93,6 @@ namespace SubcultureRPG.Meta
             return t switch
             {
                 MaterialType.SkillBook => "<color=#FFD36B>용도</color>\n스킬 레벨업 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n돌파 던전 클리어",
-                MaterialType.AscensionStone => "<color=#9AA3B5>예전 공용 돌파석입니다. 지금은 속성별 돌파 재료로 바뀌어 사용처가 없습니다.</color>",
                 _ => "",
             };
         }

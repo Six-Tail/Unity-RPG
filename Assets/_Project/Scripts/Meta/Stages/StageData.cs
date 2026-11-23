@@ -29,6 +29,35 @@ namespace SubcultureRPG.Meta
         AscensionDungeon,  // 돌파 던전(속성 × 등급) — 속성 돌파 재료, 반복 파밍
     }
 
+    /// <summary>메인 스토리 난이도. 하드 = 쉬움 7챕터 클리어, 극악 = 쉬움 15챕터 클리어 시 개방(StageDatabase에서 변경).</summary>
+    public enum StageDifficulty
+    {
+        Easy,
+        Hard,
+        Hell,
+    }
+
+    public static class Difficulties
+    {
+        public static readonly StageDifficulty[] All = { StageDifficulty.Easy, StageDifficulty.Hard, StageDifficulty.Hell };
+
+        public static string Name(StageDifficulty d) => d switch
+        {
+            StageDifficulty.Hard => "하드",
+            StageDifficulty.Hell => "극악",
+            _ => "쉬움",
+        };
+
+        public static Color ColorOf(StageDifficulty d) => d switch
+        {
+            StageDifficulty.Hard => new Color(0.88f, 0.48f, 0.20f),
+            StageDifficulty.Hell => new Color(0.78f, 0.18f, 0.34f),
+            _ => new Color(0.32f, 0.66f, 0.44f),
+        };
+
+        public static string Hex(StageDifficulty d) => "#" + ColorUtility.ToHtmlStringRGB(ColorOf(d));
+    }
+
     /// <summary>
     /// 스테이지 1개. 메뉴: Create > SubcultureRPG > Stage.
     /// 별 평가: ★1 클리어 · ★2 아군 전원 생존 · ★3 아군 행동 turnLimit회 이내 클리어.
@@ -44,6 +73,11 @@ namespace SubcultureRPG.Meta
         public string stageName = "스테이지";
         [TextArea] public string description;
         public bool isBoss;
+
+        [Header("난이도 (메인 스토리)")]
+        public StageDifficulty difficulty = StageDifficulty.Easy;
+        [Tooltip("적 HP·ATK·DEF 배율(난이도 보정). 1 = 그대로.")]
+        [Min(0.1f)] public float enemyStatMultiplier = 1f;
 
         [Header("종류 (돌파 던전)")]
         public StageKind kind = StageKind.Main;
@@ -74,7 +108,8 @@ namespace SubcultureRPG.Meta
         public bool IsDungeon => kind == StageKind.AscensionDungeon;
 
         /// <summary>표시용 번호(예: 1-3, 던전은 '초급' 등).</summary>
-        public string Code => IsDungeon ? Materials.TierName(dungeonTier) : $"{chapter}-{number}";
+        public string Code => IsDungeon ? Materials.TierName(dungeonTier)
+            : (difficulty == StageDifficulty.Easy ? "" : Difficulties.Name(difficulty) + " ") + $"{chapter}-{number}";
 
         /// <summary>돌파 던전이 주는 대표 재료.</summary>
         public MaterialType DungeonMaterial => Materials.Ascension(dungeonElement, dungeonTier);

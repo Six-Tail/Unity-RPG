@@ -1,0 +1,274 @@
+#if UNITY_EDITOR
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+using SubcultureRPG.Characters;
+using SubcultureRPG.Battle;
+using SubcultureRPG.Meta;
+
+namespace SubcultureRPG.EditorTools
+{
+    /// <summary>
+    /// 스테이지 데이터 생성: 메인 스토리 15챕터 × 6스테이지 × 3난이도(쉬움/하드/극악) + 돌파 던전 15개.
+    /// 적 레벨·보상은 아래 공식으로 계산합니다(튜닝 지점). MainSceneGenerator가 호출.
+    /// </summary>
+    public static class StageContent
+    {
+        public const int ChapterCount = 15;
+        public const int StagesPerChapter = 6;
+        private const string Root = "Assets/_Project/Demo";
+
+        // ---------------- 챕터 구성 ----------------
+
+        private struct Chapter
+        {
+            public string name, place, boss;
+            public string[] mobs;
+            public Chapter(string name, string place, string boss, params string[] mobs)
+            { this.name = name; this.place = place; this.boss = boss; this.mobs = mobs; }
+        }
+
+        private static readonly Chapter[] Chapters =
+        {
+            new("그림자 숲", "숲", "어둠군주", "그림자병", "그림자궁수"),
+            new("얼어붙은 성채", "성채", "빙결거인", "얼음망령", "폭풍정령"),
+            new("불타는 협곡", "협곡", "화염 수호자", "불꽃 정령", "그림자병"),
+            new("폭풍의 고원", "고원", "질풍 수호자", "바람 정령", "폭풍정령"),
+            new("뇌명의 탑", "탑", "뇌광 수호자", "번개 정령", "그림자궁수"),
+            new("강철 요새", "요새", "강철 골렘", "강철 병정", "얼음망령"),
+            new("서리 심연", "심연", "서리 수호자", "서리 정령", "얼음망령", "바람 정령"),
+            new("잿빛 폐허", "폐허", "어둠군주", "그림자병", "불꽃 정령", "그림자궁수"),
+            new("하늘 균열", "균열", "질풍 수호자", "바람 정령", "번개 정령", "폭풍정령"),
+            new("영겁의 빙원", "빙원", "빙결거인", "서리 정령", "얼음망령", "강철 병정"),
+            new("홍염 화산", "화산", "화염 수호자", "불꽃 정령", "강철 병정", "그림자병"),
+            new("천둥 왕좌", "왕좌", "뇌광 수호자", "번개 정령", "그림자궁수", "바람 정령"),
+            new("무너진 신전", "신전", "강철 골렘", "강철 병정", "그림자병", "서리 정령"),
+            new("황혼의 경계", "경계", "어둠군주", "그림자궁수", "바람 정령", "불꽃 정령"),
+            new("종말의 제단", "제단", "종말의 군주", "얼음망령", "번개 정령", "강철 병정"),
+        };
+
+        // 챕터 1·2는 기존 이름 유지, 3챕터부터는 장소 이름으로 생성
+        private static readonly string[][] FixedNames =
+        {
+            new[] { "숲의 입구", "갈림길", "안개 낀 오솔길", "궁수의 둥지", "그림자 야영지", "어둠군주의 제단" },
+            new[] { "설원의 길", "폭풍의 계곡", "성채 외벽", "얼어붙은 회랑", "성채 안뜰", "빙결거인의 옥좌" },
+        };
+        private static readonly string[] NameTemplate = { "{0} 입구", "{0} 외곽", "{0} 깊은 곳", "{0} 전초기지", "{0} 심장부", "{1}의 거처" };
+
+        // ---------------- 난이도 ----------------
+
+        private struct Diff
+        {
+            public int levelAdd, turnAdd;
+            public float statMul, rewardMul, crystalMul;
+            public string folder, idPrefix;
+        }
+
+        private static Diff DiffOf(StageDifficulty d) => d switch
+        {
+            StageDifficulty.Hard => new Diff { levelAdd = 8, turnAdd = 1, statMul = 1.25f, rewardMul = 1.6f, crystalMul = 1.5f, folder = "Hard/", idPrefix = "stage_hard_" },
+            StageDifficulty.Hell => new Diff { levelAdd = 16, turnAdd = 2, statMul = 1.6f, rewardMul = 2.5f, crystalMul = 2f, folder = "Hell/", idPrefix = "stage_hell_" },
+            _ => new Diff { levelAdd = 0, turnAdd = 0, statMul = 1f, rewardMul = 1f, crystalMul = 1f, folder = "", idPrefix = "stage_" },
+        };
+
+        // ---------------- 공식 (튜닝 지점) ----------------
+
+        /// <summary>적 레벨: 쉬움 1-1 Lv.1 → 15-6 Lv.82 (챕터당 +5.4, 스테이지당 +1). 난이도 가산, 최대 100.</summary>
+        public static int EnemyLevel(int c, int s, StageDifficulty d) =>
+            Mathf.Clamp(Mathf.RoundToInt(1 + (c - 1) * 5.4f + (s - 1)) + DiffOf(d).levelAdd, 1, 100);
+
+        private static float StageScale(int s, bool boss) => (1f + 0.1f * (s - 1)) * (boss ? 1.8f : 1f);
+
+        /// <summary>매 클리어 금화: 챕터 1 1,000 → 챕터 15 9,400 (스테이지당 +10%, 보스 ×1.8).</summary>
+        public static int Gold(int c, int s, bool boss, StageDifficulty d) =>
+            Round(100, (1000 + 600 * (c - 1)) * StageScale(s, boss) * DiffOf(d).rewardMul);
+
+        /// <summary>매 클리어 경험치 재료 총량: 챕터 1 1,000 → 챕터 15 15,000 EXP.</summary>
+        public static int ExpReward(int c, int s, bool boss, StageDifficulty d) =>
+            Round(100, (1000 + 1000 * (c - 1)) * StageScale(s, boss) * DiffOf(d).rewardMul);
+
+        /// <summary>출전 캐릭터 경험치.</summary>
+        private static int CharExp(int c, int s, bool boss, StageDifficulty d) =>
+            Round(10, (200 + 150 * (c - 1)) * (1f + 0.1f * (s - 1)) * (boss ? 1.5f : 1f) * DiffOf(d).rewardMul);
+
+        /// <summary>첫 클리어 크리스탈: 챕터 1~5 60 · 6~10 80 · 11~15 100 (보스 160/240/300).</summary>
+        private static int Crystals(int c, bool boss, StageDifficulty d)
+        {
+            int band = (c - 1) / 5;
+            int v = boss ? new[] { 160, 240, 300 }[band] : new[] { 60, 80, 100 }[band];
+            return Round(10, v * DiffOf(d).crystalMul);
+        }
+
+        /// <summary>경험치 총량을 챕터에 맞는 재료 두 종류로 나눔(초반 물약 → 후반 결정).</summary>
+        private static MaterialReward[] ExpMaterials(int exp, int c)
+        {
+            MaterialType big, small;
+            if (c <= 3) { big = MaterialType.ExpPotion; small = MaterialType.ExpSmall; }
+            else if (c <= 8) { big = MaterialType.ExpLarge; small = MaterialType.ExpPotion; }
+            else { big = MaterialType.ExpCrystal; small = MaterialType.ExpLarge; }
+            int bv = Materials.ExpValue(big), sv = Materials.ExpValue(small);
+            int nb = exp / bv;
+            int ns = Mathf.CeilToInt((exp - nb * bv) / (float)sv);
+            var list = new List<MaterialReward>();
+            if (nb > 0) list.Add(M(big, nb));
+            if (ns > 0) list.Add(M(small, ns));
+            return list.ToArray();
+        }
+
+        private static int Round(int unit, float v) => Mathf.Max(unit, Mathf.RoundToInt(v / unit) * unit);
+
+        // ---------------- 생성 ----------------
+
+        /// <summary>메인 스테이지 전부 + 던전 생성 후 StageDatabase에 기록.</summary>
+        public static void Build()
+        {
+            EnsureFolder(Root, "Stages");
+            EnsureFolder(Root + "/Stages", "Hard");
+            EnsureFolder(Root + "/Stages", "Hell");
+
+            var main = new List<StageData>();
+            foreach (var d in Difficulties.All)
+                for (int c = 1; c <= ChapterCount; c++)
+                    for (int s = 1; s <= StagesPerChapter; s++)
+                        main.Add(MainStage(c, s, d));
+
+            // 돌파 던전 개방: 초급 = 1-3, 중급 = 6-6, 상급 = 10-6 (쉬움)
+            StageData Find(int c, int s) => main.Find(x => x.difficulty == StageDifficulty.Easy && x.chapter == c && x.number == s);
+            var unlockBy = new[] { Find(1, 3), Find(6, 6), Find(10, 6) };
+            var dungeons = new List<StageData>();
+            foreach (var e in Traits.AllElements)
+                for (int tier = 1; tier <= Materials.AscensionTiers; tier++)
+                    dungeons.Add(Dungeon(e, tier, unlockBy[tier - 1]));
+
+            var db = LoadOrCreate<StageDatabase>(Root + "/StageDatabase.asset");
+            db.chapterNames = new List<string>();
+            foreach (var ch in Chapters) db.chapterNames.Add(ch.name);
+            db.stages = main;
+            db.dungeons = dungeons;
+            db.hardUnlockChapter = 7;
+            db.hellUnlockChapter = 15;
+            EditorUtility.SetDirty(db);
+            AssetDatabase.SaveAssets();
+        }
+
+        private static StageData MainStage(int c, int s, StageDifficulty d)
+        {
+            var diff = DiffOf(d);
+            var def = Chapters[c - 1];
+            bool boss = s == StagesPerChapter;
+            int lv = EnemyLevel(c, s, d);
+
+            var st = LoadOrCreate<StageData>($"{Root}/Stages/{diff.folder}Stage_{c}-{s}.asset");
+            st.id = $"{diff.idPrefix}{c}_{s}";      // 쉬움은 기존 세이브 키(stage_1_1) 유지
+            st.kind = StageKind.Main;
+            st.difficulty = d;
+            st.enemyStatMultiplier = diff.statMul;
+            st.unlockAfter = null;
+            st.chapter = c;
+            st.number = s;
+            st.stageName = c <= FixedNames.Length ? FixedNames[c - 1][s - 1]
+                : string.Format(NameTemplate[s - 1], def.place, def.boss);
+            st.description = boss ? $"{def.name}의 지배자, {def.boss}." : "";
+            st.isBoss = boss;
+            st.recommendedLevel = boss ? lv + 2 : lv;
+            st.turnLimit = 6 + (s - 1) + (c - 1) / 3 + (boss ? 3 : 0) + diff.turnAdd;
+            st.firstClearCrystals = Crystals(c, boss, d);
+            st.gold = Gold(c, s, boss, d);
+            st.characterExp = CharExp(c, s, boss, d);
+            st.rewards = new List<MaterialReward>(ExpMaterials(ExpReward(c, s, boss, d), c));
+            st.enemies = Enemies(def, s, lv);
+            EditorUtility.SetDirty(st);
+            return st;
+        }
+
+        /// <summary>적 구성: 1~2 = 2~3명, 3~4 = 3~4명, 5 = 4명, 6 = 보스(+2레벨) + 호위 2.</summary>
+        private static List<StageEnemy> Enemies(Chapter def, int s, int lv)
+        {
+            string Mob(int i) => def.mobs[i % def.mobs.Length];
+            var list = new List<StageEnemy>();
+            switch (s)
+            {
+                case 1: list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); break;
+                case 2: list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); list.Add(E(Mob(0), lv)); break;
+                case 3: list.Add(E(Mob(1), lv)); list.Add(E(Mob(2), lv)); list.Add(E(Mob(0), lv)); break;
+                case 4: list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); list.Add(E(Mob(2), lv)); list.Add(E(Mob(1), lv)); break;
+                case 5: list.Add(E(Mob(2), lv)); list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); list.Add(E(Mob(0), lv)); break;
+                default: list.Add(E(Mob(0), lv)); list.Add(E(def.boss, lv + 2)); list.Add(E(Mob(1), lv)); break;
+            }
+            return list;
+        }
+
+        // ---------------- 돌파 던전 ----------------
+
+        // 속성별 정령(잡몹) + 수호자(보스). 약점 = 그 속성을 상대하기 좋은 두 속성
+        public static readonly string[] DungeonMinion = { "강철 병정", "불꽃 정령", "서리 정령", "번개 정령", "바람 정령" };
+        public static readonly string[] DungeonGuardian = { "강철 골렘", "화염 수호자", "서리 수호자", "뇌광 수호자", "질풍 수호자" };
+        public static readonly Element[][] DungeonWeak =
+        {
+            new[] { Element.Lightning, Element.Fire },    // 물리
+            new[] { Element.Ice, Element.Wind },          // 화염
+            new[] { Element.Fire, Element.Physical },     // 얼음
+            new[] { Element.Wind, Element.Ice },          // 번개
+            new[] { Element.Physical, Element.Lightning } // 바람
+        };
+
+        /// <summary>돌파 던전 1개(속성 × 등급). 매 클리어: 해당 속성·등급 돌파 재료 + 교본 + 금화.</summary>
+        private static StageData Dungeon(Element e, int tier, StageData unlockAfter)
+        {
+            int i = (int)e, t = tier - 1;
+            int lv = new[] { 14, 34, 52 }[t];
+            var s = LoadOrCreate<StageData>(Root + "/Stages/Dungeon_" + e + "_" + tier + ".asset");
+            s.id = "dungeon_" + e.ToString().ToLowerInvariant() + "_" + tier;
+            s.kind = StageKind.AscensionDungeon;
+            s.difficulty = StageDifficulty.Easy;
+            s.enemyStatMultiplier = 1f;
+            s.dungeonElement = e;
+            s.dungeonTier = tier;
+            s.unlockAfter = unlockAfter;
+            s.chapter = 0;
+            s.number = tier;
+            s.stageName = Traits.Name(e) + " 돌파 던전";
+            s.description = "";
+            s.isBoss = false;
+            s.recommendedLevel = lv + 2;
+            s.turnLimit = 8 + 2 * tier;
+            s.firstClearCrystals = new[] { 30, 50, 80 }[t];
+            s.characterExp = new[] { 400, 1500, 3500 }[t];
+            s.gold = new[] { 3000, 8000, 15000 }[t];
+            s.enemies = new List<StageEnemy> { E(DungeonMinion[i], lv), E(DungeonGuardian[i], lv + 2), E(DungeonMinion[i], lv) };
+            s.rewards = new List<MaterialReward>
+            {
+                M(Materials.Ascension(e, tier), new[] { 3, 3, 4 }[t]),
+                M(MaterialType.SkillBook, tier),
+            };
+            EditorUtility.SetDirty(s);
+            return s;
+        }
+
+        // ---------------- 헬퍼 ----------------
+
+        private static StageEnemy E(string name, int level)
+        {
+            var unit = AssetDatabase.LoadAssetAtPath<BattleUnitData>(Root + "/Unit_메인_" + name + ".asset");
+            if (unit == null) Debug.LogError("[StageContent] 적 유닛 없음: " + name);
+            return new StageEnemy { unit = unit, level = level };
+        }
+
+        private static MaterialReward M(MaterialType t, int n) => new MaterialReward { type = t, count = n };
+
+        private static T LoadOrCreate<T>(string path) where T : ScriptableObject
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (existing != null) return existing;
+            var inst = ScriptableObject.CreateInstance<T>();
+            AssetDatabase.CreateAsset(inst, path);
+            return inst;
+        }
+
+        private static void EnsureFolder(string parent, string name)
+        {
+            if (!AssetDatabase.IsValidFolder(parent + "/" + name)) AssetDatabase.CreateFolder(parent, name);
+        }
+    }
+}
+#endif

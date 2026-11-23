@@ -18,6 +18,8 @@ MonoBehaviour:
   stageName: "\uBC14\uB78C \uB3CC\uD30C \uB358\uC804"
   description: 
   isBoss: 0
+  difficulty: 0
+  enemyStatMultiplier: 1
   kind: 1
   dungeonElement: 4
   dungeonTier: 1

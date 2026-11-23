@@ -72,6 +72,7 @@ namespace SubcultureRPG.EditorTools
             Enemy("폭풍정령", 120, 700, 120, 40, enemyBasic, 40, new[] { Element.Physical, Element.Ice }, Element.Wind);
             Enemy("빙결거인", 85, 1800, 118, 85, enemyBasic, 120, new[] { Element.Fire, Element.Wind }, Element.Ice);
             DungeonEnemies(enemyBasic);
+            Enemy("종말의 군주", 100, 2200, 125, 95, enemyBasic, 150, new[] { Element.Lightning, Element.Ice });   // 15챕터 보스
 
             // 4-2) 스테이지 (챕터 1 그림자 숲 · 챕터 2 얼어붙은 성채)
             AssetDatabase.SaveAssets();
@@ -281,142 +282,19 @@ namespace SubcultureRPG.EditorTools
 
         // ---------------- 스테이지 ----------------
 
-        private static BattleUnitData EnemyRef(string name) =>
-            AssetDatabase.LoadAssetAtPath<BattleUnitData>(DataRoot + "/Unit_메인_" + name + ".asset");
-
-        private static StageEnemy E(string name, int level) => new StageEnemy { unit = EnemyRef(name), level = level };
-
-        private static MaterialReward M(MaterialType t, int n) => new MaterialReward { type = t, count = n };
-
-        private static StageData Stage(int ch, int no, string title, string desc, bool boss, int recLv, int turnLimit,
-            int crystals, int exp, int gold, StageEnemy[] enemies, MaterialReward[] rewards)
-        {
-            var s = LoadOrCreate<StageData>(DataRoot + "/Stages/Stage_" + ch + "-" + no + ".asset");
-            s.id = "stage_" + ch + "_" + no;
-            s.kind = StageKind.Main;
-            s.unlockAfter = null;
-            s.gold = gold;
-            s.chapter = ch;
-            s.number = no;
-            s.stageName = title;
-            s.description = desc;
-            s.isBoss = boss;
-            s.recommendedLevel = recLv;
-            s.turnLimit = turnLimit;
-            s.firstClearCrystals = crystals;
-            s.characterExp = exp;
-            s.enemies = new List<StageEnemy>(enemies);
-            s.rewards = new List<MaterialReward>(rewards);
-            EditorUtility.SetDirty(s);
-            return s;
-        }
-
-        // 돌파 던전 적: 속성별 정령(잡몹) + 수호자(보스). 약점 = 그 속성을 상대하기 좋은 두 속성
-        private static readonly string[] DungeonMinion = { "강철 병정", "불꽃 정령", "서리 정령", "번개 정령", "바람 정령" };
-        private static readonly string[] DungeonGuardian = { "강철 골렘", "화염 수호자", "서리 수호자", "뇌광 수호자", "질풍 수호자" };
-        private static readonly Element[][] DungeonWeak =
-        {
-            new[] { Element.Lightning, Element.Fire },   // 물리
-            new[] { Element.Ice, Element.Wind },         // 화염
-            new[] { Element.Fire, Element.Physical },    // 얼음
-            new[] { Element.Wind, Element.Ice },         // 번개
-            new[] { Element.Physical, Element.Lightning } // 바람
-        };
-
+        // 돌파 던전 적(속성별 정령 + 수호자) — 이름·약점은 StageContent
         private static void DungeonEnemies(BattleSkill basic)
         {
             foreach (var e in Traits.AllElements)
             {
                 int i = (int)e;
-                Enemy(DungeonMinion[i], 105, 800, 108, 50, basic, 45, DungeonWeak[i], e);
-                Enemy(DungeonGuardian[i], 95, 1600, 116, 80, basic, 110, DungeonWeak[i], e);
+                Enemy(StageContent.DungeonMinion[i], 105, 800, 108, 50, basic, 45, StageContent.DungeonWeak[i], e);
+                Enemy(StageContent.DungeonGuardian[i], 95, 1600, 116, 80, basic, 110, StageContent.DungeonWeak[i], e);
             }
         }
 
-        /// <summary>돌파 던전 1개(속성 × 등급). 매 클리어: 해당 속성·등급 돌파 재료 + 교본 + 금화.</summary>
-        private static StageData Dungeon(Element e, int tier, StageData unlockAfter)
-        {
-            int i = (int)e, t = tier - 1;
-            int lv = new[] { 14, 30, 48 }[t];
-            var s = LoadOrCreate<StageData>(DataRoot + "/Stages/Dungeon_" + e + "_" + tier + ".asset");
-            s.id = "dungeon_" + e.ToString().ToLowerInvariant() + "_" + tier;
-            s.kind = StageKind.AscensionDungeon;
-            s.dungeonElement = e;
-            s.dungeonTier = tier;
-            s.unlockAfter = unlockAfter;
-            s.chapter = 0;
-            s.number = tier;
-            s.stageName = Traits.Name(e) + " 돌파 던전";
-            s.description = "";
-            s.isBoss = false;
-            s.recommendedLevel = lv + 2;
-            s.turnLimit = 8 + 2 * tier;
-            s.firstClearCrystals = new[] { 30, 50, 80 }[t];
-            s.characterExp = new[] { 400, 1200, 2500 }[t];
-            s.gold = new[] { 3000, 6000, 10000 }[t];
-            s.enemies = new List<StageEnemy> { E(DungeonMinion[i], lv), E(DungeonGuardian[i], lv + 2), E(DungeonMinion[i], lv) };
-            s.rewards = new List<MaterialReward>
-            {
-                M(Materials.Ascension(e, tier), new[] { 3, 3, 4 }[t]),
-                M(MaterialType.SkillBook, tier),
-            };
-            EditorUtility.SetDirty(s);
-            return s;
-        }
-
-        /// <summary>데모 스테이지 2챕터 × 6. 보상: 첫 클리어 크리스탈 + 매 클리어 재료·경험치.</summary>
-        private static void BuildStages()
-        {
-            EnsureFolder(DataRoot, "Stages");
-            // 경험치 재료: S +100 · P +500 · L +1000 · C +5000
-            const MaterialType S = MaterialType.ExpSmall, P = MaterialType.ExpPotion,
-                L = MaterialType.ExpLarge, C = MaterialType.ExpCrystal;
-
-            var list = new List<StageData>
-            {
-                // 챕터 1 — 그림자 숲 (보상: 경험치 재료 + 금화)
-                Stage(1, 1, "숲의 입구", "그림자병이 길을 막고 있다.", false, 1, 6, 60, 200, 1200,
-                    new[] { E("그림자병", 1), E("그림자병", 1) }, new[] { M(S, 5), M(P, 2) }),
-                Stage(1, 2, "갈림길", "궁수가 나무 위에서 노린다.", false, 3, 7, 60, 300, 1500,
-                    new[] { E("그림자병", 3), E("그림자궁수", 3) }, new[] { M(S, 6), M(P, 3) }),
-                Stage(1, 3, "안개 낀 오솔길", "", false, 5, 9, 60, 400, 1800,
-                    new[] { E("그림자병", 5), E("그림자궁수", 5), E("그림자병", 5) }, new[] { M(P, 4), M(L, 1) }),
-                Stage(1, 4, "궁수의 둥지", "", false, 7, 9, 60, 500, 2100,
-                    new[] { E("그림자궁수", 7), E("그림자궁수", 7), E("그림자병", 7) }, new[] { M(P, 4), M(L, 2) }),
-                Stage(1, 5, "그림자 야영지", "", false, 9, 11, 60, 600, 2400,
-                    new[] { E("그림자병", 9), E("그림자궁수", 9), E("그림자병", 9), E("그림자궁수", 9) }, new[] { M(P, 4), M(L, 3) }),
-                Stage(1, 6, "어둠군주의 제단", "숲을 뒤덮은 그림자의 근원.", true, 12, 14, 160, 800, 4000,
-                    new[] { E("그림자병", 11), E("어둠군주", 13), E("그림자궁수", 11) }, new[] { M(L, 3), M(C, 1) }),
-
-                // 챕터 2 — 얼어붙은 성채
-                Stage(2, 1, "설원의 길", "차가운 바람 속에 망령이 떠돈다.", false, 15, 8, 80, 900, 3000,
-                    new[] { E("얼음망령", 15), E("얼음망령", 15) }, new[] { M(L, 4), M(C, 1) }),
-                Stage(2, 2, "폭풍의 계곡", "", false, 17, 9, 80, 1000, 3300,
-                    new[] { E("폭풍정령", 17), E("얼음망령", 17), E("폭풍정령", 17) }, new[] { M(L, 5), M(C, 1) }),
-                Stage(2, 3, "성채 외벽", "", false, 19, 10, 80, 1100, 3600,
-                    new[] { E("그림자병", 19), E("얼음망령", 19), E("그림자궁수", 19) }, new[] { M(L, 3), M(C, 2) }),
-                Stage(2, 4, "얼어붙은 회랑", "", false, 21, 11, 80, 1200, 3900,
-                    new[] { E("얼음망령", 21), E("폭풍정령", 21), E("얼음망령", 21), E("폭풍정령", 21) }, new[] { M(L, 4), M(C, 2) }),
-                Stage(2, 5, "성채 안뜰", "", false, 23, 12, 80, 1300, 4200,
-                    new[] { E("어둠군주", 22), E("폭풍정령", 23), E("얼음망령", 23) }, new[] { M(L, 5), M(C, 2) }),
-                Stage(2, 6, "빙결거인의 옥좌", "성채를 얼린 거인이 깨어났다.", true, 26, 15, 240, 1600, 7000,
-                    new[] { E("폭풍정령", 25), E("빙결거인", 27), E("얼음망령", 25) }, new[] { M(L, 5), M(C, 4) }),
-            };
-
-            // 돌파 던전: 5속성 × 3등급. 초급 = 1-3 클리어, 중급 = 2-3 클리어, 상급 = 2-6 클리어 시 개방
-            var unlockBy = new[] { list[2], list[8], list[11] };
-            var dungeons = new List<StageData>();
-            foreach (var e in Traits.AllElements)
-                for (int tier = 1; tier <= Materials.AscensionTiers; tier++)
-                    dungeons.Add(Dungeon(e, tier, unlockBy[tier - 1]));
-
-            var db = LoadOrCreate<StageDatabase>(DataRoot + "/StageDatabase.asset");
-            db.chapterNames = new List<string> { "그림자 숲", "얼어붙은 성채" };
-            db.stages = list;
-            db.dungeons = dungeons;
-            EditorUtility.SetDirty(db);
-            AssetDatabase.SaveAssets();
-        }
+        /// <summary>메인 스토리 15챕터 × 3난이도 + 돌파 던전 → StageContent.</summary>
+        private static void BuildStages() => StageContent.Build();
 
         private static T LoadOrCreate<T>(string path) where T : ScriptableObject
         {

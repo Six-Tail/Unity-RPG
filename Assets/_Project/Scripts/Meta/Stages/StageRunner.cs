@@ -116,6 +116,7 @@ namespace SubcultureRPG.Meta
                     var u = Instantiate(e.unit);              // 저작 에셋은 그대로 두고 레벨만 바꾼 복제본
                     u.name = $"{e.unit.name}_Lv{e.level}";
                     u.level = Mathf.Max(1, e.level);
+                    if (!Mathf.Approximately(stage.enemyStatMultiplier, 1f)) ScaleStats(u.baseStats, stage.enemyStatMultiplier);
                     enemies.Add(u);
                     _spawned.Add(u);
                 }
@@ -142,6 +143,15 @@ namespace SubcultureRPG.Meta
         {
             if (next == null || _party.Count == 0) return;
             Launch(next, new List<CharacterData>(_party));
+        }
+
+        /// <summary>난이도 보정: 복제본의 HP·ATK·DEF(기본치·성장치)에 배율.</summary>
+        private static void ScaleStats(BattleStats s, float m)
+        {
+            if (s == null) return;
+            s.maxHP = Mathf.RoundToInt(s.maxHP * m); s.hpGrowth = Mathf.RoundToInt(s.hpGrowth * m);
+            s.atk = Mathf.RoundToInt(s.atk * m); s.atkGrowth = Mathf.RoundToInt(s.atkGrowth * m);
+            s.def = Mathf.RoundToInt(s.def * m); s.defGrowth = Mathf.RoundToInt(s.defGrowth * m);
         }
 
         /// <summary>스테이지 모드 종료(허브 복귀 시).</summary>
@@ -193,6 +203,8 @@ namespace SubcultureRPG.Meta
 
             // 진행도 + 보상
             bool speedWasLocked = !SpeedUnlocked;
+            bool hardWasLocked = database != null && progress != null && !progress.IsDifficultyUnlocked(database, StageDifficulty.Hard);
+            bool hellWasLocked = database != null && progress != null && !progress.IsDifficultyUnlocked(database, StageDifficulty.Hell);
             result.firstClear = progress != null && progress.RecordClear(stage, result.stars);
             if (result.firstClear && stage.firstClearCrystals > 0)
             {
@@ -214,6 +226,10 @@ namespace SubcultureRPG.Meta
             string detail = BuildRewardText(result, allAlive, fast);
             if (speedWasLocked && SpeedUnlocked)
                 detail += "\n<color=#FFB347>2배속 해금!</color>  <size=80%>전투 화면 오른쪽 위 '배속' 버튼</size>";
+            if (hardWasLocked && progress.IsDifficultyUnlocked(database, StageDifficulty.Hard))
+                detail += $"\n<color={Difficulties.Hex(StageDifficulty.Hard)}>하드 난이도 개방!</color>  <size=80%>스테이지 화면 위쪽 난이도 버튼</size>";
+            if (hellWasLocked && progress.IsDifficultyUnlocked(database, StageDifficulty.Hell))
+                detail += $"\n<color={Difficulties.Hex(StageDifficulty.Hell)}>극악 난이도 개방!</color>  <size=80%>스테이지 화면 위쪽 난이도 버튼</size>";
             if (hud != null)
             {
                 hud.SetResultDetail(detail);

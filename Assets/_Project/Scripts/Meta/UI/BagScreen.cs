@@ -28,7 +28,6 @@ namespace SubcultureRPG.Meta.UI
 
         private class Cell { public MaterialType type; public Image frame, hl; public TextMeshProUGUI count; public CanvasGroup group; }
         private readonly List<Cell> _cells = new();
-        private Cell _legacyCell;
 
         private static readonly Color ExpTint = new(0.30f, 0.55f, 0.70f);
         private static readonly Color BookTint = new(0.50f, 0.36f, 0.78f);
@@ -83,8 +82,6 @@ namespace SubcultureRPG.Meta.UI
                 c.group.alpha = n > 0 ? 1f : 0.45f;
                 c.hl.color = new Color(0.3f, 0.8f, 1f, c.type == _selected ? 0.9f : 0f);
             }
-            // 구 돌파석은 남아 있을 때만 표시
-            if (_legacyCell != null) _legacyCell.frame.transform.parent.gameObject.SetActive(Count(MaterialType.AscensionStone) > 0);
 
             _detName.text = Materials.RichName(_selected);
             _detCount.text = $"보유  {Count(_selected):N0}";
@@ -129,7 +126,6 @@ namespace SubcultureRPG.Meta.UI
 
             Header(root, "육성 재료", -823, -590);
             AddCell(root, MaterialType.SkillBook, BookTint, new Vector2(-735, -640), new Vector2(176, 176));
-            _legacyCell = AddCell(root, MaterialType.AscensionStone, new Color(0.45f, 0.45f, 0.5f), new Vector2(-545, -640), new Vector2(176, 176));
 
             // 가운데: 돌파 재료 (속성 행 × 등급 열)
             Header(root, "돌파 재료", -325, -140);

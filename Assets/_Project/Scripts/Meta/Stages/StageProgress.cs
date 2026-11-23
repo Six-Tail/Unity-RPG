@@ -33,24 +33,32 @@ namespace SubcultureRPG.Meta
         {
             if (s == null) return false;
             if (s.IsDungeon) return s.unlockAfter == null || IsCleared(s.unlockAfter);
+            if (!IsDifficultyUnlocked(db, s.difficulty)) return false;
             var prev = db != null ? db.Previous(s) : null;
             return prev == null || IsCleared(prev);
         }
 
+        /// <summary>난이도 개방 여부(쉬움은 항상, 하드/극악은 쉬움 해당 챕터 클리어).</summary>
+        public bool IsDifficultyUnlocked(StageDatabase db, StageDifficulty d)
+        {
+            if (d == StageDifficulty.Easy || db == null) return true;
+            return IsChapterCleared(db, db.UnlockChapterOf(d), StageDifficulty.Easy);
+        }
+
         /// <summary>챕터 클리어 = 그 챕터의 마지막 스테이지(보스)를 클리어.</summary>
-        public bool IsChapterCleared(StageDatabase db, int chapter)
+        public bool IsChapterCleared(StageDatabase db, int chapter, StageDifficulty d = StageDifficulty.Easy)
         {
             if (db == null) return false;
-            var list = db.InChapter(chapter);
+            var list = db.InChapter(chapter, d);
             return list.Count > 0 && IsCleared(list[list.Count - 1]);
         }
 
         /// <summary>획득한 별 합계(전체 또는 챕터).</summary>
-        public int TotalStars(StageDatabase db, int chapter = 0)
+        public int TotalStars(StageDatabase db, int chapter = 0, StageDifficulty d = StageDifficulty.Easy)
         {
             int sum = 0;
             if (db == null) return 0;
-            foreach (var s in db.Ordered())
+            foreach (var s in db.Ordered(d))
                 if (chapter == 0 || s.chapter == chapter) sum += StarsOf(s);
             return sum;
         }

@@ -16,26 +16,28 @@ MonoBehaviour:
   chapter: 2
   number: 6
   stageName: "\uBE59\uACB0\uAC70\uC778\uC758 \uC625\uC88C"
-  description: "\uC131\uCC44\uB97C \uC5BC\uB9B0 \uAC70\uC778\uC774 \uAE68\uC5B4\uB0AC\uB2E4."
+  description: "\uC5BC\uC5B4\uBD99\uC740 \uC131\uCC44\uC758 \uC9C0\uBC30\uC790, \uBE59\uACB0\uAC70\uC778."
   isBoss: 1
+  difficulty: 0
+  enemyStatMultiplier: 1
   kind: 0
   dungeonElement: 0
   dungeonTier: 1
   unlockAfter: {fileID: 0}
   enemies:
-  - unit: {fileID: 11400000, guid: 41b66c42913cdf7468b5ebd260a692a8, type: 2}
-    level: 25
-  - unit: {fileID: 11400000, guid: 4e7cfef81cb17c243a04d61e675238a7, type: 2}
-    level: 27
   - unit: {fileID: 11400000, guid: cf9c87a8e2b29274c88135f8c7f824ff, type: 2}
-    level: 25
-  recommendedLevel: 26
-  turnLimit: 15
-  firstClearCrystals: 240
+    level: 11
+  - unit: {fileID: 11400000, guid: 4e7cfef81cb17c243a04d61e675238a7, type: 2}
+    level: 13
+  - unit: {fileID: 11400000, guid: 41b66c42913cdf7468b5ebd260a692a8, type: 2}
+    level: 11
+  recommendedLevel: 13
+  turnLimit: 14
+  firstClearCrystals: 160
   rewards:
-  - type: 5
-    count: 5
-  - type: 1
+  - type: 0
+    count: 10
+  - type: 4
     count: 4
-  characterExp: 1600
-  gold: 7000
+  characterExp: 790
+  gold: 4300
