@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using TMPro;
 using SubcultureRPG.UI;
 using SubcultureRPG.Gacha;
+using SubcultureRPG.Meta.Missions;
 
 namespace SubcultureRPG.Meta.UI
 {
@@ -27,6 +28,8 @@ namespace SubcultureRPG.Meta.UI
         public TMP_FontAsset Font => font;
 
         private GameObject _root;
+        private PlayerMissions _missions;
+        private TextMeshProUGUI _missionLabel;
         private Image _featPortrait;
         private TextMeshProUGUI _crystalText, _rosterText, _featName, _featBanner;
 
@@ -54,7 +57,28 @@ namespace SubcultureRPG.Meta.UI
             if (roster != null) roster.OnRosterChanged -= Refresh;
         }
 
-        private void Start() => Refresh();
+        private void Start()
+        {
+            // 임무 시스템은 내비게이터가 실행 중에 만들 수도 있어 Start에서 찾음
+            _missions = FindAnyObjectByType<PlayerMissions>();
+            if (_missions != null) _missions.OnChanged += RefreshMissionBadge;
+            Refresh();
+        }
+
+        private void OnDestroy()
+        {
+            if (_missions != null) _missions.OnChanged -= RefreshMissionBadge;
+        }
+
+        /// <summary>임무 버튼에 지금 받을 수 있는 보상 수 표시.</summary>
+        private void RefreshMissionBadge()
+        {
+            if (_missionLabel == null) return;
+            int n = _missions != null ? _missions.ClaimableCount() : 0;
+            _missionLabel.text = n > 0
+                ? $"임무  <color=#FFE08A><size=70%>●{n}</size></color>\n<size=52%>받을 보상 {n}개</size>"
+                : "임무\n<size=52%>일일 · 주간 보상</size>";
+        }
 
         public void Show(bool on)
         {
@@ -66,6 +90,8 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_crystalText != null)
                 _crystalText.text = wallet != null ? $"크리스탈  {wallet.Crystals:N0}      <color=#FFD36B>금화  {wallet.Gold:N0}</color>" : "";
+
+            RefreshMissionBadge();
 
             if (_rosterText != null)
                 _rosterText.text = roster != null ? $"보유 캐릭터  {roster.Owned.Count}명" : "";
@@ -150,11 +176,13 @@ namespace SubcultureRPG.Meta.UI
             fbnrt.sizeDelta = new Vector2(0, 26); fbnrt.anchoredPosition = new Vector2(0, 10);
 
             // 메뉴 버튼(우측)
-            MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 236), () => Nav(HubScreen.Stage));
-            MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 118), () => Nav(HubScreen.Gacha));
-            MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, 0), () => Nav(HubScreen.Growth));
-            MenuButton("상점\n<size=52%>재료 구매 · 교환</size>", new Color(0.75f, 0.35f, 0.5f, 0.95f), new Vector2(360, -118), () => Nav(HubScreen.Shop));
-            MenuButton("가방\n<size=52%>재료 · 재화 확인</size>", new Color(0.25f, 0.5f, 0.55f, 0.95f), new Vector2(360, -236), () => Nav(HubScreen.Bag));
+            MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 285), () => Nav(HubScreen.Stage));
+            MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 171), () => Nav(HubScreen.Gacha));
+            MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, 57), () => Nav(HubScreen.Growth));
+            var missionBtn = MenuButton("임무\n<size=52%>일일 · 주간 보상</size>", new Color(0.3f, 0.45f, 0.8f, 0.95f), new Vector2(360, -57), () => Nav(HubScreen.Mission));
+            _missionLabel = missionBtn.GetComponentInChildren<TextMeshProUGUI>();
+            MenuButton("상점\n<size=52%>재료 구매 · 교환</size>", new Color(0.75f, 0.35f, 0.5f, 0.95f), new Vector2(360, -171), () => Nav(HubScreen.Shop));
+            MenuButton("가방\n<size=52%>재료 · 재화 확인</size>", new Color(0.25f, 0.5f, 0.55f, 0.95f), new Vector2(360, -285), () => Nav(HubScreen.Bag));
 
             // 보유 수(좌하단)
             _rosterText = UIFactory.AddText("Roster", _root.transform, "", 22, font, new Color(0.85f, 0.85f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);
@@ -163,13 +191,14 @@ namespace SubcultureRPG.Meta.UI
             rrt.sizeDelta = new Vector2(500, 34); rrt.anchoredPosition = new Vector2(60, 40);
         }
 
-        private void MenuButton(string label, Color bg, Vector2 pos, UnityEngine.Events.UnityAction onClick)
+        private Button MenuButton(string label, Color bg, Vector2 pos, UnityEngine.Events.UnityAction onClick)
         {
             var btn = UIFactory.AddButton("Menu", _root.transform, label, 40, font, bg, Color.white);
             var rt = (RectTransform)btn.transform;
             UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            rt.sizeDelta = new Vector2(460, 104); rt.anchoredPosition = pos;
+            rt.sizeDelta = new Vector2(460, 100); rt.anchoredPosition = pos;
             btn.onClick.AddListener(onClick);
+            return btn;
         }
 
         private void EnsureEventSystem()

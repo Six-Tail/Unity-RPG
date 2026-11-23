@@ -575,6 +575,7 @@ namespace SubcultureRPG.Meta.UI
                     if (sel[i] > 0) inventory.Spend(mats[i], sel[i]);
             PayGold(pv.gold);
             roster.AddExp(target, pv.usedExp);
+            MissionEvents.Report(MissionGoal.Growth);
             var after = roster.GetOwned(target);
             int lv = after != null ? after.level : before;
             Toast(lv > before ? $"레벨업! Lv.{before} → Lv.{lv}  (금화 -{pv.gold:N0})" : $"경험치 +{pv.usedExp:N0}  (금화 -{pv.gold:N0})");
@@ -715,6 +716,7 @@ namespace SubcultureRPG.Meta.UI
             if (inventory != null && !inventory.Spend(am, cost)) return;
             PayGold(gold);
             roster.Ascend(_selected);
+            MissionEvents.Report(MissionGoal.Growth);
             Toast($"돌파 완료! 레벨 상한 {Leveling.LevelCap(asc + 1)}");
         }
 
@@ -797,6 +799,7 @@ namespace SubcultureRPG.Meta.UI
             }
             PayGold(c.gold);
             roster.UpgradeSkill(_selected, slot);
+            MissionEvents.Report(MissionGoal.Growth);
             Toast($"{Leveling.SkillSlotName(slot)} Lv.{lv + 1}!");
         }
 

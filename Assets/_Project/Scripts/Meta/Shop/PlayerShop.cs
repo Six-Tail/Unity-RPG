@@ -118,6 +118,7 @@ namespace SubcultureRPG.Meta.Shop
                 Save();
             }
             OnChanged?.Invoke();
+            MissionEvents.Report(MissionGoal.ShopBuy);
             return true;
         }
 

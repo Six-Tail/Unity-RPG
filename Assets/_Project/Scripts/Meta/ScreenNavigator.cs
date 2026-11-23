@@ -17,6 +17,7 @@ namespace SubcultureRPG.Meta
         Bag,
         Dungeon,   // 스테이지 화면의 특수 던전 탭으로 열기
         Shop,      // 값이 직렬화되므로 새 화면은 뒤에만 추가
+        Mission,
     }
 
     /// <summary>
@@ -35,6 +36,7 @@ namespace SubcultureRPG.Meta
         [SerializeField] private PartyScreen party;
         [SerializeField] private BagScreen bag;
         [SerializeField] private ShopScreen shop;
+        [SerializeField] private MissionScreen mission;
         [SerializeField] private BattleHUD battleHud;
         [SerializeField] private BattleController battle;
         [SerializeField] private HubScreen startScreen = HubScreen.Home;
@@ -54,6 +56,19 @@ namespace SubcultureRPG.Meta
             if (battle == null) battle = FindAnyObjectByType<BattleController>();
             if (shop == null) shop = FindAnyObjectByType<ShopScreen>();
             if (shop == null && home != null) shop = CreateShop();   // 상점 도입 전에 만든 씬도 재생성 없이 동작
+            if (mission == null) mission = FindAnyObjectByType<MissionScreen>();
+            if (mission == null && home != null) mission = CreateMission();   // 임무도 마찬가지
+        }
+
+        /// <summary>씬에 임무 화면이 없으면 코드로 추가(폰트는 홈 화면과 같게).</summary>
+        private MissionScreen CreateMission()
+        {
+            var go = new GameObject("MissionScreen");
+            go.SetActive(false);   // Awake(UI 구성) 전에 폰트 지정
+            var s = go.AddComponent<MissionScreen>();
+            s.SetFont(home.Font);
+            go.SetActive(true);
+            return s;
         }
 
         /// <summary>씬에 상점 화면이 없으면 코드로 추가(폰트는 홈 화면과 같게).</summary>
@@ -73,6 +88,7 @@ namespace SubcultureRPG.Meta
             if (growth != null) growth.SetBackAction(GoHome);
             if (bag != null) bag.SetBackAction(GoHome);
             if (shop != null) shop.SetBackAction(GoHome);
+            if (mission != null) mission.SetBackAction(GoHome);
             if (party != null)
             {
                 party.SetBackAction(GoHome);
@@ -123,6 +139,7 @@ namespace SubcultureRPG.Meta
             if (party != null) party.Show(screen == HubScreen.Party);
             if (bag != null) bag.Show(screen == HubScreen.Bag);
             if (shop != null) shop.Show(screen == HubScreen.Shop);
+            if (mission != null) mission.Show(screen == HubScreen.Mission);
             if (battleHud != null) battleHud.Show(screen == HubScreen.Battle);
         }
 

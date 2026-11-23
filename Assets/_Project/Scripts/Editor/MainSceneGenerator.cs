@@ -12,6 +12,7 @@ using SubcultureRPG.Battle.UI;
 using SubcultureRPG.Meta;
 using SubcultureRPG.Meta.UI;
 using SubcultureRPG.Meta.Shop;
+using SubcultureRPG.Meta.Missions;
 
 namespace SubcultureRPG.EditorTools
 {
@@ -196,6 +197,17 @@ namespace SubcultureRPG.EditorTools
             SetField(shopScr, "inventory", inventory);
             if (font != null) SetField(shopScr, "font", font);
 
+            var missionComp = metaGO.AddComponent<PlayerMissions>();
+            SetField(missionComp, "wallet", wallet);
+            SetField(missionComp, "inventory", inventory);
+            SetField(missionComp, "stageRunner", runner);
+            SetField(missionComp, "gacha", gachaCtrl);
+            var missionGO = new GameObject("MissionScreen");
+            var missionScr = missionGO.AddComponent<MissionScreen>();
+            SetField(missionScr, "missions", missionComp);
+            SetField(missionScr, "wallet", wallet);
+            if (font != null) SetField(missionScr, "font", font);
+
             var stageScrGO = new GameObject("StageScreen");
             var stageScr = stageScrGO.AddComponent<StageScreen>();
             SetField(stageScr, "database", stageDbRef);
@@ -237,6 +249,7 @@ namespace SubcultureRPG.EditorTools
             SetField(nav, "stage", stageScr);
             SetField(nav, "bag", bagScr);
             SetField(nav, "shop", shopScr);
+            SetField(nav, "mission", missionScr);
             SetField(nav, "stageRunner", runner);
             SetField(nav, "gacha", gachaScr);
             SetField(nav, "growth", growth);
@@ -253,7 +266,7 @@ namespace SubcultureRPG.EditorTools
             EditorUtility.DisplayDialog(
                 "메인 씬 생성 완료",
                 "씬: " + ScenePath + " (빌드 첫 씬으로 등록)" +
-                "\n\n▶ Play → 홈 화면에서 스테이지 / 가챠 / 육성 / 상점 / 가방으로 이동 (특수 던전은 스테이지 화면 탭)." +
+                "\n\n▶ Play → 홈 화면에서 스테이지 / 가챠 / 육성 / 임무 / 상점 / 가방으로 이동 (특수 던전은 스테이지 화면 탭)." +
                 "\n스테이지: 챕터 1~2 (각 6스테이지), 승리 시 별 평가 + 보상." +
                 "\n새 세이브면 스타터(리리·미나·코코)가 지급됩니다." +
                 "\n각 화면 좌상단 '← 홈'으로 복귀, 전투는 '나가기/홈으로'.",

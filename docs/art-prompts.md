@@ -651,7 +651,7 @@ a pendant necklace with a gem. game equipment icon, single object centered, styl
 a ring with a gem. game equipment icon, single object centered, stylized silver-white fantasy gear, simple clean silhouette, soft rim light, plain very dark navy background, square composition
 ```
 
-## 화면 배경 (16:9) — 28장
+## 화면 배경 (16:9) — 29장
 
 ### 홈
 
@@ -707,6 +707,14 @@ an adventurer storage room with wooden shelves, chests, potion bottles and hangi
 
 ```
 a fantasy merchant shop interior, shelves full of potions, scrolls and trinkets, warm light, a wooden counter. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 임무
+
+- 파일: `Backgrounds/mission.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a quest board hall with a large wooden notice board covered in blank parchment sheets, a reception counter, warm lantern light. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
 ```
 
 ### 전투(공용)

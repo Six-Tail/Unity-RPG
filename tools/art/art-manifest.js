@@ -172,6 +172,7 @@ const BACKGROUNDS = [
   ['party', '편성', 'a medieval fantasy war room with a large wooden strategy table, miniature figures, plain cloth drapes and candlelight'],
   ['bag', '가방', 'an adventurer storage room with wooden shelves, chests, potion bottles and hanging lanterns'],
   ['shop', '상점', 'a fantasy merchant shop interior, shelves full of potions, scrolls and trinkets, warm light, a wooden counter'],
+  ['mission', '임무', 'a quest board hall with a large wooden notice board covered in blank parchment sheets, a reception counter, warm lantern light'],
   ['battle', '전투(공용)', 'an open grassy battlefield plain at twilight, dramatic clouds, distant ruins, flat open ground in the foreground'],
   // 메인 스토리 챕터별 전투 배경
   ['battle_ch1', '1장 그림자 숲', 'a dark misty forest with twisted trees and faint purple light, a clearing in the foreground'],
