@@ -37,9 +37,12 @@ namespace SubcultureRPG.Battle.UI
         private BattleEngine _builtEngine;
 
         // 허브(내비게이터)용 나가기
-        private Button _exitBtn, _resultExitBtn;
+        private Button _exitBtn, _resultExitBtn, _resultNextBtn;
         private RectTransform _retryRt;
-        private System.Action _onExit;
+        private TextMeshProUGUI _resultNextLbl;
+        private System.Action _onExit, _onNext;
+        private string _nextLabel;
+        private Coroutine _nextRoutine;
 
         // 자동 전투 · 배속 (설정은 PlayerPrefs에 저장 → 다음 전투에도 유지)
         private const string AutoKey = "battle.auto", SpeedKey = "battle.speed";
@@ -100,7 +103,73 @@ namespace SubcultureRPG.Battle.UI
             bool v = onExit != null;
             if (_exitBtn != null) _exitBtn.gameObject.SetActive(v);
             if (_resultExitBtn != null) _resultExitBtn.gameObject.SetActive(v);
-            if (_retryRt != null) _retryRt.anchoredPosition = new Vector2(v ? -125 : 0, -170);
+            LayoutResultButtons();
+        }
+
+        /// <summary>
+        /// 결과 화면 '다음' 버튼(예: 다음 스테이지로). autoSeconds초 뒤 자동 실행(0이면 수동만).
+        /// onNext가 null이면 숨김. 새 전투 시작·다시·나가기 시 자동으로 취소됩니다.
+        /// </summary>
+        public void SetResultNext(string label, System.Action onNext, float autoSeconds = 0f)
+        {
+            StopNextCountdown();
+            _onNext = onNext;
+            _nextLabel = label ?? "";
+            bool v = onNext != null;
+            if (_resultNextBtn != null)
+            {
+                _resultNextBtn.gameObject.SetActive(v);
+                _resultNextLbl.text = _nextLabel;
+            }
+            if (v && autoSeconds > 0f) _nextRoutine = StartCoroutine(NextCountdown(autoSeconds));
+            LayoutResultButtons();
+        }
+
+        private IEnumerator NextCountdown(float seconds)
+        {
+            float t = seconds;
+            while (t > 0f)
+            {
+                _resultNextLbl.text = $"{_nextLabel}  <size=75%>({Mathf.CeilToInt(t)})</size>";
+                yield return null;
+                // 결과 화면이 닫혔거나 전투 화면을 벗어나면 취소
+                if (_canvas == null || !_canvas.gameObject.activeInHierarchy || !_resultGO.activeSelf) { _nextRoutine = null; yield break; }
+                t -= Time.unscaledDeltaTime;
+            }
+            _nextRoutine = null;
+            DoNext();
+        }
+
+        private void StopNextCountdown()
+        {
+            if (_nextRoutine != null) { StopCoroutine(_nextRoutine); _nextRoutine = null; }
+            if (_resultNextLbl != null) _resultNextLbl.text = _nextLabel ?? "";
+        }
+
+        private void DoNext()
+        {
+            var action = _onNext;
+            SetResultNext(null, null);
+            _resultGO.SetActive(false);
+            action?.Invoke();
+        }
+
+        /// <summary>결과 버튼 가운데 정렬: 다시 · (나가기) · (다음).</summary>
+        private void LayoutResultButtons()
+        {
+            var list = new List<RectTransform>();
+            if (_retryRt != null) list.Add(_retryRt);
+            if (_resultExitBtn != null && _resultExitBtn.gameObject.activeSelf) list.Add((RectTransform)_resultExitBtn.transform);
+            if (_resultNextBtn != null && _resultNextBtn.gameObject.activeSelf) list.Add((RectTransform)_resultNextBtn.transform);
+            const float gap = 30f;
+            float total = -gap;
+            foreach (var rt in list) total += rt.sizeDelta.x + gap;
+            float x = -total / 2f;
+            foreach (var rt in list)
+            {
+                rt.anchoredPosition = new Vector2(x + rt.sizeDelta.x / 2f, -170);
+                x += rt.sizeDelta.x + gap;
+            }
         }
 
         /// <summary>결과 화면 '홈으로' 버튼 문구(예: 스테이지로).</summary>
@@ -219,6 +288,7 @@ namespace SubcultureRPG.Battle.UI
 
         private void RequestExit()
         {
+            SetResultNext(null, null);
             _resultGO.SetActive(false);
             _skillBarGO.SetActive(false);
             _selecting = false; _pendingSkill = null;
@@ -236,6 +306,7 @@ namespace SubcultureRPG.Battle.UI
             _skillBarGO.SetActive(false);
             _resultGO.SetActive(false);
             SetResultDetail("");
+            SetResultNext(null, null);
             SetInstruction("");
 
             BuildPanels(engine);
@@ -453,7 +524,7 @@ namespace SubcultureRPG.Battle.UI
             var rrt = (RectTransform)retry.transform;
             UIFactory.Anchor(rrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             rrt.sizeDelta = new Vector2(220, 70); rrt.anchoredPosition = new Vector2(0, -170);
-            retry.onClick.AddListener(() => { _resultGO.SetActive(false); controller.Begin(); });
+            retry.onClick.AddListener(() => { SetResultNext(null, null); _resultGO.SetActive(false); controller.Begin(); });
             _retryRt = rrt;
 
             _resultExitBtn = UIFactory.AddButton("Home", _resultGO.transform, "홈으로", 28, font, new Color(1, 1, 1, 0.16f), Color.white);
@@ -462,6 +533,16 @@ namespace SubcultureRPG.Battle.UI
             hrt.sizeDelta = new Vector2(220, 70); hrt.anchoredPosition = new Vector2(125, -170);
             _resultExitBtn.onClick.AddListener(RequestExit);
             _resultExitBtn.gameObject.SetActive(false);
+
+            _resultNextBtn = UIFactory.AddButton("Next", _resultGO.transform, "", 28, font, new Color(0.85f, 0.45f, 0.25f, 0.95f), Color.white);
+            var nrt = (RectTransform)_resultNextBtn.transform;
+            UIFactory.Anchor(nrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            nrt.sizeDelta = new Vector2(340, 70);
+            _resultNextLbl = _resultNextBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _resultNextLbl.richText = true;
+            _resultNextBtn.onClick.AddListener(DoNext);
+            _resultNextBtn.gameObject.SetActive(false);
+            LayoutResultButtons();
 
             _resultGO.SetActive(false);
         }

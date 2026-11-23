@@ -4,7 +4,6 @@ using UnityEngine.EventSystems;
 using TMPro;
 using SubcultureRPG.UI;
 using SubcultureRPG.Gacha;
-using SubcultureRPG.Characters;
 
 namespace SubcultureRPG.Meta.UI
 {
@@ -26,7 +25,7 @@ namespace SubcultureRPG.Meta.UI
 
         private GameObject _root;
         private Image _featPortrait;
-        private TextMeshProUGUI _crystalText, _matText, _rosterText, _featName, _featBanner;
+        private TextMeshProUGUI _crystalText, _rosterText, _featName, _featBanner;
 
         private void Awake()
         {
@@ -60,31 +59,10 @@ namespace SubcultureRPG.Meta.UI
             if (on) Refresh();
         }
 
-        private int ExpTotal()
-        {
-            long n = 0;
-            foreach (var m in Materials.ExpMaterials) n += (long)inventory.Count(m) * Materials.ExpValue(m);
-            return (int)System.Math.Min(int.MaxValue, n);
-        }
-
-        private int AscensionTotal()
-        {
-            int n = 0;
-            for (int e = 0; e <= (int)Element.Wind; e++)
-                for (int t = 1; t <= Materials.AscensionTiers; t++)
-                    n += inventory.Count(Materials.Ascension((Element)e, t));
-            return n;
-        }
-
         public void Refresh()
         {
             if (_crystalText != null)
-                _crystalText.text = wallet != null ? $"크리스탈  {wallet.Crystals:N0}    <color=#FFD36B>금화  {wallet.Gold:N0}</color>" : "";
-
-            if (_matText != null)
-                _matText.text = inventory == null ? "" :
-                    $"경험치 재료 {ExpTotal():N0} EXP   " +
-                    $"교본 {inventory.Count(MaterialType.SkillBook)}   돌파 재료 {AscensionTotal()}";
+                _crystalText.text = wallet != null ? $"크리스탈  {wallet.Crystals:N0}      <color=#FFD36B>금화  {wallet.Gold:N0}</color>" : "";
 
             if (_rosterText != null)
                 _rosterText.text = roster != null ? $"보유 캐릭터  {roster.Owned.Count}명" : "";
@@ -137,16 +115,11 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(trt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
             trt.sizeDelta = new Vector2(800, 70); trt.anchoredPosition = new Vector2(60, -40);
 
-            // 재화/재료(우상단)
+            // 재화(우상단) — 재료는 가방에서 확인
             _crystalText = UIFactory.AddText("Crystal", _root.transform, "", 26, font, new Color(0.6f, 0.9f, 1f), TextAlignmentOptions.Right, FontStyles.Bold);
             var crt = _crystalText.rectTransform;
             UIFactory.Anchor(crt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
             crt.sizeDelta = new Vector2(600, 36); crt.anchoredPosition = new Vector2(-50, -40);
-
-            _matText = UIFactory.AddText("Materials", _root.transform, "", 19, font, new Color(0.8f, 0.85f, 0.95f), TextAlignmentOptions.Right);
-            var mrt = _matText.rectTransform;
-            UIFactory.Anchor(mrt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
-            mrt.sizeDelta = new Vector2(800, 30); mrt.anchoredPosition = new Vector2(-50, -82);
 
             // 픽업 캐릭터(좌중앙)
             var featBg = UIFactory.AddImage("Featured", _root.transform, new Color(1f, 0.78f, 0.25f, 0.9f));
@@ -172,10 +145,11 @@ namespace SubcultureRPG.Meta.UI
             fbnrt.sizeDelta = new Vector2(0, 26); fbnrt.anchoredPosition = new Vector2(0, 10);
 
             // 메뉴 버튼(우측)
-            MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 210), () => Nav(HubScreen.Stage));
-            MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 70), () => Nav(HubScreen.Gacha));
-            MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, -70), () => Nav(HubScreen.Growth));
-            MenuButton("편성 · 연습 전투\n<size=52%>보상 없는 자유 전투</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(360, -210), () => Nav(HubScreen.Party));
+            MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 236), () => Nav(HubScreen.Stage));
+            MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 118), () => Nav(HubScreen.Gacha));
+            MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, 0), () => Nav(HubScreen.Growth));
+            MenuButton("편성 · 연습 전투\n<size=52%>보상 없는 자유 전투</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(360, -118), () => Nav(HubScreen.Party));
+            MenuButton("가방\n<size=52%>재료 · 재화 확인</size>", new Color(0.25f, 0.5f, 0.55f, 0.95f), new Vector2(360, -236), () => Nav(HubScreen.Bag));
 
             // 보유 수(좌하단)
             _rosterText = UIFactory.AddText("Roster", _root.transform, "", 22, font, new Color(0.85f, 0.85f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);
@@ -189,7 +163,7 @@ namespace SubcultureRPG.Meta.UI
             var btn = UIFactory.AddButton("Menu", _root.transform, label, 40, font, bg, Color.white);
             var rt = (RectTransform)btn.transform;
             UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            rt.sizeDelta = new Vector2(460, 120); rt.anchoredPosition = pos;
+            rt.sizeDelta = new Vector2(460, 104); rt.anchoredPosition = pos;
             btn.onClick.AddListener(onClick);
         }
 

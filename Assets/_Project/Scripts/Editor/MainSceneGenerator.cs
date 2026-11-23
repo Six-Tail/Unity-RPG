@@ -148,6 +148,12 @@ namespace SubcultureRPG.EditorTools
             SetField(runner, "roster", roster);
             SetField(runner, "database", stageDbRef);
 
+            var bagGO = new GameObject("BagScreen");
+            var bagScr = bagGO.AddComponent<BagScreen>();
+            SetField(bagScr, "inventory", inventory);
+            SetField(bagScr, "wallet", wallet);
+            if (font != null) SetField(bagScr, "font", font);
+
             var stageScrGO = new GameObject("StageScreen");
             var stageScr = stageScrGO.AddComponent<StageScreen>();
             SetField(stageScr, "database", stageDbRef);
@@ -187,6 +193,7 @@ namespace SubcultureRPG.EditorTools
             var nav = navGO.AddComponent<ScreenNavigator>();
             SetField(nav, "home", home);
             SetField(nav, "stage", stageScr);
+            SetField(nav, "bag", bagScr);
             SetField(nav, "stageRunner", runner);
             SetField(nav, "gacha", gachaScr);
             SetField(nav, "growth", growth);

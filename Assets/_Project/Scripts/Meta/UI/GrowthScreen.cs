@@ -209,7 +209,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_matText != null)
                 _matText.text = inventory == null ? "" :
-                    $"<color=#FFD36B>금화 {Gold:N0}</color>    경험치 재료 {ExpOwnedTotal():N0} EXP    교본 {inventory.Count(MaterialType.SkillBook)}";
+                    $"<color=#FFD36B>금화 {Gold:N0}</color>    교본 {inventory.Count(MaterialType.SkillBook)}";
             RefreshDetail();
             RefreshLevelPanel();
         }
@@ -257,7 +257,7 @@ namespace SubcultureRPG.Meta.UI
             if (atCap)
                 _levelLbl.text = o.ascension >= Leveling.MaxAscension ? "최대 레벨" : "레벨 상한 — 돌파 필요";
             else
-                _levelLbl.text = $"레벨업\n<size=60%>경험치 재료 선택 · 보유 {ExpOwnedTotal():N0} EXP</size>";
+                _levelLbl.text = "레벨업\n<size=60%>경험치 재료 선택</size>";
             _levelBtn.interactable = !atCap;
 
             if (o.ascension >= Leveling.MaxAscension)
@@ -743,8 +743,7 @@ namespace SubcultureRPG.Meta.UI
                 _lvMinus[i].interactable = _lvSel[i] > 0;
             }
 
-            float rate = Leveling.GoldPerExp(o.level) * 100f;
-            _lvCost.text = $"필요 {GoldTag(pv.gold)}   <size=80%><color=#9AA3B5>보유 {Gold:N0}  ·  Lv.{o.level} 단가 100 EXP당 {rate:0.#}</color></size>";
+            _lvCost.text = $"필요 {GoldTag(pv.gold)}   <size=80%><color=#9AA3B5>보유 {Gold:N0}</color></size>";
             _lvConfirm.interactable = add > 0 && Gold >= pv.gold;
         }
 

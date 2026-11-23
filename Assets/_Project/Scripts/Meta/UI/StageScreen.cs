@@ -68,6 +68,15 @@ namespace SubcultureRPG.Meta.UI
             if (_backBtn != null) _backBtn.gameObject.SetActive(onBack != null);
         }
 
+        /// <summary>지정 스테이지를 선택(챕터/던전 탭도 맞춤).</summary>
+        public void Focus(StageData s)
+        {
+            if (s == null) return;
+            _dungeonMode = s.IsDungeon;
+            if (!s.IsDungeon) _chapter = s.chapter;
+            _selected = s;
+        }
+
         /// <summary>가장 앞선 해금 스테이지(아직 안 깬 것)로 챕터·선택 이동.</summary>
         public void JumpToFrontier()
         {

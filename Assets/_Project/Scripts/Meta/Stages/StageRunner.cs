@@ -38,6 +38,9 @@ namespace SubcultureRPG.Meta
         [SerializeField] private PlayerRoster roster;
         [SerializeField, Tooltip("배속 해금 판정용(비우면 StageScreen의 것을 사용).")] private StageDatabase database;
 
+        [SerializeField, Tooltip("승리 후 '다음 스테이지로' 자동 진행까지 초(0 = 자동 진행 안 함).")]
+        private float autoNextSeconds = 5f;
+
         /// <summary>이 챕터를 클리어하면 전투 배속(×2) 해금.</summary>
         public const int SpeedUnlockChapter = 1;
 
@@ -125,6 +128,22 @@ namespace SubcultureRPG.Meta
             return true;
         }
 
+        /// <summary>메인 스테이지의 다음 스테이지(해금된 경우). 던전·마지막 스테이지는 null.</summary>
+        public StageData NextStageOf(StageData stage)
+        {
+            if (stage == null || stage.IsDungeon || database == null) return null;
+            var next = database.Next(stage);
+            if (next == null) return null;
+            return progress == null || progress.IsUnlocked(next, database) ? next : null;
+        }
+
+        /// <summary>같은 파티로 다음 스테이지 출격.</summary>
+        private void LaunchNext(StageData next)
+        {
+            if (next == null || _party.Count == 0) return;
+            Launch(next, new List<CharacterData>(_party));
+        }
+
         /// <summary>스테이지 모드 종료(허브 복귀 시).</summary>
         public void Clear()
         {
@@ -195,7 +214,13 @@ namespace SubcultureRPG.Meta
             string detail = BuildRewardText(result, allAlive, fast);
             if (speedWasLocked && SpeedUnlocked)
                 detail += "\n<color=#FFB347>2배속 해금!</color>  <size=80%>전투 화면 오른쪽 위 '배속' 버튼</size>";
-            if (hud != null) hud.SetResultDetail(detail);
+            if (hud != null)
+            {
+                hud.SetResultDetail(detail);
+                var next = NextStageOf(stage);
+                if (next != null)
+                    hud.SetResultNext($"다음 스테이지로  ·  {next.Code}", () => LaunchNext(next), autoNextSeconds);
+            }
             OnStageFinished?.Invoke(result);
         }
 

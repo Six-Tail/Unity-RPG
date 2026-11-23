@@ -75,6 +75,30 @@ namespace SubcultureRPG.Meta
             _ => Name(t),
         };
 
+        /// <summary>가방 상세용 설명(용도 · 획득처).</summary>
+        public static string Description(MaterialType t)
+        {
+            if (IsAscension(t))
+            {
+                var e = ElementOf(t);
+                int tier = TierOf(t);
+                string el = $"<color={Traits.Hex(e)}>{Traits.Name(e)}</color>";
+                return $"<color=#FFD36B>용도</color>\n{el} 속성 캐릭터의 <b>{TierTargetLevel(tier)} 돌파</b> " +
+                       $"(Lv.{TierTargetLevel(tier) - 20} → {TierTargetLevel(tier)})\n\n" +
+                       $"<color=#FFD36B>획득처</color>\n돌파 던전 · {el} {TierName(tier)}";
+            }
+            int exp = ExpValue(t);
+            if (exp > 0)
+                return $"<color=#FFD36B>용도</color>\n캐릭터 경험치 <b>+{exp:N0}</b>\n육성 → 레벨업에서 재료를 골라 사용 (금화 필요)\n\n" +
+                       "<color=#FFD36B>획득처</color>\n메인 스테이지 클리어";
+            return t switch
+            {
+                MaterialType.SkillBook => "<color=#FFD36B>용도</color>\n스킬 레벨업 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n돌파 던전 클리어",
+                MaterialType.AscensionStone => "<color=#9AA3B5>예전 공용 돌파석입니다. 지금은 속성별 돌파 재료로 바뀌어 사용처가 없습니다.</color>",
+                _ => "",
+            };
+        }
+
         // ---------------- 돌파 재료 ----------------
 
         /// <summary>속성·등급(1~3)의 돌파 재료.</summary>

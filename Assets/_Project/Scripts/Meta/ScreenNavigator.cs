@@ -14,6 +14,7 @@ namespace SubcultureRPG.Meta
         Growth,
         Party,
         Battle,
+        Bag,
     }
 
     /// <summary>
@@ -30,6 +31,7 @@ namespace SubcultureRPG.Meta
         [SerializeField] private GachaScreen gacha;
         [SerializeField] private GrowthScreen growth;
         [SerializeField] private PartyScreen party;
+        [SerializeField] private BagScreen bag;
         [SerializeField] private BattleHUD battleHud;
         [SerializeField] private BattleController battle;
         [SerializeField] private HubScreen startScreen = HubScreen.Home;
@@ -44,6 +46,7 @@ namespace SubcultureRPG.Meta
             if (gacha == null) gacha = FindAnyObjectByType<GachaScreen>();
             if (growth == null) growth = FindAnyObjectByType<GrowthScreen>();
             if (party == null) party = FindAnyObjectByType<PartyScreen>();
+            if (bag == null) bag = FindAnyObjectByType<BagScreen>();
             if (battleHud == null) battleHud = FindAnyObjectByType<BattleHUD>();
             if (battle == null) battle = FindAnyObjectByType<BattleController>();
         }
@@ -52,6 +55,7 @@ namespace SubcultureRPG.Meta
         {
             if (gacha != null) gacha.SetBackAction(GoHome);
             if (growth != null) growth.SetBackAction(GoHome);
+            if (bag != null) bag.SetBackAction(GoHome);
             if (party != null)
             {
                 party.SetBackAction(GoHome);
@@ -94,6 +98,7 @@ namespace SubcultureRPG.Meta
             if (gacha != null) gacha.Show(screen == HubScreen.Gacha);
             if (growth != null) growth.Show(screen == HubScreen.Growth);
             if (party != null) party.Show(screen == HubScreen.Party);
+            if (bag != null) bag.Show(screen == HubScreen.Bag);
             if (battleHud != null) battleHud.Show(screen == HubScreen.Battle);
         }
 
@@ -121,6 +126,7 @@ namespace SubcultureRPG.Meta
         private void ExitBattle()
         {
             bool stageBattle = stageRunner != null && stageRunner.Current != null;
+            if (stageBattle && stage != null) stage.Focus(stageRunner.Current);   // '다음 스테이지'로 진행했으면 그 스테이지 선택
             if (battle != null) battle.Stop();
             Go(stageBattle ? HubScreen.Stage : HubScreen.Home);
         }
