@@ -9,8 +9,7 @@ namespace SubcultureRPG.Meta
     /// </summary>
     public static class Economy
     {
-        /// <summary>경험치 재료 1개 사용 비용(경험치 5당 금화 1).</summary>
-        public static int LevelUpGold(MaterialType expMaterial) => Materials.ExpValue(expMaterial) / 5;
+        // 레벨업 금화는 레벨에 따라 오름 → Leveling.GoldPerExp / Leveling.Preview
 
         private static readonly int[] AscGold = { 5000, 15000, 30000 };       // 40 / 60 / 80 돌파
         private static readonly int[] AscCount = { 5, 8, 12 };                // 돌파 재료 개수

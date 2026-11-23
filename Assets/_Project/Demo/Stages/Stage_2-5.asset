@@ -18,6 +18,10 @@ MonoBehaviour:
   stageName: "\uC131\uCC44 \uC548\uB730"
   description: 
   isBoss: 0
+  kind: 0
+  dungeonElement: 0
+  dungeonTier: 1
+  unlockAfter: {fileID: 0}
   enemies:
   - unit: {fileID: 11400000, guid: efa700920c6a1c947b2dd71821576781, type: 2}
     level: 22
@@ -29,8 +33,9 @@ MonoBehaviour:
   turnLimit: 12
   firstClearCrystals: 80
   rewards:
+  - type: 5
+    count: 5
   - type: 1
-    count: 3
-  - type: 2
-    count: 1
+    count: 2
   characterExp: 1300
+  gold: 4200

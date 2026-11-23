@@ -28,3 +28,19 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 508e21942f824d1468f83c7ea45e0c80, type: 2}
   - {fileID: 11400000, guid: 3b5e583d1bdca7a4695c68ef3be9e214, type: 2}
   - {fileID: 11400000, guid: 720048dfcffdaa745bab3581c1195784, type: 2}
+  dungeons:
+  - {fileID: 11400000, guid: b1a9d212fa5df814ba2917f3d3ddb7c3, type: 2}
+  - {fileID: 11400000, guid: f3dd7bf6aed6a044d9b44b84e5eeb56a, type: 2}
+  - {fileID: 11400000, guid: 08fa22d8fb7f58c428a236d54a1e56a4, type: 2}
+  - {fileID: 11400000, guid: e62e19cdbd1ec864dbc0233994dc723c, type: 2}
+  - {fileID: 11400000, guid: e41f6ef277b797a4c9336f77d9500603, type: 2}
+  - {fileID: 11400000, guid: 51fa7eadc6c095a4ea8e81687c4773ff, type: 2}
+  - {fileID: 11400000, guid: 751b5d2a7c2dc8c47af5f268cb6404b6, type: 2}
+  - {fileID: 11400000, guid: 821fa476ec9300448ae831361983ae90, type: 2}
+  - {fileID: 11400000, guid: ac7633cbb0da66b4f96f5ab611c4df88, type: 2}
+  - {fileID: 11400000, guid: 7b85c21f431cda9438d52476fcc5ba8c, type: 2}
+  - {fileID: 11400000, guid: f5c299916e0ef5341b492e1845572353, type: 2}
+  - {fileID: 11400000, guid: dc5118fb000440d4aaebc59f49896279, type: 2}
+  - {fileID: 11400000, guid: a4f710ed7951aac4a841346e8cbb3fd7, type: 2}
+  - {fileID: 11400000, guid: 01f4c339825205c488ef11a46da12e83, type: 2}
+  - {fileID: 11400000, guid: b6a374058b3b50843aee28e86f2d0acf, type: 2}

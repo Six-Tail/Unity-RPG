@@ -8,10 +8,12 @@ namespace SubcultureRPG.Meta
     /// </summary>
     public enum MaterialType
     {
-        ExpPotion = 0,      // 경험치 물약 (레벨업)
-        ExpCrystal = 1,     // 경험치 결정 (레벨업, 대용량)
+        ExpPotion = 0,      // 경험치 물약 (+500)
+        ExpCrystal = 1,     // 경험치 결정 (+5000)
         AscensionStone = 2, // (구) 공용 돌파석 — 더 이상 쓰이지 않음. 기존 세이브 호환용
         SkillBook = 3,      // 스킬 교본 (스킬 레벨업)
+        ExpSmall = 4,       // 소형 경험치 물약 (+100)
+        ExpLarge = 5,       // 대형 경험치 물약 (+1000)
 
         PhysicalAsc1 = 101, PhysicalAsc2 = 102, PhysicalAsc3 = 103,
         FireAsc1 = 111, FireAsc2 = 112, FireAsc3 = 113,
@@ -39,7 +41,9 @@ namespace SubcultureRPG.Meta
             if (IsAscension(t)) return AscNames[(int)ElementOf(t), TierOf(t) - 1];
             return t switch
             {
+                MaterialType.ExpSmall => "소형 경험치 물약",
                 MaterialType.ExpPotion => "경험치 물약",
+                MaterialType.ExpLarge => "대형 경험치 물약",
                 MaterialType.ExpCrystal => "경험치 결정",
                 MaterialType.AscensionStone => "구 돌파석",
                 MaterialType.SkillBook => "스킬 교본",
@@ -50,9 +54,25 @@ namespace SubcultureRPG.Meta
         /// <summary>경험치 재료가 주는 경험치(그 외는 0).</summary>
         public static int ExpValue(MaterialType t) => t switch
         {
+            MaterialType.ExpSmall => 100,
             MaterialType.ExpPotion => 500,
-            MaterialType.ExpCrystal => 2500,
+            MaterialType.ExpLarge => 1000,
+            MaterialType.ExpCrystal => 5000,
             _ => 0,
+        };
+
+        /// <summary>경험치 재료(경험치 작은 순).</summary>
+        public static readonly MaterialType[] ExpMaterials =
+            { MaterialType.ExpSmall, MaterialType.ExpPotion, MaterialType.ExpLarge, MaterialType.ExpCrystal };
+
+        /// <summary>짧은 이름(슬롯 표시용).</summary>
+        public static string ShortName(MaterialType t) => t switch
+        {
+            MaterialType.ExpSmall => "소형 물약",
+            MaterialType.ExpPotion => "물약",
+            MaterialType.ExpLarge => "대형 물약",
+            MaterialType.ExpCrystal => "결정",
+            _ => Name(t),
         };
 
         // ---------------- 돌파 재료 ----------------

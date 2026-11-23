@@ -25,8 +25,10 @@ namespace SubcultureRPG.Meta
             Load();
             if (grantDefaultsIfEmpty && !had)
             {
-                _items[MaterialType.ExpPotion] = 60;
-                _items[MaterialType.ExpCrystal] = 12;
+                _items[MaterialType.ExpSmall] = 40;
+                _items[MaterialType.ExpPotion] = 30;
+                _items[MaterialType.ExpLarge] = 15;
+                _items[MaterialType.ExpCrystal] = 6;
                 _items[MaterialType.SkillBook] = 24;
                 Save();
             }
@@ -77,8 +79,10 @@ namespace SubcultureRPG.Meta
         [ContextMenu("재료 테스트 지급")]
         public void GrantTest()
         {
-            Add(MaterialType.ExpPotion, 30);
-            Add(MaterialType.ExpCrystal, 6);
+            _items[MaterialType.ExpSmall] = Count(MaterialType.ExpSmall) + 40;
+            _items[MaterialType.ExpPotion] = Count(MaterialType.ExpPotion) + 30;
+            _items[MaterialType.ExpLarge] = Count(MaterialType.ExpLarge) + 15;
+            _items[MaterialType.ExpCrystal] = Count(MaterialType.ExpCrystal) + 6;
             Add(MaterialType.SkillBook, 12);
             // 속성별 돌파 재료(40/60/80 돌파 각 1회분 정도)
             for (int e = 0; e <= (int)Element.Wind; e++)

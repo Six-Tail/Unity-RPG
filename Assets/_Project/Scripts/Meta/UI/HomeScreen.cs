@@ -60,6 +60,13 @@ namespace SubcultureRPG.Meta.UI
             if (on) Refresh();
         }
 
+        private int ExpTotal()
+        {
+            long n = 0;
+            foreach (var m in Materials.ExpMaterials) n += (long)inventory.Count(m) * Materials.ExpValue(m);
+            return (int)System.Math.Min(int.MaxValue, n);
+        }
+
         private int AscensionTotal()
         {
             int n = 0;
@@ -76,7 +83,7 @@ namespace SubcultureRPG.Meta.UI
 
             if (_matText != null)
                 _matText.text = inventory == null ? "" :
-                    $"물약 {inventory.Count(MaterialType.ExpPotion)}   결정 {inventory.Count(MaterialType.ExpCrystal)}   " +
+                    $"경험치 재료 {ExpTotal():N0} EXP   " +
                     $"교본 {inventory.Count(MaterialType.SkillBook)}   돌파 재료 {AscensionTotal()}";
 
             if (_rosterText != null)

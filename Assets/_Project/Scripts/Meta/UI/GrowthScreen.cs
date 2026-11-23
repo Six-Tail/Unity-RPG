@@ -27,8 +27,8 @@ namespace SubcultureRPG.Meta.UI
         private RectTransform _grid;
         private Image _detPortrait, _expFill;
         private TextMeshProUGUI _matText, _detName, _detLevel, _detInfo, _detStats, _detExp, _detSkill, _detPassives, _toast;
-        private TextMeshProUGUI _potionLbl, _crystalLbl, _ascendLbl, _skillLbl, _mergeLbl;
-        private Button _potionBtn, _crystalBtn, _ascendBtn, _skillBtn, _mergeBtn, _backBtn;
+        private TextMeshProUGUI _levelLbl, _ascendLbl, _skillLbl, _mergeLbl;
+        private Button _levelBtn, _ascendBtn, _skillBtn, _mergeBtn, _backBtn;
         private System.Action _onBack;
         private RosterFilterBar _filterBar;
         private StarRow _detStars;
@@ -209,13 +209,15 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_matText != null)
                 _matText.text = inventory == null ? "" :
-                    $"<color=#FFD36B>금화 {Gold:N0}</color>    물약 {inventory.Count(MaterialType.ExpPotion)}    결정 {inventory.Count(MaterialType.ExpCrystal)}    교본 {inventory.Count(MaterialType.SkillBook)}";
+                    $"<color=#FFD36B>금화 {Gold:N0}</color>    경험치 재료 {ExpOwnedTotal():N0} EXP    교본 {inventory.Count(MaterialType.SkillBook)}";
             RefreshDetail();
+            RefreshLevelPanel();
         }
 
         private void RefreshDetail()
         {
             bool has = _selected != null && roster != null;
+            if (LevelPanelOpen && _lvFor != _selected) CloseLevelPanel();
             if (_detPanel != null) _detPanel.SetActive(has);
             if (!has) return;
 
@@ -252,12 +254,11 @@ namespace SubcultureRPG.Meta.UI
             _detPassives.text = PassiveText(_selected.role, starN, tr);
 
             // 버튼 라벨/활성
-            int potion = Mat(MaterialType.ExpPotion), crystal = Mat(MaterialType.ExpCrystal);
-            int potionG = Economy.LevelUpGold(MaterialType.ExpPotion), crystalG = Economy.LevelUpGold(MaterialType.ExpCrystal);
-            _potionLbl.text = $"물약 +500\n<size=60%>보유 {potion} · {GoldTag(potionG)}</size>";
-            _crystalLbl.text = $"결정 +2500\n<size=60%>보유 {crystal} · {GoldTag(crystalG)}</size>";
-            _potionBtn.interactable = !atCap && potion > 0 && Gold >= potionG;
-            _crystalBtn.interactable = !atCap && crystal > 0 && Gold >= crystalG;
+            if (atCap)
+                _levelLbl.text = o.ascension >= Leveling.MaxAscension ? "최대 레벨" : "레벨 상한 — 돌파 필요";
+            else
+                _levelLbl.text = $"레벨업\n<size=60%>경험치 재료 선택 · 보유 {ExpOwnedTotal():N0} EXP</size>";
+            _levelBtn.interactable = !atCap;
 
             if (o.ascension >= Leveling.MaxAscension)
             {
@@ -344,20 +345,6 @@ namespace SubcultureRPG.Meta.UI
         }
 
         // ---------------- 액션 ----------------
-
-        private void UseExp(MaterialType mt)
-        {
-            if (_selected == null || roster == null) return;
-            var o = roster.GetOwned(_selected);
-            if (o == null) return;
-            if (o.level >= Leveling.LevelCap(o.ascension)) { Toast("레벨 상한 — 돌파가 필요합니다"); return; }
-            if (Mat(mt) < 1) { Toast($"{Materials.Name(mt)} 부족"); return; }
-            int gold = Economy.LevelUpGold(mt);
-            if (Gold < gold) { Toast($"금화가 부족합니다 (필요 {gold:N0})"); return; }
-            if (inventory != null && !inventory.Spend(mt, 1)) { Toast($"{Materials.Name(mt)} 부족"); return; }
-            PayGold(gold);
-            roster.AddExp(_selected, Materials.ExpValue(mt));
-        }
 
         private void Ascend()
         {
@@ -573,9 +560,8 @@ namespace SubcultureRPG.Meta.UI
             _detPassives.fontSizeMin = 12; _detPassives.fontSizeMax = 16;
             _detPassives.color = new Color(0.92f, 0.93f, 0.97f);
 
-            // 레벨업(물약/결정)
-            _potionBtn = DetailButton(panel.transform, new Color(0.35f, 0.55f, 0.35f, 0.95f), new Vector2(238, 52), new Vector2(-126, -590), UseExpPotion, out _potionLbl);
-            _crystalBtn = DetailButton(panel.transform, new Color(0.3f, 0.5f, 0.6f, 0.95f), new Vector2(238, 52), new Vector2(126, -590), UseExpCrystal, out _crystalLbl);
+            // 레벨업(재료 선택 패널 열기)
+            _levelBtn = DetailButton(panel.transform, new Color(0.3f, 0.55f, 0.45f, 0.95f), new Vector2(492, 52), new Vector2(0, -590), OpenLevelPanel, out _levelLbl);
             // 돌파
             _ascendBtn = DetailButton(panel.transform, new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(492, 52), new Vector2(0, -650), Ascend, out _ascendLbl);
             // 스킬업
@@ -584,10 +570,277 @@ namespace SubcultureRPG.Meta.UI
             _mergeBtn = DetailButton(panel.transform, new Color(0.85f, 0.35f, 0.55f, 0.95f), new Vector2(492, 56), new Vector2(0, -774), MergeOrTranscend, out _mergeLbl);
 
             _detPanel.SetActive(false);
+            BuildLevelPanel();
         }
 
-        private void UseExpPotion() => UseExp(MaterialType.ExpPotion);
-        private void UseExpCrystal() => UseExp(MaterialType.ExpCrystal);
+        // ---------------- 레벨업 패널 (경험치 재료 선택) ----------------
+        // 재료를 골라 담고(+/−, 자동 선택) '레벨업'을 눌러야 재료·금화가 함께 소모됩니다.
+        // 금화 = 들어간 경험치 × 레벨별 단가(Leveling.GoldPerExp) → 레벨이 높을수록 비쌈.
+
+        private GameObject _lvModal;
+        private TextMeshProUGUI _lvTitle, _lvPreview, _lvCost;
+        private readonly TextMeshProUGUI[] _lvCount = new TextMeshProUGUI[4], _lvOwned = new TextMeshProUGUI[4];
+        private readonly Button[] _lvPlus = new Button[4], _lvMinus = new Button[4];
+        private Button _lvConfirm;
+        private readonly int[] _lvSel = new int[4];
+        private CharacterData _lvFor;
+
+        private bool LevelPanelOpen => _lvModal != null && _lvModal.activeSelf;
+
+        private int ExpOwnedTotal()
+        {
+            long n = 0;
+            foreach (var m in Materials.ExpMaterials) n += (long)Mat(m) * Materials.ExpValue(m);
+            return (int)System.Math.Min(int.MaxValue, n);
+        }
+
+        private int SelectedExp()
+        {
+            int n = 0;
+            for (int i = 0; i < _lvSel.Length; i++) n += _lvSel[i] * Materials.ExpValue(Materials.ExpMaterials[i]);
+            return n;
+        }
+
+        private static Leveling.LevelPreview PreviewFor(OwnedCharacter o, int addExp) =>
+            Leveling.Preview(o.level, o.exp, Leveling.LevelCap(o.ascension), addExp);
+
+        private void OpenLevelPanel()
+        {
+            if (_selected == null || roster == null) return;
+            var o = roster.GetOwned(_selected);
+            if (o == null) return;
+            if (o.level >= Leveling.LevelCap(o.ascension)) { Toast("레벨 상한 — 돌파가 필요합니다"); return; }
+            _lvFor = _selected;
+            System.Array.Clear(_lvSel, 0, _lvSel.Length);
+            _lvModal.SetActive(true);
+            _lvModal.transform.SetAsLastSibling();
+            if (_toast != null) _toast.transform.SetAsLastSibling();
+            RefreshLevelPanel();
+        }
+
+        private void CloseLevelPanel()
+        {
+            if (_lvModal != null) _lvModal.SetActive(false);
+            _lvFor = null;
+        }
+
+        private void AdjustSel(int i, int delta)
+        {
+            var o = roster != null && _lvFor != null ? roster.GetOwned(_lvFor) : null;
+            if (o == null) return;
+            if (delta > 0)
+            {
+                if (PreviewFor(o, SelectedExp()).atCap) { Toast("이미 레벨 상한까지 선택했습니다"); return; }
+                if (_lvSel[i] >= Mat(Materials.ExpMaterials[i])) { Toast($"{Materials.Name(Materials.ExpMaterials[i])} 부족"); return; }
+            }
+            _lvSel[i] = Mathf.Clamp(_lvSel[i] + delta, 0, Mat(Materials.ExpMaterials[i]));
+            RefreshLevelPanel();
+        }
+
+        private void ClearSel()
+        {
+            System.Array.Clear(_lvSel, 0, _lvSel.Length);
+            RefreshLevelPanel();
+        }
+
+        /// <summary>
+        /// 자동 선택: 레벨 상한까지 필요한 경험치를 큰 재료부터 넘치지 않게 채우고,
+        /// 남는 양은 그걸 덮는 가장 작은 재료 1개로 마무리. 금화가 모자라면 작은 재료부터 덜어냄.
+        /// </summary>
+        private void AutoSelect()
+        {
+            var o = roster != null && _lvFor != null ? roster.GetOwned(_lvFor) : null;
+            if (o == null) return;
+            var mats = Materials.ExpMaterials;
+            System.Array.Clear(_lvSel, 0, _lvSel.Length);
+
+            int remaining = Leveling.ExpToCap(o.level, o.exp, Leveling.LevelCap(o.ascension));
+            for (int i = mats.Length - 1; i >= 0; i--)
+            {
+                int v = Materials.ExpValue(mats[i]);
+                int n = Mathf.Min(Mat(mats[i]), remaining / v);
+                _lvSel[i] = n;
+                remaining -= n * v;
+            }
+            while (remaining > 0)
+            {
+                int pick = -1;
+                for (int i = 0; i < mats.Length && pick < 0; i++)
+                    if (_lvSel[i] < Mat(mats[i]) && Materials.ExpValue(mats[i]) >= remaining) pick = i;
+                for (int i = mats.Length - 1; i >= 0 && pick < 0; i--)
+                    if (_lvSel[i] < Mat(mats[i])) pick = i;
+                if (pick < 0) break;   // 재료가 모자람 → 가진 만큼만
+                _lvSel[pick]++;
+                remaining -= Materials.ExpValue(mats[pick]);
+            }
+
+            while (SelectedExp() > 0 && PreviewFor(o, SelectedExp()).gold > Gold)
+            {
+                for (int i = 0; i < mats.Length; i++)
+                    if (_lvSel[i] > 0) { _lvSel[i]--; break; }
+            }
+
+            if (SelectedExp() == 0) Toast(ExpOwnedTotal() == 0 ? "경험치 재료가 없습니다" : "금화가 부족합니다");
+            RefreshLevelPanel();
+        }
+
+        private void ConfirmLevelUp()
+        {
+            var o = roster != null && _lvFor != null ? roster.GetOwned(_lvFor) : null;
+            if (o == null) return;
+            var mats = Materials.ExpMaterials;
+            var sel = (int[])_lvSel.Clone();
+            int add = SelectedExp();
+            if (add <= 0) { Toast("경험치 재료를 선택하세요"); return; }
+            for (int i = 0; i < mats.Length; i++)
+                if (sel[i] > Mat(mats[i])) { Toast($"{Materials.Name(mats[i])} 부족"); return; }
+            var pv = PreviewFor(o, add);
+            if (Gold < pv.gold) { Toast($"금화가 부족합니다 (필요 {pv.gold:N0})"); return; }
+
+            int before = o.level;
+            var target = _lvFor;
+            System.Array.Clear(_lvSel, 0, _lvSel.Length);   // 소모 중 갱신이 선택을 건드리지 않도록 먼저 비움
+            if (inventory != null)
+                for (int i = 0; i < mats.Length; i++)
+                    if (sel[i] > 0) inventory.Spend(mats[i], sel[i]);
+            PayGold(pv.gold);
+            roster.AddExp(target, pv.usedExp);
+
+            var after = roster.GetOwned(target);
+            int lv = after != null ? after.level : before;
+            Toast(lv > before ? $"레벨업! Lv.{before} → Lv.{lv}  (금화 -{pv.gold:N0})" : $"경험치 +{pv.usedExp:N0}  (금화 -{pv.gold:N0})");
+            if (after == null || lv >= Leveling.LevelCap(after.ascension)) CloseLevelPanel();
+            else RefreshLevelPanel();
+        }
+
+        private void RefreshLevelPanel()
+        {
+            if (!LevelPanelOpen) return;
+            var o = roster != null && _lvFor != null ? roster.GetOwned(_lvFor) : null;
+            if (o == null || _lvFor != _selected) { CloseLevelPanel(); return; }
+
+            var mats = Materials.ExpMaterials;
+            for (int i = 0; i < mats.Length; i++) _lvSel[i] = Mathf.Clamp(_lvSel[i], 0, Mat(mats[i]));
+
+            int cap = Leveling.LevelCap(o.ascension);
+            int add = SelectedExp();
+            var pv = PreviewFor(o, add);
+
+            _lvTitle.text = $"레벨업  ·  {_lvFor.displayName}";
+            string to = pv.level > o.level ? $"<color=#7CFF9A>Lv.{pv.level}</color>" : $"Lv.{pv.level}";
+            string sub = add <= 0 ? "<color=#9AA3B5>재료를 눌러 담으세요</color>"
+                : $"EXP +{pv.usedExp:N0}" + (pv.atCap ? "  ·  <color=#FFD36B>상한 도달</color>"
+                    : $"  ·  다음 레벨까지 {Leveling.ExpForNext(pv.level) - pv.exp:N0}")
+                  + (pv.wastedExp > 0 ? $"  ·  <color=#FF8A8A>초과 {pv.wastedExp:N0} EXP는 버려짐</color>" : "");
+            _lvPreview.text = $"Lv.{o.level} → {to}  <size=70%><color=#9AA3B5>/ 상한 {cap}</color></size>\n<size=72%>{sub}</size>";
+
+            for (int i = 0; i < mats.Length; i++)
+            {
+                int owned = Mat(mats[i]);
+                _lvCount[i].text = _lvSel[i] > 0 ? $"×{_lvSel[i]}" : "<color=#6B7280>0</color>";
+                _lvOwned[i].text = $"보유 {owned:N0}";
+                _lvPlus[i].interactable = _lvSel[i] < owned && !pv.atCap;
+                _lvMinus[i].interactable = _lvSel[i] > 0;
+            }
+
+            float rate = Leveling.GoldPerExp(o.level) * 100f;
+            _lvCost.text = $"필요 {GoldTag(pv.gold)}   <size=80%><color=#9AA3B5>보유 {Gold:N0}  ·  Lv.{o.level} 단가 100 EXP당 {rate:0.#}</color></size>";
+            _lvConfirm.interactable = add > 0 && Gold >= pv.gold;
+        }
+
+        private void BuildLevelPanel()
+        {
+            var dim = UIFactory.AddImage("LevelPanel", _root.transform, new Color(0, 0, 0, 0.62f), null, raycast: true);
+            UIFactory.Stretch(dim.rectTransform);
+            _lvModal = dim.gameObject;
+            var dimBtn = dim.gameObject.AddComponent<Button>();
+            dimBtn.transition = Selectable.Transition.None;
+            dimBtn.onClick.AddListener(CloseLevelPanel);   // 바깥 클릭 = 닫기
+
+            var panel = UIFactory.AddImage("Panel", dim.transform, new Color(0.11f, 0.12f, 0.16f, 0.98f), null, raycast: true);
+            var prt = panel.rectTransform;
+            UIFactory.Anchor(prt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            prt.sizeDelta = new Vector2(780, 580); prt.anchoredPosition = Vector2.zero;
+
+            _lvTitle = TopText(panel.transform, "Title", 30, FontStyles.Bold, new Vector2(700, 44), -22);
+            _lvPreview = TopText(panel.transform, "Preview", 28, FontStyles.Bold, new Vector2(720, 80), -74);
+            _lvPreview.lineSpacing = 4f;
+
+            var close = UIFactory.AddButton("Close", panel.transform, "×", 30, font, new Color(1, 1, 1, 0.1f), Color.white);
+            var crt = (RectTransform)close.transform;
+            UIFactory.Anchor(crt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            crt.sizeDelta = new Vector2(52, 44); crt.anchoredPosition = new Vector2(-12, -12);
+            close.onClick.AddListener(CloseLevelPanel);
+
+            var tint = new[]
+            {
+                new Color(0.32f, 0.52f, 0.38f), new Color(0.28f, 0.50f, 0.68f),
+                new Color(0.45f, 0.38f, 0.78f), new Color(0.82f, 0.58f, 0.22f),
+            };
+            var mats = Materials.ExpMaterials;
+            for (int i = 0; i < mats.Length; i++)
+            {
+                int idx = i;
+                float x = -261 + i * 174;
+
+                var slot = UIFactory.AddImage("Slot", panel.transform, tint[i], null, raycast: true);
+                var srt = slot.rectTransform;
+                UIFactory.Anchor(srt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+                srt.sizeDelta = new Vector2(156, 176); srt.anchoredPosition = new Vector2(x, -168);
+                var sbtn = slot.gameObject.AddComponent<Button>();
+                sbtn.targetGraphic = slot;
+                sbtn.onClick.AddListener(() => AdjustSel(idx, +1));
+
+                var inner = UIFactory.AddImage("Inner", slot.transform, new Color(0.08f, 0.09f, 0.12f, 0.92f));
+                UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
+
+                SlotText(inner.transform, Materials.ShortName(mats[i]), 20, FontStyles.Bold, Color.white, -8, 28);
+                SlotText(inner.transform, $"+{Materials.ExpValue(mats[i]):N0} EXP", 16, FontStyles.Normal,
+                    Color.Lerp(tint[i], Color.white, 0.45f), -36, 22);
+                _lvCount[i] = SlotText(inner.transform, "0", 38, FontStyles.Bold, Color.white, -66, 50);
+                _lvOwned[i] = SlotText(inner.transform, "", 15, FontStyles.Normal, new Color(0.75f, 0.78f, 0.85f), -136, 24);
+
+                _lvMinus[i] = SmallButton(panel.transform, "-", new Vector2(x - 40, -356), () => AdjustSel(idx, -1));
+                _lvPlus[i] = SmallButton(panel.transform, "+", new Vector2(x + 40, -356), () => AdjustSel(idx, +1));
+            }
+
+            _lvCost = TopText(panel.transform, "Cost", 22, FontStyles.Bold, new Vector2(740, 36), -414);
+
+            BottomButton(panel.transform, "초기화", new Color(1, 1, 1, 0.14f), new Vector2(160, 62), new Vector2(-262, 30), ClearSel);
+            BottomButton(panel.transform, "자동 선택", new Color(0.28f, 0.5f, 0.75f, 0.95f), new Vector2(210, 62), new Vector2(-62, 30), AutoSelect);
+            _lvConfirm = BottomButton(panel.transform, "레벨업", new Color(0.3f, 0.62f, 0.4f, 0.98f), new Vector2(250, 62), new Vector2(196, 30), ConfirmLevelUp);
+
+            _lvModal.SetActive(false);
+        }
+
+        private TextMeshProUGUI SlotText(Transform parent, string text, float size, FontStyles style, Color color, float y, float h)
+        {
+            var t = UIFactory.AddText("T", parent, text, size, font, color, TextAlignmentOptions.Center, style);
+            var rt = t.rectTransform;
+            UIFactory.Anchor(rt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            rt.sizeDelta = new Vector2(-8, h); rt.anchoredPosition = new Vector2(0, y);
+            return t;
+        }
+
+        private Button SmallButton(Transform parent, string label, Vector2 pos, UnityEngine.Events.UnityAction onClick)
+        {
+            var b = UIFactory.AddButton("Adj", parent, label, 28, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var rt = (RectTransform)b.transform;
+            UIFactory.Anchor(rt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            rt.sizeDelta = new Vector2(72, 44); rt.anchoredPosition = pos;
+            b.onClick.AddListener(onClick);
+            return b;
+        }
+
+        private Button BottomButton(Transform parent, string label, Color bg, Vector2 size, Vector2 pos, UnityEngine.Events.UnityAction onClick)
+        {
+            var b = UIFactory.AddButton("Btn", parent, label, 24, font, bg, Color.white);
+            var rt = (RectTransform)b.transform;
+            UIFactory.Anchor(rt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            rt.sizeDelta = size; rt.anchoredPosition = pos;
+            b.onClick.AddListener(onClick);
+            return b;
+        }
 
         private Image TopImg(Transform parent, string name, Vector2 size, float y)
         {
