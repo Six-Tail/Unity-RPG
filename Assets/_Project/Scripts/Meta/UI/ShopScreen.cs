@@ -239,18 +239,28 @@ namespace SubcultureRPG.Meta.UI
             var group = inner.gameObject.AddComponent<CanvasGroup>();
             group.alpha = soldOut ? 0.45f : 1f;
 
+            // 아이콘(Resources/Art/Items/{재료} · 금화는 Items/Gold) — 있으면 왼쪽에 그림, 수량은 오른쪽
+            var icon = it.IsGold ? GameArt.Load("Items/Gold") : GameArt.MaterialIcon(it.reward);
+            if (icon != null)
+            {
+                var im = UIFactory.AddImage("Icon", inner.transform, Color.white, icon);
+                UIFactory.Anchor(im.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                im.rectTransform.sizeDelta = new Vector2(88, 88); im.rectTransform.anchoredPosition = new Vector2(-58, -4);
+            }
+            float tx = icon != null ? 60 : 0;   // 아이콘이 있으면 수량·보유 표시를 오른쪽으로
+
             Label(inner.transform, Grades.Tag(it.Grade), 14, FontStyles.Bold, new Vector2(0, 1), new Vector2(10, -8), new Vector2(90, 20), TextAlignmentOptions.TopLeft);
             Label(inner.transform, LimitText(it, detailed: false), 14, FontStyles.Bold, new Vector2(1, 1), new Vector2(-10, -8), new Vector2(150, 20), TextAlignmentOptions.TopRight);
 
-            var name = Label(inner.transform, it.RewardName, 20, FontStyles.Bold, new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(250, 52), TextAlignmentOptions.Top);
+            var name = Label(inner.transform, it.RewardName, 20, FontStyles.Bold, new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(250, icon != null ? 28 : 52), TextAlignmentOptions.Top);
             name.enableAutoSizing = true; name.fontSizeMin = 13; name.fontSizeMax = 20;
             if (it.IsGold) name.color = new Color(1f, 0.83f, 0.42f);
 
-            Label(inner.transform, $"×{it.amount:N0}", 34, FontStyles.Bold, new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(250, 44), TextAlignmentOptions.Center);
+            Label(inner.transform, $"×{it.amount:N0}", 34, FontStyles.Bold, new Vector2(0.5f, 0.5f), new Vector2(tx, icon != null ? -2 : 0), new Vector2(icon != null ? 130 : 250, 44), TextAlignmentOptions.Center);
 
             if (it.currency == ShopCurrency.Material)
             {
-                var src = Label(inner.transform, $"보유 {Count(it.costMaterial):N0}", 13, FontStyles.Normal, new Vector2(0.5f, 0.5f), new Vector2(0, -32), new Vector2(250, 20), TextAlignmentOptions.Center);
+                var src = Label(inner.transform, $"보유 {Count(it.costMaterial):N0}", 13, FontStyles.Normal, new Vector2(0.5f, 0.5f), new Vector2(tx, -34), new Vector2(icon != null ? 130 : 250, 20), TextAlignmentOptions.Center);
                 src.color = new Color(0.75f, 0.78f, 0.85f);
             }
 
@@ -354,6 +364,7 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.05f, 0.06f, 0.09f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
+            BackgroundArt.Create(_root.transform, 0.72f).Set("Backgrounds/shop");
             var root = _root.transform;
 
             var title = UIFactory.AddText("Title", root, "상점", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);

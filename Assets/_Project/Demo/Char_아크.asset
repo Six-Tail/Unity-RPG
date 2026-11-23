@@ -15,7 +15,8 @@ MonoBehaviour:
   id: c_ark
   displayName: "\uC544\uD06C"
   rarity: 6
-  signatureLine: 
+  signatureLine: "\uBC29\uD328\uB294 \uBD80\uC11C\uC838\uB3C4, \uB098\uB294 \uBB3C\uB7EC\uC11C\uC9C0
+    \uC54A\uB294\uB2E4."
   element: 3
   role: 1
   portrait: {fileID: 0}

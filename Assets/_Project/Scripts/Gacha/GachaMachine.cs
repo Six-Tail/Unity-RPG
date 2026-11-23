@@ -97,6 +97,15 @@ namespace SubcultureRPG.Gacha
 
         private void ResolveFeatured6(GachaBanner banner, GachaPityState state, ref GachaResult result)
         {
+            // 상시 배너(픽업 없음): 상시 6성 풀에서만, 50/50·확정 플래그 없음
+            if (banner.featured6 == null)
+            {
+                result.isFeatured = false;
+                result.wonFiftyFifty = false;
+                result.character = PickRandom(banner.pool6);
+                return;
+            }
+
             bool featured;
             bool won = false;
 

@@ -5,11 +5,13 @@ using UnityEngine.EventSystems;
 using TMPro;
 using SubcultureRPG.UI;
 using SubcultureRPG.Gacha;
+using SubcultureRPG.Characters;
 
 namespace SubcultureRPG.Meta.UI
 {
     /// <summary>
-    /// 가챠 뽑기 홈 화면. 재화·천장 표시 + 1회/10연 뽑기 버튼.
+    /// 가챠 뽑기 화면. 위쪽 분류 탭(픽업 뽑기 · 상시 뽑기), 픽업은 아래 줄에서 픽업 캐릭터별 배너 선택.
+    /// 뽑기는 해당 종류의 뽑기권(픽업/상시, 1장 = 1회)이 있으면 뽑기권, 없으면 크리스탈로 진행 — 확인 창을 거칩니다.
     /// 뽑기 → GachaController → 결과 연출(GachaResultPanel, OnPulled 구독) + 로스터 반영.
     /// 코드로 자동 구성 — 빈 GameObject에 추가 → gacha/wallet 연결(비우면 자동 탐색).
     /// </summary>
@@ -23,18 +25,25 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private int singleCost = 160;
         [SerializeField] private int multiCost = 1600;
         [SerializeField, Tooltip("테스트 충전 버튼이 주는 크리스탈.")] private int chargeAmount = 3200;
+        [SerializeField, Tooltip("테스트 충전 버튼이 주는 뽑기권(현재 종류).")] private int chargeTickets = 10;
 
         private GameObject _root, _ratesOverlay;
         private Image _portrait;
-        private TextMeshProUGUI _crystalText, _bannerText, _pityText, _featuredName, _featuredStars, _toast, _ratesText;
+        private TextMeshProUGUI _crystalText, _ticketText, _bannerText, _pityText, _featuredName, _featuredStars, _lineup, _toast, _ratesText;
+        private TextMeshProUGUI _singleLabel, _multiLabel, _chargeLabel;
+        private RectTransform _catTabs, _bannerTabs;
         private Button _singleBtn, _multiBtn, _backBtn;
         private System.Action _onBack;
+        private BackgroundArt _bg;
 
         // 뽑기 확인 창(별도 캔버스 — 결과 화면 위에도 뜸)
         private GameObject _confirmRoot;
         private TextMeshProUGUI _confirmTitle, _confirmBody;
         private Button _confirmOk;
         private bool _confirmMulti;
+
+        private GachaBannerType CurType => gacha != null && gacha.Banner != null ? gacha.Banner.type : GachaBannerType.Pickup;
+        private int PullCount(bool multi) => multi ? (gacha != null ? gacha.MultiPullCount : 10) : 1;
 
         private void Awake()
         {
@@ -46,33 +55,33 @@ namespace SubcultureRPG.Meta.UI
         private void OnEnable()
         {
             if (wallet != null) wallet.OnChanged += Refresh;
-            if (gacha != null) gacha.OnPulled += OnPulled;
+            if (gacha != null) { gacha.OnPulled += OnPulled; gacha.OnBannerChanged += OnBannerChanged; }
         }
 
         private void OnDisable()
         {
             if (wallet != null) wallet.OnChanged -= Refresh;
-            if (gacha != null) gacha.OnPulled -= OnPulled;
+            if (gacha != null) { gacha.OnPulled -= OnPulled; gacha.OnBannerChanged -= OnBannerChanged; }
         }
 
         private void Start()
         {
-            BuildFeatured();
-            Refresh();
+            OnBannerChanged();
 
-            // 결과 화면의 재뽑기도 이 화면을 거쳐 크리스탈 차감(부족하면 결과 화면을 닫고 안내)
+            // 결과 화면의 재뽑기도 이 화면을 거쳐 비용 차감(부족하면 결과 화면을 닫고 안내)
             var panel = FindAnyObjectByType<SubcultureRPG.Gacha.UI.GachaResultPanel>();
             if (panel != null)
             {
                 panel.SetPullHandler(multi => RequestPull(multi));
                 panel.SetPullCosts(singleCost, multiCost);
+                panel.SetCostLabel(multi => CostText(multi));
             }
         }
 
         public void Show(bool on)
         {
             if (_root != null) _root.SetActive(on);
-            if (on) Refresh();
+            if (on) OnBannerChanged();
         }
 
         /// <summary>'← 홈' 버튼 동작 지정(null이면 버튼 숨김).</summary>
@@ -84,22 +93,58 @@ namespace SubcultureRPG.Meta.UI
 
         private void OnPulled(List<GachaResult> _) => Refresh();
 
+        private void OnBannerChanged()
+        {
+            RebuildTabs();
+            BuildFeatured();
+            Refresh();
+        }
+
+        // ---------------- 비용 ----------------
+
+        /// <summary>이번 뽑기에 뽑기권을 쓰는가(해당 종류 뽑기권이 충분하면 우선 사용).</summary>
+        private bool UsesTickets(bool multi) =>
+            wallet != null && wallet.CanAffordTickets(CurType, PullCount(multi));
+
+        private int CrystalCost(bool multi) => multi ? multiCost : singleCost;
+
+        private bool CanPay(bool multi) => wallet == null || UsesTickets(multi) || wallet.CanAfford(CrystalCost(multi));
+
+        /// <summary>'픽업 뽑기권 10' 또는 '크리스탈 1,600'(리치 텍스트).</summary>
+        private string CostText(bool multi) => UsesTickets(multi)
+            ? $"<color=#FFB3E6>{PlayerWallet.TicketName(CurType)} {PullCount(multi)}</color>"
+            : $"<color=#8FE9FF>크리스탈 {CrystalCost(multi):N0}</color>";
+
         /// <summary>뽑기 요청(결과 화면 재뽑기 등 외부용): 재화 사용 확인 창을 띄웁니다.</summary>
         public void RequestPull(bool multi) => ShowConfirm(multi);
 
-        /// <summary>1회/10연 버튼 → 크리스탈 사용 확인 창.</summary>
+        /// <summary>1회/10연 버튼 → 뽑기권·크리스탈 사용 확인 창.</summary>
         private void ShowConfirm(bool multi)
         {
-            if (gacha == null) return;
+            if (gacha == null || gacha.Banner == null) return;
             _confirmMulti = multi;
-            int cost = multi ? multiCost : singleCost;
-            int have = wallet != null ? wallet.Crystals : int.MaxValue;
-            bool ok = wallet == null || wallet.CanAfford(cost);
-            _confirmTitle.text = multi ? "10연 뽑기" : "1회 뽑기";
-            _confirmBody.text = ok
-                ? $"<color=#8FE9FF>크리스탈 {cost:N0}</color>을(를) 사용해 <b>{(multi ? "10연 뽑기" : "1회 뽑기")}</b>를 진행할까요?\n" +
-                  $"<size=80%><color=#9AA3B5>보유 {have:N0}  →  {have - cost:N0}</color></size>"
-                : $"<color=#FF8A8A>크리스탈이 부족합니다</color>\n<size=80%><color=#9AA3B5>보유 {have:N0} / 필요 {cost:N0}</color></size>";
+            string what = multi ? $"{PullCount(true)}연 뽑기" : "1회 뽑기";
+            string banner = gacha.Banner.IsPickup ? $"픽업 · {gacha.Banner.ShortName}" : "상시";
+            _confirmTitle.text = $"{what}  <size=70%><color=#9AA3B5>{banner}</color></size>";
+
+            bool ok = CanPay(multi);
+            if (UsesTickets(multi))
+            {
+                int have = wallet.Tickets(CurType), n = PullCount(multi);
+                _confirmBody.text = $"{CostText(multi)}장을 사용해 <b>{what}</b>를 진행할까요?\n" +
+                                    $"<size=80%><color=#9AA3B5>보유 {have:N0}  →  {have - n:N0}</color></size>";
+            }
+            else
+            {
+                int cost = CrystalCost(multi);
+                int have = wallet != null ? wallet.Crystals : int.MaxValue;
+                string noTicket = $"<size=75%><color=#9AA3B5>{PlayerWallet.TicketName(CurType)} 부족 → 크리스탈 사용</color></size>\n";
+                _confirmBody.text = ok
+                    ? noTicket + $"{CostText(multi)}을(를) 사용해 <b>{what}</b>를 진행할까요?\n" +
+                      $"<size=80%><color=#9AA3B5>보유 {have:N0}  →  {have - cost:N0}</color></size>"
+                    : $"<color=#FF8A8A>{PlayerWallet.TicketName(CurType)}과 크리스탈이 부족합니다</color>\n" +
+                      $"<size=80%><color=#9AA3B5>크리스탈 보유 {have:N0} / 필요 {cost:N0}</color></size>";
+            }
             _confirmOk.interactable = ok;
             _confirmRoot.SetActive(true);
         }
@@ -107,53 +152,142 @@ namespace SubcultureRPG.Meta.UI
         private void OnConfirm()
         {
             _confirmRoot.SetActive(false);
-            DoPull(_confirmMulti ? multiCost : singleCost, _confirmMulti);
+            DoPull(_confirmMulti);
         }
 
-        private bool DoPull(int cost, bool multi)
+        private bool DoPull(bool multi)
         {
-            if (gacha == null) return false;
-            if (wallet != null && !wallet.Spend(cost)) { Toast("크리스탈이 부족합니다"); return false; }
+            if (gacha == null || gacha.Banner == null) return false;
+            if (wallet != null)
+            {
+                bool paid = UsesTickets(multi)
+                    ? wallet.SpendTickets(CurType, PullCount(multi))
+                    : wallet.Spend(CrystalCost(multi));
+                if (!paid) { Toast("뽑기권과 크리스탈이 부족합니다"); return false; }
+            }
             if (multi) gacha.PullMulti(); else gacha.PullOnce();
             Refresh();
             return true;
         }
 
+        // ---------------- 갱신 ----------------
+
         private void Refresh()
         {
+            if (_root == null) return;
             if (_crystalText != null)
                 _crystalText.text = wallet != null ? $"크리스탈  {wallet.Crystals:N0}" : "";
+            if (_ticketText != null)
+                _ticketText.text = wallet == null ? "" :
+                    $"<color={(CurType == GachaBannerType.Pickup ? "#FFB3E6" : "#9AA3B5")}>픽업 뽑기권  {wallet.PickupTickets:N0}</color>      " +
+                    $"<color={(CurType == GachaBannerType.Standard ? "#FFB3E6" : "#9AA3B5")}>상시 뽑기권  {wallet.StandardTickets:N0}</color>";
 
-            if (_bannerText != null)
-                _bannerText.text = gacha != null && gacha.Banner != null ? gacha.Banner.bannerName : "배너 없음";
+            var b = gacha != null ? gacha.Banner : null;
+            if (_bannerText != null) _bannerText.text = b != null ? b.bannerName : "배너 없음";
 
-            if (_pityText != null && gacha != null && gacha.Banner != null && gacha.Banner.config != null)
+            if (_pityText != null && b != null && b.config != null)
             {
-                int since = gacha.State != null ? gacha.State.pullsSince6 : 0;
-                int hard = gacha.Banner.config.sixStarHardPity;
-                _pityText.text = $"6성 천장까지 {Mathf.Max(0, hard - since)}회";
+                var st = gacha.State;
+                int since = st != null ? st.pullsSince6 : 0;
+                string s = $"6성 천장까지 {Mathf.Max(0, b.config.sixStarHardPity - since)}회";
+                if (b.IsPickup)
+                {
+                    s += "  <color=#9AA3B5>· 픽업 배너끼리 공유</color>";
+                    if (st != null && st.guaranteedFeatured6) s += "\n<color=#FFD36B>다음 6성 픽업 확정</color>";
+                }
+                _pityText.text = s;
             }
 
-            if (_singleBtn != null) _singleBtn.interactable = wallet == null || wallet.CanAfford(singleCost);
-            if (_multiBtn != null) _multiBtn.interactable = wallet == null || wallet.CanAfford(multiCost);
+            if (_singleLabel != null) _singleLabel.text = $"1회 뽑기\n<size=65%>{CostText(false)}</size>";
+            if (_multiLabel != null) _multiLabel.text = $"{PullCount(true)}연 뽑기\n<size=65%>{CostText(true)}</size>";
+            if (_singleBtn != null) _singleBtn.interactable = CanPay(false);
+            if (_multiBtn != null) _multiBtn.interactable = CanPay(true);
+            if (_chargeLabel != null) _chargeLabel.text = $"충전(테스트)  크리스탈 +{chargeAmount:N0} · {PlayerWallet.TicketName(CurType)} +{chargeTickets}";
+        }
+
+        private void RebuildTabs()
+        {
+            if (_catTabs == null || gacha == null) return;
+            Clear(_catTabs);
+            Clear(_bannerTabs);
+
+            var pickups = gacha.BannersOf(GachaBannerType.Pickup);
+            var standards = gacha.BannersOf(GachaBannerType.Standard);
+            var cur = gacha.Banner;
+
+            if (pickups.Count > 0)
+                CatTab("픽업 뽑기", cur != null && cur.IsPickup, () => { if (cur == null || !cur.IsPickup) gacha.Select(pickups[0]); });
+            if (standards.Count > 0)
+                CatTab("상시 뽑기", cur != null && !cur.IsPickup, () => gacha.Select(standards[0]));
+
+            // 픽업: 아래 줄에 픽업 캐릭터별 배너
+            bool showSub = cur != null && cur.IsPickup && pickups.Count > 1;
+            _bannerTabs.gameObject.SetActive(showSub);
+            if (showSub)
+                foreach (var p in pickups)
+                {
+                    var pb = p;
+                    bool on = pb == cur;
+                    var btn = UIFactory.AddButton("BannerTab", _bannerTabs, $"<size=80%>★6</size>  {pb.ShortName}", 20, font,
+                        on ? new Color(0.95f, 0.55f, 0.75f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
+                    var le = btn.gameObject.AddComponent<LayoutElement>();
+                    le.preferredWidth = 200; le.preferredHeight = 44;
+                    btn.onClick.AddListener(() => gacha.Select(pb));
+                }
+        }
+
+        private void CatTab(string label, bool on, UnityEngine.Events.UnityAction onClick)
+        {
+            var b = UIFactory.AddButton("CatTab", _catTabs, label, 24, font,
+                on ? new Color(0.78f, 0.58f, 0.22f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
+            var le = b.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = 220; le.preferredHeight = 54;
+            b.onClick.AddListener(onClick);
+        }
+
+        private static void Clear(RectTransform rt)
+        {
+            for (int i = rt.childCount - 1; i >= 0; i--)
+            {
+                var ch = rt.GetChild(i);
+                ch.SetParent(null, false);
+                Destroy(ch.gameObject);
+            }
         }
 
         private void BuildFeatured()
         {
-            var feat = gacha != null && gacha.Banner != null ? gacha.Banner.featured6 : null;
+            var b = gacha != null ? gacha.Banner : null;
+            var feat = b != null ? b.featured6 : null;
+            _lineup.text = "";
+
+            // 배경: 배너 그림(Banners/{픽업 캐릭터 id} · Banners/standard) → 없으면 공용 가챠 배경
+            string bannerKey = b == null ? null : (feat != null ? "Banners/" + (!string.IsNullOrEmpty(feat.id) ? feat.id : feat.name) : "Banners/standard");
+            bool bannerArt = bannerKey != null && GameArt.Load(bannerKey) != null;
+            if (_bg != null) _bg.Set(bannerKey, "Backgrounds/gacha");
             if (feat != null)
             {
-                var sprite = feat.thumbnail != null ? feat.thumbnail : feat.portrait;
+                var sprite = GameArt.Portrait(feat);
                 _portrait.sprite = sprite;
-                _portrait.enabled = sprite != null;
-                _featuredName.text = feat.displayName;
-                _featuredStars.text = new string('★', (int)feat.rarity);
+                _portrait.enabled = !bannerArt;   // 배너 그림에 픽업 캐릭터가 있으면 가운데 미리보기는 숨김
+                _portrait.color = sprite != null ? Color.white : new Color(1, 1, 1, 0.1f);
+                _featuredName.text = $"{feat.displayName}  <size=70%><color={Traits.Hex(feat.element)}>{Traits.Name(feat.element)}</color> · {Traits.Name(feat.role)}</size>";
+                _featuredStars.text = new string('★', (int)feat.rarity) + "  <size=70%>픽업</size>";
             }
             else
             {
+                // 상시: 6성 라인업
                 _portrait.enabled = false;
-                _featuredName.text = "픽업 없음";
                 _featuredStars.text = "";
+                _featuredName.text = "";
+                if (b != null)
+                {
+                    var sb = new System.Text.StringBuilder("<color=#FFC73F>★6 상시 캐릭터</color>\n\n");
+                    foreach (var c in b.pool6)
+                        if (c != null)
+                            sb.Append($"{c.displayName}  <size=75%><color={Traits.Hex(c.element)}>{Traits.Name(c.element)}</color> · {Traits.Name(c.role)}</size>\n");
+                    _lineup.text = sb.ToString();
+                }
             }
         }
 
@@ -184,71 +318,92 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.06f, 0.05f, 0.09f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
+            _bg = BackgroundArt.Create(_root.transform, 0.5f);
+            var root = _root.transform;
 
-            _bannerText = UIFactory.AddText("Banner", _root.transform, "", 38, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var brt = _bannerText.rectTransform;
-            UIFactory.Anchor(brt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            brt.sizeDelta = new Vector2(900, 52); brt.anchoredPosition = new Vector2(0, -36);
+            // 분류 탭(상단 중앙): 픽업 뽑기 · 상시 뽑기
+            _catTabs = Row("CatTabs", root, new Vector2(0, -28), 52, 12);
 
-            _pityText = UIFactory.AddText("Pity", _root.transform, "", 20, font, new Color(1f, 0.8f, 0.4f), TextAlignmentOptions.Center);
-            var prt = _pityText.rectTransform;
-            UIFactory.Anchor(prt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            prt.sizeDelta = new Vector2(600, 28); prt.anchoredPosition = new Vector2(0, -84);
+            _bannerText = UIFactory.AddText("Banner", root, "", 34, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            Place(_bannerText.rectTransform, new Vector2(0.5f, 1), new Vector2(900, 48), new Vector2(0, -96));
 
-            _crystalText = UIFactory.AddText("Crystal", _root.transform, "", 24, font, new Color(0.6f, 0.9f, 1f), TextAlignmentOptions.Right, FontStyles.Bold);
-            var crt = _crystalText.rectTransform;
-            UIFactory.Anchor(crt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
-            crt.sizeDelta = new Vector2(420, 36); crt.anchoredPosition = new Vector2(-30, -34);
+            _pityText = UIFactory.AddText("Pity", root, "", 20, font, new Color(1f, 0.8f, 0.4f), TextAlignmentOptions.Center);
+            Place(_pityText.rectTransform, new Vector2(0.5f, 1), new Vector2(800, 56), new Vector2(0, -146));
+
+            // 픽업 배너 선택(픽업 분류일 때만)
+            _bannerTabs = Row("BannerTabs", root, new Vector2(0, -206), 44, 10);
+
+            _crystalText = UIFactory.AddText("Crystal", root, "", 24, font, new Color(0.6f, 0.9f, 1f), TextAlignmentOptions.Right, FontStyles.Bold);
+            Place(_crystalText.rectTransform, new Vector2(1, 1), new Vector2(520, 36), new Vector2(-30, -30), new Vector2(1, 1));
+            _ticketText = UIFactory.AddText("Tickets", root, "", 20, font, Color.white, TextAlignmentOptions.Right, FontStyles.Bold);
+            Place(_ticketText.rectTransform, new Vector2(1, 1), new Vector2(620, 30), new Vector2(-30, -70), new Vector2(1, 1));
 
             // 픽업 캐릭터 미리보기(중앙)
-            _portrait = UIFactory.AddImage("Featured", _root.transform, new Color(1, 1, 1, 0.1f));
-            var frt = _portrait.rectTransform;
-            UIFactory.Anchor(frt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            frt.sizeDelta = new Vector2(340, 440); frt.anchoredPosition = new Vector2(0, 30);
+            _portrait = UIFactory.AddImage("Featured", root, new Color(1, 1, 1, 0.1f));
+            Place(_portrait.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(320, 400), new Vector2(0, 20), new Vector2(0.5f, 0.5f));
             _portrait.preserveAspect = true;
 
-            _featuredStars = UIFactory.AddText("FStars", _root.transform, "", 26, font, new Color(1f, 0.8f, 0.3f), TextAlignmentOptions.Center, FontStyles.Bold);
-            var fsr = _featuredStars.rectTransform;
-            UIFactory.Anchor(fsr, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            fsr.sizeDelta = new Vector2(400, 32); fsr.anchoredPosition = new Vector2(0, -200);
+            _featuredStars = UIFactory.AddText("FStars", root, "", 26, font, new Color(1f, 0.8f, 0.3f), TextAlignmentOptions.Center, FontStyles.Bold);
+            Place(_featuredStars.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(400, 32), new Vector2(0, -196), new Vector2(0.5f, 0.5f));
 
-            _featuredName = UIFactory.AddText("FName", _root.transform, "", 30, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var fnr = _featuredName.rectTransform;
-            UIFactory.Anchor(fnr, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            fnr.sizeDelta = new Vector2(500, 40); fnr.anchoredPosition = new Vector2(0, -236);
+            _featuredName = UIFactory.AddText("FName", root, "", 30, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            Place(_featuredName.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(700, 40), new Vector2(0, -232), new Vector2(0.5f, 0.5f));
 
-            _toast = UIFactory.AddText("Toast", _root.transform, "", 22, font, new Color(1f, 0.6f, 0.5f), TextAlignmentOptions.Center, FontStyles.Bold);
-            var trt = _toast.rectTransform;
-            UIFactory.Anchor(trt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            trt.sizeDelta = new Vector2(600, 30); trt.anchoredPosition = new Vector2(0, 220);
+            // 상시 6성 라인업(상시 분류일 때)
+            _lineup = UIFactory.AddText("Lineup", root, "", 28, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            Place(_lineup.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(700, 420), new Vector2(0, -20), new Vector2(0.5f, 0.5f));
+            _lineup.lineSpacing = 12f;
+
+            _toast = UIFactory.AddText("Toast", root, "", 22, font, new Color(1f, 0.6f, 0.5f), TextAlignmentOptions.Center, FontStyles.Bold);
+            Place(_toast.rectTransform, new Vector2(0.5f, 0), new Vector2(600, 30), new Vector2(0, 220), new Vector2(0.5f, 0));
 
             // 뽑기 버튼
-            _singleBtn = PullButton($"1회 뽑기\n<size=65%>크리스탈 {singleCost}</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(-170, 90), () => ShowConfirm(false));
-            _multiBtn = PullButton($"10연 뽑기\n<size=65%>크리스탈 {multiCost}</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(170, 90), () => ShowConfirm(true));
+            _singleBtn = PullButton(new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(-170, 90), () => ShowConfirm(false));
+            _singleLabel = _singleBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _multiBtn = PullButton(new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(170, 90), () => ShowConfirm(true));
+            _multiLabel = _multiBtn.GetComponentInChildren<TextMeshProUGUI>();
 
-            var charge = UIFactory.AddButton("Charge", _root.transform, $"충전(테스트) +{chargeAmount}", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
-            var chrt = (RectTransform)charge.transform;
-            UIFactory.Anchor(chrt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            chrt.sizeDelta = new Vector2(260, 48); chrt.anchoredPosition = new Vector2(0, 30);
-            charge.onClick.AddListener(() => { if (wallet != null) wallet.Add(chargeAmount); });
+            var charge = UIFactory.AddButton("Charge", root, "", 17, font, new Color(1, 1, 1, 0.14f), Color.white);
+            Place((RectTransform)charge.transform, new Vector2(0.5f, 0), new Vector2(460, 48), new Vector2(0, 30), new Vector2(0.5f, 0));
+            _chargeLabel = charge.GetComponentInChildren<TextMeshProUGUI>();
+            charge.onClick.AddListener(() =>
+            {
+                if (wallet == null) return;
+                wallet.Add(chargeAmount);
+                wallet.AddTickets(CurType, chargeTickets);
+            });
 
             // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
-            _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
-            var bkrt = (RectTransform)_backBtn.transform;
-            UIFactory.Anchor(bkrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
-            bkrt.sizeDelta = new Vector2(150, 44); bkrt.anchoredPosition = new Vector2(30, -34);
+            _backBtn = UIFactory.AddButton("BackBtn", root, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            Place((RectTransform)_backBtn.transform, new Vector2(0, 1), new Vector2(150, 44), new Vector2(30, -34), new Vector2(0, 1));
             _backBtn.onClick.AddListener(() => _onBack?.Invoke());
             _backBtn.gameObject.SetActive(false);
 
             // 확률 보기 버튼(좌상단, 홈 버튼 옆)
-            var ratesBtn = UIFactory.AddButton("RatesBtn", _root.transform, "확률 보기", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
-            var rbrt = (RectTransform)ratesBtn.transform;
-            UIFactory.Anchor(rbrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
-            rbrt.sizeDelta = new Vector2(150, 44); rbrt.anchoredPosition = new Vector2(196, -34);
+            var ratesBtn = UIFactory.AddButton("RatesBtn", root, "확률 보기", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            Place((RectTransform)ratesBtn.transform, new Vector2(0, 1), new Vector2(150, 44), new Vector2(196, -34), new Vector2(0, 1));
             ratesBtn.onClick.AddListener(() => ShowRates(true));
 
             BuildRatesOverlay();
             BuildConfirm();
+        }
+
+        /// <summary>상단 중앙 가로 버튼 줄.</summary>
+        private RectTransform Row(string name, Transform parent, Vector2 pos, float height, float spacing)
+        {
+            var rt = UIFactory.NewRect(name, parent);
+            Place(rt, new Vector2(0.5f, 1), new Vector2(1200, height), pos);
+            var h = rt.gameObject.AddComponent<HorizontalLayoutGroup>();
+            h.spacing = spacing; h.childAlignment = TextAnchor.MiddleCenter;
+            h.childControlWidth = true; h.childControlHeight = true;
+            h.childForceExpandWidth = false; h.childForceExpandHeight = false;
+            return rt;
+        }
+
+        private static void Place(RectTransform rt, Vector2 anchor, Vector2 size, Vector2 pos, Vector2? pivot = null)
+        {
+            UIFactory.Anchor(rt, anchor, anchor, pivot ?? new Vector2(0.5f, 1));
+            rt.sizeDelta = size; rt.anchoredPosition = pos;
         }
 
         private void BuildConfirm()
@@ -268,31 +423,21 @@ namespace SubcultureRPG.Meta.UI
 
             var panel = UIFactory.AddImage("Panel", _confirmRoot.transform, new Color(0.12f, 0.12f, 0.17f, 0.98f), ProceduralSprites.Rounded, raycast: true);
             panel.type = Image.Type.Sliced; panel.preserveAspect = false;
-            var prt = panel.rectTransform;
-            UIFactory.Anchor(prt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            prt.sizeDelta = new Vector2(640, 340); prt.anchoredPosition = Vector2.zero;
+            Place(panel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(660, 360), Vector2.zero, new Vector2(0.5f, 0.5f));
 
             _confirmTitle = UIFactory.AddText("Title", panel.transform, "", 34, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var trt = _confirmTitle.rectTransform;
-            UIFactory.Anchor(trt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            trt.sizeDelta = new Vector2(600, 50); trt.anchoredPosition = new Vector2(0, -26);
+            Place(_confirmTitle.rectTransform, new Vector2(0.5f, 1), new Vector2(620, 50), new Vector2(0, -26));
 
-            _confirmBody = UIFactory.AddText("Body", panel.transform, "", 26, font, Color.white, TextAlignmentOptions.Center);
-            var brt = _confirmBody.rectTransform;
-            UIFactory.Anchor(brt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            brt.sizeDelta = new Vector2(580, 110); brt.anchoredPosition = new Vector2(0, 14);
+            _confirmBody = UIFactory.AddText("Body", panel.transform, "", 25, font, Color.white, TextAlignmentOptions.Center);
+            Place(_confirmBody.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(600, 150), new Vector2(0, 14), new Vector2(0.5f, 0.5f));
             _confirmBody.lineSpacing = 10f;
 
             var cancel = UIFactory.AddButton("Cancel", panel.transform, "취소", 26, font, new Color(0.35f, 0.37f, 0.44f, 0.98f), Color.white);
-            var crt = (RectTransform)cancel.transform;
-            UIFactory.Anchor(crt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            crt.sizeDelta = new Vector2(240, 68); crt.anchoredPosition = new Vector2(-135, 30);
+            Place((RectTransform)cancel.transform, new Vector2(0.5f, 0), new Vector2(240, 68), new Vector2(-135, 30), new Vector2(0.5f, 0));
             cancel.onClick.AddListener(() => _confirmRoot.SetActive(false));
 
             _confirmOk = UIFactory.AddButton("Ok", panel.transform, "확인", 26, font, new Color(0.25f, 0.62f, 0.95f, 0.98f), Color.white);
-            var ort = (RectTransform)_confirmOk.transform;
-            UIFactory.Anchor(ort, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            ort.sizeDelta = new Vector2(240, 68); ort.anchoredPosition = new Vector2(135, 30);
+            Place((RectTransform)_confirmOk.transform, new Vector2(0.5f, 0), new Vector2(240, 68), new Vector2(135, 30), new Vector2(0.5f, 0));
             _confirmOk.onClick.AddListener(OnConfirm);
 
             _confirmRoot.SetActive(false);
@@ -304,20 +449,14 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Stretch((RectTransform)_ratesOverlay.transform);
 
             var title = UIFactory.AddText("Title", _ratesOverlay.transform, "확률 안내", 34, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var ttrt = title.rectTransform;
-            UIFactory.Anchor(ttrt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            ttrt.sizeDelta = new Vector2(600, 50); ttrt.anchoredPosition = new Vector2(0, -120);
+            Place(title.rectTransform, new Vector2(0.5f, 1), new Vector2(600, 50), new Vector2(0, -90));
 
-            _ratesText = UIFactory.AddText("Rates", _ratesOverlay.transform, "", 24, font, Color.white, TextAlignmentOptions.TopLeft);
-            var rtrt = _ratesText.rectTransform;
-            UIFactory.Anchor(rtrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            rtrt.sizeDelta = new Vector2(780, 440); rtrt.anchoredPosition = new Vector2(0, 10);
-            _ratesText.lineSpacing = 8f;
+            _ratesText = UIFactory.AddText("Rates", _ratesOverlay.transform, "", 22, font, Color.white, TextAlignmentOptions.TopLeft);
+            Place(_ratesText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(900, 640), new Vector2(0, 20), new Vector2(0.5f, 0.5f));
+            _ratesText.lineSpacing = 6f;
 
             var close = UIFactory.AddButton("Close", _ratesOverlay.transform, "닫기", 24, font, new Color(1, 1, 1, 0.16f), Color.white);
-            var crt = (RectTransform)close.transform;
-            UIFactory.Anchor(crt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            crt.sizeDelta = new Vector2(220, 64); crt.anchoredPosition = new Vector2(0, 110);
+            Place((RectTransform)close.transform, new Vector2(0.5f, 0), new Vector2(220, 64), new Vector2(0, 60), new Vector2(0.5f, 0));
             close.onClick.AddListener(() => ShowRates(false));
 
             _ratesOverlay.SetActive(false);
@@ -332,30 +471,42 @@ namespace SubcultureRPG.Meta.UI
 
         private string BuildRatesText()
         {
-            var cfg = gacha != null && gacha.Banner != null ? gacha.Banner.config : null;
+            var b = gacha != null ? gacha.Banner : null;
+            var cfg = b != null ? b.config : null;
             if (cfg == null) return "확률 정보를 찾을 수 없습니다.";
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"<color=#FFC73F>6성</color>   {cfg.rate6:0.##}%");
-            sb.AppendLine($"<size=68%><color=#B8B8B8>   소프트 천장 {cfg.sixStarSoftPityStart}회부터 상승 · 하드 천장 {cfg.sixStarHardPity}회 확정</color></size>");
+            sb.AppendLine($"<b>{b.bannerName}</b>  <size=75%><color=#9AA3B5>{(b.IsPickup ? "픽업 뽑기 — 픽업 뽑기권 사용" : "상시 뽑기 — 상시 뽑기권 사용")}</color></size>");
             sb.AppendLine("");
-            sb.AppendLine($"<color=#B86BFF>5성</color>   {cfg.rate5:0.##}%");
-            sb.AppendLine($"<size=68%><color=#B8B8B8>   {cfg.fiveStarHardPity}연 내 5성 이상 보장</color></size>");
+            sb.AppendLine($"<color=#FFC73F>6성</color>   {cfg.rate6:0.##}%");
+            sb.AppendLine($"<size=68%><color=#B8B8B8>   소프트 천장 {cfg.sixStarSoftPityStart}회부터 상승 · 하드 천장 {cfg.sixStarHardPity}회 확정 · {(b.IsPickup ? "픽업 배너끼리 천장 공유" : "상시 천장은 따로")}</color></size>");
+            if (b.IsPickup && b.featured6 != null)
+                sb.AppendLine($"<size=68%><color=#FF9ED6>   6성의 {cfg.featured6Chance * 100f:0}%가 픽업 {b.featured6.displayName} (실패 시 다음 6성 픽업 확정)</color></size>");
+            sb.AppendLine($"<size=68%><color=#B8B8B8>   {(b.IsPickup ? "픽업 실패 시: " : "")}{Names(b.pool6)}</color></size>");
+            sb.AppendLine("");
+            sb.AppendLine($"<color=#B86BFF>5성</color>   {cfg.rate5:0.##}%   <size=68%><color=#B8B8B8>{cfg.fiveStarHardPity}연 내 5성 이상 보장</color></size>");
+            sb.AppendLine($"<size=68%><color=#B8B8B8>   {Names(b.pool5)}</color></size>");
             sb.AppendLine("");
             sb.AppendLine($"<color=#549EFF>4성</color>   {cfg.rate4:0.##}%");
+            sb.AppendLine($"<size=68%><color=#B8B8B8>   {Names(b.pool4)}</color></size>");
             sb.AppendLine("");
             sb.AppendLine($"<color=#9EAABF>3성</color>   {cfg.Rate3:0.##}%");
-            sb.AppendLine("");
-            sb.AppendLine($"<color=#FF9ED6>픽업</color>   6성의 {cfg.featured6Chance * 100f:0}%가 픽업 (실패 시 다음 6성 픽업 확정)");
+            sb.AppendLine($"<size=68%><color=#B8B8B8>   {Names(b.pool3)}</color></size>");
             return sb.ToString();
         }
 
-        private Button PullButton(string label, Color bg, Vector2 pos, UnityEngine.Events.UnityAction onClick)
+        private static string Names(List<CharacterData> pool)
         {
-            var btn = UIFactory.AddButton("Pull", _root.transform, label, 24, font, bg, Color.white);
-            var rt = (RectTransform)btn.transform;
-            UIFactory.Anchor(rt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            rt.sizeDelta = new Vector2(300, 90); rt.anchoredPosition = pos;
+            if (pool == null || pool.Count == 0) return "-";
+            var names = new List<string>();
+            foreach (var c in pool) if (c != null) names.Add(c.displayName);
+            return string.Join(" · ", names);
+        }
+
+        private Button PullButton(Color bg, Vector2 pos, UnityEngine.Events.UnityAction onClick)
+        {
+            var btn = UIFactory.AddButton("Pull", _root.transform, "", 24, font, bg, Color.white);
+            Place((RectTransform)btn.transform, new Vector2(0.5f, 0), new Vector2(300, 90), pos, new Vector2(0.5f, 0));
             btn.onClick.AddListener(onClick);
             return btn;
         }

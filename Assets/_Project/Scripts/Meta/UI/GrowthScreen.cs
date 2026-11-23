@@ -176,8 +176,18 @@ namespace SubcultureRPG.Meta.UI
 
             var portrait = UIFactory.AddImage("Portrait", inner.transform, new Color(1, 1, 1, 0.12f));
             UIFactory.Stretch(portrait.rectTransform, 5, 44, 5, 5);
-            var sprite = c.thumbnail != null ? c.thumbnail : c.portrait;
+            var sprite = GameArt.Thumb(c);
             portrait.sprite = sprite; portrait.enabled = sprite != null; portrait.preserveAspect = true;
+            if (sprite != null)
+            {
+                portrait.color = Color.white;
+                // 그림 위에 겹치는 글자(속성·역할 / 별)가 읽히도록 어두운 띠
+                var top = UIFactory.AddImage("TopShade", inner.transform, new Color(0f, 0f, 0f, 0.6f));
+                UIFactory.Anchor(top.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+                top.rectTransform.sizeDelta = new Vector2(0, 21); top.rectTransform.anchoredPosition = Vector2.zero;
+                var low = UIFactory.AddImage("StarShade", inner.transform, new Color(0f, 0f, 0f, 0.6f));
+                Bottom(low.rectTransform, 22, 41);
+            }
 
             var name = UIFactory.AddText("Name", inner.transform, c.displayName, 13, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Bottom(name.rectTransform, 22, 22);
@@ -896,6 +906,7 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.05f, 0.05f, 0.08f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
+            BackgroundArt.Create(_root.transform, 0.72f).Set("Backgrounds/growth");
             var root = _root.transform;
 
             var title = UIFactory.AddText("Title", root, "캐릭터 육성", 36, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);

@@ -37,6 +37,7 @@ namespace SubcultureRPG.Meta.UI
 
         private readonly Vector2 _cell = new(150, 190);
         private readonly Vector2 _spacing = new(12, 12);
+        private const int Columns = 7;   // 한 줄 칸 수
         private readonly List<CharacterData> _selected = new();
         // 카드별 선택 표시 요소
         private class CardView
@@ -111,21 +112,39 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.04f, 0.05f, 0.08f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
+            BackgroundArt.Create(_root.transform, 0.7f).Set("Backgrounds/party");
 
             _titleText = UIFactory.AddText("Title", _root.transform, "파티 편성", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             var trt = _titleText.rectTransform;
             UIFactory.Anchor(trt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
             trt.sizeDelta = new Vector2(1100, 60); trt.anchoredPosition = new Vector2(0, -40);
 
-            _grid = UIFactory.NewRect("Grid", _root.transform);
-            UIFactory.Anchor(_grid, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            // 캐릭터 목록: 필터 바 아래 ~ 하단 바 위 영역에서 스크롤(캐릭터가 많아져도 필터·출격 버튼과 겹치지 않음)
+            const int Pad = 16;
+            var view = UIFactory.NewRect("GridView", _root.transform);
+            UIFactory.Anchor(view, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            view.sizeDelta = new Vector2(Columns * _cell.x + (Columns - 1) * _spacing.x + Pad * 2, 660);
+            view.anchoredPosition = new Vector2(0, -238);   // 필터 바(3줄, -112 ~ -228) 아래
+            view.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.25f);   // 빈 곳을 잡고 끌 수 있도록
+            view.gameObject.AddComponent<RectMask2D>();
+
+            _grid = UIFactory.NewRect("Grid", view);
+            UIFactory.Anchor(_grid, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            _grid.sizeDelta = Vector2.zero; _grid.anchoredPosition = Vector2.zero;
             _gridLayout = _grid.gameObject.AddComponent<GridLayoutGroup>();
             _gridLayout.cellSize = _cell;
             _gridLayout.spacing = _spacing;
+            _gridLayout.padding = new RectOffset(Pad, Pad, Pad, Pad);   // 선택 테두리·확대가 잘리지 않게
             _gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            _gridLayout.constraintCount = 5;
-            _gridLayout.childAlignment = TextAnchor.MiddleCenter;
-            _grid.anchoredPosition = new Vector2(0, -40);
+            _gridLayout.constraintCount = Columns;
+            _gridLayout.childAlignment = TextAnchor.UpperCenter;
+            _grid.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = view.gameObject.AddComponent<ScrollRect>();
+            scroll.content = _grid; scroll.viewport = view;
+            scroll.horizontal = false; scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f;
 
             // 정렬/필터 바(타이틀 아래)
             _filterBar = RosterFilterBar.Build(_root.transform, new Vector2(0, -112), 1000, font);
@@ -173,14 +192,7 @@ namespace SubcultureRPG.Meta.UI
             foreach (var e in entries) BuildCard(e.character, e.owned);
             if (_filterBar != null) _filterBar.SetCount(entries.Count, roster != null ? roster.Owned.Count : 0);
 
-            int n = _grid.childCount;
-            int cols = Mathf.Clamp(n, 1, 5);
-            int rows = Mathf.Max(1, Mathf.CeilToInt(n / 5f));
-            _grid.sizeDelta = new Vector2(
-                cols * _cell.x + (cols - 1) * _spacing.x,
-                rows * _cell.y + (rows - 1) * _spacing.y);
-
-            UpdateBottom();
+            UpdateBottom();   // 목록 높이는 ContentSizeFitter 가 맞춤(넘치면 스크롤)
         }
 
         private void BuildCard(CharacterData c, OwnedCharacter owned)
@@ -207,10 +219,21 @@ namespace SubcultureRPG.Meta.UI
 
             var portrait = UIFactory.AddImage("Portrait", inner.transform, new Color(1, 1, 1, 0.12f));
             UIFactory.Stretch(portrait.rectTransform, 6, 34, 6, 6);
-            var sprite = c.thumbnail != null ? c.thumbnail : c.portrait;
+            var sprite = GameArt.Thumb(c);
             portrait.sprite = sprite;
             portrait.enabled = sprite != null;
             portrait.preserveAspect = true;
+            if (sprite != null)
+            {
+                portrait.color = Color.white;
+                // 그림 위에 겹치는 글자(별·중복 / 속성·역할)가 읽히도록 어두운 띠
+                var top = UIFactory.AddImage("TopShade", inner.transform, new Color(0f, 0f, 0f, 0.6f));
+                UIFactory.Anchor(top.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+                top.rectTransform.sizeDelta = new Vector2(0, 24); top.rectTransform.anchoredPosition = Vector2.zero;
+                var low = UIFactory.AddImage("TraitShade", inner.transform, new Color(0f, 0f, 0f, 0.6f));
+                UIFactory.Anchor(low.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+                low.rectTransform.sizeDelta = new Vector2(0, 20); low.rectTransform.anchoredPosition = new Vector2(0, 31);
+            }
 
             var bar = UIFactory.AddImage("Bar", inner.transform, new Color(starColor.r, starColor.g, starColor.b, 0.9f));
             var brt = bar.rectTransform;

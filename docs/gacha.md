@@ -23,12 +23,15 @@
 | 3성 | 나머지(64.3%) | - |
 
 - **픽업(50/50)**: 6성 획득 시 50% 확률로 픽업. 실패하면 다음 6성은 픽업 확정. (5성도 동일 방식, 선택)
+- **배너 종류** (`GachaBanner.type`): `Pickup`(픽업 6성 + 상시 6성 풀) / `Standard`(`featured6` 비움 → 상시 6성 풀에서만, 50/50 없음).
+- **천장 묶음**: 픽업 배너끼리 공유(`gacha_pity_pickup`), 상시는 따로(`gacha_pity_standard`). 예전 배너별 키(`gacha_pity_<에셋 이름>`)는 픽업 천장으로 이어받습니다.
+- 뽑기권(픽업/상시)과 화면은 [gacha-screen.md](gacha-screen.md).
 
 ## 세팅 (에디터)
 
 1. **GachaConfig** 에셋 1개 생성 → 확률/천장 조정.
 2. **Banner** 에셋 생성 → `config` 연결, `featured6`/`featured5`(픽업)와 `pool6~pool3`(비픽업)에 `CharacterData` 넣기.
-3. 빈 GameObject에 **GachaController** 컴포넌트 추가 → `banner` 연결.
+3. 빈 GameObject에 **GachaController** 컴포넌트 추가 → `banners`에 배너들(첫 번째가 기본 선택) 연결. 단일 배너면 `banner`만 연결해도 됩니다.
 
 ## 사용 (코드)
 
@@ -52,7 +55,7 @@ void Show(List<GachaResult> results) {
 
 - 카운터는 매 뽑기 +1, 해당 등급(이상) 획득 시 0으로 리셋.
 - 6성 획득은 5성 카운터도 리셋(5성 '이상' 보장이므로).
-- 세이브는 `PlayerPrefs`에 배너별로 저장. 인스펙터에서 컴포넌트 우클릭 → **"천장 상태 초기화"**.
+- 세이브는 `PlayerPrefs`에 천장 묶음(픽업/상시)별로 저장. 인스펙터에서 컴포넌트 우클릭 → **"천장 상태 초기화 (전체)"**.
 
 ## 테스트 팁
 

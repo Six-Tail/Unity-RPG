@@ -8,6 +8,8 @@ subculture-rpg/
 ├── docs/
 │   ├── folder-structure.md # (이 문서)
 │   └── unity-setup.md      # Unity 설치·열기·LFS·머지 세팅
+├── tools/
+│   └── art/                # 이미지 목록·프롬프트(art-manifest.js) + 일괄 생성 스크립트(generate-art.js)
 ├── Packages/
 │   └── manifest.json       # Unity 패키지 목록 (Unity 6 기준, 최소)
 ├── ProjectSettings/
@@ -15,9 +17,18 @@ subculture-rpg/
 └── Assets/
     ├── Plugins/            # 서드파티(Live2D Cubism SDK 등)
     └── _Project/           # ★ 우리가 만드는 모든 것 (_ 로 맨 위 정렬)
-        ├── Art/
+        ├── Resources/
+        │   └── Art/            # ★ 게임이 파일명으로 찾아 쓰는 이미지 (docs/art.md)
+        │       ├── Characters/ # 캐릭터 일러스트 {id}.png
+        │       ├── Thumbs/     # 캐릭터 썸네일
+        │       ├── Enemies/    # 적 {이름}.png
+        │       ├── Items/      # 재료 아이콘
+        │       ├── Equipment/  # 장비 부위 아이콘
+        │       ├── Backgrounds/# 화면·전투 배경
+        │       └── Banners/    # 가챠 배너 그림
+        ├── Art/                # 원본·작업 파일(게임이 직접 읽지 않음)
         │   ├── Characters/
-        │   │   ├── Static/     # 5성 이하 정적 일러스트 (AI PNG)
+        │   │   ├── Static/     # 일러스트 원본(PSD 등)
         │   │   └── Live2D/     # 6성 Live2D (.moc3/.model3.json/텍스처)
         │   ├── Backgrounds/
         │   ├── UI/

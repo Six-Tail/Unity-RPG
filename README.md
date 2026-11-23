@@ -51,7 +51,7 @@ git -C "D:/Users/jhbae/Downloads/subculture-rpg" commit -m "chore: Unity가 생�
 
 시스템별 문서:
 [메인 허브](docs/main-hub.md) · [스테이지·보상](docs/stages.md) · [금화·특수 던전](docs/economy.md) · [상점](docs/shop.md) · [장비](docs/equipment.md) · [가챠](docs/gacha.md) · [가챠 화면](docs/gacha-screen.md) · [가챠 결과 UI](docs/gacha-ui.md) ·
-[전투](docs/battle.md) · [전투 UI](docs/battle-ui.md) · [가챠↔전투 연동](docs/gacha-battle-link.md) · [육성](docs/growth.md) · [캐릭터 특성·정렬/필터](docs/characters.md) · [합성·초월](docs/transcendence.md) · [폰트](docs/fonts.md)
+[전투](docs/battle.md) · [전투 UI](docs/battle-ui.md) · [가챠↔전투 연동](docs/gacha-battle-link.md) · [육성](docs/growth.md) · [캐릭터 특성·정렬/필터](docs/characters.md) · [합성·초월](docs/transcendence.md) · [폰트](docs/fonts.md) · [이미지 에셋](docs/art.md) · [이미지 프롬프트 목록](docs/art-prompts.md)
 
 ---
 
@@ -84,6 +84,7 @@ git -C "D:/Users/jhbae/Downloads/subculture-rpg" lfs install
 ## AI 이미지 → Live2D 주의
 
 - **5성 이하 정적 일러스트**: AI 출력물을 그대로 Sprite로 → 거의 공짜.
+  - `Assets/_Project/Resources/Art/`에 정해진 파일명으로 넣으면 자동 연결됩니다. 일괄 생성 스크립트·프롬프트: [docs/art.md](docs/art.md)
 - **6성 Live2D**: AI는 *평면 1장*을 주지만 Live2D는 *레이어 분리 PSD*가 필요
   → 레이어 분리 → Cubism Editor 리깅 → `.moc3` 내보내기 → Unity 임포트.
   → 그래서 **6성만 Live2D**로 한정한 설계가 작업량 면에서 합리적입니다.

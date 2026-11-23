@@ -123,9 +123,7 @@ namespace SubcultureRPG.Gacha.UI
 
             _nameText.text = result.character != null ? result.character.displayName : "???";
 
-            var sprite = result.character != null
-                ? (result.character.thumbnail != null ? result.character.thumbnail : result.character.portrait)
-                : null;
+            var sprite = GameArt.Thumb(result.character);
             _portrait.sprite = sprite;
             _portrait.enabled = sprite != null;
 

@@ -126,6 +126,21 @@ namespace SubcultureRPG.Meta
         }
 
         /// <summary>스테이지 출격.</summary>
+        /// <summary>전투 배경 후보: 메인 = battle_ch{챕터}, 던전 = battle_dungeon_{종류} → 없으면 공용 battle.</summary>
+        private static string[] BattleBackgrounds(StageData s)
+        {
+            string key = s.kind switch
+            {
+                StageKind.AscensionDungeon => "battle_dungeon_ascension",
+                StageKind.GoldDungeon => "battle_dungeon_gold",
+                StageKind.SkillBookDungeon => "battle_dungeon_book",
+                StageKind.EquipmentDungeon => "battle_dungeon_equipment",
+                StageKind.ExpDungeon => "battle_dungeon_exp",
+                _ => "battle_ch" + s.chapter,
+            };
+            return new[] { "Backgrounds/" + key, "Backgrounds/battle" };
+        }
+
         public bool Launch(StageData stage, IList<CharacterData> party)
         {
             if (stage == null || launcher == null || party == null || party.Count == 0) return false;
@@ -148,6 +163,7 @@ namespace SubcultureRPG.Meta
             Current = stage;
             _party.Clear();
             _party.AddRange(party);
+            if (hud != null) hud.SetBackground(BattleBackgrounds(stage));
             launcher.Launch(party, enemies);
             return true;
         }

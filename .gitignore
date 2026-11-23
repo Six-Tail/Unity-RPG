@@ -58,3 +58,6 @@ crashlytics-build.properties
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 이미지 확인용 모아보기(생성 결과 미리보기) — 커밋하지 않음
+/docs/art-preview/

@@ -15,7 +15,8 @@ MonoBehaviour:
   id: c_seraphine
   displayName: "\uC138\uB77C\uD540"
   rarity: 6
-  signatureLine: 
+  signatureLine: "\uD0C0\uC624\uB974\uB294 \uAC74 \uB450\uB835\uC9C0 \uC54A\uC544.
+    \uAEBC\uC9C0\uB294 \uAC8C \uB450\uB824\uC6B8 \uBFD0."
   element: 1
   role: 0
   portrait: {fileID: 0}

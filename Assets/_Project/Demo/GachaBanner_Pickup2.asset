@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdeab0390aba1cf42aa0a0c482dca254, type: 3}
+  m_Name: GachaBanner_Pickup2
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Gacha.GachaBanner
+  bannerName: "\uD53D\uC5C5 \uBC30\uB108 \u2014 \uC2DC\uC5D8"
+  type: 0
+  config: {fileID: 11400000, guid: cf25e5b032c1971489ae101c8200f92c, type: 2}
+  featured6: {fileID: 11400000, guid: 68af104cfc05d2641b1667e22cc103c4, type: 2}
+  featured5: []
+  pool6:
+  - {fileID: 11400000, guid: a9bb5e5f28808204b8d73096c5ba7fca, type: 2}
+  - {fileID: 11400000, guid: f0b95f939aee3364f89c746210c13ce5, type: 2}
+  - {fileID: 11400000, guid: a752773ff9b637d47a58ddba119fdbe5, type: 2}
+  - {fileID: 11400000, guid: 70e7df53cc2977b4f9dcf658be5e3aa2, type: 2}
+  - {fileID: 11400000, guid: 8bc3493b145bcd049910560636b5590a, type: 2}
+  pool5:
+  - {fileID: 11400000, guid: 17733d87f2fec194597fcde332ebf6cc, type: 2}
+  - {fileID: 11400000, guid: 3c18c501abf72e7408d6b06dc7b7ce03, type: 2}
+  - {fileID: 11400000, guid: c7a80c691f47f624b9f8927dfdffcb81, type: 2}
+  - {fileID: 11400000, guid: 9a5e182a0831a504e8725829f40d8235, type: 2}
+  - {fileID: 11400000, guid: 19a0e4bdbf8e15146a971ae7059ddbc9, type: 2}
+  - {fileID: 11400000, guid: e3a14a9a53edce44eb5247b41ae16511, type: 2}
+  pool4:
+  - {fileID: 11400000, guid: d6f30f689e640654897bd153a2a02e98, type: 2}
+  - {fileID: 11400000, guid: 0c50a7f7ac07cbe4c95b1ff506f9c780, type: 2}
+  - {fileID: 11400000, guid: 9d006b23e3d18b14b885b704743ca8e5, type: 2}
+  - {fileID: 11400000, guid: 3dd7e5683e519084c93b581889b900ef, type: 2}
+  - {fileID: 11400000, guid: c276b5d27f66e7d46b7dcc49d21a3e5e, type: 2}
+  - {fileID: 11400000, guid: 05cdd2622e480354ab2b1a061d1c1dad, type: 2}
+  pool3:
+  - {fileID: 11400000, guid: f8fdc0de9a89dc34c94005e5e930eb0d, type: 2}
+  - {fileID: 11400000, guid: 6a9825f4970310445909252f22b6a5d2, type: 2}
+  - {fileID: 11400000, guid: e0ca9782e7a8d264c9d879ba39ff70d0, type: 2}
+  - {fileID: 11400000, guid: 4d0042428c034364e84043aff2663cf7, type: 2}
+  - {fileID: 11400000, guid: a83e61ab99e137f4bbcda429d7320a00, type: 2}
+  - {fileID: 11400000, guid: 2cda12146be78504893dc24c5734cfe8, type: 2}

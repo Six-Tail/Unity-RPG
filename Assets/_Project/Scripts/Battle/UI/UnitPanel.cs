@@ -119,11 +119,11 @@ namespace SubcultureRPG.Battle.UI
             _unit = unit;
             _nameText.text = unit.Name;
 
-            Sprite sprite = null;
-            if (unit.character != null)
-                sprite = unit.character.thumbnail != null ? unit.character.thumbnail : unit.character.portrait;
+            Sprite sprite = unit.character != null ? GameArt.Thumb(unit.character) : GameArt.Enemy(unit.Name);
             _portrait.sprite = sprite;
             _portrait.enabled = sprite != null;
+            _portrait.color = Color.white;
+            _portrait.preserveAspect = true;
 
             _hpShown = unit.HPRatio;
             SetHPImmediate(unit.HPRatio);

@@ -196,6 +196,15 @@ namespace SubcultureRPG.Meta.UI
             var inner = UIFactory.AddImage("Inner", frame.transform, new Color(0.08f, 0.09f, 0.12f, 0.95f));
             UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
 
+            // 부위 아이콘(Resources/Art/Equipment/slot_{부위}) — 글자 뒤 오른쪽 아래에 옅게
+            var slotIcon = GameArt.EquipSlotIcon(it.slot);
+            if (slotIcon != null)
+            {
+                var im = UIFactory.AddImage("SlotIcon", inner.transform, new Color(1, 1, 1, 0.5f), slotIcon);
+                UIFactory.Anchor(im.rectTransform, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+                im.rectTransform.sizeDelta = new Vector2(56, 56); im.rectTransform.anchoredPosition = new Vector2(-8, 8);
+            }
+
             Text(inner.transform, $"{EquipSets.Rich(it.set)} <size=70%>{EquipStats.Stars(it.Rarity, it.transcend)}</size>", 16, FontStyles.Bold, TextAlignmentOptions.TopLeft, 10, -8, 190, 24);
             Text(inner.transform, $"+{it.level}", 20, FontStyles.Bold, TextAlignmentOptions.TopRight, -10, -6, 70, 26, right: true);
             Text(inner.transform, EquipStats.Format(it.main, it.MainValue), 15, FontStyles.Normal, TextAlignmentOptions.TopLeft, 10, -36, 230, 22);
@@ -447,6 +456,15 @@ namespace SubcultureRPG.Meta.UI
             btn.onClick.AddListener(() => SelectSlot(slot));
             var inner = UIFactory.AddImage("Inner", card.frame.transform, new Color(0.08f, 0.09f, 0.12f, 0.95f));
             UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
+
+            // 부위 아이콘(Resources/Art/Equipment/slot_{부위}) — 글자 뒤 오른쪽 아래에 옅게
+            var slotIcon = GameArt.EquipSlotIcon(slot);
+            if (slotIcon != null)
+            {
+                var im = UIFactory.AddImage("SlotIcon", inner.transform, new Color(1, 1, 1, 0.5f), slotIcon);
+                UIFactory.Anchor(im.rectTransform, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+                im.rectTransform.sizeDelta = new Vector2(64, 64); im.rectTransform.anchoredPosition = new Vector2(-8, 8);
+            }
 
             Text(inner.transform, EquipStats.SlotName(slot), 15, FontStyles.Bold, TextAlignmentOptions.TopLeft, 12, -8, 120, 22).color = new Color(0.7f, 0.75f, 0.85f);
             card.level = Text(inner.transform, "", 22, FontStyles.Bold, TextAlignmentOptions.TopRight, -12, -6, 80, 28, right: true);

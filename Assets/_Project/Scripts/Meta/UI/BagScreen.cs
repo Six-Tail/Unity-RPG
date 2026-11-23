@@ -159,13 +159,22 @@ namespace SubcultureRPG.Meta.UI
             var group = inner.gameObject.AddComponent<CanvasGroup>();
             group.alpha = n > 0 ? 1f : 0.45f;
 
+            // 아이콘(Resources/Art/Items/{재료}) — 있으면 가운데에 그림, 없으면 글자만
+            var icon = GameArt.MaterialIcon(t);
+            if (icon != null)
+            {
+                var im = UIFactory.AddImage("Icon", inner.transform, Color.white, icon);
+                UIFactory.Anchor(im.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+                im.rectTransform.sizeDelta = new Vector2(84, 84); im.rectTransform.anchoredPosition = new Vector2(0, -50);
+            }
+
             Label(inner.transform, Grades.Tag(grade), 14, FontStyles.Bold, new Vector2(0, 1), new Vector2(8, -6), new Vector2(80, 20), TextAlignmentOptions.TopLeft);
             string sub = Materials.IsAscension(t)
                 ? $"<color={Traits.Hex(Materials.ElementOf(t))}>{Traits.Name(Materials.ElementOf(t))}</color> · {Materials.TierTargetLevel(Materials.TierOf(t))} 돌파"
                 : Materials.ExpValue(t) > 0 ? $"+{Materials.ExpValue(t):N0} EXP" : "";
-            var name = Label(inner.transform, Materials.Name(t), 17, FontStyles.Bold, new Vector2(0.5f, 1), new Vector2(0, -28), new Vector2(160, 46), TextAlignmentOptions.Top);
+            var name = Label(inner.transform, Materials.Name(t), 17, FontStyles.Bold, new Vector2(0.5f, 1), new Vector2(0, -28), new Vector2(160, icon != null ? 22 : 46), TextAlignmentOptions.Top);
             name.enableAutoSizing = true; name.fontSizeMin = 12; name.fontSizeMax = 17;
-            if (sub != "") Label(inner.transform, sub, 13, FontStyles.Normal, new Vector2(0.5f, 1), new Vector2(0, -76), new Vector2(160, 20), TextAlignmentOptions.Top).color = new Color(0.8f, 0.83f, 0.9f);
+            if (sub != "" && icon == null) Label(inner.transform, sub, 13, FontStyles.Normal, new Vector2(0.5f, 1), new Vector2(0, -76), new Vector2(160, 20), TextAlignmentOptions.Top).color = new Color(0.8f, 0.83f, 0.9f);
             var count = Label(inner.transform, n > 0 ? $"×{n:N0}" : "0", 28, FontStyles.Bold, new Vector2(0.5f, 0), new Vector2(0, 10), new Vector2(160, 36), TextAlignmentOptions.Bottom);
             count.color = n > 0 ? Color.white : new Color(0.45f, 0.47f, 0.52f);
         }
@@ -187,6 +196,7 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.05f, 0.06f, 0.09f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
+            BackgroundArt.Create(_root.transform, 0.72f).Set("Backgrounds/bag");
             var root = _root.transform;
 
             var title = UIFactory.AddText("Title", root, "가방", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);

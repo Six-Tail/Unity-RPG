@@ -499,6 +499,7 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.05f, 0.06f, 0.09f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
+            BackgroundArt.Create(_root.transform, 0.7f).Set("Backgrounds/stage");
 
             var title = UIFactory.AddText("Title", _root.transform, "스테이지", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             var trt = title.rectTransform;

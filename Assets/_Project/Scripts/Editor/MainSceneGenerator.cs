@@ -34,30 +34,40 @@ namespace SubcultureRPG.EditorTools
             EnsureFolder("Assets/_Project", "Demo");
             EnsureFolder("Assets/_Project", "Scenes");
 
-            // 1) 캐릭터 풀(가챠 배너와 동일)
-            var six1 = Char("c_seraphine", "세라핀", Rarity.R6);
-            var six2 = Char("c_ark", "아크", Rarity.R6);
-            var five = new List<CharacterData> { Char("c_luna", "루나", Rarity.R5), Char("c_rio", "리오", Rarity.R5), Char("c_selene", "셀레네", Rarity.R5) };
-            var four = new List<CharacterData> { Char("c_mina", "미나", Rarity.R4), Char("c_coco", "코코", Rarity.R4), Char("c_bella", "벨라", Rarity.R4) };
-            var three = new List<CharacterData> { Char("c_riri", "리리", Rarity.R3), Char("c_pin", "핀", Rarity.R3), Char("c_momo", "모모", Rarity.R3) };
+            // 1) 캐릭터 풀 — 6성 픽업(한정) 2 · 6성 상시 5 · 5성 6 · 4성 6 · 3성 6 (속성·역할·대사는 DemoCharacters)
+            var pickup1 = Char("c_seraphine", "세라핀", Rarity.R6);
+            var pickup2 = Char("c_ciel", "시엘", Rarity.R6);
+            var six = new List<CharacterData>
+            {
+                Char("c_ark", "아크", Rarity.R6), Char("c_aurora", "오로라", Rarity.R6), Char("c_kael", "카엘", Rarity.R6),
+                Char("c_violet", "바이올렛", Rarity.R6), Char("c_estelle", "에스텔", Rarity.R6),
+            };
+            var five = new List<CharacterData>
+            {
+                Char("c_luna", "루나", Rarity.R5), Char("c_rio", "리오", Rarity.R5), Char("c_selene", "셀레네", Rarity.R5),
+                Char("c_haru", "하루", Rarity.R5), Char("c_rena", "레나", Rarity.R5), Char("c_grey", "그레이", Rarity.R5),
+            };
+            var four = new List<CharacterData>
+            {
+                Char("c_mina", "미나", Rarity.R4), Char("c_coco", "코코", Rarity.R4), Char("c_bella", "벨라", Rarity.R4),
+                Char("c_sora", "소라", Rarity.R4), Char("c_yuna", "유나", Rarity.R4), Char("c_teo", "테오", Rarity.R4),
+            };
+            var three = new List<CharacterData>
+            {
+                Char("c_riri", "리리", Rarity.R3), Char("c_pin", "핀", Rarity.R3), Char("c_momo", "모모", Rarity.R3),
+                Char("c_dodo", "도도", Rarity.R3), Char("c_ruru", "루루", Rarity.R3), Char("c_kiki", "키키", Rarity.R3),
+            };
 
-            // 2) 배너
+            // 2) 배너 — 픽업 2개(픽업 실패 시 상시 6성) + 상시 1개. 5성 이하 풀은 공통.
             var config = LoadOrCreate<GachaConfig>(DataRoot + "/GachaConfig.asset");
             EditorUtility.SetDirty(config);
-            var banner = LoadOrCreate<GachaBanner>(DataRoot + "/GachaBanner.asset");
-            banner.bannerName = "픽업 배너 — 세라핀";
-            banner.config = config;
-            banner.featured6 = six1;
-            banner.pool6 = new List<CharacterData> { six2 };
-            banner.featured5 = new List<CharacterData>();
-            banner.pool5 = five;
-            banner.pool4 = four;
-            banner.pool3 = three;
-            EditorUtility.SetDirty(banner);
+            Banner("GachaBanner", "픽업 배너 — 세라핀", GachaBannerType.Pickup, config, pickup1, six, five, four, three);   // 예전 배너 에셋 재사용(천장 이어받기)
+            Banner("GachaBanner_Pickup2", "픽업 배너 — 시엘", GachaBannerType.Pickup, config, pickup2, six, five, four, three);
+            Banner("GachaBanner_Standard", "상시 배너 — 별빛 모집", GachaBannerType.Standard, config, null, six, five, four, three);
 
             // 3) DB — 배너 풀 전체(뽑은 캐릭터가 육성/편성에 모두 보이도록)
-            var all = new List<CharacterData> { six1, six2 };
-            all.AddRange(five); all.AddRange(four); all.AddRange(three);
+            var all = new List<CharacterData> { pickup1, pickup2 };
+            all.AddRange(six); all.AddRange(five); all.AddRange(four); all.AddRange(three);
             var db = LoadOrCreate<GameDatabase>(DataRoot + "/MainDatabase.asset");
             db.characters = all;
             db.units = new List<BattleUnitData>();
@@ -120,6 +130,13 @@ namespace SubcultureRPG.EditorTools
             var gachaGO = new GameObject("Gacha");
             var gachaCtrl = gachaGO.AddComponent<GachaController>();
             SetField(gachaCtrl, "banner", bannerRef);
+            var bannerList = new List<GachaBanner> { bannerRef };
+            foreach (var n in new[] { "GachaBanner_Pickup2", "GachaBanner_Standard" })
+            {
+                var b = AssetDatabase.LoadAssetAtPath<GachaBanner>(DataRoot + "/" + n + ".asset");
+                if (b != null) bannerList.Add(b);
+            }
+            SetField(gachaCtrl, "banners", bannerList);
 
             var resultGO = new GameObject("GachaResultPanel");
             var result = resultGO.AddComponent<SubcultureRPG.Gacha.UI.GachaResultPanel>();
@@ -268,6 +285,23 @@ namespace SubcultureRPG.EditorTools
             DemoCharacters.ApplyTraits(c);
             EditorUtility.SetDirty(c);
             return c;
+        }
+
+        private static GachaBanner Banner(string asset, string title, GachaBannerType type, GachaConfig config,
+            CharacterData featured6, List<CharacterData> pool6, List<CharacterData> pool5, List<CharacterData> pool4, List<CharacterData> pool3)
+        {
+            var b = LoadOrCreate<GachaBanner>(DataRoot + "/" + asset + ".asset");
+            b.bannerName = title;
+            b.type = type;
+            b.config = config;
+            b.featured6 = featured6;
+            b.featured5 = new List<CharacterData>();
+            b.pool6 = new List<CharacterData>(pool6);
+            b.pool5 = new List<CharacterData>(pool5);
+            b.pool4 = new List<CharacterData>(pool4);
+            b.pool3 = new List<CharacterData>(pool3);
+            EditorUtility.SetDirty(b);
+            return b;
         }
 
         private static BattleSkill Skill(string name, SkillCategory cat, TargetType target, float power, int energyGain)

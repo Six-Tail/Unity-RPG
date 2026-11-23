@@ -26,6 +26,13 @@ namespace SubcultureRPG.Battle.UI
         [SerializeField, Tooltip("턴 순서 바에 표시할 개수.")] private int turnPreviewCount = 8;
 
         private Canvas _canvas;
+        private BackgroundArt _bgArt;
+
+        /// <summary>전투 배경 그림 지정(Resources/Art/ 기준 경로 후보, 앞에서부터 처음 찾은 것). 없으면 단색 배경.</summary>
+        public void SetBackground(params string[] paths)
+        {
+            if (_bgArt != null) _bgArt.Set(paths);
+        }
         private RectTransform _enemyRow, _allyRow, _turnStrip, _skillBar;
         private GameObject _skillBarGO, _resultGO;
         private TextMeshProUGUI _instruction, _resultText, _resultDetail, _spText;
@@ -451,6 +458,8 @@ namespace SubcultureRPG.Battle.UI
             {
                 var bg = UIFactory.AddImage("Backdrop", rootT, new Color(0.05f, 0.06f, 0.09f, 1f), null, raycast: true);
                 UIFactory.Stretch(bg.rectTransform);
+                _bgArt = BackgroundArt.Create(bg.transform, 0.45f);
+                _bgArt.Set("Backgrounds/battle");
             }
 
             _turnStrip = MakeRow("TurnStrip", rootT, new Vector2(0.5f, 1), new Vector2(0, -28), 8);

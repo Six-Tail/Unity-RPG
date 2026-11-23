@@ -70,13 +70,14 @@ namespace SubcultureRPG.Meta.UI
             if (_rosterText != null)
                 _rosterText.text = roster != null ? $"보유 캐릭터  {roster.Owned.Count}명" : "";
 
-            var banner = gacha != null ? gacha.Banner : null;
+            var banner = gacha != null ? gacha.FeaturedBanner : null;
             var feat = banner != null ? banner.featured6 : null;
             if (feat != null)
             {
-                var sprite = feat.thumbnail != null ? feat.thumbnail : feat.portrait;
+                var sprite = GameArt.Portrait(feat);
                 _featPortrait.sprite = sprite;
                 _featPortrait.enabled = sprite != null;
+                _featPortrait.color = Color.white;
                 _featName.text = $"{new string('★', (int)feat.rarity)}  {feat.displayName}";
                 _featBanner.text = $"픽업 진행 중 · {banner.bannerName}";
             }
@@ -111,6 +112,7 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.07f, 0.06f, 0.11f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
+            BackgroundArt.Create(_root.transform, 0.45f).Set("Backgrounds/home");
 
             // 타이틀(좌상단)
             var title = UIFactory.AddText("Title", _root.transform, gameTitle, 52, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);

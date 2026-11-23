@@ -98,6 +98,11 @@ namespace SubcultureRPG.Gacha.UI
         /// <summary>'다시 뽑기' 버튼에 보일 비용.</summary>
         public void SetPullCosts(int single, int multi) { _singleCost = single; _multiCost = multi; }
 
+        private System.Func<bool, string> _costLabel;
+
+        /// <summary>'다시 뽑기' 버튼의 비용 문구(multi → 리치 텍스트). 뽑기권/크리스탈 표시용. null이면 크리스탈 비용.</summary>
+        public void SetCostLabel(System.Func<bool, string> label) => _costLabel = label;
+
         /// <summary>결과 표시 + 연출 시작.</summary>
         public void Show(List<GachaResult> results)
         {
@@ -177,7 +182,10 @@ namespace SubcultureRPG.Gacha.UI
             }
 
             _skipButton.gameObject.SetActive(false);
-            _againLabel.text = $"{(_results.Count > 1 ? "10연" : "1회")} 다시 뽑기  <size=70%><color=#8FE9FF>크리스탈 {(_results.Count > 1 ? _multiCost : _singleCost):N0}</color></size>";
+            bool again10 = _results.Count > 1;
+            string cost = _costLabel != null ? _costLabel(again10)
+                : $"<color=#8FE9FF>크리스탈 {(again10 ? _multiCost : _singleCost):N0}</color>";
+            _againLabel.text = $"{(again10 ? "10연" : "1회")} 다시 뽑기  <size=70%>{cost}</size>";
             _footer.SetActive(true);
             _sequence = null;
         }
@@ -306,7 +314,7 @@ namespace SubcultureRPG.Gacha.UI
                 UIFactory.Stretch(inner.rectTransform, 4, 4, 4, 4);
 
                 // 일러스트
-                var sprite = r.character != null ? (r.character.portrait != null ? r.character.portrait : r.character.thumbnail) : null;
+                var sprite = GameArt.Portrait(r.character);
                 var art = UIFactory.AddImage("Art", inner.transform, Color.white, sprite);
                 UIFactory.Stretch(art.rectTransform, 2, 2, 2, 2);
                 art.enabled = sprite != null;
@@ -393,7 +401,7 @@ namespace SubcultureRPG.Gacha.UI
             _cutLine.alpha = 0f;
             _cutName.alpha = 0f;
             foreach (var s in _cutStars) { s.alpha = 0f; s.rectTransform.localScale = Vector3.one; }
-            var sprite = c != null ? (c.portrait != null ? c.portrait : c.thumbnail) : null;
+            var sprite = GameArt.Portrait(c);
             _cutArtImg.sprite = sprite;
             _cutArtImg.enabled = sprite != null;
             _cutArtImg.color = new Color(1, 1, 1, 0);
