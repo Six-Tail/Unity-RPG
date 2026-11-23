@@ -158,7 +158,7 @@ namespace SubcultureRPG.Meta.Missions
             var e = Touch(m);
             e.count = m.target;
             e.claimed = true;
-            foreach (var r in m.rewards) Grant(r);
+            foreach (var r in m.rewards) r.GrantTo(wallet, inventory);
             Save();
 
             // 보너스 임무(일일 N개 완료 등) 진행 — 보너스 임무 자신은 세지 않음
@@ -182,18 +182,6 @@ namespace SubcultureRPG.Meta.Missions
             }
             if (got.Count > 0) OnChanged?.Invoke();
             return got;
-        }
-
-        private void Grant(MissionReward r)
-        {
-            if (r == null || r.amount <= 0) return;
-            switch (r.kind)
-            {
-                case MissionRewardKind.Crystal: if (wallet != null) wallet.Add(r.amount); break;
-                case MissionRewardKind.Gold: if (wallet != null) wallet.AddGold(r.amount); break;
-                case MissionRewardKind.Ticket: if (wallet != null) wallet.AddTickets(r.ticket, r.amount); break;
-                default: if (inventory != null) inventory.Add(r.material, r.amount); break;
-            }
         }
 
         // ---------------- 저장 ----------------

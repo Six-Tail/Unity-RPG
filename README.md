@@ -50,7 +50,7 @@ git -C "D:/Users/jhbae/Downloads/subculture-rpg" commit -m "chore: Unity가 생�
 2. ▶ Play → 홈에서 **스테이지 / 가챠 / 육성 / 임무 / 상점 / 가방**으로 이동 (스테이지 클리어로 금화·경험치 재료, 스테이지 화면의 특수 던전 탭에서 돌파 재료·금화·스킬 교본 획득, 상점에서 재료 구매·교환)
 
 시스템별 문서:
-[메인 허브](docs/main-hub.md) · [스테이지·보상](docs/stages.md) · [금화·특수 던전](docs/economy.md) · [상점](docs/shop.md) · [임무](docs/missions.md) · [장비](docs/equipment.md) · [가챠](docs/gacha.md) · [가챠 화면](docs/gacha-screen.md) · [가챠 결과 UI](docs/gacha-ui.md) ·
+[메인 허브](docs/main-hub.md) · [스테이지·보상](docs/stages.md) · [금화·특수 던전](docs/economy.md) · [상점](docs/shop.md) · [임무](docs/missions.md) · [도감](docs/codex.md) · [장비](docs/equipment.md) · [가챠](docs/gacha.md) · [가챠 화면](docs/gacha-screen.md) · [가챠 결과 UI](docs/gacha-ui.md) ·
 [전투](docs/battle.md) · [전투 UI](docs/battle-ui.md) · [가챠↔전투 연동](docs/gacha-battle-link.md) · [육성](docs/growth.md) · [캐릭터 특성·정렬/필터](docs/characters.md) · [합성·초월](docs/transcendence.md) · [폰트](docs/fonts.md) · [이미지 에셋](docs/art.md) · [이미지 프롬프트 목록](docs/art-prompts.md)
 
 ---

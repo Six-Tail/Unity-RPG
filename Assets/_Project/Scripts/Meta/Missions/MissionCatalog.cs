@@ -54,6 +54,19 @@ namespace SubcultureRPG.Meta.Missions
             MissionRewardKind.Ticket => $"<color=#FFB3E6>{PlayerWallet.TicketName(ticket)} ×{amount:N0}</color>",
             _ => $"{Materials.RichName(material)} ×{amount:N0}",
         };
+
+        /// <summary>보상 지급(임무 · 도감 수집 보상 공용).</summary>
+        public void GrantTo(PlayerWallet wallet, PlayerInventory inventory)
+        {
+            if (amount <= 0) return;
+            switch (kind)
+            {
+                case MissionRewardKind.Crystal: if (wallet != null) wallet.Add(amount); break;
+                case MissionRewardKind.Gold: if (wallet != null) wallet.AddGold(amount); break;
+                case MissionRewardKind.Ticket: if (wallet != null) wallet.AddTickets(ticket, amount); break;
+                default: if (inventory != null) inventory.Add(material, amount); break;
+            }
+        }
     }
 
     /// <summary>임무 1개. id는 세이브 키이므로 한 번 정하면 바꾸지 마세요.</summary>

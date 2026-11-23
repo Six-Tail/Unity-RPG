@@ -5,7 +5,7 @@
 
 - 넣는 곳: `Assets/_Project/Resources/Art/`
 - 찾는 코드: [GameArt.cs](../Assets/_Project/Scripts/Core/GameArt.cs)
-- 프롬프트 목록(111장): [art-prompts.md](art-prompts.md)
+- 프롬프트 목록(112장): [art-prompts.md](art-prompts.md)
 
 ## 파일 이름 규칙
 
@@ -27,7 +27,8 @@
 
 | 키 | 화면 |
 |---|---|
-| `home` `gacha` `stage` `growth` `party` `bag` `shop` `mission` | 홈 · 가챠 · 스테이지 선택 · 육성 · 편성 · 가방 · 상점 · 임무(없으면 `party`) |
+| `home` `gacha` `stage` `growth` `party` `bag` `shop` | 홈 · 가챠 · 스테이지 선택 · 육성 · 편성 · 가방 · 상점 |
+| `mission` `codex` | 임무(없으면 `party`) · 도감(없으면 `growth`) |
 | `battle` | 전투 공용(아래가 없을 때) |
 | `battle_ch1` … `battle_ch15` | 메인 스토리 챕터별 전투 |
 | `battle_dungeon_ascension` `_gold` `_book` `_equipment` `_exp` | 특수 던전별 전투 |
@@ -66,7 +67,7 @@ node tools/art/generate-art.js --studio "<스튜디오 폴더>" --model "local:.
 | `--thumbs` | 이미 있는 캐릭터 일러스트에서 썸네일만 다시 자름(생성 안 함 · 서버 필요 없음) |
 
 - **요금**: 로컬 GPU(`local:…`) 모델은 무료입니다. OpenAI 모델은 장수만큼 과금되므로 `--yes`를 붙여야만 실행됩니다.
-- **소요 시간**(RTX 5080 · Flux schnell 기준): 1장 6~12초, 픽업 배너는 참고 이미지 때문에 약 30초. 전체 111장 ≈ 15~20분.
+- **소요 시간**(RTX 5080 · Flux schnell 기준): 1장 6~12초, 픽업 배너는 참고 이미지 때문에 약 30초. 전체 112장 ≈ 15~20분.
 - 캐릭터 썸네일은 일러스트 윗부분을 잘라 자동으로 만듭니다. 픽업 배너는 그 캐릭터 일러스트를 참고 이미지로 넣어 같은 인물로 그립니다(그래서 배너는 맨 마지막에 생성).
 - 아이콘·장비·적은 OpenAI 모델일 때 **투명 배경**으로 요청합니다(칸 색과 어긋나는 네모가 안 생김). 모델이 투명 배경을 거부하면 어두운 단색 배경으로 한 번 더 시도하고, 로컬 Flux는 처음부터 어두운 단색 배경으로 그립니다.
 - 마음에 안 드는 그림은 `--key <키> --force`로 그것만 다시 뽑으면 됩니다. 스튜디오 갤러리(`outputs/`)에는 원본이 그대로 남습니다.

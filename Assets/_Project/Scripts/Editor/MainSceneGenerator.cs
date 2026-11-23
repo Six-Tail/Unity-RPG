@@ -13,6 +13,7 @@ using SubcultureRPG.Meta;
 using SubcultureRPG.Meta.UI;
 using SubcultureRPG.Meta.Shop;
 using SubcultureRPG.Meta.Missions;
+using SubcultureRPG.Meta.Codex;
 
 namespace SubcultureRPG.EditorTools
 {
@@ -208,6 +209,17 @@ namespace SubcultureRPG.EditorTools
             SetField(missionScr, "wallet", wallet);
             if (font != null) SetField(missionScr, "font", font);
 
+            var codexComp = metaGO.AddComponent<PlayerCodex>();
+            SetField(codexComp, "roster", roster);
+            SetField(codexComp, "wallet", wallet);
+            SetField(codexComp, "inventory", inventory);
+            SetField(codexComp, "database", dbRef);
+            SetField(codexComp, "gacha", gachaCtrl);
+            var codexGO = new GameObject("CodexScreen");
+            var codexScr = codexGO.AddComponent<CodexScreen>();
+            SetField(codexScr, "codex", codexComp);
+            if (font != null) SetField(codexScr, "font", font);
+
             var stageScrGO = new GameObject("StageScreen");
             var stageScr = stageScrGO.AddComponent<StageScreen>();
             SetField(stageScr, "database", stageDbRef);
@@ -250,6 +262,7 @@ namespace SubcultureRPG.EditorTools
             SetField(nav, "bag", bagScr);
             SetField(nav, "shop", shopScr);
             SetField(nav, "mission", missionScr);
+            SetField(nav, "codex", codexScr);
             SetField(nav, "stageRunner", runner);
             SetField(nav, "gacha", gachaScr);
             SetField(nav, "growth", growth);

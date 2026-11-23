@@ -5,6 +5,7 @@ using TMPro;
 using SubcultureRPG.UI;
 using SubcultureRPG.Gacha;
 using SubcultureRPG.Meta.Missions;
+using SubcultureRPG.Meta.Codex;
 
 namespace SubcultureRPG.Meta.UI
 {
@@ -29,6 +30,7 @@ namespace SubcultureRPG.Meta.UI
 
         private GameObject _root;
         private PlayerMissions _missions;
+        private PlayerCodex _codex;
         private TextMeshProUGUI _missionLabel;
         private Image _featPortrait;
         private TextMeshProUGUI _crystalText, _rosterText, _featName, _featBanner;
@@ -62,12 +64,25 @@ namespace SubcultureRPG.Meta.UI
             // 임무 시스템은 내비게이터가 실행 중에 만들 수도 있어 Start에서 찾음
             _missions = FindAnyObjectByType<PlayerMissions>();
             if (_missions != null) _missions.OnChanged += RefreshMissionBadge;
+            _codex = FindAnyObjectByType<PlayerCodex>();
+            if (_codex != null) _codex.OnChanged += RefreshCodexButton;
             Refresh();
         }
 
         private void OnDestroy()
         {
             if (_missions != null) _missions.OnChanged -= RefreshMissionBadge;
+            if (_codex != null) _codex.OnChanged -= RefreshCodexButton;
+        }
+
+        /// <summary>도감 버튼: 수집 현황 + 받을 수 있는 수집 보상 수.</summary>
+        private void RefreshCodexButton()
+        {
+            if (_rosterText == null) return;
+            int owned = roster != null ? roster.Owned.Count : 0;
+            string count = _codex != null && _codex.Total > 0 ? $"{_codex.OwnedCount} / {_codex.Total}" : $"{owned}명";
+            int n = _codex != null ? _codex.ClaimableCount() : 0;
+            _rosterText.text = $"도감  <size=75%>보유 {count}</size>" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "");
         }
 
         /// <summary>임무 버튼에 지금 받을 수 있는 보상 수 표시.</summary>
@@ -93,8 +108,7 @@ namespace SubcultureRPG.Meta.UI
 
             RefreshMissionBadge();
 
-            if (_rosterText != null)
-                _rosterText.text = roster != null ? $"보유 캐릭터  {roster.Owned.Count}명" : "";
+            RefreshCodexButton();
 
             var banner = gacha != null ? gacha.FeaturedBanner : null;
             var feat = banner != null ? banner.featured6 : null;
@@ -184,11 +198,13 @@ namespace SubcultureRPG.Meta.UI
             MenuButton("상점\n<size=52%>재료 구매 · 교환</size>", new Color(0.75f, 0.35f, 0.5f, 0.95f), new Vector2(360, -171), () => Nav(HubScreen.Shop));
             MenuButton("가방\n<size=52%>재료 · 재화 확인</size>", new Color(0.25f, 0.5f, 0.55f, 0.95f), new Vector2(360, -285), () => Nav(HubScreen.Bag));
 
-            // 보유 수(좌하단)
-            _rosterText = UIFactory.AddText("Roster", _root.transform, "", 22, font, new Color(0.85f, 0.85f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);
-            var rrt = _rosterText.rectTransform;
+            // 도감 버튼(좌하단) — 보유 수 · 받을 수집 보상 표시
+            var codexBtn = UIFactory.AddButton("Codex", _root.transform, "도감", 26, font, new Color(0.22f, 0.26f, 0.36f, 0.95f), Color.white);
+            var rrt = (RectTransform)codexBtn.transform;
             UIFactory.Anchor(rrt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
-            rrt.sizeDelta = new Vector2(500, 34); rrt.anchoredPosition = new Vector2(60, 40);
+            rrt.sizeDelta = new Vector2(330, 64); rrt.anchoredPosition = new Vector2(50, 36);
+            codexBtn.onClick.AddListener(() => Nav(HubScreen.Codex));
+            _rosterText = codexBtn.GetComponentInChildren<TextMeshProUGUI>();
         }
 
         private Button MenuButton(string label, Color bg, Vector2 pos, UnityEngine.Events.UnityAction onClick)

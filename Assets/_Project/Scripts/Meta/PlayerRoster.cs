@@ -42,6 +42,9 @@ namespace SubcultureRPG.Meta
         private List<CharacterData> starterCharacters = new();
         [SerializeField] private string saveKey = "roster";
 
+        /// <summary>전체 캐릭터 데이터베이스(도감 등에서 사용).</summary>
+        public GameDatabase Database => database;
+
         private readonly List<OwnedCharacter> _owned = new();
         public IReadOnlyList<OwnedCharacter> Owned => _owned;
 
