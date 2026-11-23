@@ -155,9 +155,10 @@ namespace SubcultureRPG.Meta.UI
             fbnrt.sizeDelta = new Vector2(0, 26); fbnrt.anchoredPosition = new Vector2(0, 10);
 
             // 메뉴 버튼(우측)
-            MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 150), () => Nav(HubScreen.Gacha));
-            MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, 0), () => Nav(HubScreen.Growth));
-            MenuButton("편성 · 전투\n<size=52%>파티를 골라 출격</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(360, -150), () => Nav(HubScreen.Party));
+            MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 210), () => Nav(HubScreen.Stage));
+            MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 70), () => Nav(HubScreen.Gacha));
+            MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, -70), () => Nav(HubScreen.Growth));
+            MenuButton("편성 · 연습 전투\n<size=52%>보상 없는 자유 전투</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(360, -210), () => Nav(HubScreen.Party));
 
             // 보유 수(좌하단)
             _rosterText = UIFactory.AddText("Roster", _root.transform, "", 22, font, new Color(0.85f, 0.85f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);

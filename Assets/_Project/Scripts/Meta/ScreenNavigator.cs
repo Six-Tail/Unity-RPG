@@ -9,6 +9,7 @@ namespace SubcultureRPG.Meta
     public enum HubScreen
     {
         Home,
+        Stage,
         Gacha,
         Growth,
         Party,
@@ -24,6 +25,8 @@ namespace SubcultureRPG.Meta
     public class ScreenNavigator : MonoBehaviour
     {
         [SerializeField] private HomeScreen home;
+        [SerializeField] private StageScreen stage;
+        [SerializeField] private StageRunner stageRunner;
         [SerializeField] private GachaScreen gacha;
         [SerializeField] private GrowthScreen growth;
         [SerializeField] private PartyScreen party;
@@ -36,6 +39,8 @@ namespace SubcultureRPG.Meta
         private void Awake()
         {
             if (home == null) home = FindAnyObjectByType<HomeScreen>();
+            if (stage == null) stage = FindAnyObjectByType<StageScreen>();
+            if (stageRunner == null) stageRunner = FindAnyObjectByType<StageRunner>();
             if (gacha == null) gacha = FindAnyObjectByType<GachaScreen>();
             if (growth == null) growth = FindAnyObjectByType<GrowthScreen>();
             if (party == null) party = FindAnyObjectByType<PartyScreen>();
@@ -50,7 +55,13 @@ namespace SubcultureRPG.Meta
             if (party != null)
             {
                 party.SetBackAction(GoHome);
+                party.ClearLaunchMode();
                 party.OnLaunched += OnPartyLaunched;
+            }
+            if (stage != null)
+            {
+                stage.SetBackAction(GoHome);
+                stage.OnSortie += OnStageSortie;
             }
             if (battleHud != null) battleHud.SetExitAction(ExitBattle);
 
@@ -60,13 +71,26 @@ namespace SubcultureRPG.Meta
         private void OnDestroy()
         {
             if (party != null) party.OnLaunched -= OnPartyLaunched;
+            if (stage != null) stage.OnSortie -= OnStageSortie;
         }
 
         /// <summary>지정 화면만 표시.</summary>
         public void Go(HubScreen screen)
         {
+            // 홈/스테이지 목록으로 돌아오면 스테이지 출격 모드 해제
+            if (screen == HubScreen.Home || screen == HubScreen.Stage)
+            {
+                if (stageRunner != null) stageRunner.Clear();
+                if (party != null)
+                {
+                    party.ClearLaunchMode();
+                    party.SetBackAction(GoHome);
+                }
+            }
+
             Current = screen;
             if (home != null) home.Show(screen == HubScreen.Home);
+            if (stage != null) stage.Show(screen == HubScreen.Stage);
             if (gacha != null) gacha.Show(screen == HubScreen.Gacha);
             if (growth != null) growth.Show(screen == HubScreen.Growth);
             if (party != null) party.Show(screen == HubScreen.Party);
@@ -75,12 +99,30 @@ namespace SubcultureRPG.Meta
 
         public void GoHome() => Go(HubScreen.Home);
 
-        private void OnPartyLaunched() => Go(HubScreen.Battle);
+        /// <summary>스테이지 상세의 '편성 후 출격' → 출격 모드 편성 화면.</summary>
+        private void OnStageSortie(StageData s)
+        {
+            if (party == null || stageRunner == null || s == null) return;
+            var target = s;
+            party.SetLaunchMode(team => stageRunner.Launch(target, team),
+                $"출격 준비  ·  {s.Code} {s.stageName}  <size=60%><color=#FFD36B>권장 Lv.{s.recommendedLevel}</color></size>",
+                "출격!");
+            party.SetBackAction(() => Go(HubScreen.Stage), "← 스테이지");
+            Go(HubScreen.Party);
+        }
+
+        private void OnPartyLaunched()
+        {
+            bool stageBattle = stageRunner != null && stageRunner.Current != null;
+            if (battleHud != null) battleHud.SetExitLabel(stageBattle ? "스테이지로" : "홈으로");
+            Go(HubScreen.Battle);
+        }
 
         private void ExitBattle()
         {
+            bool stageBattle = stageRunner != null && stageRunner.Current != null;
             if (battle != null) battle.Stop();
-            Go(HubScreen.Home);
+            Go(stageBattle ? HubScreen.Stage : HubScreen.Home);
         }
     }
 }

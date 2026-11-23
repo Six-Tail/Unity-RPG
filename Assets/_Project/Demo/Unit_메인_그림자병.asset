@@ -22,11 +22,12 @@ MonoBehaviour:
     spd: 95
     critRate: 0.05
     critDmg: 0.5
-    hpGrowth: 0
-    atkGrowth: 0
-    defGrowth: 0
+    hpGrowth: 63
+    atkGrowth: 7
+    defGrowth: 4
   element: 0
   weaknesses: 0100000000000000
   maxToughness: 50
+  startEnergy: 0
   skills:
   - {fileID: 11400000, guid: be5f29dcb39838e4ebf97ad2964b3e7f, type: 2}

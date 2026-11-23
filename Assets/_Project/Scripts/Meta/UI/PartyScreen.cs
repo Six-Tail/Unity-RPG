@@ -26,9 +26,10 @@ namespace SubcultureRPG.Meta.UI
         private GameObject _root;
         private RectTransform _grid;
         private GridLayoutGroup _gridLayout;
-        private TextMeshProUGUI _countText;
+        private TextMeshProUGUI _countText, _titleText, _startLabel, _backLabel;
         private Button _startButton, _backBtn;
         private System.Action _onBack;
+        private System.Action<List<CharacterData>> _launchHandler;   // null이면 launcher 기본 전투
         private RosterFilterBar _filterBar;
 
         /// <summary>'전투 시작'으로 전투에 들어갔을 때.</summary>
@@ -61,12 +62,27 @@ namespace SubcultureRPG.Meta.UI
             if (_root != null) _root.SetActive(on);
         }
 
-        /// <summary>'← 홈' 버튼 동작 지정(null이면 버튼 숨김).</summary>
-        public void SetBackAction(System.Action onBack)
+        /// <summary>뒤로 버튼 동작/문구 지정(onBack이 null이면 버튼 숨김).</summary>
+        public void SetBackAction(System.Action onBack, string label = "← 홈")
         {
             _onBack = onBack;
             if (_backBtn != null) _backBtn.gameObject.SetActive(onBack != null);
+            if (_backLabel != null) _backLabel.text = label;
         }
+
+        /// <summary>
+        /// 출격 모드(예: 스테이지): 시작 버튼이 handler(선택 파티)를 호출. 제목·버튼 문구 변경.
+        /// handler가 null이면 기본 모드(launcher의 기본 적과 전투).
+        /// </summary>
+        public void SetLaunchMode(System.Action<List<CharacterData>> handler, string title, string startLabel)
+        {
+            _launchHandler = handler;
+            if (_titleText != null) _titleText.text = string.IsNullOrEmpty(title) ? "파티 편성" : title;
+            if (_startLabel != null) _startLabel.text = string.IsNullOrEmpty(startLabel) ? "전투 시작" : startLabel;
+        }
+
+        /// <summary>기본 모드로 복귀.</summary>
+        public void ClearLaunchMode() => SetLaunchMode(null, "파티 편성", "연습 전투 시작");
 
         // ---------------- UI 구성 ----------------
 
@@ -86,10 +102,10 @@ namespace SubcultureRPG.Meta.UI
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.04f, 0.05f, 0.08f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
 
-            var title = UIFactory.AddText("Title", _root.transform, "파티 편성", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var trt = title.rectTransform;
+            _titleText = UIFactory.AddText("Title", _root.transform, "파티 편성", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            var trt = _titleText.rectTransform;
             UIFactory.Anchor(trt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            trt.sizeDelta = new Vector2(600, 60); trt.anchoredPosition = new Vector2(0, -40);
+            trt.sizeDelta = new Vector2(1100, 60); trt.anchoredPosition = new Vector2(0, -40);
 
             _grid = UIFactory.NewRect("Grid", _root.transform);
             UIFactory.Anchor(_grid, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
@@ -116,6 +132,7 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(srt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
             srt.sizeDelta = new Vector2(280, 72); srt.anchoredPosition = new Vector2(0, 60);
             _startButton.onClick.AddListener(OnStart);
+            _startLabel = _startButton.GetComponentInChildren<TextMeshProUGUI>();
 
             // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
             _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
@@ -123,6 +140,7 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(bkrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
             bkrt.sizeDelta = new Vector2(150, 44); bkrt.anchoredPosition = new Vector2(30, -34);
             _backBtn.onClick.AddListener(() => _onBack?.Invoke());
+            _backLabel = _backBtn.GetComponentInChildren<TextMeshProUGUI>();
             _backBtn.gameObject.SetActive(false);
         }
 
@@ -243,8 +261,11 @@ namespace SubcultureRPG.Meta.UI
 
         private void OnStart()
         {
-            if (_selected.Count == 0 || launcher == null) return;
-            launcher.Launch(new List<CharacterData>(_selected));
+            if (_selected.Count == 0) return;
+            var team = new List<CharacterData>(_selected);
+            if (_launchHandler != null) _launchHandler(team);
+            else if (launcher != null) launcher.Launch(team);
+            else return;
             Show(false);
             OnLaunched?.Invoke();
         }

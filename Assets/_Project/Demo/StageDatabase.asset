@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1821c1f78fa97d445b6cca966347f4b3, type: 3}
+  m_Name: StageDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.StageDatabase
+  chapterNames:
+  - "\uADF8\uB9BC\uC790 \uC232"
+  - "\uC5BC\uC5B4\uBD99\uC740 \uC131\uCC44"
+  stages:
+  - {fileID: 11400000, guid: ccbde9b57de91b745ae29238b911e6c7, type: 2}
+  - {fileID: 11400000, guid: 47ba7e5403597a940abdb1d6693ea5cf, type: 2}
+  - {fileID: 11400000, guid: 4d1936dda4649074b9049013340479ca, type: 2}
+  - {fileID: 11400000, guid: 1e9be86b904c9d44bb98ec7a80b41c47, type: 2}
+  - {fileID: 11400000, guid: 8b2028dee91d39e45ad1b7381fcf31ba, type: 2}
+  - {fileID: 11400000, guid: 4e64e2e5300b5ae4c8418fab2ea23ea1, type: 2}
+  - {fileID: 11400000, guid: ff8d72568672ef34593c13045afcaf22, type: 2}
+  - {fileID: 11400000, guid: 36d380690af16af4c9b8084185c2af82, type: 2}
+  - {fileID: 11400000, guid: ee420db6b51d1174a8982f719ebb96c6, type: 2}
+  - {fileID: 11400000, guid: 508e21942f824d1468f83c7ea45e0c80, type: 2}
+  - {fileID: 11400000, guid: 3b5e583d1bdca7a4695c68ef3be9e214, type: 2}
+  - {fileID: 11400000, guid: 720048dfcffdaa745bab3581c1195784, type: 2}

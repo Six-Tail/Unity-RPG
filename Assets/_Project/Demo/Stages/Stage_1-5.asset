@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 034775bd59d07d44e9c2a5d7cfdf895c, type: 3}
+  m_Name: Stage_1-5
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.StageData
+  id: stage_1_5
+  chapter: 1
+  number: 5
+  stageName: "\uADF8\uB9BC\uC790 \uC57C\uC601\uC9C0"
+  description: 
+  isBoss: 0
+  enemies:
+  - unit: {fileID: 11400000, guid: 8453a70f30195c54c840a257c5b2f65f, type: 2}
+    level: 9
+  - unit: {fileID: 11400000, guid: 301040ca24121c04c99c5801c3af3adf, type: 2}
+    level: 9
+  - unit: {fileID: 11400000, guid: 8453a70f30195c54c840a257c5b2f65f, type: 2}
+    level: 9
+  - unit: {fileID: 11400000, guid: 301040ca24121c04c99c5801c3af3adf, type: 2}
+    level: 9
+  recommendedLevel: 9
+  turnLimit: 11
+  firstClearCrystals: 60
+  rewards:
+  - type: 0
+    count: 6
+  - type: 1
+    count: 1
+  characterExp: 600

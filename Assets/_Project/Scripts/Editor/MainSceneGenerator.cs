@@ -15,7 +15,7 @@ using SubcultureRPG.Meta.UI;
 namespace SubcultureRPG.EditorTools
 {
     /// <summary>
-    /// 메인(홈 허브) 씬 생성: 가챠·육성·편성·전투를 한 씬에 배치하고 ScreenNavigator로 연결.
+    /// 메인(홈 허브) 씬 생성: 스테이지·가챠·육성·편성·전투를 한 씬에 배치하고 ScreenNavigator로 연결.
     /// 빌드 설정의 첫 씬으로 등록합니다.
     /// 메뉴: SubcultureRPG > 메인 씬 생성 (홈 허브).
     /// </summary>
@@ -68,6 +68,13 @@ namespace SubcultureRPG.EditorTools
             Enemy("그림자병", 95, 900, 100, 55, enemyBasic, 50, new[] { Element.Fire, Element.Physical });
             Enemy("그림자궁수", 110, 750, 115, 45, enemyBasic, 40, new[] { Element.Ice, Element.Wind });
             Enemy("어둠군주", 90, 1500, 110, 70, enemyBasic, 100, new[] { Element.Lightning, Element.Fire });
+            Enemy("얼음망령", 105, 820, 112, 50, enemyBasic, 45, new[] { Element.Fire, Element.Lightning }, Element.Ice);
+            Enemy("폭풍정령", 120, 700, 120, 40, enemyBasic, 40, new[] { Element.Physical, Element.Ice }, Element.Wind);
+            Enemy("빙결거인", 85, 1800, 118, 85, enemyBasic, 120, new[] { Element.Fire, Element.Wind }, Element.Ice);
+
+            // 4-2) 스테이지 (챕터 1 그림자 숲 · 챕터 2 얼어붙은 성채)
+            AssetDatabase.SaveAssets();
+            BuildStages();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -75,6 +82,7 @@ namespace SubcultureRPG.EditorTools
             // 5) 씬에 넣을 참조는 경로로 재로드
             var bannerRef = AssetDatabase.LoadAssetAtPath<GachaBanner>(DataRoot + "/GachaBanner.asset");
             var dbRef = AssetDatabase.LoadAssetAtPath<GameDatabase>(DataRoot + "/MainDatabase.asset");
+            var stageDbRef = AssetDatabase.LoadAssetAtPath<StageDatabase>(DataRoot + "/StageDatabase.asset");
             var enemies = new List<BattleUnitData>();
             foreach (var n in enemyNames)
             {
@@ -89,7 +97,7 @@ namespace SubcultureRPG.EditorTools
             }
             var font = FindFont();
 
-            if (bannerRef == null || dbRef == null || enemies.Count == 0)
+            if (bannerRef == null || dbRef == null || enemies.Count == 0 || stageDbRef == null)
             {
                 EditorUtility.DisplayDialog("생성 실패", "배너/DB/적 에셋 로드에 실패했습니다. 콘솔을 확인하세요.", "확인");
                 return;
@@ -128,6 +136,21 @@ namespace SubcultureRPG.EditorTools
             SetField(launcher, "database", dbRef);
             SetField(launcher, "roster", roster);
             SetField(launcher, "enemyTeam", enemies);
+            var stageProgress = metaGO.AddComponent<StageProgress>();
+            var runner = metaGO.AddComponent<StageRunner>();
+            SetField(runner, "controller", battle);
+            SetField(runner, "launcher", launcher);
+            SetField(runner, "hud", hud);
+            SetField(runner, "progress", stageProgress);
+            SetField(runner, "wallet", wallet);
+            SetField(runner, "inventory", inventory);
+            SetField(runner, "roster", roster);
+
+            var stageScrGO = new GameObject("StageScreen");
+            var stageScr = stageScrGO.AddComponent<StageScreen>();
+            SetField(stageScr, "database", stageDbRef);
+            SetField(stageScr, "progress", stageProgress);
+            if (font != null) SetField(stageScr, "font", font);
 
             var homeGO = new GameObject("HomeScreen");
             var home = homeGO.AddComponent<HomeScreen>();
@@ -161,6 +184,8 @@ namespace SubcultureRPG.EditorTools
             var navGO = new GameObject("Navigator");
             var nav = navGO.AddComponent<ScreenNavigator>();
             SetField(nav, "home", home);
+            SetField(nav, "stage", stageScr);
+            SetField(nav, "stageRunner", runner);
             SetField(nav, "gacha", gachaScr);
             SetField(nav, "growth", growth);
             SetField(nav, "party", party);
@@ -176,7 +201,8 @@ namespace SubcultureRPG.EditorTools
             EditorUtility.DisplayDialog(
                 "메인 씬 생성 완료",
                 "씬: " + ScenePath + " (빌드 첫 씬으로 등록)" +
-                "\n\n▶ Play → 홈 화면에서 가챠 / 육성 / 편성·전투로 이동." +
+                "\n\n▶ Play → 홈 화면에서 스테이지 / 가챠 / 육성 / 편성으로 이동." +
+                "\n스테이지: 챕터 1~2 (각 6스테이지), 승리 시 별 평가 + 보상." +
                 "\n새 세이브면 스타터(리리·미나·코코)가 지급됩니다." +
                 "\n각 화면 좌상단 '← 홈'으로 복귀, 전투는 '나가기/홈으로'.",
                 "확인");
@@ -222,18 +248,100 @@ namespace SubcultureRPG.EditorTools
             return s;
         }
 
-        private static void Enemy(string name, int spd, int hp, int atk, int def, BattleSkill basic, int toughness, Element[] weaknesses)
+        private static void Enemy(string name, int spd, int hp, int atk, int def, BattleSkill basic, int toughness, Element[] weaknesses,
+            Element element = Element.Physical)
         {
             var u = LoadOrCreate<BattleUnitData>(DataRoot + "/Unit_메인_" + name + ".asset");
             u.character = null;
             u.displayName = name;
             u.level = 1;
-            u.element = Element.Physical;
+            u.element = element;
             u.maxToughness = toughness;
             u.weaknesses = new List<Element>(weaknesses);
-            u.baseStats = new BattleStats { maxHP = hp, atk = atk, def = def, spd = spd, critRate = 0.05f, critDmg = 0.5f };
+            // 레벨당 성장 +7% (스테이지에서 레벨만 바꿔 재사용)
+            u.baseStats = new BattleStats
+            {
+                maxHP = hp, atk = atk, def = def, spd = spd, critRate = 0.05f, critDmg = 0.5f,
+                hpGrowth = Mathf.RoundToInt(hp * 0.07f),
+                atkGrowth = Mathf.RoundToInt(atk * 0.07f),
+                defGrowth = Mathf.RoundToInt(def * 0.07f),
+            };
             u.skills = new List<BattleSkill> { basic };
             EditorUtility.SetDirty(u);
+        }
+
+        // ---------------- 스테이지 ----------------
+
+        private static BattleUnitData EnemyRef(string name) =>
+            AssetDatabase.LoadAssetAtPath<BattleUnitData>(DataRoot + "/Unit_메인_" + name + ".asset");
+
+        private static StageEnemy E(string name, int level) => new StageEnemy { unit = EnemyRef(name), level = level };
+
+        private static MaterialReward M(MaterialType t, int n) => new MaterialReward { type = t, count = n };
+
+        private static StageData Stage(int ch, int no, string title, string desc, bool boss, int recLv, int turnLimit,
+            int crystals, int exp, StageEnemy[] enemies, MaterialReward[] rewards)
+        {
+            var s = LoadOrCreate<StageData>(DataRoot + "/Stages/Stage_" + ch + "-" + no + ".asset");
+            s.id = "stage_" + ch + "_" + no;
+            s.chapter = ch;
+            s.number = no;
+            s.stageName = title;
+            s.description = desc;
+            s.isBoss = boss;
+            s.recommendedLevel = recLv;
+            s.turnLimit = turnLimit;
+            s.firstClearCrystals = crystals;
+            s.characterExp = exp;
+            s.enemies = new List<StageEnemy>(enemies);
+            s.rewards = new List<MaterialReward>(rewards);
+            EditorUtility.SetDirty(s);
+            return s;
+        }
+
+        /// <summary>데모 스테이지 2챕터 × 6. 보상: 첫 클리어 크리스탈 + 매 클리어 재료·경험치.</summary>
+        private static void BuildStages()
+        {
+            EnsureFolder(DataRoot, "Stages");
+            const MaterialType P = MaterialType.ExpPotion, C = MaterialType.ExpCrystal,
+                A = MaterialType.AscensionStone, B = MaterialType.SkillBook;
+
+            var list = new List<StageData>
+            {
+                // 챕터 1 — 그림자 숲
+                Stage(1, 1, "숲의 입구", "그림자병이 길을 막고 있다.", false, 1, 6, 60, 200,
+                    new[] { E("그림자병", 1), E("그림자병", 1) }, new[] { M(P, 3) }),
+                Stage(1, 2, "갈림길", "궁수가 나무 위에서 노린다.", false, 3, 7, 60, 300,
+                    new[] { E("그림자병", 3), E("그림자궁수", 3) }, new[] { M(P, 4), M(B, 1) }),
+                Stage(1, 3, "안개 낀 오솔길", "", false, 5, 9, 60, 400,
+                    new[] { E("그림자병", 5), E("그림자궁수", 5), E("그림자병", 5) }, new[] { M(P, 5) }),
+                Stage(1, 4, "궁수의 둥지", "", false, 7, 9, 60, 500,
+                    new[] { E("그림자궁수", 7), E("그림자궁수", 7), E("그림자병", 7) }, new[] { M(P, 5), M(B, 1) }),
+                Stage(1, 5, "그림자 야영지", "", false, 9, 11, 60, 600,
+                    new[] { E("그림자병", 9), E("그림자궁수", 9), E("그림자병", 9), E("그림자궁수", 9) }, new[] { M(P, 6), M(C, 1) }),
+                Stage(1, 6, "어둠군주의 제단", "숲을 뒤덮은 그림자의 근원.", true, 12, 14, 160, 800,
+                    new[] { E("그림자병", 11), E("어둠군주", 13), E("그림자궁수", 11) }, new[] { M(C, 2), M(A, 2), M(B, 2) }),
+
+                // 챕터 2 — 얼어붙은 성채
+                Stage(2, 1, "설원의 길", "차가운 바람 속에 망령이 떠돈다.", false, 15, 8, 80, 900,
+                    new[] { E("얼음망령", 15), E("얼음망령", 15) }, new[] { M(P, 6), M(C, 1) }),
+                Stage(2, 2, "폭풍의 계곡", "", false, 17, 9, 80, 1000,
+                    new[] { E("폭풍정령", 17), E("얼음망령", 17), E("폭풍정령", 17) }, new[] { M(C, 2), M(B, 1) }),
+                Stage(2, 3, "성채 외벽", "", false, 19, 10, 80, 1100,
+                    new[] { E("그림자병", 19), E("얼음망령", 19), E("그림자궁수", 19) }, new[] { M(C, 2), M(A, 1) }),
+                Stage(2, 4, "얼어붙은 회랑", "", false, 21, 11, 80, 1200,
+                    new[] { E("얼음망령", 21), E("폭풍정령", 21), E("얼음망령", 21), E("폭풍정령", 21) }, new[] { M(C, 2), M(B, 2) }),
+                Stage(2, 5, "성채 안뜰", "", false, 23, 12, 80, 1300,
+                    new[] { E("어둠군주", 22), E("폭풍정령", 23), E("얼음망령", 23) }, new[] { M(C, 3), M(A, 1) }),
+                Stage(2, 6, "빙결거인의 옥좌", "성채를 얼린 거인이 깨어났다.", true, 26, 15, 240, 1600,
+                    new[] { E("폭풍정령", 25), E("빙결거인", 27), E("얼음망령", 25) }, new[] { M(C, 4), M(A, 3), M(B, 3) }),
+            };
+
+            var db = LoadOrCreate<StageDatabase>(DataRoot + "/StageDatabase.asset");
+            db.chapterNames = new List<string> { "그림자 숲", "얼어붙은 성채" };
+            db.stages = list;
+            EditorUtility.SetDirty(db);
+            AssetDatabase.SaveAssets();
         }
 
         private static T LoadOrCreate<T>(string path) where T : ScriptableObject
