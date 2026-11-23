@@ -39,7 +39,9 @@ namespace SubcultureRPG.Meta
                 {
                     int lvl = roster != null ? roster.LevelOf(c) : partyLevel;
                     int skl = roster != null ? roster.SkillLevelOf(c) : 1;
-                    allies.Add(RuntimeUnits.FromCharacter(c, lvl, lookup, skl));
+                    int star = roster != null ? roster.StarOf(c) : 0;
+                    int tr = roster != null ? roster.TranscendOf(c) : 0;
+                    allies.Add(RuntimeUnits.FromCharacter(c, lvl, lookup, skl, star, tr));
                 }
 
             controller.SetTeams(allies, new List<BattleUnitData>(enemyTeam));

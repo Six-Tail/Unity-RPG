@@ -16,6 +16,11 @@ namespace SubcultureRPG.Meta
         public int exp = 0;
         public int ascension = 0;   // 돌파 단계(레벨 상한)
         public int skillLevel = 1;  // 스킬 레벨
+        public int star = 0;        // 현재 성급(합성으로 상승). 0 = 태생 성급
+        public int transcend = 0;   // 초월 단계(6성에서 +1~+6)
+
+        /// <summary>합성/초월에 쓸 수 있는 중복 수(본체 1장 제외).</summary>
+        public int Duplicates => Mathf.Max(0, count - 1);
     }
 
     /// <summary>
@@ -179,6 +184,80 @@ namespace SubcultureRPG.Meta
             OnRosterChanged?.Invoke();
             return true;
         }
+
+        // ---------------- 합성 / 초월 ----------------
+
+        /// <summary>현재 성급(합성 반영).</summary>
+        public int StarOf(CharacterData c)
+        {
+            if (c == null) return Transcendence.MinStar;
+            var o = GetOwned(c);
+            return Transcendence.CurrentStar(c.rarity, o != null ? o.star : 0);
+        }
+
+        /// <summary>초월 단계(0~6).</summary>
+        public int TranscendOf(CharacterData c)
+        {
+            var o = GetOwned(c);
+            return o != null ? Mathf.Clamp(o.transcend, 0, Transcendence.MaxTranscend) : 0;
+        }
+
+        public int DuplicatesOf(CharacterData c)
+        {
+            var o = GetOwned(c);
+            return o != null ? o.Duplicates : 0;
+        }
+
+        /// <summary>다음 합성/초월 1단계 비용(중복 수). 단계가 오를수록 비싸짐. 풀 초월이면 0.</summary>
+        public int MergeCost(CharacterData c) =>
+            c != null ? Transcendence.NextCost(c.rarity, StarOf(c), TranscendOf(c)) : 0;
+
+        /// <summary>합성 가능: 6성 미만 + 중복 충분.</summary>
+        public bool CanPromote(CharacterData c) =>
+            GetOwned(c) != null && StarOf(c) < Transcendence.MaxStar && DuplicatesOf(c) >= MergeCost(c);
+
+        /// <summary>합성: 중복을 소모해 성급 +1.</summary>
+        public bool Promote(CharacterData c)
+        {
+            if (!CanPromote(c)) return false;
+            var o = GetOwned(c);
+            o.count -= MergeCost(c);
+            o.star = StarOf(c) + 1;
+            Save();
+            OnRosterChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>초월 가능: 6성 + 초월 6 미만 + 중복 충분.</summary>
+        public bool CanTranscend(CharacterData c) =>
+            GetOwned(c) != null && StarOf(c) >= Transcendence.MaxStar
+            && TranscendOf(c) < Transcendence.MaxTranscend && DuplicatesOf(c) >= MergeCost(c);
+
+        /// <summary>초월: 중복을 소모해 초월 +1.</summary>
+        public bool Transcend(CharacterData c)
+        {
+            if (!CanTranscend(c)) return false;
+            var o = GetOwned(c);
+            o.count -= MergeCost(c);   // 초월 단계 올리기 전 비용
+            o.star = Transcendence.MaxStar;
+            o.transcend++;
+            Save();
+            OnRosterChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>테스트용: 해당 캐릭터 중복 추가(c가 null이면 보유 전원).</summary>
+        public void GrantTestDuplicates(CharacterData c, int amount)
+        {
+            if (amount <= 0) return;
+            if (c != null) { var o = GetOwned(c); if (o == null) return; o.count += amount; }
+            else foreach (var o in _owned) o.count += amount;
+            Save();
+            OnRosterChanged?.Invoke();
+        }
+
+        [ContextMenu("테스트: 보유 캐릭터 전원 중복 +6")]
+        private void DebugAddDuplicates() => GrantTestDuplicates(null, 6);
 
         // ---------------- 저장 ----------------
 

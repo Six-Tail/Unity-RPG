@@ -12,15 +12,26 @@ namespace SubcultureRPG.Battle
     /// </summary>
     public static class RuntimeUnits
     {
+        /// <param name="star">현재 성급(합성 반영). 0이면 태생 성급.</param>
+        /// <param name="transcend">초월 단계(6성일 때만 유효).</param>
         public static BattleUnitData FromCharacter(CharacterData c, int level,
-            Func<CharacterData, BattleUnitData> authoredLookup = null, int skillLevel = 1)
+            Func<CharacterData, BattleUnitData> authoredLookup = null, int skillLevel = 1,
+            int star = 0, int transcend = 0)
         {
+            Rarity native = c != null ? c.rarity : Rarity.R3;
+            if (star <= 0) star = (int)native;
+            bool bonus = c != null && TranscendBonus.Needed(native, star, transcend);
+            Role role = c != null ? c.role : Role.Dealer;
+
             if (authoredLookup != null)
             {
                 var authored = authoredLookup(c);
-                if (authored != null) return authored;
+                if (authored != null)
+                    return bonus ? TranscendBonus.Apply(authored, native, star, transcend, role, inPlace: false) : authored;
             }
-            return Generate(c, level, skillLevel);
+
+            var u = Generate(c, level, skillLevel);
+            return bonus ? TranscendBonus.Apply(u, native, star, transcend, role, inPlace: true) : u;
         }
 
         /// <summary>

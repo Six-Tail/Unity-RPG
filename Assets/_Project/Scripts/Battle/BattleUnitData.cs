@@ -27,6 +27,9 @@ namespace SubcultureRPG.Battle
         [Tooltip("내구도. 약점 피해 누적으로 0이 되면 브레이크. 0이면 브레이크 시스템 없음.")]
         public int maxToughness = 0;
 
+        [Tooltip("전투 시작 시 에너지(초월 패시브 등).")]
+        [Min(0)] public int startEnergy = 0;
+
         [Tooltip("스킬 목록. [0]에 기본 공격을 권장(비우면 자동 생성).")]
         public List<BattleSkill> skills = new();
 

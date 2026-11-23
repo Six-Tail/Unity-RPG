@@ -61,7 +61,7 @@ namespace SubcultureRPG.Battle
             critDmg = Mathf.Max(0f, s.critDmg);
 
             maxEnergy = Mathf.Max(1, cfg.maxEnergy);
-            energy = 0;
+            energy = Mathf.Clamp(data.startEnergy, 0, maxEnergy);
 
             // 스킬 목록(null 제거, 비면 기본 공격 자동 생성)
             var list = new List<BattleSkill>();
