@@ -1,69 +1,54 @@
 # 가챠 결과 UI / 연출
 
-위치: `Assets/_Project/Scripts/Gacha/UI/`
+위치: `Assets/_Project/Scripts/Gacha/UI/` (+ 확인 창은 `Meta/UI/GachaScreen.cs`)
 
-`GachaController.OnPulled` 이벤트를 구독해 **10연 카드 공개 · 성급별 연출 · 픽업 강조**를 보여 주는 결과 화면입니다.
-프리팹/씬 배치가 거의 필요 없습니다 — 컴포넌트 하나가 Canvas·카드·버튼을 코드로 만듭니다.
+`GachaController.OnPulled` 이벤트를 구독해 결과 연출을 재생합니다. 프리팹 없이 `GachaResultPanel` 하나가 Canvas·상자·카드·버튼을 코드로 만듭니다.
+
+## 흐름
+
+1. **뽑기 확인** — 가챠 화면의 `1회 뽑기` / `10연 뽑기`(결과 화면의 `다시 뽑기`도 동일)를 누르면 확인 창:
+   `크리스탈 160을(를) 사용해 1회 뽑기를 진행할까요?  보유 3,200 → 3,040` · `취소` / `확인`.
+   크리스탈이 모자라면 `크리스탈이 부족합니다 (보유 / 필요)`가 나오고 확인이 꺼집니다. 확인을 눌러야 차감·뽑기 진행.
+2. **상자** — 잠긴 보물 상자가 나타나고 `자물쇠를 눌러 상자를 여세요`(자물쇠가 살짝 두근거림).
+   자물쇠를 누르면 **열쇠가 나타나 자물쇠에 꽂혀 돌아가고**, 고리가 풀리며 **뚜껑이 열립니다**.
+   열릴 때 빛 색 = 이번 뽑기의 최고 등급: **태생 6★ 금빛 · 최고 5★ 보라빛 · 그 이하 파란빛** (화면 전체에도 같은 색감이 살짝 남음).
+3. **카드** — 결과 카드가 **한 줄로** 왼쪽부터 차례대로 나타나고, 카드 뒤로 **등급 색 세로 빛줄기**(6★ 금 · 5★ 보라 · 4★ 파랑 · 3★ 은청)가 솟습니다.
+   카드: 일러스트(없으면 이름 첫 글자) · 하단 띠에 성급 별 + 이름 · 5★ 이상 은은한 후광 · 픽업 6★는 `PICK UP` 태그.
+4. **태생 6★ 연출** — 그 카드 차례에서 빛줄기만 먼저 솟고 **잠깐 멈칫** →
+   화면이 **검게** 바뀌고 가운데에 캐릭터 **대표 대사** →
+   **금빛으로 밝아지며** 캐릭터 일러스트가 나타나고 **별 6개가 하나씩** 찍힘 + 이름 →
+   일러스트가 줄어들며 **자기 카드 자리(네모 칸) 안으로 들어가고** 카드가 나타남.
+5. 마지막에 `확인`(닫기) · `1회/10연 다시 뽑기  크리스탈 N`(→ 다시 확인 창).
+
+- **SKIP**(우상단) 또는 6★ 연출 중 화면 클릭 → 남은 연출을 건너뛰고 모두 공개.
+- 연출은 `Time.unscaledDeltaTime` 기반이라 일시정지 중에도 재생됩니다.
+
+## 대표 대사
+
+`CharacterData.signatureLine`(인스펙터 *대표 대사*)에 적은 문장이 6★ 연출에 나옵니다. 비우면 역할별 기본 대사(딜러·탱커·서포터·힐러)가 쓰입니다.
 
 ## 구성
 
 | 파일 | 역할 |
 |---|---|
-| `GachaResultPanel` (MonoBehaviour) | 결과 화면 전체. 공개 시퀀스·스킵·픽업 강조·다시뽑기 버튼 |
-| `GachaResultCard` (MonoBehaviour) | 카드 1장. 성급 색·글로우·픽업 뱃지·공개 팝 애니메이션 |
-| `GachaRarityPalette` (SO) | 성급별 색/연출 세기. *Create > SubcultureRPG > Gacha > Rarity Palette* |
-| `UIFactory` | 코드로 uGUI를 만드는 내부 헬퍼 |
+| `GachaResultPanel` | 상자 → 카드 한 줄 + 빛줄기 → 6★ 연출 → 하단 버튼 |
+| `GachaScreen` (Meta.UI) | 뽑기 화면 + **확인 창**(별도 캔버스, 결과 화면 위에도 표시), `SetPullHandler`·`SetPullCosts`로 결과 화면 재뽑기 위임 |
+| `UI/ProceduralSprites` | 둥근 사각형·빛(Glow)·빛줄기(Beam)·원·고리 스프라이트를 코드로 생성 |
+| `UI/ButtonFx` · `UI/UIFactory.AddButton` | 공용 버튼 디자인(아래) |
 
-## 세팅 (3단계)
+## 버튼 디자인 (게임 전체 공통)
 
-1. 씬에 **빈 GameObject** 생성 → `GachaResultPanel` 컴포넌트 추가.
-2. 인스펙터 `controller` 에 씬의 `GachaController` 연결. (비워 두면 자동 탐색)
-3. `font` 에 **한글이 포함된 TMP 폰트 에셋** 연결. (아래 폰트 주의)
+`UIFactory.AddButton`으로 만드는 모든 버튼:
+- 둥근 모서리 + 위가 밝은 그라데이션 + 밝은 테두리 + 윗부분 광택(9-slice라 크기와 상관없이 모서리 유지), 색은 지정한 배경색으로 입힘
+- 아래 그림자, 마우스를 올리면 살짝 커지고(1.04) 누르면 눌림(0.95), 비활성은 흐리게
 
-뽑기(`PullOnce`/`PullMulti`)를 호출하면 결과 화면이 자동으로 뜹니다. 끝.
+## 튜닝
 
-## 폰트 / 패키지 주의
-
-- **TMP Essentials**: 처음이면 `Window > TextMeshPro > Import TMP Essential Resources` 1회 실행.
-- **한글**: 기본 TMP 폰트에는 한글이 없습니다. 한글 `.ttf` 를 넣고 *우클릭 > Create > TextMeshPro > Font Asset* 으로 만든 뒤 `font` 필드에 연결하세요. (별 글리프 ★ 포함 폰트 권장)
-- **입력 시스템**: 이 프로젝트는 레거시 Input Manager 기준(`StandaloneInputModule`)입니다. 버튼이 안 눌리면 *Project Settings > Player > Active Input Handling* 을 확인하세요.
-
-## 연출 동작
-
-- **순차 공개**: 카드가 하나씩 팝업(scale)되며 성급 색으로 번쩍입니다.
-- **성급별**: 색·글로우·플래시 세기가 성급에 비례합니다(`GachaRarityPalette.punch`).
-- **픽업 강조**: 픽업 6성이 나오면 금빛 풀스크린 플래시 + `PICK UP 획득!` 배너. 일반 6성/5성은 가벼운 화면 틴트.
-- **SKIP**: 우상단 버튼으로 전부 즉시 공개(최고 등급만 마무리 강조).
-- **다시 뽑기**: 하단 `1회` / `10연` 버튼이 `controller` 를 다시 호출 → 결과 갱신.
-- 연출은 `Time.unscaledDeltaTime` 기반이라 `Time.timeScale = 0`(일시정지) 상태에서도 재생됩니다.
-
-## 튜닝 (인스펙터)
-
-| 필드 | 뜻 |
+| 위치 | 값 |
 |---|---|
-| `revealInterval` | 카드 간 공개 간격(초) |
-| `revealIntervalHigh` | 5성 이상 공개 뒤 추가 여유(초) |
-| `columns` / `cellSize` / `spacing` | 그리드 열 수·셀 크기·간격 |
-| `autoPlayOnPull` | 뽑을 때 자동 표시 끄기/켜기 |
+| `GachaResultPanel.revealInterval` | 카드 사이 간격(초) |
+| `GachaResultPanel.autoPlayOnPull` | 뽑을 때 자동 재생 |
+| `GachaResultPanel.RarityColor` | 등급 색 |
+| `GachaScreen.singleCost / multiCost` | 뽑기 비용(확인 창·다시 뽑기 버튼에 표시) |
 
-성급 색·연출 세기는 `GachaRarityPalette` 에셋에서 성급별로 조정합니다(코드 수정 불필요).
-
-## 코드에서 직접 띄우기
-
-```csharp
-[SerializeField] GachaResultPanel resultPanel;
-[SerializeField] GachaController gacha;
-
-// autoPlayOnPull 을 끄고 수동 제어할 때
-void OnTenPull()
-{
-    var results = gacha.PullMulti();
-    resultPanel.Show(results);
-}
-```
-
-## 확장 포인트
-
-- 6성 픽업 시 `CharacterViewFactory` 로 Live2D 모델을 띄우는 '대형 등장 연출'을 `EmphasizePickup` 에 연결할 수 있습니다. (현재는 썸네일 카드 강조)
-- 카드 커버/글로우에 스프라이트를 쓰고 싶으면 `GachaResultCard.Build` 의 해당 `Image` 에 `sprite` 를 지정하세요.
-- `GachaResultPanel.Show(results)` 는 public 이라, 연출 전용으로 직접 호출해도 됩니다.
+(이전 카드 그리드용 `GachaResultCard`·`GachaRarityPalette`는 더 이상 결과 화면에서 쓰지 않습니다.)

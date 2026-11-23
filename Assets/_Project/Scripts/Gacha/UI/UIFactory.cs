@@ -51,12 +51,8 @@ namespace SubcultureRPG.Gacha.UI
         public static Button AddButton(string name, Transform parent, string label, float fontSize,
             TMP_FontAsset font, Color bg, Color fg)
         {
-            var img = AddImage(name, parent, bg, null, raycast: true);
-            var btn = img.gameObject.AddComponent<Button>();
-            btn.targetGraphic = img;
-            var txt = AddText("Label", img.transform, label, fontSize, font, fg, TextAlignmentOptions.Center, FontStyles.Bold);
-            Stretch(txt.rectTransform);
-            return btn;
+            // 공용 버튼 디자인 사용
+            return SubcultureRPG.UI.UIFactory.AddButton(name, parent, label, fontSize, font, bg, fg);
         }
 
         // ---- 앵커/크기 헬퍼 ----

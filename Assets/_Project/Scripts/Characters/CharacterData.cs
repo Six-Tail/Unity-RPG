@@ -14,6 +14,9 @@ namespace SubcultureRPG.Characters
         public string displayName;
         public Rarity rarity = Rarity.R3;
 
+        [Tooltip("대표 대사(6성 획득 연출 등에 표시). 비우면 역할별 기본 대사.")]
+        [TextArea(1, 3)] public string signatureLine;
+
         [Header("특성")]
         [Tooltip("속성. 전투에서 이 속성으로 공격하며, 적의 약점 판정에 쓰입니다.")]
         public Element element = Element.Physical;
@@ -26,6 +29,15 @@ namespace SubcultureRPG.Characters
 
         [Tooltip("UI 아이콘/썸네일.")]
         public Sprite thumbnail;
+
+        /// <summary>대표 대사(비어 있으면 역할별 기본 대사).</summary>
+        public string SignatureLine => !string.IsNullOrEmpty(signatureLine) ? signatureLine : role switch
+        {
+            Role.Tank => "내 뒤에 서. 아무것도 지나가지 못하게 할 테니까.",
+            Role.Support => "준비는 끝났어. 이번엔 우리가 이길 차례야.",
+            Role.Healer => "다치지 마. 끝까지 곁에서 지켜 줄게.",
+            _ => "길을 열어 줄게. 내 칼끝이 닿는 곳까지.",
+        };
 
         [Header("Live2D (6성만)")]
         [Tooltip("Cubism 모델을 프리팹으로 만들어 연결. 6성이 아니면 비워 둬도 됩니다.")]

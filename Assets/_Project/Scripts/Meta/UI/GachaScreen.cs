@@ -30,6 +30,12 @@ namespace SubcultureRPG.Meta.UI
         private Button _singleBtn, _multiBtn, _backBtn;
         private System.Action _onBack;
 
+        // 뽑기 확인 창(별도 캔버스 — 결과 화면 위에도 뜸)
+        private GameObject _confirmRoot;
+        private TextMeshProUGUI _confirmTitle, _confirmBody;
+        private Button _confirmOk;
+        private bool _confirmMulti;
+
         private void Awake()
         {
             if (gacha == null) gacha = FindAnyObjectByType<GachaController>();
@@ -57,7 +63,10 @@ namespace SubcultureRPG.Meta.UI
             // 결과 화면의 재뽑기도 이 화면을 거쳐 크리스탈 차감(부족하면 결과 화면을 닫고 안내)
             var panel = FindAnyObjectByType<SubcultureRPG.Gacha.UI.GachaResultPanel>();
             if (panel != null)
-                panel.SetPullHandler(multi => { if (!RequestPull(multi)) panel.Close(); });
+            {
+                panel.SetPullHandler(multi => RequestPull(multi));
+                panel.SetPullCosts(singleCost, multiCost);
+            }
         }
 
         public void Show(bool on)
@@ -75,8 +84,31 @@ namespace SubcultureRPG.Meta.UI
 
         private void OnPulled(List<GachaResult> _) => Refresh();
 
-        /// <summary>비용 차감 포함 뽑기 요청(결과 화면 재뽑기 등 외부용). 성공 여부 반환.</summary>
-        public bool RequestPull(bool multi) => DoPull(multi ? multiCost : singleCost, multi);
+        /// <summary>뽑기 요청(결과 화면 재뽑기 등 외부용): 재화 사용 확인 창을 띄웁니다.</summary>
+        public void RequestPull(bool multi) => ShowConfirm(multi);
+
+        /// <summary>1회/10연 버튼 → 크리스탈 사용 확인 창.</summary>
+        private void ShowConfirm(bool multi)
+        {
+            if (gacha == null) return;
+            _confirmMulti = multi;
+            int cost = multi ? multiCost : singleCost;
+            int have = wallet != null ? wallet.Crystals : int.MaxValue;
+            bool ok = wallet == null || wallet.CanAfford(cost);
+            _confirmTitle.text = multi ? "10연 뽑기" : "1회 뽑기";
+            _confirmBody.text = ok
+                ? $"<color=#8FE9FF>크리스탈 {cost:N0}</color>을(를) 사용해 <b>{(multi ? "10연 뽑기" : "1회 뽑기")}</b>를 진행할까요?\n" +
+                  $"<size=80%><color=#9AA3B5>보유 {have:N0}  →  {have - cost:N0}</color></size>"
+                : $"<color=#FF8A8A>크리스탈이 부족합니다</color>\n<size=80%><color=#9AA3B5>보유 {have:N0} / 필요 {cost:N0}</color></size>";
+            _confirmOk.interactable = ok;
+            _confirmRoot.SetActive(true);
+        }
+
+        private void OnConfirm()
+        {
+            _confirmRoot.SetActive(false);
+            DoPull(_confirmMulti ? multiCost : singleCost, _confirmMulti);
+        }
 
         private bool DoPull(int cost, bool multi)
         {
@@ -191,8 +223,8 @@ namespace SubcultureRPG.Meta.UI
             trt.sizeDelta = new Vector2(600, 30); trt.anchoredPosition = new Vector2(0, 220);
 
             // 뽑기 버튼
-            _singleBtn = PullButton($"1회 뽑기\n<size=65%>크리스탈 {singleCost}</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(-170, 90), () => DoPull(singleCost, false));
-            _multiBtn = PullButton($"10연 뽑기\n<size=65%>크리스탈 {multiCost}</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(170, 90), () => DoPull(multiCost, true));
+            _singleBtn = PullButton($"1회 뽑기\n<size=65%>크리스탈 {singleCost}</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(-170, 90), () => ShowConfirm(false));
+            _multiBtn = PullButton($"10연 뽑기\n<size=65%>크리스탈 {multiCost}</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(170, 90), () => ShowConfirm(true));
 
             var charge = UIFactory.AddButton("Charge", _root.transform, $"충전(테스트) +{chargeAmount}", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
             var chrt = (RectTransform)charge.transform;
@@ -216,6 +248,54 @@ namespace SubcultureRPG.Meta.UI
             ratesBtn.onClick.AddListener(() => ShowRates(true));
 
             BuildRatesOverlay();
+            BuildConfirm();
+        }
+
+        private void BuildConfirm()
+        {
+            var cgo = UIFactory.NewRect("GachaConfirmCanvas", transform);
+            var canvas = cgo.gameObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 120;   // 가챠 결과 화면(100) 위
+            var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 0.5f;
+            cgo.gameObject.AddComponent<GraphicRaycaster>();
+
+            _confirmRoot = UIFactory.AddImage("Dim", canvas.transform, new Color(0, 0, 0, 0.7f), null, raycast: true).gameObject;
+            UIFactory.Stretch((RectTransform)_confirmRoot.transform);
+
+            var panel = UIFactory.AddImage("Panel", _confirmRoot.transform, new Color(0.12f, 0.12f, 0.17f, 0.98f), ProceduralSprites.Rounded, raycast: true);
+            panel.type = Image.Type.Sliced; panel.preserveAspect = false;
+            var prt = panel.rectTransform;
+            UIFactory.Anchor(prt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            prt.sizeDelta = new Vector2(640, 340); prt.anchoredPosition = Vector2.zero;
+
+            _confirmTitle = UIFactory.AddText("Title", panel.transform, "", 34, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            var trt = _confirmTitle.rectTransform;
+            UIFactory.Anchor(trt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            trt.sizeDelta = new Vector2(600, 50); trt.anchoredPosition = new Vector2(0, -26);
+
+            _confirmBody = UIFactory.AddText("Body", panel.transform, "", 26, font, Color.white, TextAlignmentOptions.Center);
+            var brt = _confirmBody.rectTransform;
+            UIFactory.Anchor(brt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            brt.sizeDelta = new Vector2(580, 110); brt.anchoredPosition = new Vector2(0, 14);
+            _confirmBody.lineSpacing = 10f;
+
+            var cancel = UIFactory.AddButton("Cancel", panel.transform, "취소", 26, font, new Color(0.35f, 0.37f, 0.44f, 0.98f), Color.white);
+            var crt = (RectTransform)cancel.transform;
+            UIFactory.Anchor(crt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            crt.sizeDelta = new Vector2(240, 68); crt.anchoredPosition = new Vector2(-135, 30);
+            cancel.onClick.AddListener(() => _confirmRoot.SetActive(false));
+
+            _confirmOk = UIFactory.AddButton("Ok", panel.transform, "확인", 26, font, new Color(0.25f, 0.62f, 0.95f, 0.98f), Color.white);
+            var ort = (RectTransform)_confirmOk.transform;
+            UIFactory.Anchor(ort, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            ort.sizeDelta = new Vector2(240, 68); ort.anchoredPosition = new Vector2(135, 30);
+            _confirmOk.onClick.AddListener(OnConfirm);
+
+            _confirmRoot.SetActive(false);
         }
 
         private void BuildRatesOverlay()

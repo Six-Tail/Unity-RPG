@@ -51,11 +51,28 @@ namespace SubcultureRPG.UI
         public static Button AddButton(string name, Transform parent, string label, float fontSize,
             TMP_FontAsset font, Color bg, Color fg)
         {
+            // 둥근 그라데이션 버튼(9-slice) + 그림자 + 눌림 효과. 색은 bg로 입힘(흰 스프라이트 × 색).
             var img = AddImage(name, parent, bg, null, raycast: true);
+            img.sprite = ProceduralSprites.Button;
+            img.type = Image.Type.Sliced;
+            img.pixelsPerUnitMultiplier = 1.5f;
+            img.preserveAspect = false;
+            var shadow = img.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
+            shadow.effectDistance = new Vector2(0f, -3f);
+
             var btn = img.gameObject.AddComponent<Button>();
             btn.targetGraphic = img;
+            var colors = btn.colors;
+            colors.highlightedColor = new Color(1.08f, 1.08f, 1.08f, 1f);
+            colors.pressedColor = new Color(0.82f, 0.82f, 0.82f, 1f);
+            colors.disabledColor = new Color(0.55f, 0.55f, 0.58f, 0.55f);
+            colors.fadeDuration = 0.08f;
+            btn.colors = colors;
+            img.gameObject.AddComponent<ButtonFx>();
+
             var txt = AddText("Label", img.transform, label, fontSize, font, fg, TextAlignmentOptions.Center, FontStyles.Bold);
-            Stretch(txt.rectTransform);
+            Stretch(txt.rectTransform, 8, 2, 8, 2);
             return btn;
         }
 
