@@ -15,6 +15,7 @@ MonoBehaviour:
   id: c_mina
   displayName: "\uBBF8\uB098"
   rarity: 4
+  signatureLine: 
   element: 1
   role: 0
   portrait: {fileID: 0}

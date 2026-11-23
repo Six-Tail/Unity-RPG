@@ -177,19 +177,21 @@ namespace SubcultureRPG.Meta
                 string el = $"<color={Traits.Hex(e)}>{Traits.Name(e)}</color>";
                 return head + $"<color=#FFD36B>용도</color>\n{el} 속성 캐릭터의 <b>{TierTargetLevel(tier)} 돌파</b> " +
                        $"(Lv.{TierTargetLevel(tier) - 20} → {TierTargetLevel(tier)})\n\n" +
-                       $"<color=#FFD36B>획득처</color>\n돌파 던전 · {el} {TierName(tier)}";
+                       $"<color=#FFD36B>획득처</color>\n돌파 던전 · {el} {TierName(tier)}" +
+                       (tier > 1 ? $"\n상점 교환소 (같은 속성 {TierName(tier - 1)} ×3 → 1)" : "");
             }
             int exp = ExpValue(t);
             if (exp > 0)
                 return head + $"<color=#FFD36B>용도</color>\n캐릭터 경험치 <b>+{exp:N0}</b>\n육성 → 레벨 탭에서 재료를 골라 사용 (금화 필요)\n\n" +
-                       "<color=#FFD36B>획득처</color>\n메인 스테이지 · 특수 던전 · 경험치 던전";
+                       "<color=#FFD36B>획득처</color>\n메인 스테이지 · 특수 던전 · 경험치 던전\n" +
+                       (t == MaterialType.ExpCrystal ? "상점 (크리스탈 상점)" : "상점 (일반 상점)");
             return head + t switch
             {
-                MaterialType.SkillBook => "<color=#FFD36B>용도</color>\n스킬 Lv.1 → 3 (기본 공격·스킬·궁극기 각각)\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 1~2단계",
-                MaterialType.SkillBookBlue => "<color=#FFD36B>용도</color>\n스킬 Lv.3 → 5\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 2단계 이상",
-                MaterialType.SkillBookPurple => "<color=#FFD36B>용도</color>\n스킬 Lv.5 → 10\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 3단계 이상",
-                MaterialType.SkillLegend => "<color=#FFD36B>용도</color>\n스킬 Lv.7 → 8 · 9 · 10 (상급 교본과 함께)\n\n<color=#FFD36B>획득처</color>\n이벤트 · 상점 교환 (준비 중)",
-                MaterialType.EquipOre => "<color=#FFD36B>용도</color>\n장비 강화 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n특수 던전 · 장비 던전\n장비 분해",
+                MaterialType.SkillBook => "<color=#FFD36B>용도</color>\n스킬 Lv.1 → 3 (기본 공격·스킬·궁극기 각각)\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 1~2단계\n상점 (일반 상점)",
+                MaterialType.SkillBookBlue => "<color=#FFD36B>용도</color>\n스킬 Lv.3 → 5\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 2단계 이상\n상점 (일반 상점)",
+                MaterialType.SkillBookPurple => "<color=#FFD36B>용도</color>\n스킬 Lv.5 → 10\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 3단계 이상\n상점 (일반 · 크리스탈 상점)",
+                MaterialType.SkillLegend => "<color=#FFD36B>용도</color>\n스킬 Lv.7 → 8 · 9 · 10 (상급 교본과 함께)\n\n<color=#FFD36B>획득처</color>\n상점 (크리스탈 상점 · 교환소: 상급 스킬 교본 ×8 → 1)\n이벤트 (준비 중)",
+                MaterialType.EquipOre => "<color=#FFD36B>용도</color>\n장비 강화 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n특수 던전 · 장비 던전\n장비 분해 · 상점 (일반 상점)",
                 _ => "",
             };
         }

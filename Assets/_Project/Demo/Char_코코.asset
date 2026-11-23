@@ -15,6 +15,7 @@ MonoBehaviour:
   id: c_coco
   displayName: "\uCF54\uCF54"
   rarity: 4
+  signatureLine: 
   element: 0
   role: 1
   portrait: {fileID: 0}

@@ -23,6 +23,9 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private TMP_FontAsset font;
         [SerializeField] private string gameTitle = "서브컬쳐 RPG";
 
+        /// <summary>홈 화면 폰트(코드로 추가하는 화면이 같은 폰트를 쓰도록).</summary>
+        public TMP_FontAsset Font => font;
+
         private GameObject _root;
         private Image _featPortrait;
         private TextMeshProUGUI _crystalText, _rosterText, _featName, _featBanner;
@@ -148,7 +151,7 @@ namespace SubcultureRPG.Meta.UI
             MenuButton("스테이지\n<size=52%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.95f), new Vector2(360, 236), () => Nav(HubScreen.Stage));
             MenuButton("가챠\n<size=52%>캐릭터 뽑기</size>", new Color(0.8f, 0.6f, 0.2f, 0.95f), new Vector2(360, 118), () => Nav(HubScreen.Gacha));
             MenuButton("육성\n<size=52%>레벨 · 돌파 · 스킬 · 초월</size>", new Color(0.35f, 0.55f, 0.4f, 0.95f), new Vector2(360, 0), () => Nav(HubScreen.Growth));
-            MenuButton("특수 던전\n<size=52%>돌파 · 금화 · 스킬 교본</size>", new Color(0.45f, 0.3f, 0.75f, 0.95f), new Vector2(360, -118), () => Nav(HubScreen.Dungeon));
+            MenuButton("상점\n<size=52%>재료 구매 · 교환</size>", new Color(0.75f, 0.35f, 0.5f, 0.95f), new Vector2(360, -118), () => Nav(HubScreen.Shop));
             MenuButton("가방\n<size=52%>재료 · 재화 확인</size>", new Color(0.25f, 0.5f, 0.55f, 0.95f), new Vector2(360, -236), () => Nav(HubScreen.Bag));
 
             // 보유 수(좌하단)
