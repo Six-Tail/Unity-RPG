@@ -411,6 +411,8 @@ namespace SubcultureRPG.Battle.UI
 
             HideTip();
             _turnDamage?.Clear();
+            ShowRound(engine.Round);
+            engine.RoundChanged += ShowRound;
             BuildPanels(engine);
             RefreshTurnStrip();
             RefreshSkillPoints();
@@ -422,6 +424,19 @@ namespace SubcultureRPG.Battle.UI
 
         private float _battleStartedAt;
         private TurnDamageCounter _turnDamage;
+        private TextMeshProUGUI _roundText;
+        private int _roundLimit;
+
+        /// <summary>턴 표시 옆에 ★3 기준(0이면 숨김). 다음 전투 시작 때 반영.</summary>
+        public void SetRoundLimit(int limit) => _roundLimit = limit;
+
+        private void ShowRound(int round)
+        {
+            if (_roundText == null) return;
+            string lim = _roundLimit > 0
+                ? $"<size=60%><color={(round <= _roundLimit ? "#FFD36B" : "#8A8F9C")}> / ★3 {_roundLimit}턴</color></size>" : "";
+            _roundText.text = $"<color=#9AD4FF>{round}</color><size=70%> 턴</size>{lim}";
+        }
         private readonly Dictionary<BattleUnit, float> _passiveNoteAt = new();
 
         /// <summary>패시브 발동: 유닛 위에 '패시브 이름' 알림. 같은 유닛이 연달아 발동하면 살짝 늦춰 겹치지 않게.</summary>
@@ -995,6 +1010,13 @@ namespace SubcultureRPG.Battle.UI
             BuildTip(rootT);
             BuildFinish(rootT);
             _turnDamage = TurnDamageCounter.Create(rootT, font);   // 오른쪽 '총 피해량'
+
+            // 턴 번호(행동 순서 줄 왼쪽)
+            _roundText = UIFactory.AddText("Round", rootT, "", 30, font, Color.white, TextAlignmentOptions.Right, FontStyles.Bold);
+            _roundText.richText = true;
+            UIFactory.Anchor(_roundText.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(1, 0.5f));
+            _roundText.rectTransform.sizeDelta = new Vector2(240, 50); _roundText.rectTransform.anchoredPosition = new Vector2(-270, -46);
+            _roundText.outlineWidth = 0.15f; _roundText.outlineColor = new Color32(10, 10, 20, 255);
             BuildResultOverlay(rootT);
         }
 

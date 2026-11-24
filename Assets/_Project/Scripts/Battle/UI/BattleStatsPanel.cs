@@ -38,14 +38,16 @@ namespace SubcultureRPG.Battle.UI
             dimBtn.transition = Selectable.Transition.None;
             dimBtn.onClick.AddListener(Hide);
 
-            // 창(배경과 형제 → 창을 눌러도 닫히지 않음)
-            var win = Rounded("Window", _root, new Color(0.09f, 0.10f, 0.15f, 0.98f), true);
+            // 금색 테두리: 창 뒤에 2px 크게 깔아 가장자리만 보이게(창 안에 두면 창 전체를 덮어 누렇게 보임)
+            var rim = Rounded("Rim", _root, new Color(1f, 0.85f, 0.45f, 0.5f));
+            UIFactory.Anchor(rim.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            rim.rectTransform.sizeDelta = new Vector2(WinW + 4, WinH + 4);
+
+            // 창(배경과 형제 → 창을 눌러도 닫히지 않음) — 불투명한 어두운 바탕
+            var win = Rounded("Window", _root, new Color(0.06f, 0.07f, 0.10f, 1f), true);
             var wrt = win.rectTransform;
             UIFactory.Anchor(wrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             wrt.sizeDelta = new Vector2(WinW, WinH);
-            var rim = Rounded("Rim", wrt, new Color(1f, 0.85f, 0.45f, 0.35f));
-            UIFactory.Stretch(rim.rectTransform, -2, -2, -2, -2);
-            rim.transform.SetAsFirstSibling();
 
             var title = UIFactory.AddText("Title", wrt, "전투 기록", 40, font, new Color(1f, 0.88f, 0.55f), TextAlignmentOptions.Left, FontStyles.Bold);
             var trt = title.rectTransform;

@@ -214,6 +214,7 @@ namespace SubcultureRPG.Meta
                 _hud.SetBackground("Backgrounds/battle_raid", "Backgrounds/raid", "Backgrounds/battle");
                 _hud.SetRetryHandler(() => Fight(_party) ? null : "오늘 도전 횟수를 모두 썼습니다");
                 _hud.SetExitLabel("주간 보스로");
+                _hud.SetRoundLimit(0);
             }
             launcher.Launch(_party, new List<BattleUnitData> { _boss });
             return true;

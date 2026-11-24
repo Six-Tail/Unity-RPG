@@ -156,7 +156,7 @@ namespace SubcultureRPG.Meta
         [Min(1)] public int recommendedLevel = 1;
 
         [Header("별 조건")]
-        [Tooltip("★3 조건: 아군 행동 횟수가 이 값 이하로 클리어.")]
+        [Tooltip("★3 기준값(옛 '아군 행동 수' 단위). 실제 조건은 StarRoundLimit(턴).")]
         [Min(1)] public int turnLimit = 8;
 
         [Header("보상")]
@@ -171,6 +171,18 @@ namespace SubcultureRPG.Meta
 
         /// <summary>특수 던전(돌파·금화·교본 등) 여부.</summary>
         public bool IsDungeon => kind != StageKind.Main;
+
+        /// <summary>
+        /// 메인 스테이지 ★3 여유 턴. 처음 하는 사람이 다시 깨는 번거로움이 없도록 앞 장일수록 넉넉하고
+        /// 뒤로 갈수록 줄어 기본 기준에 가까워짐: 1 ~ 2장 +2 · 3 ~ 5장 +1 · 6장부터 0.
+        /// </summary>
+        public static int MainRoundBonus(int chapter) => chapter <= 2 ? 2 : chapter <= 5 ? 1 : 0;
+
+        /// <summary>
+        /// ★3 조건: 이 턴 수 이내 클리어. 턴 = 살아 있는 모든 아군 · 적이 한 번씩 행동하면 1턴.
+        /// 기본 = (저작 값 turnLimit(옛 '아군 행동 수' 기준) + 2) ÷ 4 올림 → 일반 스테이지 2 ~ 4턴, 장 보스 4 ~ 5턴. 여기에 메인 스테이지 장별 여유를 더함.
+        /// </summary>
+        public int StarRoundLimit => Mathf.CeilToInt((turnLimit + 2) / 4f) + (IsDungeon ? 0 : MainRoundBonus(chapter));
         public bool IsAscensionDungeon => kind == StageKind.AscensionDungeon;
 
         /// <summary>표시용 번호(예: 1-3, 던전은 '초급' 등).</summary>

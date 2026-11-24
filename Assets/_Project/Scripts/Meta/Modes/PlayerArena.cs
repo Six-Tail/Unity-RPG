@@ -363,6 +363,7 @@ namespace SubcultureRPG.Meta
                 _hud.SetBackground("Backgrounds/battle_arena", "Backgrounds/arena", "Backgrounds/battle");
                 _hud.SetRetryHandler(() => Fight(_fighting, _party) ? null : "결투장 도전권이 없습니다");
                 _hud.SetExitLabel("결투장으로");
+                _hud.SetRoundLimit(0);
             }
             launcher.Launch(_party, enemies);
             return true;

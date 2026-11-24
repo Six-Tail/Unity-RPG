@@ -19,6 +19,7 @@ namespace SubcultureRPG.Meta
         public int gold;
         public List<EquipmentItem> equipment;
         public int allyActions;
+        public int rounds;   // 클리어까지 걸린 턴
         public bool allSurvived;
         public int multiplier;      // 보상 배수(1~3)
         public int stamina;         // 쓴 행동력
@@ -292,6 +293,7 @@ namespace SubcultureRPG.Meta
             {
                 hud.SetBackground(BattleBackgrounds(stage));
                 hud.SetRetryHandler(RetryCurrent);
+                hud.SetRoundLimit(stage.StarRoundLimit);   // 턴 표시 옆 ★3 기준
             }
             // 반복 입장 중에는 자동 전투로
             if (_repeatLeft != 0 && controller != null) controller.AutoBattle = true;
@@ -338,7 +340,7 @@ namespace SubcultureRPG.Meta
             Current = null;
             _party.Clear();
             _repeatLeft = 0;
-            if (hud != null) hud.SetRetryHandler(null);
+            if (hud != null) { hud.SetRetryHandler(null); hud.SetRoundLimit(0); }
         }
 
         private void CleanupSpawned()
@@ -355,7 +357,7 @@ namespace SubcultureRPG.Meta
 
         private void HandleAction(ActionResult r)
         {
-            if (r.actor != null && r.actor.team == Team.Ally) _allyActions++;
+            if (r.actor != null && r.actor.team == Team.Ally && r.recast == 0) _allyActions++;   // 자동 연쇄 시전은 제외
         }
 
         private void HandleEnd(Team winner)
@@ -366,6 +368,7 @@ namespace SubcultureRPG.Meta
             var result = new StageResult
             {
                 stage = stage, win = winner == Team.Ally, allyActions = _allyActions,
+                rounds = controller != null && controller.Engine != null ? controller.Engine.Round : 0,
                 multiplier = Mathf.Max(1, _multiplier), stamina = _paidStamina,
             };
 
@@ -392,7 +395,7 @@ namespace SubcultureRPG.Meta
             // 별 평가
             bool allAlive = controller != null && controller.Engine != null &&
                             controller.Engine.allies.TrueForAll(u => u.IsAlive);
-            bool fast = _allyActions <= stage.turnLimit;
+            bool fast = result.rounds <= stage.StarRoundLimit;
             result.allSurvived = allAlive;
             result.stars = 1 + (allAlive ? 1 : 0) + (fast ? 1 : 0);
 
@@ -504,7 +507,7 @@ namespace SubcultureRPG.Meta
             sb.Append("<size=80%>");
             sb.Append(Check(true)).Append(" 클리어   ");
             sb.Append(Check(allAlive)).Append(" 아군 전원 생존   ");
-            sb.Append(Check(fast)).Append($" 아군 행동 {s.turnLimit}회 이내 ({r.allyActions}회)");
+            sb.Append(Check(fast)).Append($" {s.StarRoundLimit}턴 이내 클리어 ({r.rounds}턴)");
             if (r.stamina > 0) sb.Append($"   <color=#7CFFB2>행동력 -{r.stamina}</color>");
             sb.Append("</size>\n");
 

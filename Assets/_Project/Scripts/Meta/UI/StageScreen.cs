@@ -591,7 +591,7 @@ namespace SubcultureRPG.Meta.UI
                 }
 
             sb.Append("\n<color=#FFD36B>별 조건</color>\n");
-            sb.Append($"  ★ 클리어\n  ★ 아군 전원 생존\n  ★ 아군 행동 {s.turnLimit}회 이내 클리어\n");
+            sb.Append($"  ★ 클리어\n  ★ 아군 전원 생존\n  ★ {s.StarRoundLimit}턴 이내 클리어\n");
 
             sb.Append("\n<color=#FFD36B>보상</color>\n");
             if (s.firstClearCrystals > 0)

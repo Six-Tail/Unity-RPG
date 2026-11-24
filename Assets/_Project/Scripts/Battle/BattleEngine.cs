@@ -75,6 +75,32 @@ namespace SubcultureRPG.Battle
         /// 다음 행동 유닛을 반환하면서, 전체 시간을 전진시키고 해당 유닛의 다음 차례를 예약합니다.
         /// (가장 행동치가 낮은 유닛이 즉시 행동 → actionValue = base / SPD 로 재설정)
         /// </summary>
+        // ---------------- 턴(라운드) ----------------
+        // 살아 있는 모든 아군 · 적이 한 번 이상 행동하면 1턴이 지나감(빠른 유닛은 한 턴에 여러 번 행동할 수 있음).
+        private readonly HashSet<BattleUnit> _actedThisRound = new();
+        private bool _roundDone;
+
+        /// <summary>지금 턴 번호(1부터).</summary>
+        public int Round { get; private set; } = 1;
+
+        /// <summary>턴이 바뀔 때(새 턴 번호).</summary>
+        public event System.Action<int> RoundChanged;
+
+        private void TrackRound(BattleUnit actor)
+        {
+            if (_roundDone)
+            {
+                _roundDone = false;
+                _actedThisRound.Clear();
+                Round++;
+                RoundChanged?.Invoke(Round);
+            }
+            _actedThisRound.Add(actor);
+            foreach (var u in AllUnits())
+                if (u.IsAlive && !_actedThisRound.Contains(u)) return;
+            _roundDone = true;   // 모두 행동함 → 다음 행동부터 새 턴
+        }
+
         public BattleUnit NextActor()
         {
             BattleUnit actor = null;
@@ -87,6 +113,7 @@ namespace SubcultureRPG.Battle
                 if (u.IsAlive) u.actionValue -= min;   // 시간 전진
 
             actor.actionValue = _cfg.baseActionValue / Mathf.Max(1, actor.EffectiveSpd); // 다음 차례 예약(속도 버프 반영)
+            TrackRound(actor);
             return actor;
         }
 
