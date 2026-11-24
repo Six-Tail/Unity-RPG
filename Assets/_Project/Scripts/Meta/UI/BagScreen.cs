@@ -111,7 +111,10 @@ namespace SubcultureRPG.Meta.UI
             _detName.text = Materials.RichName(_selected);
             _detCount.text = $"{Grades.Tag(g)}   보유  {Count(_selected):N0}";
             _detDesc.text = Materials.Description(_selected);
+            if (_useBtn != null) _useBtn.gameObject.SetActive(Materials.StaminaValue(_selected) > 0);
         }
+
+        private Button _useBtn;
 
         private void RebuildTabs()
         {
@@ -240,8 +243,14 @@ namespace SubcultureRPG.Meta.UI
             _detCount = UIFactory.AddText("Count", panel.transform, "", 24, font, new Color(1f, 0.85f, 0.45f), TextAlignmentOptions.Center, FontStyles.Bold);
             Place(_detCount.rectTransform, new Vector2(0.5f, 1), new Vector2(520, 36), new Vector2(0, -84));
             _detDesc = UIFactory.AddText("Desc", panel.transform, "", 21, font, new Color(0.88f, 0.9f, 0.96f), TextAlignmentOptions.TopLeft);
-            UIFactory.Stretch(_detDesc.rectTransform, 32, 30, 32, 140);
+            UIFactory.Stretch(_detDesc.rectTransform, 32, 110, 32, 140);
             _detDesc.lineSpacing = 8f;
+
+            // 사용(행동력 물약만)
+            _useBtn = UIFactory.AddButton("Use", panel.transform, "사용", 26, font, new Color(0.25f, 0.6f, 0.45f, 0.95f), Color.white);
+            Place((RectTransform)_useBtn.transform, new Vector2(0.5f, 0), new Vector2(300, 64), new Vector2(0, 30), new Vector2(0.5f, 0));
+            _useBtn.onClick.AddListener(() => StaminaDialog.Open(font, _selected));
+            _useBtn.gameObject.SetActive(false);
 
             _backBtn = UIFactory.AddButton("BackBtn", root, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
             Place((RectTransform)_backBtn.transform, new Vector2(0, 1), new Vector2(150, 44), new Vector2(30, -30), new Vector2(0, 1));

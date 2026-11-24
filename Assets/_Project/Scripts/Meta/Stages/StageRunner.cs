@@ -203,18 +203,28 @@ namespace SubcultureRPG.Meta
             }
         }
 
-        /// <summary>이 스테이지에 다시 볼 수 있는 스토리가 있는가(한 번 본 것만).</summary>
-        public static bool HasReplay(StageData stage) =>
-            StoryLibrary.Seen(StoryLibrary.Before(stage)) || StoryLibrary.Seen(StoryLibrary.After(stage));
+        /// <summary>
+        /// 이 스테이지에 다시 볼 수 있는 스토리가 있는가.
+        /// 한 번 본 스토리, 또는 스토리가 추가되기 전에 이미 클리어한 스테이지(cleared)의 스토리.
+        /// </summary>
+        public static bool HasReplay(StageData stage, bool cleared = false)
+        {
+            var before = StoryLibrary.Before(stage);
+            var after = StoryLibrary.After(stage);
+            return StoryLibrary.Seen(before) || StoryLibrary.Seen(after) || (cleared && (before != null || after != null));
+        }
 
-        /// <summary>스토리 다시 보기(전 → 후 순서, 본 것만).</summary>
+        /// <summary>스토리 다시 보기(전 → 후 순서). 이미 클리어한 스테이지면 아직 안 본 편도 볼 수 있고, 본 것으로 기록.</summary>
         public void ReplayStory(StageData stage)
         {
             var before = StoryLibrary.Before(stage);
             var after = StoryLibrary.After(stage);
-            bool b = StoryLibrary.Seen(before), a = StoryLibrary.Seen(after);
-            if (b) Story.Play(before, () => { if (a) Story.Play(after, null); });
-            else if (a) Story.Play(after, null);
+            bool cleared = progress != null && progress.IsCleared(stage);
+            bool b = before != null && (cleared || StoryLibrary.Seen(before));
+            bool a = after != null && (cleared || StoryLibrary.Seen(after));
+            void PlayAfter() { if (a) Story.Play(after, () => StoryLibrary.MarkSeen(after)); }
+            if (b) Story.Play(before, () => { StoryLibrary.MarkSeen(before); PlayAfter(); });
+            else PlayAfter();
         }
 
         [ContextMenu("스토리 기록 초기화(다시 자동 재생)")]

@@ -21,6 +21,8 @@ namespace SubcultureRPG.Meta
         SkillBookPurple = 8,  // 상급 스킬 교본 (스킬 Lv.5~10)  영웅
         SkillLegend = 9,      // 전설의 비전서 (스킬 Lv.8~10)    전설 — 이벤트·상점 교환
         StarShard = 10,       // 별의 조각 (풀 초월 캐릭터 중복 → 교환소에서 뽑기권)  영웅
+        StaminaSmall = 11,    // 소형 행동력 물약 (행동력 +60)  희귀
+        StaminaLarge = 12,    // 행동력 물약 (행동력 +120)      영웅
 
         PhysicalAsc1 = 101, PhysicalAsc2 = 102, PhysicalAsc3 = 103,
         FireAsc1 = 111, FireAsc2 = 112, FireAsc3 = 113,
@@ -84,6 +86,8 @@ namespace SubcultureRPG.Meta
                 MaterialType.SkillLegend => "전설의 비전서",
                 MaterialType.EquipOre => "장비 강화석",
                 MaterialType.StarShard => "별의 조각",
+                MaterialType.StaminaSmall => "소형 행동력 물약",
+                MaterialType.StaminaLarge => "행동력 물약",
                 _ => t.ToString(),
             };
         }
@@ -96,7 +100,8 @@ namespace SubcultureRPG.Meta
             {
                 MaterialType.ExpSmall or MaterialType.SkillBook => 3,
                 MaterialType.ExpPotion or MaterialType.SkillBookBlue or MaterialType.EquipOre => 4,
-                MaterialType.ExpLarge or MaterialType.SkillBookPurple or MaterialType.StarShard => 5,
+                MaterialType.StaminaSmall => 4,
+                MaterialType.ExpLarge or MaterialType.SkillBookPurple or MaterialType.StarShard or MaterialType.StaminaLarge => 5,
                 _ => 6,   // 경험치 결정 · 전설의 비전서
             };
         }
@@ -109,7 +114,7 @@ namespace SubcultureRPG.Meta
             if (IsAscension(t)) return Category.Ascension;
             if (ExpValue(t) > 0) return Category.Exp;
             if (t == MaterialType.EquipOre) return Category.Equipment;
-            if (t == MaterialType.StarShard) return Category.Etc;
+            if (t == MaterialType.StarShard || StaminaValue(t) > 0) return Category.Etc;
             return Category.Skill;
         }
 
@@ -128,12 +133,22 @@ namespace SubcultureRPG.Meta
             var list = new List<MaterialType>(ExpMaterials)
             {
                 MaterialType.SkillBook, MaterialType.SkillBookBlue, MaterialType.SkillBookPurple, MaterialType.SkillLegend,
-                MaterialType.EquipOre, MaterialType.StarShard,
+                MaterialType.EquipOre, MaterialType.StarShard, MaterialType.StaminaSmall, MaterialType.StaminaLarge,
             };
             foreach (var e in Traits.AllElements)
                 for (int tier = 1; tier <= AscensionTiers; tier++) list.Add(Ascension(e, tier));
             return list;
         }
+
+        /// <summary>행동력 물약이 주는 행동력(그 외는 0).</summary>
+        public static int StaminaValue(MaterialType t) => t switch
+        {
+            MaterialType.StaminaSmall => 60,
+            MaterialType.StaminaLarge => 120,
+            _ => 0,
+        };
+
+        public static readonly MaterialType[] StaminaPotions = { MaterialType.StaminaSmall, MaterialType.StaminaLarge };
 
         /// <summary>경험치 재료가 주는 경험치(그 외는 0).</summary>
         public static int ExpValue(MaterialType t) => t switch
@@ -195,6 +210,9 @@ namespace SubcultureRPG.Meta
                 MaterialType.SkillBookBlue => "<color=#FFD36B>용도</color>\n스킬 Lv.3 → 5\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 2단계 이상\n상점 (일반 상점)",
                 MaterialType.SkillBookPurple => "<color=#FFD36B>용도</color>\n스킬 Lv.5 → 10\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 3단계 이상\n상점 (일반 · 크리스탈 상점)",
                 MaterialType.SkillLegend => "<color=#FFD36B>용도</color>\n스킬 Lv.7 → 8 · 9 · 10 (상급 교본과 함께)\n\n<color=#FFD36B>획득처</color>\n상점 (크리스탈 상점 · 교환소: 상급 스킬 교본 ×8 → 1)\n이벤트 (준비 중)",
+                MaterialType.StaminaSmall or MaterialType.StaminaLarge =>
+                    $"<color=#FFD36B>용도</color>\n사용하면 행동력 +{StaminaValue(t)}\n최대치(240)를 넘어 쌓을 수 있고(최대 999), 넘은 동안은 6분마다 오르는 자연 회복이 멈춥니다.\n가방에서 선택 후 '사용', 또는 스테이지 화면 행동력 옆 '+'\n\n<color=#FFD36B>획득처</color>\n" +
+                    (t == MaterialType.StaminaSmall ? "상점 (일반 상점 · 매일 2개)" : "상점 (크리스탈 상점 · 매주 6개)"),
                 MaterialType.StarShard => "<color=#FFD36B>용도</color>\n상점 교환소에서 뽑기권으로 교환 (픽업 뽑기권 1장 = 조각 " + StarShards.PickupTicketPrice + "개 · 상시 뽑기권 1장 = " + StarShards.StandardTicketPrice + "개)\n\n<color=#FFD36B>획득처</color>\n이미 풀 초월(6★ +6)한 캐릭터를 다시 뽑으면 자동 변환\n태생 6★ " + StarShards.PerCopy(6) + "개 · 5★ " + StarShards.PerCopy(5) + "개 · 4★ " + StarShards.PerCopy(4) + "개 · 3★ " + StarShards.PerCopy(3) + "개",
                 MaterialType.EquipOre => "<color=#FFD36B>용도</color>\n장비 강화 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n특수 던전 · 장비 던전\n장비 분해 · 상점 (일반 상점)",
                 _ => "",

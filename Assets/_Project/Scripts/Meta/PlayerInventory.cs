@@ -92,6 +92,8 @@ namespace SubcultureRPG.Meta
             _items[MaterialType.SkillBookPurple] = Count(MaterialType.SkillBookPurple) + 15;
             _items[MaterialType.SkillLegend] = Count(MaterialType.SkillLegend) + 4;   // 테스트용(정식 획득: 이벤트·상점)
             _items[MaterialType.EquipOre] = Count(MaterialType.EquipOre) + 200;
+            _items[MaterialType.StaminaSmall] = Count(MaterialType.StaminaSmall) + 5;
+            _items[MaterialType.StaminaLarge] = Count(MaterialType.StaminaLarge) + 3;
             // 속성별 돌파 재료(40/60/80 돌파 각 1회분 정도)
             for (int e = 0; e <= (int)Element.Wind; e++)
             {

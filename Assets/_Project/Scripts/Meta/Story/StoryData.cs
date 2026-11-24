@@ -26,13 +26,13 @@ namespace SubcultureRPG.Meta
     }
 
     /// <summary>
-    /// 스토리 대본. 지금은 1장(쉬움 1-1 ~ 1-6)만 있습니다.
+    /// 스토리 대본. 1장 ~ 15장(쉬움 난이도). 1장은 이 파일, 2 ~ 15장은 StoryChapters*.cs.
     /// · Before(stage): 그 스테이지에 처음 출격할 때 전투 전에 재생
     /// · After(stage): 처음 클리어했을 때 결과 화면 위에서 재생
     /// 한 번 본 스토리는 다시 자동 재생되지 않고(PlayerPrefs), 스테이지 상세의 '스토리 다시 보기'로 볼 수 있습니다.
     /// 새 장을 추가하려면 Build에 Add(...)를 이어 쓰면 됩니다.
     /// </summary>
-    public static class StoryLibrary
+    public static partial class StoryLibrary
     {
         private static Dictionary<string, StoryScript> _scripts;
 
@@ -82,6 +82,47 @@ namespace SubcultureRPG.Meta
         private static readonly Cast Ark = new() { name = "아크", portrait = "Characters/c_ark", right = true, accent = new Color(1f, 0.85f, 0.4f) };
         private static readonly Cast DarkLord = new() { name = "어둠군주", portrait = "Enemies/어둠군주", right = true, accent = new Color(0.75f, 0.4f, 1f) };
 
+        // 2장 이후 합류 · 등장(속성 색 이름표)
+        private static Cast Ally(string name, string id, bool right, Color accent) =>
+            new() { name = name, portrait = "Characters/" + id, right = right, accent = accent };
+        private static Cast Foe(string name, Color accent) =>
+            new() { name = name, portrait = "Enemies/" + name, right = true, accent = accent };
+
+        private static readonly Color CIce = new(0.45f, 0.85f, 1f), CFire = new(1f, 0.5f, 0.35f), CWind = new(0.45f, 0.9f, 0.6f),
+            CBolt = new(0.8f, 0.55f, 1f), CPhys = new(0.78f, 0.78f, 0.82f);
+
+        private static readonly Cast Sora = Ally("소라", "c_sora", true, CIce);
+        private static readonly Cast Ciel = Ally("시엘", "c_ciel", true, CIce);
+        private static readonly Cast Mina = Ally("미나", "c_mina", false, CFire);
+        private static readonly Cast Haru = Ally("하루", "c_haru", true, CFire);
+        private static readonly Cast Seraphine = Ally("세라핀", "c_seraphine", true, CFire);
+        private static readonly Cast Yuna = Ally("유나", "c_yuna", false, CWind);
+        private static readonly Cast Kiki = Ally("키키", "c_kiki", true, CWind);
+        private static readonly Cast Kael = Ally("카엘", "c_kael", true, CWind);
+        private static readonly Cast Bella = Ally("벨라", "c_bella", true, CBolt);
+        private static readonly Cast Teo = Ally("테오", "c_teo", false, CBolt);
+        private static readonly Cast Rena = Ally("레나", "c_rena", true, CBolt);
+        private static readonly Cast Grey = Ally("그레이", "c_grey", true, CPhys);
+        private static readonly Cast Coco = Ally("코코", "c_coco", false, CPhys);
+        private static readonly Cast Selene = Ally("셀레네", "c_selene", true, CIce);
+        private static readonly Cast Dodo = Ally("도도", "c_dodo", false, CIce);
+        private static readonly Cast Luna = Ally("루나", "c_luna", true, CIce);
+        private static readonly Cast Momo = Ally("모모", "c_momo", false, CFire);
+        private static readonly Cast Violet = Ally("바이올렛", "c_violet", true, CPhys);
+        private static readonly Cast Rio = Ally("리오", "c_rio", false, CWind);
+        private static readonly Cast Aurora = Ally("오로라", "c_aurora", true, CIce);
+        private static readonly Cast Estelle = Ally("에스텔", "c_estelle", true, CFire);
+
+        private static readonly Cast IceGiant = Foe("빙결거인", CIce);
+        private static readonly Cast FireGuardian = Foe("화염 수호자", CFire);
+        private static readonly Cast WindGuardian = Foe("질풍 수호자", CWind);
+        private static readonly Cast BoltGuardian = Foe("뇌광 수호자", CBolt);
+        private static readonly Cast SteelGolem = Foe("강철 골렘", CPhys);
+        private static readonly Cast FrostGuardian = Foe("서리 수호자", CIce);
+        private static readonly Cast EndLord = Foe("종말의 군주", new Color(1f, 0.45f, 0.5f));
+        /// <summary>검은 순례자: 봉인을 풀고 다니는 수수께끼의 인물(그림 없음).</summary>
+        private static readonly Cast Pilgrim = new() { name = "검은 순례자", right = true, accent = new Color(0.6f, 0.6f, 0.7f) };
+
         // ---------------- 작성 도우미 ----------------
 
         private class Writer
@@ -114,6 +155,7 @@ namespace SubcultureRPG.Meta
         {
             var d = new Dictionary<string, StoryScript>();
             void Add(Writer w) => d[w.script.id] = w.script;
+            _ = Pilgrim;
 
             // ===================== 제1장 그림자 숲 =====================
 
@@ -184,6 +226,11 @@ namespace SubcultureRPG.Meta
                 .L(Ark, "북쪽 '얼어붙은 성채'의 냉기와 같다. 누군가 봉인을 하나씩 풀고 있어.")
                 .L(Ruru, "그럼 다음 목적지는 정해졌네요. 지휘관님, 우리의 여정은 이제 시작이에요!")
                 .Title("제1장 끝", "그림자 숲"));
+
+            // 2 ~ 15장(StoryChapters*.cs)
+            AddChapters2To5(Add);
+            AddChapters6To10(Add);
+            AddChapters11To15(Add);
 
             return d;
         }

@@ -128,11 +128,30 @@ namespace SubcultureRPG.Meta.UI
                     case Currency.StandardTicket: p.text.text = $"{_wallet.StandardTickets:N0}"; break;
                     case Currency.Stamina:
                         int cur = _wallet.Stamina, max = _wallet.MaxStamina;
-                        p.text.text = $"{cur} <size=70%><color=#9AA3B5>/ {max}</color></size>";
-                        p.sub.text = cur < max ? $"+1까지 {PlayerWallet.FormatTime(_wallet.SecondsToNextStamina)}" : "";
+                        // 최대치를 넘으면 금색으로 '380 / 240' — 넘은 동안 자연 회복은 멈춤
+                        string num = cur > max ? $"<color=#FFD36B>{cur}</color>" : $"{cur}";
+                        p.text.text = $"{num} <size=70%><color=#9AA3B5>/ {max}</color></size>";
+                        p.sub.text = cur < max ? $"+1까지 {PlayerWallet.FormatTime(_wallet.SecondsToNextStamina)}"
+                            : cur > max ? "<color=#FFD36B>초과</color> · 자연 회복 멈춤" : "가득 참";
+                        p.sub.richText = true;
                         p.sub.rectTransform.sizeDelta = new Vector2(PillW - 12, 22);
                         break;
                 }
+            }
+        }
+
+        /// <summary>알약 오른쪽 끝에 '+' 버튼(누르면 onClick — 예: 행동력 물약 사용 창).</summary>
+        public void AddPlus(Currency type, TMP_FontAsset font, System.Action onClick)
+        {
+            foreach (var p in _pills)
+            {
+                if (p.type != type) continue;
+                var b = UIFactory.AddButton("Plus", p.bg.transform, "+", 30, font, new Color(0.25f, 0.6f, 0.45f, 0.95f), Color.white);
+                var rt = (RectTransform)b.transform;
+                UIFactory.Anchor(rt, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
+                rt.sizeDelta = new Vector2(40, 40); rt.anchoredPosition = new Vector2(-6, 0);
+                b.onClick.AddListener(() => onClick?.Invoke());
+                p.text.rectTransform.offsetMax = new Vector2(-54, 0);   // 숫자는 '+' 왼쪽까지
             }
         }
 

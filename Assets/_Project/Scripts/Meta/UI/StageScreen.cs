@@ -630,7 +630,7 @@ namespace SubcultureRPG.Meta.UI
             _detBody.text = sb.ToString();
             if (_detScroll != null && _detShown != s) _detScroll.verticalNormalizedPosition = 1f;   // 다른 스테이지를 고르면 맨 위부터
             _detShown = s;
-            if (_storyBtn != null) _storyBtn.gameObject.SetActive(StageRunner.HasReplay(s));
+            if (_storyBtn != null) _storyBtn.gameObject.SetActive(StageRunner.HasReplay(s, cleared));
 
             _sortieBtn.interactable = unlocked;
             _sortieLbl.text = unlocked ? "편성 후 출격"
@@ -668,7 +668,8 @@ namespace SubcultureRPG.Meta.UI
             tsrt.sizeDelta = new Vector2(300, 34); tsrt.anchoredPosition = new Vector2(-50, -112);   // 행동력 알약 아래
 
             // 행동력(오른쪽 위, 다른 화면의 재화 알약과 같은 모양) + 테스트 충전(왼쪽 옆)
-            CurrencyBar.Create(_root.transform, font, wallet, new Vector2(-50, -32), Currency.Stamina);
+            var staminaBar = CurrencyBar.Create(_root.transform, font, wallet, new Vector2(-50, -32), Currency.Stamina);
+            staminaBar.AddPlus(Currency.Stamina, font, () => StaminaDialog.Open(font));   // 행동력 물약 사용
             var refill = UIFactory.AddButton("StaminaTest", _root.transform, "행동력 +120 (테스트)", 16, font, new Color(1, 1, 1, 0.12f), Color.white);
             var rfrt = (RectTransform)refill.transform;
             UIFactory.Anchor(rfrt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));

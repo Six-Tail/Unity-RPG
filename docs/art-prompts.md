@@ -399,7 +399,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 30장
+## 재료 아이콘 (1:1) — 32장
 
 ### 소형 경험치 물약
 
@@ -495,6 +495,22 @@ a brilliant faceted cyan-blue gem crystal with a white sparkle highlight, gacha 
 
 ```
 a glowing mint-green energy lightning bolt inside a round emblem, stamina energy icon. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 소형 행동력 물약
+
+- 파일: `Items/StaminaSmall.png` · 256×256 · 화면비 1:1
+
+```
+a small round glass vial of glowing mint-green liquid with a tiny lightning bolt symbol on the label and a cork. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 행동력 물약
+
+- 파일: `Items/StaminaLarge.png` · 256×256 · 화면비 1:1
+
+```
+a large ornate flask of glowing emerald-green liquid with a golden lightning bolt emblem and gold filigree. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 별의 조각
@@ -863,7 +879,7 @@ a white feather quill pen with a golden nib, tilted diagonally with the nib poin
 a round crimson wax seal with an embossed golden star emblem and a small ribbon. fantasy game UI illustration, single object centered, anime game art style, clean line art, soft cel shading, high detail, plain very dark navy background
 ```
 
-## 화면 배경 (16:9) — 36장
+## 화면 배경 (16:9) — 51장
 
 ### 스토리 1장 — 숲의 입구
 
@@ -903,6 +919,126 @@ a sinister ancient dark stone altar among forest ruins under a blood-red moon, g
 
 ```
 golden sunrise breaking over forest ruins, the last dark mist dissolving into warm light, dew on leaves, a calm hopeful morning sky. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 2장 — 빙결거인의 옥좌
+
+- 파일: `Backgrounds/story_ch2_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a vast frozen throne hall inside an ice fortress, a colossal throne carved from blue ice, giant icicles, pale aurora light falling through a broken roof. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 3장 — 화염 수호자의 거처
+
+- 파일: `Backgrounds/story_ch3_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+an ancient fire shrine on a stone bridge over a river of magma deep in a burning canyon, glowing rune pillars, burning tattered banners, heat haze. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 4장 — 질풍 수호자의 거처
+
+- 파일: `Backgrounds/story_ch4_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a windswept highland summit with a floating ring of ancient stones around an altar, a towering tornado, flying debris, dramatic storm clouds. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 5장 — 뇌광 수호자의 거처
+
+- 파일: `Backgrounds/story_ch5_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+the open circular top of a colossal thunder tower, giant rune pillars crackling with electricity, lightning striking from purple storm clouds. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 6장 — 강철 골렘의 거처
+
+- 파일: `Backgrounds/story_ch6_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+the core hall of a steel fortress, an enormous forge with molten metal, huge gears and hanging chains, cold blue furnace lights. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 7장 — 서리 수호자의 거처
+
+- 파일: `Backgrounds/story_ch7_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a frozen abyss cavern, a narrow ice bridge over a bottomless chasm, giant glowing blue crystals, an ancient frost altar. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 8장 — 잿빛 폐허
+
+- 파일: `Backgrounds/story_ch8_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a ruined grey city plaza at dusk, a collapsed cathedral, ash falling like snow, a dark purple rift glowing above the rubble. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 9장 — 하늘 균열
+
+- 파일: `Backgrounds/story_ch9_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+floating islands and broken stone bridges high in the sky, a gigantic glowing crack splitting the heavens, clouds swirling into it. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 10장 — 영겁의 빙원
+
+- 파일: `Backgrounds/story_ch10_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+an endless ice field at night, the half-buried skeleton of a colossal frozen giant, green and violet aurora across the sky. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 11장 — 홍염 화산
+
+- 파일: `Backgrounds/story_ch11_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+the inside of a volcano crater, a lake of lava, an obsidian altar on a rock island, embers raining down, red glow. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 12장 — 천둥 왕좌
+
+- 파일: `Backgrounds/story_ch12_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+ruins of a mountaintop palace above the clouds, a throne of crackling violet crystal, constant lightning bolts, dark thunderclouds. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 13장 — 무너진 신전
+
+- 파일: `Backgrounds/story_ch13_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+the interior of a collapsed ancient temple, broken giant statues, shafts of light through the ceiling, floating rune stones, a huge cracked stone mural of seven seals. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 14장 — 황혼의 경계
+
+- 파일: `Backgrounds/story_ch14_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a vast empty plain split between golden sunset on one side and starry night on the other, a lone towering black gate standing on the boundary. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 15장 — 종말의 제단
+
+- 파일: `Backgrounds/story_ch15_boss.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a black altar floating above an endless void, giant broken chains of light, shattered stone platforms, a solar eclipse with a burning corona in the sky. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 15장 — 여명
+
+- 파일: `Backgrounds/story_ch15_end.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a wide fantasy continent seen from a high cliff at sunrise, fragments of broken chains dissolving into golden light in the sky, calm sea on the horizon, hopeful. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
 ```
 
 ### 가챠 소환 의식(계약 스크롤 뒤 배경)
