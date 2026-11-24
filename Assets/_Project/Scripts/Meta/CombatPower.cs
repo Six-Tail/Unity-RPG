@@ -12,7 +12,7 @@ namespace SubcultureRPG.Meta
     ///   배율  = 1 + 치명 확률×치명 피해 + 방어 관통 + (모든 피해 + 자기 속성 피해)
     ///             + 브레이크 효율×0.2 + 치유량×0.3 + 효과 명중×0.2 + 효과 저항×0.2 + 조건부 피해 보정 평균
     ///   스킬  = 1 + 0.03 × (기본 공격 · 스킬 · 궁극기 실제 레벨 합 - 3)
-    ///   전투력 = 기본 × 배율 × 스킬 × 10(표시 배율 Scale)
+    ///   전투력 = 기본 × 배율 × 스킬 × 3.5(표시 배율 Scale)
     /// 육성 화면 · 프로필(보유 캐릭터 합산)에 표시. 밸런스 수치가 아니라 성장 체감용 지표입니다.
     /// </summary>
     public static class CombatPower
@@ -20,7 +20,7 @@ namespace SubcultureRPG.Meta
         private static BattleConfig _cfg;
 
         /// <summary>표시 배율(숫자 규모 조절). 태생 3★ Lv.1 ≈ 1만, 6★ Lv.80 풀 육성 ≈ 15 ~ 25만.</summary>
-        public const float Scale = 10f;
+        public const float Scale = 3.5f;   // 능력치 규모(BattleStats.Scale = 3)를 올리면서 같은 크기가 되도록 맞춤
 
         public static int Of(BattleUnit u, int[] effectiveSkillLevels)
         {

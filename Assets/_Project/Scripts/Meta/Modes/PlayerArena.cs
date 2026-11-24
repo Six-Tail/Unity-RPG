@@ -10,7 +10,8 @@ namespace SubcultureRPG.Meta
 {
     /// <summary>
     /// 결투장(PVP): 다른 지휘관의 팀(실제 캐릭터로 만든 AI 팀)과 겨룸.
-    /// · 하루 도전권 5장(05:00 초기화) · 랭크 점수(시작 1000) · 티어(브론즈 ~ 마스터)
+    /// · 하루 도전권 5장(05:00 초기화) · 랭크 점수(시작 1000) · 티어 8단계(브론즈 ~ 다이아 → 성운 → 초신성 → 앵커)
+    /// · 처음 오른 티어마다 테두리 지급(최고 점수 기준) · 시즌(1주) 랭킹 100명 — 정산 때 순위 보상, 1 ~ 3위는 한정 테두리
     /// · 상대 3명: 쉬움 · 보통 · 어려움(내 주력 레벨 −6 / ±0 / +6, 어려움은 초월도 일부) — 승리하면 새로 뽑힘, '새로고침' 가능
     /// · 승리: 점수 + 크리스탈 + 금화 / 패배: 점수 −8 + 금화 조금. 도전권은 출격할 때 쓰고, 끝나기 전에 나가면 돌려받음
     /// 씬에 없어도 처음 쓸 때 스스로 만들어짐(PlayerArena.Instance).
@@ -31,15 +32,132 @@ namespace SubcultureRPG.Meta
 
         // ---------------- 티어 ----------------
 
-        public static (string name, Color color) Tier(int points) => points switch
+        public class TierDef
         {
-            < 1100 => ("브론즈", new Color(0.8f, 0.55f, 0.35f)),
-            < 1300 => ("실버", new Color(0.82f, 0.86f, 0.95f)),
-            < 1600 => ("골드", new Color(1f, 0.83f, 0.4f)),
-            < 2000 => ("플래티넘", new Color(0.5f, 0.95f, 0.85f)),
-            < 2500 => ("다이아", new Color(0.6f, 0.75f, 1f)),
-            _ => ("마스터", new Color(1f, 0.6f, 0.95f)),
+            public string name, frameId;
+            public int min;
+            public Color color;
+        }
+
+        /// <summary>티어(점수 하한 순). 다이아 위 3단계는 이 게임만의 티어: 성운 → 초신성 → 앵커.</summary>
+        public static readonly TierDef[] Tiers =
+        {
+            new() { name = "브론즈", min = 0, frameId = "", color = new Color(0.8f, 0.55f, 0.35f) },
+            new() { name = "실버", min = 1100, frameId = "fa_silver", color = new Color(0.82f, 0.86f, 0.95f) },
+            new() { name = "골드", min = 1300, frameId = "fa_gold", color = new Color(1f, 0.83f, 0.4f) },
+            new() { name = "플래티넘", min = 1600, frameId = "fa_platinum", color = new Color(0.5f, 0.95f, 0.85f) },
+            new() { name = "다이아", min = 2000, frameId = "fa_diamond", color = new Color(0.6f, 0.75f, 1f) },
+            new() { name = "성운", min = 2500, frameId = "fa_nebula", color = new Color(0.85f, 0.55f, 1f) },
+            new() { name = "초신성", min = 3100, frameId = "fa_supernova", color = new Color(1f, 0.7f, 0.35f) },
+            new() { name = "앵커", min = 3800, frameId = "fa_anchor", color = new Color(1f, 0.92f, 0.6f) },
         };
+
+        public static int TierIndex(int points)
+        {
+            int t = 0;
+            for (int i = 0; i < Tiers.Length; i++) if (points >= Tiers[i].min) t = i;
+            return t;
+        }
+
+        public static (string name, Color color) Tier(int points)
+        {
+            var t = Tiers[TierIndex(points)];
+            return (t.name, t.color);
+        }
+
+        // ---------------- 랭킹(시즌 = 1주) ----------------
+
+        public const int RankSize = 100;
+        public static readonly string[] RankFrames = { "fr_1", "fr_2", "fr_3" };
+
+        public class RankEntry
+        {
+            public int rank, points, seed;
+            public string name;
+            public bool me;
+        }
+
+        /// <summary>시즌 정산 결과(결투장 화면에 들어갈 때 한 번 보여 주고 지급).</summary>
+        public class Settlement
+        {
+            public int rank, points, crystals, newPoints;
+            public string frameId;
+        }
+
+        public static int SeasonCrystals(int rank) => rank switch { 1 => 1500, 2 => 1000, 3 => 700, <= 10 => 500, <= 30 => 300, <= 60 => 200, _ => 100 };
+
+        /// <summary>시즌 진행도(0 = 막 시작, 1 = 끝). 다른 지휘관의 점수는 시즌이 갈수록 오름.</summary>
+        private static float SeasonProgress()
+        {
+            var left = PlayerShop.UntilReset(ShopReset.Weekly, DateTime.Now) ?? TimeSpan.Zero;
+            return Mathf.Clamp01(1f - (float)(left.TotalDays / 7.0));
+        }
+
+        private static List<RankEntry> BuildRanking(string season, float progress, int myPoints)
+        {
+            int h = Commanders.Hash(season);
+            var list = new List<RankEntry>(RankSize);
+            for (int i = 0; i < RankSize - 1; i++)
+            {
+                var rng = new System.Random(h + i * 101);
+                float curve = Mathf.Pow((RankSize - 2 - i) / (float)(RankSize - 2), 2.2f);
+                int pts = 900 + Mathf.RoundToInt(3000f * curve * (0.8f + 0.2f * progress)) + rng.Next(-30, 31);
+                int nameIdx = (i * 37 + h) % Commanders.NameCount;
+                list.Add(new RankEntry { points = pts, name = Commanders.NameOf(nameIdx), seed = nameIdx });
+            }
+            list.Add(new RankEntry { points = myPoints, name = PlayerProfile.Instance.DisplayName, me = true });
+            list.Sort((a, b) => a.points != b.points ? b.points.CompareTo(a.points) : b.me.CompareTo(a.me));
+            for (int i = 0; i < list.Count; i++) list[i].rank = i + 1;
+            return list;
+        }
+
+        /// <summary>지금 시즌 랭킹(1위부터).</summary>
+        public List<RankEntry> Ranking() { EnsureLoaded(); return BuildRanking(_d.season, SeasonProgress(), _d.points); }
+
+        public int MyRank { get { foreach (var e in Ranking()) if (e.me) return e.rank; return RankSize; } }
+        public int BestPoints => Mathf.Max(_d.best, _d.points);
+        public int RankFrameBits => _d.rankFrames;
+        public static TimeSpan UntilSeasonEnd => PlayerShop.UntilReset(ShopReset.Weekly, DateTime.Now) ?? TimeSpan.Zero;
+
+        /// <summary>시즌이 바뀌었으면 정산: 지난 시즌 순위 기록 → 점수 일부 초기화(1000 초과분의 75% 유지).</summary>
+        private void CheckSeason()
+        {
+            string now = PlayerShop.PeriodKey(ShopReset.Weekly, DateTime.Now);
+            if (_d.season == now) return;
+            if (!string.IsNullOrEmpty(_d.season) && _d.seasonGames > 0) Settle(_d.season);
+            _d.season = now;
+            _d.seasonGames = 0;
+            Save();
+        }
+
+        private void Settle(string season)
+        {
+            int rank = RankSize;
+            foreach (var e in BuildRanking(season, 1f, _d.points)) if (e.me) rank = e.rank;
+            _d.best = Mathf.Max(_d.best, _d.points);
+            _d.settleRank = rank;
+            _d.settlePoints = _d.points;
+            if (rank <= 3) _d.rankFrames |= 1 << (rank - 1);
+            if (_d.points > StartPoints) _d.points = StartPoints + Mathf.RoundToInt((_d.points - StartPoints) * 0.75f);
+            _d.opponents.Clear();
+        }
+
+        /// <summary>받지 않은 시즌 정산이 있으면 보상을 지급하고 돌려줌(없으면 null).</summary>
+        public Settlement TakeSettlement()
+        {
+            EnsureLoaded();
+            if (_d.settleRank <= 0) return null;
+            var s = new Settlement
+            {
+                rank = _d.settleRank, points = _d.settlePoints, newPoints = _d.points, crystals = SeasonCrystals(_d.settleRank),
+                frameId = _d.settleRank <= 3 ? RankFrames[_d.settleRank - 1] : null,
+            };
+            var wallet = FindAnyObjectByType<PlayerWallet>();
+            if (wallet != null) wallet.Add(s.crystals);
+            _d.settleRank = 0;
+            Changed();
+            return s;
+        }
 
         // ---------------- 저장 ----------------
 
@@ -59,6 +177,11 @@ namespace SubcultureRPG.Meta
             public int points = StartPoints, tickets = MaxTickets, wins, losses;
             public string ticketDay = "";
             public List<Opponent> opponents = new();
+            public int best;                 // 역대 최고 점수(티어 테두리 해금)
+            public int rankFrames;           // 받은 시즌 순위 테두리(비트: 1위 · 2위 · 3위)
+            public string season = "";       // 지금 시즌(주) 키
+            public int seasonGames;          // 이번 시즌에 치른 판 수(0이면 정산 없음)
+            public int settleRank, settlePoints;   // 아직 보여 주지 않은 정산(순위 > 0)
         }
 
         private SaveData _d = new();
@@ -101,11 +224,17 @@ namespace SubcultureRPG.Meta
 
         private void EnsureLoaded()
         {
-            if (_loaded) return;
-            _loaded = true;
-            if (!PlayerPrefs.HasKey(SaveKey)) return;
-            try { _d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey)) ?? new SaveData(); }
-            catch { _d = new SaveData(); }
+            if (!_loaded)
+            {
+                _loaded = true;
+                if (PlayerPrefs.HasKey(SaveKey))
+                {
+                    try { _d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey)) ?? new SaveData(); }
+                    catch { _d = new SaveData(); }
+                }
+                if (_d.opponents == null) _d.opponents = new List<Opponent>();
+            }
+            CheckSeason();
         }
 
         private void Save()
@@ -285,6 +414,8 @@ namespace SubcultureRPG.Meta
             var wallet = FindAnyObjectByType<PlayerWallet>();
             int before = _d.points;
             var tierBefore = Tier(before).name;
+            int bestTierBefore = TierIndex(BestPoints);
+            _d.seasonGames++;
             string detail;
             if (winner == Team.Ally)
             {
@@ -307,10 +438,20 @@ namespace SubcultureRPG.Meta
             }
             string tierAfter = Tier(_d.points).name;
             if (tierAfter != tierBefore) detail += $"\n<color=#FFD36B>티어 변경: {tierBefore} → {tierAfter}</color>";
+            _d.best = Mathf.Max(_d.best, _d.points);
+            for (int t = bestTierBefore + 1; t <= TierIndex(_d.best); t++)
+                detail += $"\n<color=#7CFF9A>첫 {Tiers[t].name} 달성! 테두리 '{ProfileRewards.Frame(Tiers[t].frameId).name}' 획득</color>";
+            detail += $"\n<size=80%><color=#9AA3B5>시즌 순위 {MyRank}위 / {RankSize}명</color></size>";
             detail += $"\n<size=80%><color=#9AA3B5>남은 도전권 {Tickets} / {MaxTickets}</color></size>";
             Changed();
             if (_hud != null) _hud.SetResultDetail(detail);
         }
+
+        [ContextMenu("테스트: 랭크 점수 +300")]
+        private void TestPoints() { _d.points += 300; _d.best = Mathf.Max(_d.best, _d.points); _d.seasonGames++; Changed(); }
+
+        [ContextMenu("테스트: 시즌 정산(지금 순위로)")]
+        private void TestSettle() { Settle(_d.season); Changed(); }
 
         [ContextMenu("테스트: 도전권 가득 채우기")]
         private void FillTickets() { _d.tickets = MaxTickets; Changed(); }

@@ -86,6 +86,9 @@ namespace SubcultureRPG.Battle
         /// 승패와 관계없이 전투를 끝냄(예: 주간 보스 행동 제한). 지금 행동이 끝난 뒤 winner로 종료 처리.
         /// </summary>
         public void RequestEnd(Team winner) => _forcedWinner = winner;
+
+        /// <summary>전투가 진행 중인지(시작 ~ 승패 결정 전).</summary>
+        public bool IsRunning => _loop != null && Engine != null && !Engine.IsOver && !_forcedWinner.HasValue;
         private Team? _forcedWinner;
 
         public void Begin()
@@ -147,8 +150,9 @@ namespace SubcultureRPG.Battle
                     WaitingForInput = true;
                     _inputSubmitted = false;
                     OnPlayerInputNeeded?.Invoke(actor);
-                    yield return new WaitUntil(() => _inputSubmitted || autoBattle);
+                    yield return new WaitUntil(() => _inputSubmitted || autoBattle || _forcedWinner.HasValue);
                     WaitingForInput = false;
+                    if (_forcedWinner.HasValue) break;   // 입력 대기 중 강제 종료(시간 제한 등)
 
                     // 입력 대기 중 자동 전투를 켰으면 AI가 대신 선택
                     var (skill, target) = _inputSubmitted ? (_inputSkill, _inputTarget) : Engine.PickAutoAction(actor);

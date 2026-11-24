@@ -149,6 +149,8 @@ const ITEMS = [
   ['UiBag', '가방 아이콘', 'a brown leather adventurer backpack with a buckle strap'],
   ['ArenaCoin', '결투장 아이콘', 'two crossed golden swords over a round red shield emblem'],
   ['RaidIcon', '주간 보스 아이콘', 'a menacing purple demon skull emblem with a swirling black hole behind it and golden horns'],
+  ['GuildIcon', '길드 아이콘', 'a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, hanging from a golden pole'],
+  ['FriendIcon', '친구 아이콘', 'two cute round chibi commander figures side by side, one blue and one pink, with a small glowing heart between them'],
   ['StarShard', '별의 조각', 'a glowing violet and gold crystal shard shaped like a broken star, sparkling with tiny stars'],
   ['PickupTicket', '픽업 뽑기권', 'an ornate pink and gold summon ticket card with a glowing star emblem in the center'],
   ['StandardTicket', '상시 뽑기권', 'an ornate sky-blue and silver summon ticket card with a glowing star emblem in the center'],
@@ -203,6 +205,8 @@ const BACKGROUNDS = [
   ['story_ch15_boss', '스토리 15장 — 종말의 제단', 'a black altar floating above an endless void, giant broken chains of light, shattered stone platforms, a solar eclipse with a burning corona in the sky'],
   ['story_ch15_end', '스토리 15장 — 여명', 'a wide fantasy continent seen from a high cliff at sunrise, fragments of broken chains dissolving into golden light in the sky, calm sea on the horizon, hopeful'],
   ['arena', '결투장', 'a grand fantasy colosseum arena at sunset, circular stone stands with colorful banners, a sand floor with a glowing golden emblem in the center, dramatic sky'],
+  ['guild', '길드', 'the interior of a warm fantasy guild hall, long wooden tables, a big stone fireplace, blue banners with a golden anchor crest hanging from wooden beams, a quest board, cozy lantern light'],
+  ['friends', '친구', 'a cozy seaside harbor plaza at dusk with string lights, small cafe tables, paper lanterns, ships anchored in the bay, a friendly gathering place, warm and inviting'],
   ['raid', '주간 보스', 'a vast cosmic battlefield on a floating stone platform under a starry void, a giant swirling black hole in the sky devouring stars, purple and gold light'],
   ['gacha_summon', '가챠 소환 의식(계약 스크롤 뒤 배경)', 'a dark circular arcane summoning chamber, tall stone pillars with faint glowing blue runes, drifting golden dust motes, a soft beam of light falling on an empty stone dais in the center'],
   ['home', '홈', 'a cozy medieval fantasy great hall interior at dusk, tall arched windows overlooking a fantasy town with castle spires, warm glowing lanterns, wooden beams, plain cloth drapes'],
@@ -317,6 +321,18 @@ function build() {
     ['f_flame', '홍염 테두리', 'made of dark red metal wrapped in bright orange and crimson flames with drifting embers'],
     ['f_frost', '서리 테두리', 'made of pale blue ice crystals and frosted silver with snowflake ornaments'],
     ['f_star', '별무리 테두리', 'made of iridescent rainbow holographic crystal with glowing stars and a small star-and-anchor ornament on top'],
+    // 결투장 티어 테두리(처음 그 티어에 오르면 지급)
+    ['fa_silver', '결투장 실버 테두리', 'made of polished silver shaped like a round shield rim with two small crossed swords at the bottom'],
+    ['fa_gold', '결투장 골드 테두리', 'made of bright gold shaped like a round shield rim with two crossed swords at the bottom and a laurel wreath'],
+    ['fa_platinum', '결투장 플래티넘 테두리', 'made of teal-white platinum with sharp angular blade-like wings on both sides and two crossed swords at the bottom'],
+    ['fa_diamond', '결투장 다이아 테두리', 'made of sparkling blue diamond crystal facets with silver trim, two crossed crystal swords at the bottom'],
+    ['fa_nebula', '결투장 성운 테두리', 'made of swirling purple and pink cosmic nebula clouds with tiny stars, dark metal inner ring, wisps of stardust trailing off'],
+    ['fa_supernova', '결투장 초신성 테두리', 'made of blazing white-gold exploding star light with radiant orange and cyan energy rays bursting outward'],
+    ['fa_anchor', '결투장 앵커 테두리', 'made of majestic black and gold star-metal with a large golden anchor at the bottom, a brilliant four-pointed star on top, orbiting small stars, rainbow aurora glow'],
+    // 결투장 시즌 순위 한정 테두리
+    ['fr_1', '시즌 챔피언 테두리', 'made of legendary radiant gold and red rubies with a grand golden crown on top, golden wings on both sides, intense divine glow'],
+    ['fr_2', '시즌 2위 테두리', 'made of gleaming silver and blue sapphires with a silver crown on top and silver wings on both sides'],
+    ['fr_3', '시즌 3위 테두리', 'made of rich copper-bronze and green emeralds with a bronze crown on top and bronze wings on both sides'],
   ])
     list.push(withBackground({
       group: 'title', key, label: `프로필 테두리 — ${name}`,

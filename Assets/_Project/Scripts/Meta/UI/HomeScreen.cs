@@ -173,6 +173,8 @@ namespace SubcultureRPG.Meta.UI
 
             PlayerArena.Instance.OnChanged += RefreshModeTiles;
             WorldRaid.Instance.OnChanged += RefreshModeTiles;
+            PlayerGuild.Instance.OnChanged += RefreshModeTiles;
+            PlayerSocial.Instance.OnChanged += RefreshModeTiles;
         }
 
         // ---------------- 대표 캐릭터 ----------------
@@ -478,15 +480,21 @@ namespace SubcultureRPG.Meta.UI
 
             // 2열 타일: 육성 · 임무 / 결투장 · 주간 보스 (상점 · 가방은 오른쪽 위 아이콘, 도감 · 대표 변경은 프로필에서)
             float tw = (w - 16f) / 2f, lx = cx - (tw + 16f) / 2f, rx = cx + (tw + 16f) / 2f;
-            Tile(root, "육성\n<size=55%>레벨 · 스킬 · 초월</size>", new Color(0.33f, 0.55f, 0.4f, 0.95f), new Vector2(lx, -24), new Vector2(tw, 130), 36, () => Nav(HubScreen.Growth));
-            var mission = Tile(root, "", new Color(0.3f, 0.45f, 0.8f, 0.95f), new Vector2(rx, -24), new Vector2(tw, 130), 36, () => Nav(HubScreen.Mission));
+            Tile(root, "육성\n<size=55%>레벨 · 스킬 · 초월</size>", new Color(0.33f, 0.55f, 0.4f, 0.95f), new Vector2(lx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Growth));
+            var mission = Tile(root, "", new Color(0.3f, 0.45f, 0.8f, 0.95f), new Vector2(rx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Mission));
             _missionLabel = mission.GetComponentInChildren<TextMeshProUGUI>();
-            var arenaBtn = Tile(root, "", new Color(0.72f, 0.3f, 0.3f, 0.95f), new Vector2(lx, -170), new Vector2(tw, 130), 36, () => Nav(HubScreen.Arena));
+            var arenaBtn = Tile(root, "", new Color(0.72f, 0.3f, 0.3f, 0.95f), new Vector2(lx, -136), new Vector2(tw, 112), 34, () => Nav(HubScreen.Arena));
             _arenaLabel = arenaBtn.GetComponentInChildren<TextMeshProUGUI>();
             TileIcon(arenaBtn, "Items/ArenaCoin");
-            var raidBtn = Tile(root, "", new Color(0.45f, 0.3f, 0.7f, 0.95f), new Vector2(rx, -170), new Vector2(tw, 130), 36, () => Nav(HubScreen.Raid));
+            var raidBtn = Tile(root, "", new Color(0.45f, 0.3f, 0.7f, 0.95f), new Vector2(rx, -136), new Vector2(tw, 112), 34, () => Nav(HubScreen.Raid));
             _raidLabel = raidBtn.GetComponentInChildren<TextMeshProUGUI>();
             TileIcon(raidBtn, "Items/RaidIcon");
+            var guildBtn = Tile(root, "", new Color(0.25f, 0.42f, 0.62f, 0.95f), new Vector2(lx, -262), new Vector2(tw, 112), 34, () => Nav(HubScreen.Guild));
+            _guildLabel = guildBtn.GetComponentInChildren<TextMeshProUGUI>();
+            TileIcon(guildBtn, "Items/GuildIcon");
+            var friendBtn = Tile(root, "", new Color(0.62f, 0.38f, 0.52f, 0.95f), new Vector2(rx, -262), new Vector2(tw, 112), 34, () => Nav(HubScreen.Friends));
+            _friendLabel = friendBtn.GetComponentInChildren<TextMeshProUGUI>();
+            TileIcon(friendBtn, "Items/FriendIcon");
 
             // 상점 · 가방: 재화 알약 왼쪽 아이콘
             IconButton(root, "Items/UiShop", "상점", new Vector2(-50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14 - 78, -30), () => Nav(HubScreen.Shop));
@@ -495,7 +503,7 @@ namespace SubcultureRPG.Meta.UI
             BuildPicker();
         }
 
-        private TextMeshProUGUI _arenaLabel, _raidLabel;
+        private TextMeshProUGUI _arenaLabel, _raidLabel, _guildLabel, _friendLabel;
         private Image _profileDot;
 
         /// <summary>결투장 · 주간 보스 타일 문구(남은 도전 · 받을 보상).</summary>
@@ -505,13 +513,27 @@ namespace SubcultureRPG.Meta.UI
             {
                 var a = PlayerArena.Instance;
                 var (tier, _) = PlayerArena.Tier(a.Points);
-                _arenaLabel.text = $"결투장\n<size=55%>{tier} · 도전권 {a.Tickets}/{PlayerArena.MaxTickets}</size>";
+                _arenaLabel.text = $"결투장\n<size=55%>{tier} · {a.MyRank}위 · 도전권 {a.Tickets}/{PlayerArena.MaxTickets}</size>";
             }
             if (_raidLabel != null)
             {
                 var r = WorldRaid.Instance;
                 int n = r.ClaimableCount;
                 _raidLabel.text = "주간 보스" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "") + $"\n<size=55%>남은 도전 {r.AttemptsLeft}/{WorldRaid.AttemptsPerDay}</size>";
+            }
+            if (_guildLabel != null)
+            {
+                var g = PlayerGuild.Instance;
+                int n = g.BadgeCount;
+                _guildLabel.text = "길드" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "") +
+                                   $"\n<size=55%>{(g.Joined ? $"{g.Name} Lv.{g.Level}" : "가입 · 창설")}</size>";
+            }
+            if (_friendLabel != null)
+            {
+                var s = PlayerSocial.Instance;
+                int n = s.BadgeCount;
+                _friendLabel.text = "친구" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "") +
+                                    $"\n<size=55%>{s.Friends.Count}/{PlayerSocial.MaxFriends}명</size>";
             }
         }
 

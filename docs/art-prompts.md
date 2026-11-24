@@ -407,7 +407,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 36장
+## 재료 아이콘 (1:1) — 38장
 
 ### 소형 경험치 물약
 
@@ -551,6 +551,22 @@ two crossed golden swords over a round red shield emblem. game item icon, single
 
 ```
 a menacing purple demon skull emblem with a swirling black hole behind it and golden horns. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 길드 아이콘
+
+- 파일: `Items/GuildIcon.png` · 256×256 · 화면비 1:1
+
+```
+a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, hanging from a golden pole. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 친구 아이콘
+
+- 파일: `Items/FriendIcon.png` · 256×256 · 화면비 1:1
+
+```
+two cute round chibi commander figures side by side, one blue and one pink, with a small glowing heart between them. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 별의 조각
@@ -919,7 +935,7 @@ a white feather quill pen with a golden nib, tilted diagonally with the nib poin
 a round crimson wax seal with an embossed golden star emblem and a small ribbon. fantasy game UI illustration, single object centered, anime game art style, clean line art, soft cel shading, high detail, plain very dark navy background
 ```
 
-## 타이틀 로고 · 키 아트 — 8장
+## 타이틀 로고 · 키 아트 — 18장
 
 ### 프로필 테두리 — 청동 테두리
 
@@ -969,6 +985,86 @@ a perfectly circular ornate avatar frame ring made of pale blue ice crystals and
 a perfectly circular ornate avatar frame ring made of iridescent rainbow holographic crystal with glowing stars and a small star-and-anchor ornament on top, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
 ```
 
+### 프로필 테두리 — 결투장 실버 테두리
+
+- 파일: `Frames/fa_silver.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of polished silver shaped like a round shield rim with two small crossed swords at the bottom, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 결투장 골드 테두리
+
+- 파일: `Frames/fa_gold.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of bright gold shaped like a round shield rim with two crossed swords at the bottom and a laurel wreath, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 결투장 플래티넘 테두리
+
+- 파일: `Frames/fa_platinum.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of teal-white platinum with sharp angular blade-like wings on both sides and two crossed swords at the bottom, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 결투장 다이아 테두리
+
+- 파일: `Frames/fa_diamond.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of sparkling blue diamond crystal facets with silver trim, two crossed crystal swords at the bottom, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 결투장 성운 테두리
+
+- 파일: `Frames/fa_nebula.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of swirling purple and pink cosmic nebula clouds with tiny stars, dark metal inner ring, wisps of stardust trailing off, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 결투장 초신성 테두리
+
+- 파일: `Frames/fa_supernova.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of blazing white-gold exploding star light with radiant orange and cyan energy rays bursting outward, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 결투장 앵커 테두리
+
+- 파일: `Frames/fa_anchor.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of majestic black and gold star-metal with a large golden anchor at the bottom, a brilliant four-pointed star on top, orbiting small stars, rainbow aurora glow, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 시즌 챔피언 테두리
+
+- 파일: `Frames/fr_1.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of legendary radiant gold and red rubies with a grand golden crown on top, golden wings on both sides, intense divine glow, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 시즌 2위 테두리
+
+- 파일: `Frames/fr_2.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of gleaming silver and blue sapphires with a silver crown on top and silver wings on both sides, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 시즌 3위 테두리
+
+- 파일: `Frames/fr_3.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of rich copper-bronze and green emeralds with a bronze crown on top and bronze wings on both sides, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
 ### 타이틀 — 로고 엠블럼
 
 - 파일: `Title/logo.png` · 512×512 · 화면비 1:1
@@ -985,7 +1081,7 @@ a game logo emblem: an ornate golden ship anchor whose top is a brilliant four-p
 the two women from the reference image standing back to back in the center of a wide key visual, both fully visible from the knees up: on the left an adult woman with long crimson hair with ember-orange tips, golden eyes, black and red battle dress with gold trim, holding a flaming greatsword, confident smile; on the right an adult woman with a silver-white bob haircut, pale blue eyes, white and navy military coat with a fur collar, holding twin slender ice rapiers, calm cold gaze; the background is split diagonally between a burning crimson night sky with falling embers and a frozen pale-blue sky with drifting snow crystals, a faint golden star-and-anchor constellation between them, dynamic heroic poses, open empty space along the bottom for a title. subculture mobile gacha game title key visual in modern Japanese and Korean anime style, wide 16:9 composition, beautiful youthful faces with large detailed sparkling eyes, crisp thin line art, bright clean cel shading with glossy highlights, luminous dramatic lighting, high quality
 ```
 
-## 화면 배경 (16:9) — 53장
+## 화면 배경 (16:9) — 55장
 
 ### 스토리 1장 — 숲의 입구
 
@@ -1153,6 +1249,22 @@ a wide fantasy continent seen from a high cliff at sunrise, fragments of broken 
 
 ```
 a grand fantasy colosseum arena at sunset, circular stone stands with colorful banners, a sand floor with a glowing golden emblem in the center, dramatic sky. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 길드
+
+- 파일: `Backgrounds/guild.jpg` · 1920×1080 · 화면비 16:9
+
+```
+the interior of a warm fantasy guild hall, long wooden tables, a big stone fireplace, blue banners with a golden anchor crest hanging from wooden beams, a quest board, cozy lantern light. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 친구
+
+- 파일: `Backgrounds/friends.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a cozy seaside harbor plaza at dusk with string lights, small cafe tables, paper lanterns, ships anchored in the bay, a friendly gathering place, warm and inviting. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
 ```
 
 ### 주간 보스

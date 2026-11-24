@@ -28,8 +28,105 @@ namespace SubcultureRPG.Meta.UI
 
         public void Show(bool on)
         {
+            if (!on) CloseDialog();
             if (_root != null) _root.SetActive(on);
             if (on) Refresh();
+        }
+
+        // ---------------- 대화 상자 ----------------
+
+        private GameObject _dialog;
+
+        protected void CloseDialog()
+        {
+            if (_dialog != null) Destroy(_dialog);
+            _dialog = null;
+        }
+
+        /// <summary>화면 위 창(어두운 바탕을 누르면 닫힘). 반환 = 창 안쪽(제목 아래부터 쓰기).</summary>
+        protected RectTransform OpenDialog(string title, float w, float h)
+        {
+            CloseDialog();
+            var holder = UIFactory.NewRect("Dialog", _root.transform);
+            UIFactory.Stretch(holder);
+            _dialog = holder.gameObject;
+            var dim = UIFactory.AddImage("Dim", holder, new Color(0, 0, 0, 0.74f), null, raycast: true);
+            UIFactory.Stretch(dim.rectTransform);
+            var db = dim.gameObject.AddComponent<Button>();
+            db.targetGraphic = dim; db.transition = Selectable.Transition.None;
+            db.onClick.AddListener(CloseDialog);
+            var panel = Panel(holder, new Color(0.08f, 0.09f, 0.14f, 0.98f));   // 바탕과 형제(창을 눌러도 닫히지 않게)
+            UIFactory.Anchor(panel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            panel.rectTransform.sizeDelta = new Vector2(w, h);
+            var t = Text(panel.transform, $"<b>{title}</b>", 32, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t.rectTransform, 30, -18, w - 220, 48);
+            var close = UIFactory.AddButton("Close", panel.transform, "닫기", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            UIFactory.Anchor((RectTransform)close.transform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            ((RectTransform)close.transform).sizeDelta = new Vector2(120, 44); ((RectTransform)close.transform).anchoredPosition = new Vector2(-20, -20);
+            close.onClick.AddListener(CloseDialog);
+            return panel.rectTransform;
+        }
+
+        /// <summary>확인 창: 본문 + [yes] / 취소.</summary>
+        protected void Confirm(string message, string yes, System.Action onYes)
+        {
+            var p = OpenDialog("확인", 760, 330);
+            var body = Text(p, message, 26, new Color(0.9f, 0.92f, 0.96f), FontStyles.Normal, TextAlignmentOptions.Center);
+            body.textWrappingMode = TextWrappingModes.Normal;
+            UIFactory.Stretch(body.rectTransform, 40, 110, 40, 80);
+            var ok = UIFactory.AddButton("Yes", p, yes, 24, font, new Color(0.25f, 0.55f, 0.9f, 0.96f), Color.white);
+            UIFactory.Anchor((RectTransform)ok.transform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            ((RectTransform)ok.transform).sizeDelta = new Vector2(220, 60); ((RectTransform)ok.transform).anchoredPosition = new Vector2(-124, 30);
+            ok.onClick.AddListener(() => { CloseDialog(); onYes?.Invoke(); });
+            var no = UIFactory.AddButton("No", p, "취소", 24, font, new Color(1, 1, 1, 0.14f), Color.white);
+            UIFactory.Anchor((RectTransform)no.transform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            ((RectTransform)no.transform).sizeDelta = new Vector2(220, 60); ((RectTransform)no.transform).anchoredPosition = new Vector2(124, 30);
+            no.onClick.AddListener(CloseDialog);
+        }
+
+        /// <summary>알림 창: 본문 + 확인.</summary>
+        protected RectTransform Notice(string title, string message, float h = 420)
+        {
+            var p = OpenDialog(title, 820, h);
+            var body = Text(p, message, 26, new Color(0.9f, 0.92f, 0.96f), FontStyles.Normal, TextAlignmentOptions.Center);
+            body.textWrappingMode = TextWrappingModes.Normal;
+            body.lineSpacing = 12f;
+            UIFactory.Stretch(body.rectTransform, 40, 110, 40, 80);
+            var ok = UIFactory.AddButton("Ok", p, "확인", 24, font, new Color(0.25f, 0.55f, 0.9f, 0.96f), Color.white);
+            UIFactory.Anchor((RectTransform)ok.transform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            ((RectTransform)ok.transform).sizeDelta = new Vector2(240, 60); ((RectTransform)ok.transform).anchoredPosition = new Vector2(0, 30);
+            ok.onClick.AddListener(CloseDialog);
+            return p;
+        }
+
+        /// <summary>입력 칸(TMP_InputField)을 코드로 구성.</summary>
+        protected TMP_InputField Input(Transform parent, string placeholder, int limit, float size)
+        {
+            var bg = UIFactory.AddImage("Input", parent, new Color(1, 1, 1, 0.12f), ProceduralSprites.Rounded, raycast: true);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            var area = UIFactory.NewRect("Text Area", bg.transform);
+            UIFactory.Stretch(area, 20, 6, 20, 6);
+            area.gameObject.AddComponent<RectMask2D>();
+            var ph = UIFactory.AddText("Placeholder", area, placeholder, size, font, new Color(0.6f, 0.63f, 0.7f), TextAlignmentOptions.Left, FontStyles.Italic);
+            UIFactory.Stretch(ph.rectTransform);
+            var text = UIFactory.AddText("Text", area, "", size, font, Color.white, TextAlignmentOptions.Left);
+            UIFactory.Stretch(text.rectTransform);
+            text.overflowMode = TextOverflowModes.Overflow;
+            text.richText = false;
+            var field = bg.gameObject.AddComponent<TMP_InputField>();
+            field.targetGraphic = bg;
+            field.textViewport = area;
+            field.textComponent = text;
+            field.placeholder = ph;
+            field.characterLimit = limit;
+            field.lineType = TMP_InputField.LineType.SingleLine;
+            field.richText = false;
+            if (font != null) field.fontAsset = font;
+            field.pointSize = size;
+            field.caretColor = Color.white;
+            field.customCaretColor = true;
+            field.selectionColor = new Color(0.4f, 0.6f, 1f, 0.5f);
+            return field;
         }
 
         protected abstract void Refresh();
@@ -169,9 +266,15 @@ namespace SubcultureRPG.Meta.UI
             _myPower = Text(head.transform, "", 22, new Color(0.8f, 0.83f, 0.9f), FontStyles.Normal, TextAlignmentOptions.Left);
             Place(_myPower.rectTransform, 140, -66, 760, 36);
             _tickets = Text(head.transform, "", 26, Color.white, FontStyles.Bold, TextAlignmentOptions.Right);
-            Place(_tickets.rectTransform, 900, -14, 380, 44);
+            Place(_tickets.rectTransform, 1180, -12, 296, 40);
+            var rankBtn = UIFactory.AddButton("Ranking", head.transform, "랭킹", 22, font, new Color(0.8f, 0.58f, 0.22f, 0.96f), Color.white);
+            Place((RectTransform)rankBtn.transform, 920, -56, 170, 50);
+            rankBtn.onClick.AddListener(OpenRanking);
+            var tierBtn = UIFactory.AddButton("Tiers", head.transform, "티어 · 보상", 22, font, new Color(1, 1, 1, 0.16f), Color.white);
+            Place((RectTransform)tierBtn.transform, 1104, -56, 180, 50);
+            tierBtn.onClick.AddListener(OpenTiers);
             var refresh = UIFactory.AddButton("Refresh", head.transform, "상대 새로고침", 22, font, new Color(1, 1, 1, 0.16f), Color.white);
-            Place((RectTransform)refresh.transform, 1300, -34, 176, 52);
+            Place((RectTransform)refresh.transform, 1298, -56, 180, 50);
             refresh.onClick.AddListener(() => { PlayerArena.Instance.Refresh(); Refresh(); Toast("새 상대를 찾았습니다"); });
 
             _list = UIFactory.NewRect("List", _frame);
@@ -192,7 +295,17 @@ namespace SubcultureRPG.Meta.UI
             var roster = FindAnyObjectByType<PlayerRoster>();
             var db = roster != null ? roster.Database : null;
             var (tier, color) = PlayerArena.Tier(a.Points);
-            _rank.text = $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{tier}</color>   {a.Points:N0} 점   <size=65%><color=#9AA3B5>{a.Wins}승 {a.Losses}패</color></size>";
+            _rank.text = $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{tier}</color>   {a.Points:N0} 점   <size=65%><color=#FFD36B>시즌 {a.MyRank}위</color>   <color=#9AA3B5>{a.Wins}승 {a.Losses}패</color></size>";
+
+            // 지난 시즌 정산(한 번만)
+            var st = a.TakeSettlement();
+            if (st != null)
+            {
+                string frame = st.frameId != null ? $"\n<color=#FFD36B>한정 테두리 '{ProfileRewards.Frame(st.frameId).name}' 획득!</color>" : "";
+                Notice("시즌 정산", $"지난 시즌 최종 순위  <color=#FFD36B><b>{st.rank}위</b></color>  ({st.points:N0}점)\n" +
+                                  $"<color=#8FE9FF>크리스탈 {st.crystals:N0}</color> 지급{frame}\n" +
+                                  $"<size=80%><color=#9AA3B5>새 시즌 시작 점수 {st.newPoints:N0}점</color></size>");
+            }
             long top4 = 0; int n = 0;
             foreach (var kv in CombatPower.All(roster, FindAnyObjectByType<PlayerEquipment>())) { if (n++ >= 4) break; top4 += kv.Value; }
             _myPower.text = $"내 주력 4명 전투력  <color=#FFB347><b>{top4:N0}</b></color>";
@@ -201,6 +314,87 @@ namespace SubcultureRPG.Meta.UI
             Clear(_list);
             float y = 0;
             foreach (var o in a.Opponents) { Row(o, db, y); y -= 226; }
+        }
+
+        /// <summary>시즌 랭킹 창(100명).</summary>
+        private void OpenRanking()
+        {
+            var a = PlayerArena.Instance;
+            var p = OpenDialog("시즌 랭킹", 1100, 940);
+            var t = PlayerArena.UntilSeasonEnd;
+            var sub = Text(p, $"<color=#9AA3B5>시즌 종료까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  월요일 05:00 정산</color>   내 순위 <color=#FFD36B><b>{a.MyRank}위</b></color>",
+                20, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(sub.rectTransform, 30, -68, 1040, 30);
+            var view = UIFactory.NewRect("View", p);
+            UIFactory.Stretch(view, 24, 90, 24, 108);
+            var content = UIFactory.NewRect("Content", view);
+            var vl = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            vl.spacing = 4; vl.padding = new RectOffset(4, 4, 4, 4);
+            vl.childControlWidth = true; vl.childControlHeight = true; vl.childForceExpandHeight = false;
+            var scroll = UIFactory.MakeVerticalScroll(view, content);
+            var list = a.Ranking();
+            int mine = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var e = list[i];
+                if (e.me) mine = i;
+                var (tier, tc) = PlayerArena.Tier(e.points);
+                var row = Panel(content, e.me ? new Color(0.25f, 0.45f, 0.75f, 0.7f) : e.rank <= 3 ? new Color(0.5f, 0.4f, 0.15f, 0.45f) : new Color(1, 1, 1, 0.05f));
+                row.gameObject.AddComponent<LayoutElement>().preferredHeight = 52;
+                string rc = e.rank == 1 ? "#FFD36B" : e.rank == 2 ? "#DCE6FF" : e.rank == 3 ? "#E0A070" : "#FFFFFF";
+                var r1 = Text(row.transform, $"<color={rc}><b>{e.rank}</b></color>", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+                Place(r1.rectTransform, 10, -6, 90, 40);
+                var r2 = Text(row.transform, $"<b>{e.name}</b>" + (e.me ? "  <size=75%><color=#9AD4FF>나</color></size>" : ""), 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+                Place(r2.rectTransform, 120, -6, 460, 40);
+                var r3 = Text(row.transform, $"<color=#{ColorUtility.ToHtmlStringRGB(tc)}>{tier}</color>", 22, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
+                Place(r3.rectTransform, 600, -6, 200, 40);
+                var r4 = Text(row.transform, $"{e.points:N0} 점", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
+                Place(r4.rectTransform, 810, -6, 210, 40);
+            }
+            // 내 줄이 보이도록 스크롤
+            Canvas.ForceUpdateCanvases();
+            scroll.verticalNormalizedPosition = list.Count > 1 ? Mathf.Clamp01(1f - (mine - 6) / (float)Mathf.Max(1, list.Count - 14)) : 1f;
+
+            var foot = Text(p, "<color=#FFD36B>정산 보상</color>  1위 1,500 · 2위 1,000 · 3위 700 · 4 ~ 10위 500 · 11 ~ 30위 300 · 31 ~ 60위 200 · 그 밖 100 크리스탈\n" +
+                               "<color=#FFD36B>1 · 2 · 3위</color>는 한정 테두리 지급  ·  정산 뒤 점수는 1,000점 초과분의 75%만 이어집니다  ·  이번 시즌에 1판 이상 싸워야 정산됩니다",
+                18, new Color(0.82f, 0.85f, 0.92f), FontStyles.Normal, TextAlignmentOptions.Center);
+            foot.textWrappingMode = TextWrappingModes.Normal;
+            UIFactory.Anchor(foot.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            foot.rectTransform.sizeDelta = new Vector2(-60, 70); foot.rectTransform.anchoredPosition = new Vector2(0, 18);
+        }
+
+        /// <summary>티어 · 테두리 안내 창.</summary>
+        private void OpenTiers()
+        {
+            var a = PlayerArena.Instance;
+            var p = OpenDialog("티어 · 테두리 보상", 1400, 800);
+            var note = Text(p, "<color=#9AA3B5>처음 그 티어에 오르면 테두리를 받습니다(프로필 → 테두리 변경). 시즌 1 · 2 · 3위는 한정 테두리.</color>", 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(note.rectTransform, 30, -68, 1200, 30);
+            var who = ProfileAvatar.CharacterOf(PlayerProfile.Instance, FindAnyObjectByType<PlayerRoster>());
+            int cur = PlayerArena.TierIndex(a.Points);
+            void Cell(int col, int rowIdx, string frameId, string title, string cond, Color color, bool got, bool now)
+            {
+                var cell = Panel(p, now ? new Color(0.25f, 0.45f, 0.75f, 0.6f) : new Color(1, 1, 1, 0.06f));
+                Place(cell.rectTransform, 30 + col * 228, -112 - rowIdx * 330, 216, 316);
+                var av = new ProfileAvatar(cell.transform, 150);
+                UIFactory.Anchor(av.Rect, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+                av.Rect.anchoredPosition = new Vector2(0, -16);
+                av.Set(who, string.IsNullOrEmpty(frameId) ? ProfileRewards.DefaultFrame : frameId);
+                av.Rect.gameObject.AddComponent<CanvasGroup>().alpha = got ? 1f : 0.4f;
+                var tx = Text(cell.transform, $"<color=#{ColorUtility.ToHtmlStringRGB(color)}><b>{title}</b></color>\n<size=72%>{cond}\n<color={(got ? "#7CFF9A" : "#9AA3B5")}>{(now ? "현재 티어" : got ? "획득" : "미획득")}</color></size>",
+                    26, Color.white, FontStyles.Normal, TextAlignmentOptions.Bottom);
+                UIFactory.Stretch(tx.rectTransform, 6, 12, 6, 0);
+            }
+            for (int i = 0; i < PlayerArena.Tiers.Length; i++)
+            {
+                var t = PlayerArena.Tiers[i];
+                bool got = a.BestPoints >= t.min;
+                Cell(i % 6, i / 6, t.frameId, t.name, i == 0 ? "시작 티어" : $"{t.min:N0}점 이상", t.color, got, i == cur);
+            }
+            string[] rn = { "시즌 1위", "시즌 2위", "시즌 3위" };
+            Color[] rcol = { new(1f, 0.83f, 0.42f), new(0.85f, 0.9f, 1f), new(0.85f, 0.6f, 0.4f) };
+            for (int i = 0; i < 3; i++)
+                Cell(3 + i, 1, PlayerArena.RankFrames[i], rn[i], "시즌 정산 한정", rcol[i], (a.RankFrameBits & (1 << i)) != 0, false);
         }
 
         private void Row(PlayerArena.Opponent o, GameDatabase db, float y)
@@ -325,7 +519,7 @@ namespace SubcultureRPG.Meta.UI
             foreach (var e in weak) parts.Add($"<color={Traits.Hex(e)}><b>{Traits.Name(e)}</b></color>");
             _weak.text = $"이번 주 약점  {string.Join("  ·  ", parts)}   <size=80%><color=#9AA3B5>Lv.{WorldRaid.BossLevel()}</color></size>";
             var t = WorldRaid.UntilWeekReset;
-            _left.text = $"교체까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  한 번에 아군 행동 {WorldRaid.ActionLimit}회까지";
+            _left.text = $"교체까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  제한 시간 {WorldRaid.TimeLimit:0}초 · {WorldRaid.EnrageEvery:0}초마다 보스 공격력 +{WorldRaid.EnrageAtk * 100f:0}%";
             _summary.text = $"<color=#9AA3B5>오늘 남은 도전</color>   <color={(r.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}><b>{r.AttemptsLeft}</b></color> / {WorldRaid.AttemptsPerDay}\n" +
                             $"<color=#9AA3B5>이번 주 누적 피해</color>   <color=#FFD36B><b>{r.TotalDamage:N0}</b></color>\n" +
                             $"<color=#9AA3B5>최고 기록(1회)</color>   {r.BestDamage:N0}";

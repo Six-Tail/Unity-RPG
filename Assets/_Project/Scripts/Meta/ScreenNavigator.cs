@@ -21,6 +21,8 @@ namespace SubcultureRPG.Meta
         Codex,
         Arena,     // 결투장(PVP)
         Raid,      // 주간 보스(월드 레이드)
+        Friends,   // 친구
+        Guild,     // 길드
     }
 
     /// <summary>
@@ -43,6 +45,8 @@ namespace SubcultureRPG.Meta
         [SerializeField] private CodexScreen codex;
         [SerializeField] private ArenaScreen arena;
         [SerializeField] private RaidScreen raid;
+        [SerializeField] private FriendScreen friends;
+        [SerializeField] private GuildScreen guild;
 
         /// <summary>결투장 · 주간 보스 전투에서 나갈 때 돌아갈 화면(없으면 스테이지/홈 규칙).</summary>
         private HubScreen? _modeReturn;
@@ -73,6 +77,10 @@ namespace SubcultureRPG.Meta
             if (arena == null && home != null) arena = CreateMode<ArenaScreen>("ArenaScreen");
             if (raid == null) raid = FindAnyObjectByType<RaidScreen>();
             if (raid == null && home != null) raid = CreateMode<RaidScreen>("RaidScreen");
+            if (friends == null) friends = FindAnyObjectByType<FriendScreen>();
+            if (friends == null && home != null) friends = CreateMode<FriendScreen>("FriendScreen");
+            if (guild == null) guild = FindAnyObjectByType<GuildScreen>();
+            if (guild == null && home != null) guild = CreateMode<GuildScreen>("GuildScreen");
         }
 
         /// <summary>결투장 · 주간 보스 화면을 코드로 추가(폰트는 홈 화면과 같게).</summary>
@@ -145,11 +153,13 @@ namespace SubcultureRPG.Meta
                     $"결투장  ·  {o.name}  <size=60%><color=#FFB347>상대 전투력 {o.power:N0}</color></size>", "도전!",
                     team => PlayerArena.Instance.Fight(o, team), HubScreen.Arena, "← 결투장");
             }
+            if (friends != null) friends.SetBackAction(GoHome);
+            if (guild != null) guild.SetBackAction(GoHome);
             if (raid != null)
             {
                 raid.SetBackAction(GoHome);
                 raid.OnChallenge += () => OpenModeParty(
-                    $"주간 보스  ·  {WorldRaid.BossName}  <size=60%><color=#C9A0FF>아군 행동 {WorldRaid.ActionLimit}회</color></size>", "도전!",
+                    $"주간 보스  ·  {WorldRaid.BossName}  <size=60%><color=#C9A0FF>제한 시간 {WorldRaid.TimeLimit:0}초</color></size>", "도전!",
                     team => WorldRaid.Instance.Fight(team), HubScreen.Raid, "← 주간 보스");
             }
             if (party != null)
@@ -209,6 +219,8 @@ namespace SubcultureRPG.Meta
             if (codex != null) codex.Show(screen == HubScreen.Codex);
             if (arena != null) arena.Show(screen == HubScreen.Arena);
             if (raid != null) raid.Show(screen == HubScreen.Raid);
+            if (friends != null) friends.Show(screen == HubScreen.Friends);
+            if (guild != null) guild.Show(screen == HubScreen.Guild);
             if (battleHud != null) battleHud.Show(screen == HubScreen.Battle);
         }
 

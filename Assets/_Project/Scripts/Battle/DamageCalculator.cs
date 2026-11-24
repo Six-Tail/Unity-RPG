@@ -26,7 +26,7 @@ namespace SubcultureRPG.Battle
         {
             float raw = attacker.EffectiveAtk * Mathf.Max(0f, power);
             float def = defender.EffectiveDef * (1f - attacker.penetration);          // 방어 관통
-            float mitigation = def / (def + Mathf.Max(1f, cfg.defConstant));
+            float mitigation = def / (def + Mathf.Max(1f, cfg.defConstant) * BattleStats.Scale);
             float afterDef = raw * (1f - mitigation);
 
             // 피해 증가(합연산): 모든 피해 · 속성 피해 · 종류별 · 조건부(패시브)

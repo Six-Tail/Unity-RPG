@@ -152,10 +152,14 @@ namespace SubcultureRPG.Meta
         public int level;
         public int chaptersCleared;   // 쉬움 난이도에서 연속으로 클리어한 마지막 장
         public int owned;             // 보유 캐릭터 수
+        public int arenaBest;         // 결투장 역대 최고 점수
+        public int arenaRankBits;     // 결투장 시즌 순위 테두리(비트: 1위 · 2위 · 3위)
 
         public static ProfileContext Capture()
         {
             var ctx = new ProfileContext { level = PlayerProfile.Instance.Level };
+            ctx.arenaBest = PlayerArena.Instance.BestPoints;
+            ctx.arenaRankBits = PlayerArena.Instance.RankFrameBits;
             var roster = UnityEngine.Object.FindAnyObjectByType<PlayerRoster>();
             if (roster != null) ctx.owned = roster.Owned.Count;
             var progress = UnityEngine.Object.FindAnyObjectByType<StageProgress>();
@@ -214,6 +218,18 @@ namespace SubcultureRPG.Meta
             R("f_flame", "홍염 테두리", "3장 클리어", Red, c => c.chaptersCleared >= 3),
             R("f_frost", "서리 테두리", "7장 클리어", Blue, c => c.chaptersCleared >= 7),
             R("f_star", "별무리 테두리", "15장 클리어", Rainbow, c => c.chaptersCleared >= 15),
+            // 결투장: 처음 그 티어에 오르면 지급
+            R("fa_silver", "결투장 실버", "결투장 실버 달성", PlayerArena.Tiers[1].color, c => c.arenaBest >= PlayerArena.Tiers[1].min),
+            R("fa_gold", "결투장 골드", "결투장 골드 달성", PlayerArena.Tiers[2].color, c => c.arenaBest >= PlayerArena.Tiers[2].min),
+            R("fa_platinum", "결투장 플래티넘", "결투장 플래티넘 달성", PlayerArena.Tiers[3].color, c => c.arenaBest >= PlayerArena.Tiers[3].min),
+            R("fa_diamond", "결투장 다이아", "결투장 다이아 달성", PlayerArena.Tiers[4].color, c => c.arenaBest >= PlayerArena.Tiers[4].min),
+            R("fa_nebula", "결투장 성운", "결투장 성운 달성", PlayerArena.Tiers[5].color, c => c.arenaBest >= PlayerArena.Tiers[5].min),
+            R("fa_supernova", "결투장 초신성", "결투장 초신성 달성", PlayerArena.Tiers[6].color, c => c.arenaBest >= PlayerArena.Tiers[6].min),
+            R("fa_anchor", "결투장 앵커", "결투장 앵커 달성", PlayerArena.Tiers[7].color, c => c.arenaBest >= PlayerArena.Tiers[7].min),
+            // 결투장 시즌 순위 한정
+            R("fr_1", "시즌 챔피언", "시즌 1위 (한정)", Gold, c => (c.arenaRankBits & 1) != 0),
+            R("fr_2", "시즌 2위", "시즌 2위 (한정)", new Color(0.85f, 0.9f, 1f), c => (c.arenaRankBits & 2) != 0),
+            R("fr_3", "시즌 3위", "시즌 3위 (한정)", new Color(0.85f, 0.6f, 0.4f), c => (c.arenaRankBits & 4) != 0),
         };
 
         public static ProfileReward Title(string id) => Titles.Find(t => t.id == id) ?? Titles[0];

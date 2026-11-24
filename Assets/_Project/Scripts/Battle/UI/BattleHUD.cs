@@ -410,6 +410,7 @@ namespace SubcultureRPG.Battle.UI
             if (_resultToast != null) _resultToast.text = "";
 
             HideTip();
+            _turnDamage?.Clear();
             BuildPanels(engine);
             RefreshTurnStrip();
             RefreshSkillPoints();
@@ -420,6 +421,7 @@ namespace SubcultureRPG.Battle.UI
         }
 
         private float _battleStartedAt;
+        private TurnDamageCounter _turnDamage;
         private readonly Dictionary<BattleUnit, float> _passiveNoteAt = new();
 
         /// <summary>패시브 발동: 유닛 위에 '패시브 이름' 알림. 같은 유닛이 연달아 발동하면 살짝 늦춰 겹치지 않게.</summary>
@@ -447,6 +449,7 @@ namespace SubcultureRPG.Battle.UI
         private void HandleSideEffects(List<ActionResult.TargetHit> extras)
         {
             if (_fx != null) _fx.Speed = Mathf.Pow(Mathf.Max(1f, controller.Speed), 0.6f);
+            _turnDamage?.Add(null, extras);
             ShowExtras(extras, 0f);
             foreach (var p in _panels.Values) p.Refresh();
         }
@@ -503,6 +506,7 @@ namespace SubcultureRPG.Battle.UI
 
         private void HandleTurnBegin(BattleUnit unit)
         {
+            _turnDamage?.BeginTurn(unit);
             // 턴 시작에 효과 턴이 줄고 브레이크가 풀리므로 아이콘·설명 창 갱신
             foreach (var p in _panels.Values) p.Refresh();
             RefreshTip();
@@ -554,6 +558,7 @@ namespace SubcultureRPG.Battle.UI
 
         private void HandleResolved(ActionResult result)
         {
+            _turnDamage?.Add(result.actor, result.hits);
             _skillBarGO.SetActive(false);
             _selecting = false; _pendingSkill = null;
             ClearTargetable();
@@ -864,6 +869,7 @@ namespace SubcultureRPG.Battle.UI
         private void HandleEnd(Team winner)
         {
             HideTip();
+            _turnDamage?.BeginTurn(null);   // 잠시 뒤 사라짐
             if (_finishRoutine != null) { StopCoroutine(_finishRoutine); _finishRoutine = null; }
             _finishText.gameObject.SetActive(false);
             _finishGlow.gameObject.SetActive(false);
@@ -988,6 +994,7 @@ namespace SubcultureRPG.Battle.UI
             BuildCutIn(rootT);
             BuildTip(rootT);
             BuildFinish(rootT);
+            _turnDamage = TurnDamageCounter.Create(rootT, font);   // 오른쪽 '총 피해량'
             BuildResultOverlay(rootT);
         }
 

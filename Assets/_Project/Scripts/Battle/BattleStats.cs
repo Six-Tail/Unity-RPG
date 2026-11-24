@@ -26,8 +26,14 @@ namespace SubcultureRPG.Battle
         public int atkGrowth = 0;
         public int defGrowth = 0;
 
-        public int MaxHPAt(int level) => maxHP + hpGrowth * Mathf.Max(0, level - 1);
-        public int AtkAt(int level) => atk + atkGrowth * Mathf.Max(0, level - 1);
-        public int DefAt(int level) => def + defGrowth * Mathf.Max(0, level - 1);
+        /// <summary>
+        /// 능력치 규모 배율: 체력 · 공격력 · 방어력(아군 · 적 · 장비 고정치)과 방어 상수에 똑같이 곱해져
+        /// 전투 균형(피해 비율 · 걸리는 턴 수)은 그대로 두고 숫자 크기만 키웁니다.
+        /// </summary>
+        public const int Scale = 3;
+
+        public int MaxHPAt(int level) => (maxHP + hpGrowth * Mathf.Max(0, level - 1)) * Scale;
+        public int AtkAt(int level) => (atk + atkGrowth * Mathf.Max(0, level - 1)) * Scale;
+        public int DefAt(int level) => (def + defGrowth * Mathf.Max(0, level - 1)) * Scale;
     }
 }

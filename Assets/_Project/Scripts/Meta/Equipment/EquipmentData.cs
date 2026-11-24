@@ -55,10 +55,10 @@ namespace SubcultureRPG.Meta
         public int Rarity => rarity >= EquipStats.MinRarity && rarity <= EquipStats.MaxRarity ? rarity : EquipStats.MaxRarity;
         public int MaxLevel => EquipStats.MaxLevelOf(Rarity);
         public bool IsMaxed => level >= MaxLevel;
-        public float MainValue => EquipStats.MainValue(main, level, Rarity) * EquipStats.TranscendMainMul(transcend);
+        public float MainValue => EquipStats.MainValue(main, level, Rarity) * EquipStats.TranscendMainMul(transcend) * EquipStats.FlatScale(main);
 
         /// <summary>보조 옵션 실제 수치(초월 보정 포함).</summary>
-        public float SubValue(EquipSub s) => s.value * EquipStats.TranscendSubMul(transcend);
+        public float SubValue(EquipSub s) => s.value * EquipStats.TranscendSubMul(transcend) * EquipStats.FlatScale(s.stat);
         public bool CanTranscendMore => IsMaxed && transcend < EquipStats.MaxTranscend;
     }
 
@@ -130,6 +130,10 @@ namespace SubcultureRPG.Meta
             EquipStat.IceDmg => "얼음 피해", EquipStat.LightningDmg => "번개 피해", EquipStat.WindDmg => "바람 피해",
             _ => s.ToString(),
         };
+
+        /// <summary>고정 체력 · 공격력 · 방어력은 능력치 규모 배율을 따라감(저장된 값은 그대로, 읽을 때 곱함).</summary>
+        public static float FlatScale(EquipStat s) =>
+            s == EquipStat.HP || s == EquipStat.Atk || s == EquipStat.Def ? SubcultureRPG.Battle.BattleStats.Scale : 1f;
 
         public static bool IsPercent(EquipStat s) => s != EquipStat.HP && s != EquipStat.Atk && s != EquipStat.Def && s != EquipStat.Spd;
 
