@@ -235,6 +235,7 @@ namespace SubcultureRPG.Meta
             }
 
             Current = screen;
+            SoundManager.Bgm(BgmOf(screen));
             if (home != null) home.Show(screen == HubScreen.Home);
             if (stage != null) stage.Show(screen == HubScreen.Stage);
             if (gacha != null) gacha.Show(screen == HubScreen.Gacha);
@@ -253,6 +254,18 @@ namespace SubcultureRPG.Meta
         }
 
         public void GoHome() => Go(HubScreen.Home);
+
+        /// <summary>화면별 배경음 키(Resources/Audio/BGM/{키}). 없는 키는 menu → home 으로 대체.</summary>
+        private static string BgmOf(HubScreen s) => s switch
+        {
+            HubScreen.Home => "home",
+            HubScreen.Stage or HubScreen.Dungeon => "stage",
+            HubScreen.Gacha => "gacha",
+            HubScreen.Battle => "battle",
+            HubScreen.Arena or HubScreen.Raid => "arena",
+            HubScreen.Event => "event",
+            _ => "menu",
+        };
 
         /// <summary>스테이지 화면을 특수 던전(종류 지정) 탭으로 엶.</summary>
         public void OpenDungeon(StageKind kind)

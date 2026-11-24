@@ -29,5 +29,6 @@ MonoBehaviour:
   weaknesses: 0100000004000000
   maxToughness: 130
   startEnergy: 0
+  passives: []
   skills:
   - {fileID: 11400000, guid: be5f29dcb39838e4ebf97ad2964b3e7f, type: 2}

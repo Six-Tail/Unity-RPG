@@ -549,6 +549,7 @@ namespace SubcultureRPG.Meta.UI
             var attend = IconButton(root, "Items/UiAttendance", "출석", new Vector2(iconX - 78, -30), () => AttendanceWindow.Open(font));
             var mailBtn = IconButton(root, "Items/UiMail", "우편", new Vector2(iconX - 156, -30), () => MailWindow.Open(font));
             var passBtn = IconButton(root, "Items/UiPass", "패스", new Vector2(iconX - 234, -30), () => SeasonPassWindow.Open(font));
+            IconButton(root, "Items/UiSettings", "설정", new Vector2(iconX - 312, -30), () => SettingsWindow.Open(font));
 
             // 빨간 느낌표: 받지 않은 보상 · 할 일이 있는 곳
             _attendBadge = NotifyBadge.Attach(attend, font, 8, 8, 28);
@@ -714,22 +715,26 @@ namespace SubcultureRPG.Meta.UI
         /// <summary>오른쪽 위 작은 아이콘 버튼(아이콘 + 아래 이름).</summary>
         private RectTransform IconButton(Transform parent, string icon, string label, Vector2 pos, UnityEngine.Events.UnityAction onClick)
         {
-            var bg = UIFactory.AddImage(label, parent, new Color(0.04f, 0.05f, 0.09f, 0.72f), ProceduralSprites.Rounded, raycast: true);
-            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            // 바탕 없이 아이콘 + 글자만(누르는 영역은 투명 이미지). 배경 그림 위에서도 보이게 그림자
+            var bg = UIFactory.AddImage(label, parent, new Color(0, 0, 0, 0), null, raycast: true);
             var rt = bg.rectTransform;
             UIFactory.Anchor(rt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
-            rt.sizeDelta = new Vector2(68, 68); rt.anchoredPosition = pos;
+            rt.sizeDelta = new Vector2(68, 72); rt.anchoredPosition = pos;
             var b = bg.gameObject.AddComponent<Button>();
             b.targetGraphic = bg;
+            b.transition = Selectable.Transition.None;
             b.onClick.AddListener(onClick);
             bg.gameObject.AddComponent<ButtonFx>();
             var sp = GameArt.Load(icon);
             var img = UIFactory.AddImage("Icon", rt, Color.white, sp);
             img.preserveAspect = true;
-            UIFactory.Stretch(img.rectTransform, 8, 14, 8, 4);
+            UIFactory.Stretch(img.rectTransform, 4, 18, 4, -2);
             img.enabled = sp != null;
-            var t = UIFactory.AddText("Label", rt, label, 15, font, Color.white, TextAlignmentOptions.Bottom, FontStyles.Bold);
-            UIFactory.Stretch(t.rectTransform, 0, 2, 0, 0);
+            var ish = img.gameObject.AddComponent<Shadow>();
+            ish.effectColor = new Color(0, 0, 0, 0.55f); ish.effectDistance = new Vector2(0, -2);
+            var t = UIFactory.AddText("Label", rt, label, 16, font, Color.white, TextAlignmentOptions.Bottom, FontStyles.Bold);
+            UIFactory.Stretch(t.rectTransform, -6, -2, -6, 0);
+            t.outlineWidth = 0.22f; t.outlineColor = new Color32(10, 12, 20, 230);
             return rt;
         }
 

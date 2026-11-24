@@ -202,6 +202,7 @@ namespace SubcultureRPG.Meta.UI
         /// <summary>보상 획득 알림.</summary>
         public static void Reward(string title, RewardBundle r, System.Action onOk = null)
         {
+            SoundManager.Play(Sfx.Reward);
             if (r == null) return;
             string icon = null;
             var parts = r.Parts();

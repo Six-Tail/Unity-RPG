@@ -11,7 +11,6 @@ namespace SubcultureRPG.Meta
     public class PlayerInventory : MonoBehaviour
     {
         [SerializeField] private string saveKey = "inventory";
-        [SerializeField, Tooltip("세이브가 없을 때 테스트용 기본 재료 지급.")] private bool grantDefaultsIfEmpty = true;
 
         [Serializable] private class Entry { public MaterialType type; public int count; }
         [Serializable] private class SaveData { public List<Entry> items = new(); }
@@ -21,20 +20,7 @@ namespace SubcultureRPG.Meta
 
         private void Awake()
         {
-            bool had = PlayerPrefs.HasKey(saveKey);
-            Load();
-            if (grantDefaultsIfEmpty && !had)
-            {
-                _items[MaterialType.ExpSmall] = 40;
-                _items[MaterialType.ExpPotion] = 30;
-                _items[MaterialType.ExpLarge] = 15;
-                _items[MaterialType.ExpCrystal] = 6;
-                _items[MaterialType.SkillBook] = 24;
-                _items[MaterialType.SkillBookBlue] = 10;
-                _items[MaterialType.SkillBookPurple] = 6;
-                _items[MaterialType.EquipOre] = 60;
-                Save();
-            }
+            Load();   // 새 계정은 빈 가방으로 시작(테스트 재료는 육성 화면 '충전(테스트)' 버튼)
         }
 
         public int Count(MaterialType t) => _items.TryGetValue(t, out var n) ? n : 0;

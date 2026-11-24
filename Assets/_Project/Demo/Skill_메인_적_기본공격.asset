@@ -26,3 +26,10 @@ MonoBehaviour:
   effectMagnitude: 0.3
   effectDuration: 2
   effectChance: 1
+  splash: 0
+  lifesteal: 0
+  advance: 0
+  cleanse: 0
+  selfEffect: 0
+  selfEffectMagnitude: 0.2
+  selfEffectDuration: 2

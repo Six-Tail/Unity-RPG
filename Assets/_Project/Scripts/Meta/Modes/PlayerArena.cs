@@ -102,8 +102,9 @@ namespace SubcultureRPG.Meta
                 var rng = new System.Random(h + i * 101);
                 float curve = Mathf.Pow((RankSize - 2 - i) / (float)(RankSize - 2), 2.2f);
                 int pts = 900 + Mathf.RoundToInt(3000f * curve * (0.8f + 0.2f * progress)) + rng.Next(-30, 31);
-                int nameIdx = (i * 37 + h) % Commanders.NameCount;
-                list.Add(new RankEntry { points = pts, name = Commanders.NameOf(nameIdx), seed = nameIdx });
+                // 친구 · 길드와 같은 지휘관 생성기(번호 → 이름 · 테두리 · 대표 캐릭터)를 써서 정보창 · 친구 추가가 같은 사람을 가리키게
+                int seed = 1000 + (int)((uint)(h + i * 7919) % 899_000u);
+                list.Add(new RankEntry { points = pts, name = Commanders.FromSeed(seed, null).name, seed = seed });
             }
             list.Add(new RankEntry { points = myPoints, name = PlayerProfile.Instance.DisplayName, me = true });
             list.Sort((a, b) => a.points != b.points ? b.points.CompareTo(a.points) : b.me.CompareTo(a.me));

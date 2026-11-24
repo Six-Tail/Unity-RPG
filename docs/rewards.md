@@ -5,7 +5,8 @@
 홈 오른쪽 위 `우편` 아이콘. 받기 전까지 사라지지 않습니다.
 
 - 데이터: [PlayerMail.cs](../Assets/_Project/Scripts/Meta/Rewards/PlayerMail.cs) · 창: [RewardWindows.cs](../Assets/_Project/Scripts/Meta/UI/RewardWindows.cs) (`MailWindow`)
-- **신규 지휘관 환영 선물**(처음 접속 때 1번): 픽업 뽑기권 ×10 · 상시 뽑기권 ×10 · 크리스탈 2,000 · 소형 행동력 물약(+60) ×3 · 행동력 물약(+120) ×1 — `PlayerMail.WelcomeReward()`
+- **새 계정 시작 재화**(세이브가 없을 때 · 세이브 초기화 후): 크리스탈 0 · 금화 10,000 · 뽑기권 0 · 빈 가방(재료 · 장비 없음), 행동력 가득 — `PlayerWallet.Starting*` 상수(씬 값과 무관). 시작 캐릭터 3명(리리 · 미나 · 코코)은 그대로.
+- **신규 지휘관 환영 선물**(처음 접속 때 1번 · 우편으로 받아야 들어옴): 픽업 뽑기권 ×10 · 상시 뽑기권 ×10 · 크리스탈 2,000 · 소형 행동력 물약(+60) ×3 · 행동력 물약(+120) ×1 · 소탕권 ×20 — `PlayerMail.WelcomeReward()`
 - 튜토리얼 완료 보상도 우편으로 옴(크리스탈 300 · 금화 20,000 · 경험치 물약 ×10)
 - 버튼: `받기` · `모두 받기` · `받은 우편 삭제`. 최대 100통(넘으면 받은 우편부터 지움)
 - 다른 시스템에서 보내기: `PlayerMail.Instance.Send(제목, 본문, new RewardBundle().Crystals(100)...)`

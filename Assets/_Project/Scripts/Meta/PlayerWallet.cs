@@ -13,10 +13,10 @@ namespace SubcultureRPG.Meta
     [AddComponentMenu("SubcultureRPG/Meta/Player Wallet")]
     public class PlayerWallet : MonoBehaviour
     {
-        [SerializeField] private int startingCrystals = 16000;
-        [SerializeField] private int startingGold = 100000;
-        [SerializeField, Tooltip("새 세이브(또는 뽑기권 도입 전 세이브)에 지급할 픽업 뽑기권.")] private int startingPickupTickets = 10;
-        [SerializeField, Tooltip("새 세이브(또는 뽑기권 도입 전 세이브)에 지급할 상시 뽑기권.")] private int startingStandardTickets = 10;
+        // 새 계정(세이브 없음 · 세이브 초기화 후)의 시작 재화 — 씬에 저장된 값과 상관없이 이 값으로 시작
+        public const int StartingCrystals = 0, StartingGold = 10000, StartingPickupTickets = 0, StartingStandardTickets = 0;
+        private const int startingCrystals = StartingCrystals, startingGold = StartingGold,
+            startingPickupTickets = StartingPickupTickets, startingStandardTickets = StartingStandardTickets;
         [SerializeField] private string saveKey = "wallet";
 
         [Header("행동력")]

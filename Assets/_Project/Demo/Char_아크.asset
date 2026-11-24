@@ -22,3 +22,4 @@ MonoBehaviour:
   portrait: {fileID: 0}
   thumbnail: {fileID: 0}
   live2DModelPrefab: {fileID: 0}
+  live2DIdleMotion: {fileID: 0}

@@ -350,6 +350,24 @@ namespace SubcultureRPG.Meta.UI
                 Place(r3.rectTransform, 600, -6, 200, 40);
                 var r4 = Text(row.transform, $"{e.points:N0} 점", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
                 Place(r4.rectTransform, 810, -6, 210, 40);
+                if (!e.me)
+                {
+                    // 누르면 그 지휘관 정보창(결투장 순위 · 티어 · 점수 포함)
+                    row.raycastTarget = true;
+                    var btn = row.gameObject.AddComponent<Button>();
+                    btn.transition = Selectable.Transition.None;
+                    row.gameObject.AddComponent<ButtonFx>();
+                    var entry = e;
+                    btn.onClick.AddListener(() =>
+                    {
+                        var who = Commanders.FromSeed(entry.seed, FindAnyObjectByType<PlayerRoster>()?.Database);
+                        // 결투장 점수에 맞춰 레벨 · 전투력을 보정(상위권일수록 강함)
+                        who.level = Mathf.Clamp(20 + entry.points / 55, who.level, 80);
+                        who.power = (long)(4 * (12000 + who.level * who.level * 60) * (0.95 + (entry.seed % 10) * 0.01));
+                        var (tn, tcol) = PlayerArena.Tier(entry.points);
+                        PlayerInfoWindow.Open(who, font, $"<color=#FFD36B>결투장 {entry.rank}위</color>  <color=#{ColorUtility.ToHtmlStringRGB(tcol)}>{tn}</color>  {entry.points:N0}점");
+                    });
+                }
             }
             // 내 줄이 보이도록 스크롤
             Canvas.ForceUpdateCanvases();

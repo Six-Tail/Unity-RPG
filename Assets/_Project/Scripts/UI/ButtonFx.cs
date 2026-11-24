@@ -10,8 +10,17 @@ namespace SubcultureRPG.UI
     /// UIFactory.AddButton이 자동으로 붙입니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public class ButtonFx : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
+    public class ButtonFx : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
     {
+        /// <summary>누를 때 낼 효과음(기본 클릭음). 꺼진 버튼은 소리 없음.</summary>
+        public Sfx clickSound = Sfx.Click;
+        public bool mute;
+
+        public void OnPointerClick(PointerEventData e)
+        {
+            if (mute || (_sel != null && !_sel.IsInteractable())) return;
+            SoundManager.Play(clickSound, 0.7f);
+        }
         private Selectable _sel;
         private bool _hover, _down;
         private float _cur = 1f;

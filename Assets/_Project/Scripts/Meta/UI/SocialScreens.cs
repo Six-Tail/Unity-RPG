@@ -62,6 +62,15 @@ namespace SubcultureRPG.Meta.UI
             var t3 = Text(row.transform, third, 18, new Color(0.72f, 0.75f, 0.82f), FontStyles.Normal, TextAlignmentOptions.Left);
             Place(t3.rectTransform, 660, -14, 300, 84);
             t3.textWrappingMode = TextWrappingModes.Normal;
+            if (!me)
+            {
+                // 줄을 누르면 지휘관 정보창(줄 오른쪽 버튼들은 그 버튼이 먼저 받음)
+                row.raycastTarget = true;
+                var open = row.gameObject.AddComponent<Button>();
+                open.transition = Selectable.Transition.None;
+                var who = c;
+                open.onClick.AddListener(() => PlayerInfoWindow.Open(who, font));
+            }
             return row;
         }
 

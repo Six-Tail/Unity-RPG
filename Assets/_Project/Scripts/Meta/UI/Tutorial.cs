@@ -170,9 +170,19 @@ namespace SubcultureRPG.Meta.UI
                 return;
             }
             Popups.Show("스텔라 앵커에 오신 것을 환영합니다",
-                $"<b>{PlayerProfile.Instance.DisplayName}</b> 지휘관님, 반갑습니다.\n\n첫 전투부터 캐릭터 레벨업까지 차근차근 안내해 드릴게요.\n눌러야 할 곳은 <color=#FFD36B>금색 테두리</color>로 표시됩니다.",
-                "시작하기", () => SetStep(1), "건너뛰기", Skip, icon: "Title/logo");
+                $"<b>{PlayerProfile.Instance.DisplayName}</b> 지휘관님, 반갑습니다.\n\n첫 전투부터 캐릭터 레벨업까지 차근차근 안내해 드릴게요.\n눌러야 할 곳은 <color=#FFD36B>금색 테두리</color>로 표시됩니다.\n\n" +
+                $"<size=85%><color=#9AA3B5>끝까지 마치면 완료 보상:</color> {CompleteReward().Describe("  ·  ")}</size>",
+                "시작하기", () => SetStep(1), "건너뛰기", ConfirmSkip, icon: "Title/logo");   // 건너뛰기는 한 번 더 확인(취소하면 이 알림으로 돌아옴)
         }
+
+        /// <summary>튜토리얼을 끝까지 마치면 우편으로 받는 보상(건너뛰면 없음).</summary>
+        public static RewardBundle CompleteReward() => new RewardBundle().Crystals(300).Gold(20000).Mat(MaterialType.ExpPotion, 10);
+
+        /// <summary>건너뛰기 전 확인: 완료 보상을 받지 못한다는 경고 + 보상 내용. 환영 알림 · 말풍선의 건너뛰기가 모두 여기를 거침.</summary>
+        private void ConfirmSkip() => Popups.Show("튜토리얼 건너뛰기",
+            "안내를 그만 볼까요?\n\n<color=#FF8A8A><b>건너뛰면 튜토리얼 완료 보상을 받을 수 없습니다.</b></color>\n" +
+            $"<size=85%>완료 보상: {CompleteReward().Describe("  ·  ")}\n(튜토리얼을 끝까지 진행하면 우편으로 받습니다)</size>",
+            "건너뛰기", Skip, "계속 진행");
 
         private void Skip()
         {
@@ -265,8 +275,7 @@ namespace SubcultureRPG.Meta.UI
         {
             SetStep(Done);
             HideGuide();
-            PlayerMail.Instance.Send("튜토리얼 완료 보상", "첫 전투와 첫 레벨업을 마쳤습니다. 앞으로의 여정을 응원합니다!",
-                new RewardBundle().Crystals(300).Gold(20000).Mat(MaterialType.ExpPotion, 10));
+            PlayerMail.Instance.Send("튜토리얼 완료 보상", "첫 전투와 첫 레벨업을 마쳤습니다. 앞으로의 여정을 응원합니다!", CompleteReward());
             Popups.Show("튜토리얼 완료!",
                 "기본은 여기까지입니다. <color=#FFD36B>우편함</color>에 완료 보상을 보냈으니 홈 오른쪽 위 우편 아이콘에서 받으세요.\n\n" +
                 "스테이지를 진행하면 새 기능이 차례로 열립니다.\n" +
@@ -430,7 +439,13 @@ namespace SubcultureRPG.Meta.UI
             var srt = (RectTransform)skip.transform;
             UIFactory.Anchor(srt, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
             srt.sizeDelta = new Vector2(180, 32); srt.anchoredPosition = new Vector2(-12, 10);
-            skip.onClick.AddListener(() => Popups.Show("튜토리얼 건너뛰기", "안내를 그만 볼까요?\n완료 보상(우편)은 튜토리얼을 끝까지 진행해야 받을 수 있습니다.", "건너뛰기", Skip, "계속 진행"));
+            skip.onClick.AddListener(ConfirmSkip);
+            // 건너뛰기 버튼 옆 경고
+            var warn = UIFactory.AddText("SkipWarn", _bubble, "<color=#FF9A9A>건너뛰면 완료 보상을 받을 수 없어요</color>", 14, font, Color.white, TextAlignmentOptions.Right);
+            warn.richText = true;
+            var wrt = warn.rectTransform;
+            UIFactory.Anchor(wrt, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            wrt.sizeDelta = new Vector2(300, 28); wrt.anchoredPosition = new Vector2(-200, 12);
             _bubble.gameObject.SetActive(false);
         }
 
@@ -483,7 +498,8 @@ namespace SubcultureRPG.Meta.UI
             var size = _bubble.sizeDelta;
             var area = _layer.rect;
             Vector2 pos;
-            if (!any) pos = new Vector2(0, area.height * 0.5f - 240f);
+            // 가리킬 대상이 아직 안 보이면(예: 캐릭터를 고르기 전) 화면 아래 가운데 — 위쪽 필터 · 목록을 가리지 않게
+            if (!any) pos = new Vector2(0, area.yMin + size.y * 0.5f + 120f);
             else
             {
                 float x = Mathf.Clamp((min.x + max.x) * 0.5f, area.xMin + size.x * 0.5f + 20f, area.xMax - size.x * 0.5f - 20f);

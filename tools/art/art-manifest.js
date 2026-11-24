@@ -151,6 +151,7 @@ const ITEMS = [
   ['RaidIcon', '주간 보스 아이콘', 'a menacing purple demon skull emblem with a swirling black hole behind it and golden horns'],
   ['EventCoin', '축제 코인 (기간 한정 이벤트)', 'a festive golden coin engraved with a firework star, small colorful ribbons and confetti around it'],
   ['UiMail', '우편함 아이콘', 'a cream-colored sealed envelope with a red wax seal stamped with a golden star, a small golden wing on each side'],
+  ['UiSettings', '설정 아이콘', 'a polished silver and gold gear cog icon with a small glowing blue gem in the center, clean and simple'],
   ['UiPass', '시즌 패스 아이콘', 'an ornate golden season pass badge shaped like a shield with a big star in the center and a purple ribbon banner across the bottom, small sparkles'],
   ['UiAttendance', '출석부 아이콘', 'a wall calendar page with a big golden star stamp on it and a red ribbon bookmark, blue header band'],
   ['Select5', '태생 5성 캐릭터 선택권', 'an ornate purple and silver ticket card with five small silver stars across the top and a glowing violet silhouette of a heroine in the center'],
