@@ -879,6 +879,72 @@ a white feather quill pen with a golden nib, tilted diagonally with the nib poin
 a round crimson wax seal with an embossed golden star emblem and a small ribbon. fantasy game UI illustration, single object centered, anime game art style, clean line art, soft cel shading, high detail, plain very dark navy background
 ```
 
+## 타이틀 로고 · 키 아트 — 8장
+
+### 프로필 테두리 — 청동 테두리
+
+- 파일: `Frames/f_bronze.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of worn bronze with simple rivets and a small laurel motif, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 은빛 테두리
+
+- 파일: `Frames/f_silver.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of polished silver with delicate engraved filigree and tiny blue gems, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 황금 테두리
+
+- 파일: `Frames/f_gold.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of radiant gold with ornate baroque filigree, a small crown ornament on top, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 홍염 테두리
+
+- 파일: `Frames/f_flame.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of dark red metal wrapped in bright orange and crimson flames with drifting embers, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 서리 테두리
+
+- 파일: `Frames/f_frost.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of pale blue ice crystals and frosted silver with snowflake ornaments, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 프로필 테두리 — 별무리 테두리
+
+- 파일: `Frames/f_star.png` · 256×256 · 화면비 1:1
+
+```
+a perfectly circular ornate avatar frame ring made of iridescent rainbow holographic crystal with glowing stars and a small star-and-anchor ornament on top, thick ring with a round hollow center, seen straight from the front, symmetrical. game UI profile portrait frame, clean bold shapes, soft glow, centered, plain very dark navy background
+```
+
+### 타이틀 — 로고 엠블럼
+
+- 파일: `Title/logo.png` · 512×512 · 화면비 1:1
+
+```
+a game logo emblem: an ornate golden ship anchor whose top is a brilliant four-pointed star, a thin ring of small stars orbiting around it, a deep blue gem at the center, perfectly symmetrical. fantasy game logo emblem, clean bold shapes, polished metallic gold with a soft glow, centered, plain very dark navy background
+```
+
+### 타이틀 — 픽업 키 아트(세라핀 · 시엘)
+
+- 파일: `Title/keyart.jpg` · 1920×1080 · 화면비 16:9 · 참고 이미지 `../../../../tools/art/refs/pickup_pair.png`
+
+```
+the two women from the reference image standing back to back in the center of a wide key visual, both fully visible from the knees up: on the left an adult woman with long crimson hair with ember-orange tips, golden eyes, black and red battle dress with gold trim, holding a flaming greatsword, confident smile; on the right an adult woman with a silver-white bob haircut, pale blue eyes, white and navy military coat with a fur collar, holding twin slender ice rapiers, calm cold gaze; the background is split diagonally between a burning crimson night sky with falling embers and a frozen pale-blue sky with drifting snow crystals, a faint golden star-and-anchor constellation between them, dynamic heroic poses, open empty space along the bottom for a title. subculture mobile gacha game title key visual in modern Japanese and Korean anime style, wide 16:9 composition, beautiful youthful faces with large detailed sparkling eyes, crisp thin line art, bright clean cel shading with glossy highlights, luminous dramatic lighting, high quality
+```
+
 ## 화면 배경 (16:9) — 51장
 
 ### 스토리 1장 — 숲의 입구

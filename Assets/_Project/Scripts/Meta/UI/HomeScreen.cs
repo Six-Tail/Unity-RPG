@@ -29,7 +29,6 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private PlayerRoster roster;
         [SerializeField] private GachaController gacha;
         [SerializeField] private TMP_FontAsset font;
-        [SerializeField] private string gameTitle = "서브컬쳐 RPG";
 
         private const string AssistantKey = "home.assistant";
 
@@ -43,6 +42,11 @@ namespace SubcultureRPG.Meta.UI
         private Image _assistant;
         private RectTransform _assistRt, _bubble, _pickerGrid;
         private StarRow _assistStars;
+
+        // 왼쪽 위 프로필 배지(아바타 · 칭호 · 이름 · 레벨 · 경험치) — 누르면 프로필 창
+        private ProfileAvatar _badgeAvatar;
+        private TextMeshProUGUI _badgeName, _badgeTitle, _badgeLevel;
+        private RectTransform _badgeExp;
         private RectTransform _assistMask;
         private CanvasGroup _bubbleGroup;
         private Coroutine _bubbleRoutine, _bounceRoutine;
@@ -86,6 +90,8 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_missions != null) _missions.OnChanged -= RefreshMissionBadge;
             if (_codex != null) _codex.OnChanged -= RefreshCodexButton;
+            var pf = FindAnyObjectByType<PlayerProfile>();
+            if (pf != null) pf.OnChanged -= RefreshProfileBadge;
         }
 
         public void Show(bool on)
@@ -100,6 +106,64 @@ namespace SubcultureRPG.Meta.UI
             RefreshMissionBadge();
             RefreshCodexButton();
             RefreshAssistant();
+            RefreshProfileBadge();
+        }
+
+        private void RefreshProfileBadge()
+        {
+            if (_badgeAvatar == null) return;
+            var pf = PlayerProfile.Instance;
+            _badgeAvatar.Set(ProfileAvatar.CharacterOf(pf, roster), pf.FrameId);
+            var title = ProfileRewards.Title(pf.TitleId);
+            _badgeTitle.text = title.name;
+            _badgeTitle.color = title.color;
+            _badgeName.text = pf.DisplayName;
+            _badgeLevel.text = $"Lv.{pf.Level}";
+            bool max = pf.Level >= PlayerProfile.MaxLevel;
+            _badgeExp.anchorMax = new Vector2(max ? 1f : Mathf.Clamp01(pf.Exp / (float)PlayerProfile.ExpForNext(pf.Level)), 1f);
+        }
+
+        /// <summary>대표 캐릭터 고르기 창(프로필의 '로비 설정'에서도 엶).</summary>
+        public void OpenAssistantPicker() => OpenPicker();
+
+        private void BuildProfileBadge(Transform root)
+        {
+            var hit = UIFactory.AddImage("ProfileBadge", root, new Color(0.04f, 0.05f, 0.09f, 0.62f), ProceduralSprites.Rounded, raycast: true);
+            hit.type = Image.Type.Sliced; hit.preserveAspect = false;
+            var rt = hit.rectTransform;
+            UIFactory.Anchor(rt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            rt.sizeDelta = new Vector2(430, 124); rt.anchoredPosition = new Vector2(36, -22);
+            var btn = hit.gameObject.AddComponent<Button>();
+            btn.targetGraphic = hit;
+            btn.onClick.AddListener(() => ProfilePanel.Open(font, OpenAssistantPicker));
+            hit.gameObject.AddComponent<ButtonFx>();
+
+            _badgeAvatar = new ProfileAvatar(rt, 128);
+            UIFactory.Anchor(_badgeAvatar.Rect, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+            _badgeAvatar.Rect.anchoredPosition = new Vector2(-2, 0);
+
+            _badgeTitle = UIFactory.AddText("Title", rt, "", 18, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            UIFactory.Anchor(_badgeTitle.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            _badgeTitle.rectTransform.sizeDelta = new Vector2(290, 24); _badgeTitle.rectTransform.anchoredPosition = new Vector2(130, -12);
+            _badgeName = UIFactory.AddText("Name", rt, "", 28, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            UIFactory.Anchor(_badgeName.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            _badgeName.rectTransform.sizeDelta = new Vector2(290, 38); _badgeName.rectTransform.anchoredPosition = new Vector2(130, -38);
+            _badgeName.enableAutoSizing = true; _badgeName.fontSizeMin = 16; _badgeName.fontSizeMax = 28;
+            _badgeLevel = UIFactory.AddText("Level", rt, "", 20, font, new Color(1f, 0.86f, 0.5f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UIFactory.Anchor(_badgeLevel.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            _badgeLevel.rectTransform.sizeDelta = new Vector2(80, 26); _badgeLevel.rectTransform.anchoredPosition = new Vector2(130, 14);
+
+            var barBg = UIFactory.AddImage("ExpBg", rt, new Color(1, 1, 1, 0.16f), ProceduralSprites.Rounded);
+            barBg.type = Image.Type.Sliced; barBg.preserveAspect = false; barBg.pixelsPerUnitMultiplier = 4f;
+            UIFactory.Anchor(barBg.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            barBg.rectTransform.sizeDelta = new Vector2(200, 12); barBg.rectTransform.anchoredPosition = new Vector2(208, 21);
+            var fill = UIFactory.AddImage("Fill", barBg.transform, new Color(1f, 0.82f, 0.4f), ProceduralSprites.Rounded);
+            fill.type = Image.Type.Sliced; fill.preserveAspect = false; fill.pixelsPerUnitMultiplier = 4f;
+            _badgeExp = fill.rectTransform;
+            _badgeExp.anchorMin = Vector2.zero; _badgeExp.anchorMax = new Vector2(0f, 1f);
+            _badgeExp.offsetMin = Vector2.zero; _badgeExp.offsetMax = Vector2.zero;
+
+            PlayerProfile.Instance.OnChanged += RefreshProfileBadge;
         }
 
         // ---------------- 대표 캐릭터 ----------------
@@ -374,11 +438,10 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Stretch(_bubbleText.rectTransform, 24, 14, 24, 14);
             _bubbleText.enableAutoSizing = true; _bubbleText.fontSizeMin = 15; _bubbleText.fontSizeMax = 24;
 
-            // 타이틀(왼쪽 위) · 대표 캐릭터 이름(왼쪽 아래)
-            var title = UIFactory.AddText("Title", root, gameTitle, 48, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
-            UIFactory.Anchor(title.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
-            title.rectTransform.sizeDelta = new Vector2(800, 66); title.rectTransform.anchoredPosition = new Vector2(50, -32);
-            title.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.7f);
+            // 프로필 배지(왼쪽 위) — 게임 이름은 타이틀 화면(TitleScreen)에서만 보여 줌
+            BuildProfileBadge(root);
+
+            // 대표 캐릭터 이름(왼쪽 아래)
 
             var nameBg = UIFactory.AddImage("NameBg", root, new Color(0.04f, 0.05f, 0.09f, 0.72f), ProceduralSprites.Rounded);
             nameBg.type = Image.Type.Sliced; nameBg.preserveAspect = false;

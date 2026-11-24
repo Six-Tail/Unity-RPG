@@ -80,3 +80,16 @@
 아이콘: `Resources/Art/Items/{Crystal · Gold · PickupTicket · StandardTicket · Stamina}.png` (없으면 색 점).
 
 `PlayerWallet`은 값을 처음 읽힐 때 세이브를 불러오고, 불러오기 전에는 저장하지 않습니다(다른 화면이 시작 중에 먼저 읽어도 세이브가 기본값으로 덮이지 않게).
+
+## 타이틀 화면 (게임 시작)
+
+[TitleScreen.cs](../Assets/_Project/Scripts/Meta/UI/TitleScreen.cs) — 메인 씬이 뜨면 자동으로 만들어져 모든 화면 위에 표시됩니다(씬에 따로 넣을 필요 없음).
+
+1. **로고**: 검은 화면에 엠블럼(닻 + 별)과 게임 이름 `스텔라 앵커 / STELLAR ANCHOR`가 떠오름(약 2초, 누르면 바로 다음).
+2. **로딩**: 픽업 캐릭터 키 아트(세라핀 · 시엘)가 나타나고 로고는 아래 가운데로 작아짐. 자주 쓰는 그림(배경 · 캐릭터 일러스트/썸네일 · 아이콘 · 가챠 소품)을 비동기로 미리 불러오며 진행 막대 · 퍼센트 · 도움말 표시.
+3. **TAP TO START**: 로딩이 끝나면 그림이 밝아지고 안내가 깜빡임. 화면을 눌러야 홈으로 넘어감.
+
+- 게임 이름 · 한 줄 소개 · 도움말은 `TitleScreen`의 상수(`GameName` · `GameNameEn` · `Tagline` · `Tips`)에서 바꿉니다. 홈 화면 왼쪽 위의 게임 이름은 없앴습니다.
+- 그림: `Resources/Art/Title/logo.png`(엠블럼만 — 글자는 게임 폰트로 그림) · `Title/keyart.jpg`. 다시 만들기: `node tools/art/generate-art.js --only title` (키 아트는 `tools/art/refs/pickup_pair.png`를 참고 이미지로 써서 기존 일러스트와 같은 캐릭터로 그림). 픽업 캐릭터가 바뀌면 참고 이미지와 프롬프트를 바꿔 다시 생성.
+
+홈 왼쪽 위에는 **프로필 배지**(아바타 · 칭호 · 이름 · 레벨)가 있고, 누르면 프로필 창이 열립니다 → [profile.md](profile.md).

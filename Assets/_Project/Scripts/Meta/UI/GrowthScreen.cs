@@ -474,10 +474,12 @@ namespace SubcultureRPG.Meta.UI
             int cap = Leveling.LevelCap(o.ascension);
             _hName.text = $"{_selected.displayName}  <size=60%><color={Traits.Hex(_selected.element)}>{Traits.Name(_selected.element)}</color> · {Traits.Name(_selected.role)}</size>";
             string exp = o.level >= cap ? (o.ascension >= Leveling.MaxAscension ? "MAX" : "상한 — 돌파 필요") : $"EXP {o.exp:N0} / {Leveling.ExpForNext(o.level):N0}";
+            var (u, _) = Preview(_selected);
+            int power = CombatPower.Of(u, WithBonus(_selected, roster.SkillLevels(_selected)));
             _hLine.text = $"<color=#FFD36B>Lv. {o.level}</color> / {cap}" + (o.ascension > 0 ? $"   <color=#FFD36B>돌파 {o.ascension}</color>" : "") +
+                          $"   <color=#FFB347>전투력 <b>{power:N0}</b></color>" +
                           $"   <size=85%><color=#9AA3B5>{exp}</color></size>";
 
-            var (u, _) = Preview(_selected);
             string P(float v) => $"{v * 100f:0.#}%";
             var l = new StringBuilder();
             l.Append($"체력  <b>{u.maxHP:N0}</b>\n공격력  <b>{u.atk:N0}</b>\n방어력  <b>{u.def:N0}</b>\n속도  <b>{u.spd}</b>\n");

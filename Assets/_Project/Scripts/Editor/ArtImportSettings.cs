@@ -76,7 +76,10 @@ namespace SubcultureRPG.EditorTools
             if (relative.StartsWith("Backgrounds/") || relative.StartsWith("Banners/")) return 2048;
             if (relative.StartsWith("Characters/")) return 1024;
             if (relative.StartsWith("Enemies/")) return 512;
-            return 256;   // Items · Thumbs · Equipment
+            if (relative.StartsWith("Title/keyart")) return 2048;       // 타이틀 키 아트(화면 전체)
+            if (relative.StartsWith("Title/")) return 512;              // 로고 엠블럼
+            if (relative.StartsWith("Gacha/scroll") || relative.StartsWith("Gacha/circle")) return 1024;   // 가챠 연출의 큰 소품
+            return 256;   // Items · Thumbs · Equipment · Status · Elements · 작은 소품
         }
 
         [MenuItem("SubcultureRPG/아트 다시 임포트 (Resources/Art)", false, 20)]

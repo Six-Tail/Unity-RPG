@@ -384,6 +384,11 @@ namespace SubcultureRPG.Meta
             _paidStamina = 0;   // 승리 → 행동력 소모 확정
             int m = result.multiplier;
 
+            // 지휘관 경험치: 쓴 행동력 × 10
+            int accountExp = result.stamina * PlayerProfile.ExpPerStamina;
+            int levelBefore = PlayerProfile.Instance.Level;
+            int levelUps = accountExp > 0 ? PlayerProfile.Instance.AddExp(accountExp) : 0;
+
             // 별 평가
             bool allAlive = controller != null && controller.Engine != null &&
                             controller.Engine.allies.TrueForAll(u => u.IsAlive);
@@ -424,6 +429,9 @@ namespace SubcultureRPG.Meta
             }
 
             string detail = BuildRewardText(result, allAlive, fast);
+            if (accountExp > 0)
+                detail += $"\n<size=80%><color=#9AD4FF>지휘관 경험치 +{accountExp:N0}</color></size>" +
+                          (levelUps > 0 ? $"  <color=#FFD36B>지휘관 Lv.{levelBefore} → Lv.{PlayerProfile.Instance.Level}!</color>" : "");
             if (MaxSpeedIndex > speedBefore)
                 detail += $"\n<color=#FFB347>{MaxSpeedIndex + 1}배속 해금!</color>  <size=80%>전투 화면 오른쪽 위 '배속' 버튼을 눌러 조절</size>";
             if (hardWasLocked && progress.IsDifficultyUnlocked(database, StageDifficulty.Hard))

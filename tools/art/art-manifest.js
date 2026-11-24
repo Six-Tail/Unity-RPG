@@ -247,7 +247,7 @@ const BANNERS = [
 // 로컬 Flux 는 투명을 못 그리므로 게임 칸과 비슷한 어두운 단색 배경으로.
 const BG_DARK = {
   enemies: 'simple dark misty background', items: 'plain very dark navy background', equipment: 'plain very dark navy background',
-  status: 'plain very dark navy background', gacha: 'plain very dark navy background',
+  status: 'plain very dark navy background', gacha: 'plain very dark navy background', title: 'plain very dark navy background',
 };
 
 // 전투 상태 아이콘 [키(StatusType 이름 · Break), 표시 이름, 묘사] — 게임은 Status/{키}.png 로 찾음(없으면 색 + 글자 아이콘).
@@ -294,6 +294,43 @@ const GACHA_STYLE = 'fantasy game UI illustration, single object centered, anime
 
 function build() {
   const list = [];
+  // 프로필 테두리(아바타 뒤에 깔고 가운데에 원형 아바타를 올림 — 가운데가 비지 않아도 됨)
+  for (const [key, name, look] of [
+    ['f_bronze', '청동 테두리', 'made of worn bronze with simple rivets and a small laurel motif'],
+    ['f_silver', '은빛 테두리', 'made of polished silver with delicate engraved filigree and tiny blue gems'],
+    ['f_gold', '황금 테두리', 'made of radiant gold with ornate baroque filigree, a small crown ornament on top'],
+    ['f_flame', '홍염 테두리', 'made of dark red metal wrapped in bright orange and crimson flames with drifting embers'],
+    ['f_frost', '서리 테두리', 'made of pale blue ice crystals and frosted silver with snowflake ornaments'],
+    ['f_star', '별무리 테두리', 'made of iridescent rainbow holographic crystal with glowing stars and a small star-and-anchor ornament on top'],
+  ])
+    list.push(withBackground({
+      group: 'title', key, label: `프로필 테두리 — ${name}`,
+      out: `Frames/${key}.png`, aspect: '1:1', resolution: '1K', width: 256, height: 256, format: 'png',
+      negative: NEGATIVE + ', text, letters, face, character',
+    }, `a perfectly circular ornate avatar frame ring ${look}, thick ring with a round hollow center, seen straight from the front, symmetrical. ` +
+       'game UI profile portrait frame, clean bold shapes, soft glow, centered, %BG%'));
+
+  // 타이틀 화면: 로고 엠블럼(글자 없음 — 게임 이름은 게임 폰트로 그림) + 픽업 캐릭터 2명 키 아트
+  list.push(withBackground({
+    group: 'title', key: 'title_logo', label: '타이틀 — 로고 엠블럼',
+    out: 'Title/logo.png', aspect: '1:1', resolution: '1K', width: 512, height: 512, format: 'png',
+    negative: NEGATIVE + ', text, letters, words, writing',
+  }, 'a game logo emblem: an ornate golden ship anchor whose top is a brilliant four-pointed star, a thin ring of small stars orbiting around it, ' +
+     'a deep blue gem at the center, perfectly symmetrical. fantasy game logo emblem, clean bold shapes, polished metallic gold with a soft glow, centered, %BG%'));
+  list.push({
+    group: 'title', key: 'title_keyart', label: '타이틀 — 픽업 키 아트(세라핀 · 시엘)',
+    out: 'Title/keyart.jpg', aspect: '16:9', resolution: '2K', width: 1920, height: 1080, format: 'jpg',
+    ref: '../../../../tools/art/refs/pickup_pair.png',
+    prompt: 'the two women from the reference image standing back to back in the center of a wide key visual, both fully visible from the knees up: ' +
+      'on the left an adult woman with long crimson hair with ember-orange tips, golden eyes, black and red battle dress with gold trim, holding a flaming greatsword, confident smile; ' +
+      'on the right an adult woman with a silver-white bob haircut, pale blue eyes, white and navy military coat with a fur collar, holding twin slender ice rapiers, calm cold gaze; ' +
+      'the background is split diagonally between a burning crimson night sky with falling embers and a frozen pale-blue sky with drifting snow crystals, ' +
+      'a faint golden star-and-anchor constellation between them, dynamic heroic poses, open empty space along the bottom for a title. ' +
+      'subculture mobile gacha game title key visual in modern Japanese and Korean anime style, wide 16:9 composition, beautiful youthful faces with large detailed sparkling eyes, ' +
+      'crisp thin line art, bright clean cel shading with glossy highlights, luminous dramatic lighting, high quality',
+    negative: NEGATIVE + ', text, letters, logo, watermark',
+  });
+
   for (const [key, name, look, aspect, w, h] of GACHA_PROPS)
     list.push(withBackground({
       group: 'gacha', key: `gacha_${key}`, label: `가챠 연출 — ${name}`,
@@ -378,4 +415,4 @@ function build() {
   return list;
 }
 
-module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'status', 'gacha', 'backgrounds', 'banners'] };
+module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'backgrounds', 'banners'] };
