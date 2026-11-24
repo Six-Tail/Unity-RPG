@@ -118,9 +118,13 @@ namespace SubcultureRPG.Meta.Missions
         // ---------------- 진행 ----------------
 
         /// <summary>행동 n회를 해당 목표의 모든 임무(일일 · 주간)에 반영.</summary>
+        /// <summary>임무 집계 신호(주기와 상관없이 모든 보고) — 업적(PlayerAchievements)이 누적 기록으로 씀.</summary>
+        public static event Action<MissionGoal, int> Counted;
+
         public void Report(MissionGoal goal, int amount)
         {
             if (amount <= 0) return;
+            Counted?.Invoke(goal, amount);
             bool changed = false;
             foreach (var m in MissionCatalog.All)
             {

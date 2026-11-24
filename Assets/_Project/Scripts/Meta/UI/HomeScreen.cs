@@ -84,6 +84,7 @@ namespace SubcultureRPG.Meta.UI
             // 임무 시스템은 내비게이터가 실행 중에 만들 수도 있어 Start에서 찾음
             _missions = FindAnyObjectByType<PlayerMissions>();
             if (_missions != null) _missions.OnChanged += RefreshMissionBadge;
+            PlayerAchievements.Instance.OnChanged += RefreshMissionBadge;
             _codex = FindAnyObjectByType<PlayerCodex>();
             if (_codex != null) _codex.OnChanged += RefreshCodexButton;
             PlayerBond.Instance.OnChanged += RefreshBond;
@@ -93,6 +94,7 @@ namespace SubcultureRPG.Meta.UI
         private void OnDestroy()
         {
             if (_missions != null) _missions.OnChanged -= RefreshMissionBadge;
+            if (FindAnyObjectByType<PlayerAchievements>() is PlayerAchievements ach) ach.OnChanged -= RefreshMissionBadge;
             if (_codex != null) _codex.OnChanged -= RefreshCodexButton;
             if (FindAnyObjectByType<PlayerBond>() is PlayerBond bond) bond.OnChanged -= RefreshBond;
             var pf = FindAnyObjectByType<PlayerProfile>();
@@ -400,8 +402,8 @@ namespace SubcultureRPG.Meta.UI
         private void RefreshMissionBadge()
         {
             if (_missionLabel == null) return;
-            int n = _missions != null ? _missions.ClaimableCount() : 0;
-            _missionLabel.text = n > 0 ? $"임무\n<size=55%>받을 보상 {n}개</size>" : "임무\n<size=55%>일일 · 주간</size>";
+            int n = (_missions != null ? _missions.ClaimableCount() : 0) + PlayerAchievements.Instance.ClaimableCount();
+            _missionLabel.text = n > 0 ? $"임무\n<size=55%>받을 보상 {n}개</size>" : "임무\n<size=55%>일일 · 주간 · 업적</size>";
             if (_missionBadge != null) _missionBadge.Set(n > 0);
         }
 

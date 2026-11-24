@@ -29,6 +29,8 @@ namespace SubcultureRPG.Meta.UI
         private Action _onBack;
 
         private MissionPeriod _tab = MissionPeriod.Daily;
+        private bool _ach;                       // '업적' 탭
+        private PlayerAchievements _achievements;
         private float _timerAcc;
         private string _periodSeen;
         private Coroutine _toastCo;
@@ -45,6 +47,7 @@ namespace SubcultureRPG.Meta.UI
                 var host = wallet != null ? wallet.gameObject : gameObject;
                 missions = host.AddComponent<PlayerMissions>();
             }
+            _achievements = PlayerAchievements.Instance;
             BuildUI();
         }
 
@@ -52,12 +55,14 @@ namespace SubcultureRPG.Meta.UI
         {
             if (missions != null) missions.OnChanged += MarkDirty;
             if (wallet != null) wallet.OnChanged += MarkDirty;
+            if (_achievements != null) _achievements.OnChanged += MarkDirty;
         }
 
         private void OnDisable()
         {
             if (missions != null) missions.OnChanged -= MarkDirty;
             if (wallet != null) wallet.OnChanged -= MarkDirty;
+            if (_achievements != null) _achievements.OnChanged -= MarkDirty;
         }
 
         private void Start() => Refresh();
@@ -103,12 +108,25 @@ namespace SubcultureRPG.Meta.UI
 
             RebuildTabs();
             Clear(_content);
-            var list = MissionCatalog.Of(_tab);
-            // 받을 수 있는 것 → 진행 중 → 받은 것 순
-            list.Sort((a, b) => Order(a).CompareTo(Order(b)));
-            foreach (var m in list) BuildRow(m);
-
-            int claimable = missions.ClaimableCount(_tab);
+            int claimable;
+            if (_ach)
+            {
+                // 받을 수 있는 것 → 진행 중 → 다 받은 것 순(같으면 목록 순서)
+                var all = PlayerAchievements.All;
+                var order = new List<int>();
+                for (int i = 0; i < all.Count; i++) order.Add(i);
+                order.Sort((x, y) => { int c = AchOrder(all[x]).CompareTo(AchOrder(all[y])); return c != 0 ? c : x.CompareTo(y); });
+                foreach (int i in order) BuildAchievementRow(all[i]);
+                claimable = _achievements.ClaimableCount();
+            }
+            else
+            {
+                var list = MissionCatalog.Of(_tab);
+                // 받을 수 있는 것 → 진행 중 → 받은 것 순
+                list.Sort((a, b) => Order(a).CompareTo(Order(b)));
+                foreach (var m in list) BuildRow(m);
+                claimable = missions.ClaimableCount(_tab);
+            }
             _claimAllBtn.interactable = claimable > 0;
             _claimAllLabel.text = claimable > 0 ? $"모두 받기  <size=75%>({claimable})</size>" : "모두 받기";
             UpdateHint();
@@ -116,8 +134,16 @@ namespace SubcultureRPG.Meta.UI
 
         private int Order(Mission m) => missions.CanClaim(m) ? 0 : missions.IsClaimed(m) ? 2 : 1;
 
+        private int AchOrder(Achievement a) => _achievements.CanClaim(a) ? 0 : _achievements.IsComplete(a) ? 2 : 1;
+
         private void UpdateHint()
         {
+            if (_ach)
+            {
+                _hint.text = $"업적  <size=80%><color=#9AA3B5>계정 누적 기록 · 초기화 없음 · 마지막 단계는 칭호</color>" +
+                             $"   <color=#FFD36B>달성 {_achievements.ClaimedTiers()} / {PlayerAchievements.TotalTiers()} 단계</color></size>";
+                return;
+            }
             var left = PlayerMissions.UntilReset(_tab);
             string when = _tab == MissionPeriod.Daily ? "매일 05:00 초기화" : "매주 월요일 05:00 초기화";
             _hint.text = $"{MissionCatalog.PeriodName(_tab)}  <size=80%><color=#9AA3B5>{when}</color>" +
@@ -134,11 +160,95 @@ namespace SubcultureRPG.Meta.UI
                 int n = missions.ClaimableCount(t);
                 string label = MissionCatalog.PeriodName(t) + (n > 0 ? "  <color=#FF6B6B><b>!</b></color>" : "");
                 var b = UIFactory.AddButton("Tab", _tabs, label, 20, font,
-                    on ? new Color(0.78f, 0.58f, 0.22f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
+                    on && !_ach ? new Color(0.78f, 0.58f, 0.22f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
                 var le = b.gameObject.AddComponent<LayoutElement>();
                 le.preferredWidth = 210; le.preferredHeight = 44;
-                b.onClick.AddListener(() => { _tab = tab; Refresh(); });
+                b.onClick.AddListener(() => { _tab = tab; _ach = false; Refresh(); });
             }
+            // 업적 탭
+            int an = _achievements != null ? _achievements.ClaimableCount() : 0;
+            var ab = UIFactory.AddButton("Tab", _tabs, "업적" + (an > 0 ? "  <color=#FF6B6B><b>!</b></color>" : ""), 20, font,
+                _ach ? new Color(0.55f, 0.4f, 0.85f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
+            var ale = ab.gameObject.AddComponent<LayoutElement>();
+            ale.preferredWidth = 210; ale.preferredHeight = 44;
+            ab.onClick.AddListener(() => { _ach = true; Refresh(); });
+        }
+
+        /// <summary>업적 한 줄: 이름 · 단계 점 · 다음 목표 · 진행 막대 · 보상 · 받기.</summary>
+        private void BuildAchievementRow(Achievement a)
+        {
+            int reached = _achievements.Reached(a), claimed = _achievements.Claimed(a);
+            bool can = claimed < reached, done = claimed >= a.Tiers;
+            int next = Mathf.Min(claimed, a.Tiers - 1);   // 지금 보여 줄 단계(받을 단계 또는 다음 목표)
+            long cur = _achievements.Value(a.stat);
+            int target = a.targets[next];
+
+            var row = UIFactory.AddImage("Achievement", _content,
+                can ? new Color(0.24f, 0.2f, 0.36f, 0.96f) : new Color(0.10f, 0.11f, 0.15f, 0.94f), ProceduralSprites.Rounded);
+            row.type = Image.Type.Sliced; row.preserveAspect = false;
+            row.gameObject.AddComponent<LayoutElement>().preferredHeight = 112;
+            row.gameObject.AddComponent<CanvasGroup>().alpha = done ? 0.55f : 1f;
+
+            var dots = new System.Text.StringBuilder();
+            for (int i = 0; i < a.Tiers; i++)
+                dots.Append(i < claimed ? "<color=#FFD36B>●</color>" : i < reached ? "<color=#FF9EC0>●</color>" : "<color=#4A4F5C>●</color>");
+            var t = Label(row.transform, $"{a.name}   <size=70%>{dots}</size>", 25, FontStyles.Bold, TextAlignmentOptions.Left);
+            UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            t.rectTransform.sizeDelta = new Vector2(700, 36); t.rectTransform.anchoredPosition = new Vector2(28, -12);
+            var goal = Label(row.transform, done ? "<color=#9AA3B5>모든 단계 완료</color>" : $"<color=#C8CEDC>{next + 1}단계 · {a.Goal(next)}</color>",
+                19, FontStyles.Normal, TextAlignmentOptions.Left);
+            UIFactory.Anchor(goal.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            goal.rectTransform.sizeDelta = new Vector2(700, 28); goal.rectTransform.anchoredPosition = new Vector2(28, -48);
+
+            var barBg = UIFactory.AddImage("BarBg", row.transform, new Color(1, 1, 1, 0.10f));
+            UIFactory.Anchor(barBg.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            barBg.rectTransform.sizeDelta = new Vector2(520, 12); barBg.rectTransform.anchoredPosition = new Vector2(28, 18);
+            float ratio = target > 0 ? Mathf.Clamp01((float)cur / target) : 1f;
+            var fill = UIFactory.AddImage("Fill", barBg.transform, ratio >= 1f ? new Color(0.45f, 0.85f, 0.55f) : new Color(0.62f, 0.45f, 0.95f));
+            var frt = fill.rectTransform;
+            frt.anchorMin = new Vector2(0, 0); frt.anchorMax = new Vector2(ratio, 1); frt.pivot = new Vector2(0, 0.5f);
+            frt.offsetMin = Vector2.zero; frt.offsetMax = Vector2.zero;
+            var prog = Label(row.transform, $"{Mathf.Min(cur, target):N0} / {target:N0}", 19, FontStyles.Bold, TextAlignmentOptions.Left);
+            UIFactory.Anchor(prog.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            prog.rectTransform.sizeDelta = new Vector2(200, 26); prog.rectTransform.anchoredPosition = new Vector2(564, 9);
+            prog.color = ratio >= 1f ? new Color(0.55f, 0.95f, 0.65f) : new Color(0.8f, 0.83f, 0.9f);
+
+            // 보상: 받을 단계들(또는 다음 단계) + 마지막 단계 칭호
+            string reward;
+            if (done) reward = "<color=#7BE39A>받음</color>";
+            else
+            {
+                var r = new SubcultureRPG.Meta.RewardBundle();
+                for (int i = claimed; i < Mathf.Max(claimed + 1, reached); i++)
+                {
+                    var p = PlayerAchievements.RewardOf(a, i);
+                    r.crystals += p.crystals; r.standard += p.standard;
+                }
+                reward = r.Describe("  ·  ");
+                if (a.titleId != null && Mathf.Max(claimed + 1, reached) >= a.Tiers)
+                    reward += $"\n<size=85%>칭호 <color=#FFD36B>「{ProfileRewards.Title(a.titleId).name}」</color></size>";
+            }
+            var rew = Label(row.transform, reward, 22, FontStyles.Bold, TextAlignmentOptions.Right);
+            UIFactory.Anchor(rew.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
+            rew.rectTransform.sizeDelta = new Vector2(420, 70); rew.rectTransform.anchoredPosition = new Vector2(-250, 0);
+            rew.enableAutoSizing = true; rew.fontSizeMin = 15; rew.fontSizeMax = 22;
+
+            string label = done ? "완료" : can ? (reached - claimed > 1 ? $"받기 ×{reached - claimed}" : "받기") : "진행 중";
+            var btn = UIFactory.AddButton("Claim", row.transform, label, 24, font,
+                can ? new Color(0.55f, 0.4f, 0.85f, 0.98f) : new Color(1, 1, 1, 0.12f), Color.white);
+            var brt = (RectTransform)btn.transform;
+            UIFactory.Anchor(brt, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
+            brt.sizeDelta = new Vector2(190, 66); brt.anchoredPosition = new Vector2(-28, 0);
+            btn.interactable = can;
+            var ach = a;
+            btn.onClick.AddListener(() =>
+            {
+                var got = _achievements.ClaimOne(ach);
+                if (got == null) return;
+                bool titled = ach.titleId != null && _achievements.IsComplete(ach);
+                Toast($"업적 보상!  {got.Describe("  ·  ")}" + (titled ? $"   칭호 「{ProfileRewards.Title(ach.titleId).name}」 해금" : ""));
+                Refresh();
+            });
         }
 
         private void BuildRow(Mission m)
@@ -204,6 +314,14 @@ namespace SubcultureRPG.Meta.UI
 
         private void OnClaimAll()
         {
+            if (_ach)
+            {
+                var r = _achievements != null ? _achievements.ClaimAll() : null;
+                if (r == null) return;
+                Toast($"업적 보상!  {r.Describe("  ·  ")}");
+                Refresh();
+                return;
+            }
             if (missions == null) return;
             var got = missions.ClaimAll(_tab);
             if (got.Count == 0) return;

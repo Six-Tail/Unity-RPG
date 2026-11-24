@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using SubcultureRPG.Characters;
+using SubcultureRPG.Meta.Missions;
 
 namespace SubcultureRPG.Meta
 {
@@ -207,6 +208,17 @@ namespace SubcultureRPG.Meta
             R("t_col10", "수집가", "캐릭터 10명 보유", Green, c => c.owned >= 10),
             R("t_col25", "별의 인도자", "캐릭터 25명 보유", Rainbow, c => c.owned >= 25),
             R("t_lv30", "노련한 지휘관", "지휘관 Lv.30", Gold, c => c.level >= 30),
+            // 업적 마지막 단계 보상(PlayerAchievements)
+            R("t_ach_battle", "백전노장", "업적 '전투의 달인' 완료", Red, c => PlayerAchievements.Instance.IsComplete("a_battle")),
+            R("t_ach_dungeon", "던전의 주인", "업적 '던전 탐험가' 완료", Purple, c => PlayerAchievements.Instance.IsComplete("a_dungeon")),
+            R("t_ach_gacha", "운명을 부르는 자", "업적 '소환의 인도자' 완료", Rainbow, c => PlayerAchievements.Instance.IsComplete("a_gacha")),
+            R("t_ach_growth", "명교관", "업적 '육성 전문가' 완료", Green, c => PlayerAchievements.Instance.IsComplete("a_growth")),
+            R("t_ach_shop", "상점가의 귀빈", "업적 '단골 손님' 완료", Gold, c => PlayerAchievements.Instance.IsComplete("a_shop")),
+            R("t_ach_daily", "성실의 표본", "업적 '성실한 지휘관' 완료", Blue, c => PlayerAchievements.Instance.IsComplete("a_daily")),
+            R("t_ach_stars", "별을 모으는 자", "업적 '별 사냥꾼' 완료", Gold, c => PlayerAchievements.Instance.IsComplete("a_stars")),
+            R("t_ach_level", "전설의 지휘관", "업적 '지휘관의 길' 완료", Gold, c => PlayerAchievements.Instance.IsComplete("a_level")),
+            R("t_ach_bond", "모두의 지휘관", "업적 '깊은 인연' 완료", Rainbow, c => PlayerAchievements.Instance.IsComplete("a_bond")),
+            R("t_ach_lv80", "최강 부대의 지휘관", "업적 '정점의 부대' 완료", Red, c => PlayerAchievements.Instance.IsComplete("a_lv80")),
         };
 
         public static readonly List<ProfileReward> Frames = new()

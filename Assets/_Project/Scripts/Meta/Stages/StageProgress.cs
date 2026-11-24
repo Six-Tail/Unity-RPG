@@ -26,6 +26,12 @@ namespace SubcultureRPG.Meta
         private void Awake() => Load();
 
         public bool IsCleared(StageData s) => s != null && _records.TryGetValue(s.Key, out var r) && r.clears > 0;
+
+        /// <summary>모든 스테이지(전 난이도 · 특수 던전 포함)에서 얻은 별 합계.</summary>
+        public int AllStars
+        {
+            get { int n = 0; foreach (var r in _records.Values) n += r.stars; return n; }
+        }
         public int StarsOf(StageData s) => s != null && _records.TryGetValue(s.Key, out var r) ? r.stars : 0;
         public int ClearsOf(StageData s) => s != null && _records.TryGetValue(s.Key, out var r) ? r.clears : 0;
 
