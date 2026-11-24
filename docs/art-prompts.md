@@ -651,7 +651,7 @@ a pendant necklace with a gem. game equipment icon, single object centered, styl
 a ring with a gem. game equipment icon, single object centered, stylized silver-white fantasy gear, simple clean silhouette, soft rim light, plain very dark navy background, square composition
 ```
 
-## 전투 상태 아이콘 (1:1) — 6장
+## 전투 상태 아이콘 (1:1) — 17장
 
 ### 상태 아이콘 — 공격력 증가
 
@@ -699,6 +699,94 @@ a bright purple poison droplet with a small white skull inside. flat vector game
 
 ```
 a white shield shattered into pieces with jagged cracks and small amber sparks. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 속도 증가
+
+- 파일: `Status/SpdUp.png` · 128×128 · 화면비 1:1
+
+```
+a white winged boot with a bright green upward arrow beside it. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 속도 감소
+
+- 파일: `Status/SpdDown.png` · 128×128 · 화면비 1:1
+
+```
+a white winged boot with a bright red downward arrow beside it. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 치명타 확률 증가
+
+- 파일: `Status/CritUp.png` · 128×128 · 화면비 1:1
+
+```
+a white crosshair target reticle with a bright green upward arrow beside it. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 재생
+
+- 파일: `Status/Regen.png` · 128×128 · 화면비 1:1
+
+```
+a bright green heart with a small white plus sign inside. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 도발
+
+- 파일: `Status/Taunt.png` · 128×128 · 화면비 1:1
+
+```
+a bright orange shield with a bold white exclamation mark in the center. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 기절
+
+- 파일: `Status/Stun.png` · 128×128 · 화면비 1:1
+
+```
+three bright yellow stars circling around a small white spiral. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 속성 아이콘 — 물리
+
+- 파일: `Elements/Physical.png` · 128×128 · 화면비 1:1
+
+```
+a silver-white sword emblem. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 속성 아이콘 — 화염
+
+- 파일: `Elements/Fire.png` · 128×128 · 화면비 1:1
+
+```
+a bright orange-red flame emblem. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 속성 아이콘 — 얼음
+
+- 파일: `Elements/Ice.png` · 128×128 · 화면비 1:1
+
+```
+a bright cyan six-pointed snowflake crystal emblem. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 속성 아이콘 — 번개
+
+- 파일: `Elements/Lightning.png` · 128×128 · 화면비 1:1
+
+```
+a bright violet lightning bolt emblem. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 속성 아이콘 — 바람
+
+- 파일: `Elements/Wind.png` · 128×128 · 화면비 1:1
+
+```
+a bright green swirling wind gust emblem. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
 ```
 
 ## 화면 배경 (16:9) — 30장

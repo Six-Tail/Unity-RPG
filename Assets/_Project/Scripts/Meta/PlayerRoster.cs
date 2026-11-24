@@ -184,6 +184,18 @@ namespace SubcultureRPG.Meta
 
         public int SkillLevelOf(CharacterData c, SkillSlot slot) => SkillLevels(c)[(int)slot];
 
+        /// <summary>초월로 재료 없이 더해지는 스킬 레벨(+2 / +4 / +5에서 기본 공격 / 스킬 / 궁극기 +3).</summary>
+        public int SkillBonusOf(CharacterData c, SkillSlot slot) => Leveling.SkillBonus(TranscendOf(c), slot);
+
+        /// <summary>전투에 실제로 적용되는 스킬 레벨 = 올린 레벨 + 초월 보너스.</summary>
+        public int[] EffectiveSkillLevels(CharacterData c)
+        {
+            var lv = SkillLevels(c);
+            int tr = TranscendOf(c);
+            for (int i = 0; i < lv.Length && i < 3; i++) lv[i] += Leveling.SkillBonus(tr, (SkillSlot)i);
+            return lv;
+        }
+
         public bool CanUpgradeSkill(CharacterData c, SkillSlot slot) =>
             GetOwned(c) != null && SkillLevelOf(c, slot) < Leveling.MaxSkillLevel;
 

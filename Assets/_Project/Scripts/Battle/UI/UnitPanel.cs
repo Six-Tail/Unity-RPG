@@ -406,15 +406,22 @@ namespace SubcultureRPG.Battle.UI
         private void FillElementIcon(RectTransform holder, Element e, float size)
         {
             ClearChildren(holder);
-            var rim = UIFactory.AddImage("Rim", holder, new Color(0.05f, 0.06f, 0.09f, 1f), ProceduralSprites.Circle);
-            UIFactory.Stretch(rim.rectTransform);
             Sprite art = GameArt.Load("Elements/" + e);
             if (art != null)
             {
+                // 그림(어두운 바탕의 정사각 아이콘): 속성 색 테두리의 둥근 칸 안에
+                var border = Rounded("Border", holder, Traits.ColorOf(e));
+                border.pixelsPerUnitMultiplier = 3f;
+                UIFactory.Stretch(border.rectTransform);
+                var tile = Rounded("Tile", holder, new Color(0.06f, 0.07f, 0.11f, 1f));
+                tile.pixelsPerUnitMultiplier = 3f;
+                UIFactory.Stretch(tile.rectTransform, 2, 2, 2, 2);
                 var img = UIFactory.AddImage("Art", holder, Color.white, art);
-                UIFactory.Stretch(img.rectTransform, 1, 1, 1, 1);
+                UIFactory.Stretch(img.rectTransform, 3, 3, 3, 3);
                 return;
             }
+            var rim = UIFactory.AddImage("Rim", holder, new Color(0.05f, 0.06f, 0.09f, 1f), ProceduralSprites.Circle);
+            UIFactory.Stretch(rim.rectTransform);
             var fill = UIFactory.AddImage("Fill", holder, Traits.ColorOf(e), ProceduralSprites.Circle);
             UIFactory.Stretch(fill.rectTransform, 2, 2, 2, 2);
             var g = UIFactory.AddText("G", holder, Traits.Glyph(e), Mathf.Max(10, Mathf.RoundToInt(size * 0.52f)), _font,
@@ -520,9 +527,9 @@ namespace SubcultureRPG.Battle.UI
                 var glyph = UIFactory.AddText("Glyph", icon.transform, isBreak ? "B" : StatusText.Glyph(effect.type), 17, _font,
                     Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
                 UIFactory.Stretch(glyph.rectTransform, 0, 2, 6, 0);
-                if (!isBreak && effect.type != StatusType.Dot)
+                if (!isBreak && StatusText.Arrow(effect.type) != 0)
                 {
-                    bool up = StatusText.IsBuff(effect.type);
+                    bool up = StatusText.Arrow(effect.type) > 0;
                     var arrow = UIFactory.AddImage("Arrow", icon.transform, up ? new Color(0.75f, 1f, 0.8f) : new Color(1f, 0.85f, 0.8f), ProceduralSprites.Triangle);
                     var art2 = arrow.rectTransform;
                     UIFactory.Anchor(art2, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));

@@ -33,6 +33,9 @@ namespace SubcultureRPG.Battle
         /// <summary>장비 등 추가 능력치(실행 중에만 설정, 에셋에 저장 안 함).</summary>
         [System.NonSerialized] public StatBonus bonus;
 
+        [Tooltip("패시브 효과(캐릭터 고유 패시브 · 초월 고유 능력). 캐릭터 유닛은 CharacterKits가 채움.")]
+        public List<PassiveDef> passives = new();
+
         [Tooltip("스킬 목록. [0]에 기본 공격을 권장(비우면 자동 생성).")]
         public List<BattleSkill> skills = new();
 

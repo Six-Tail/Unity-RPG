@@ -35,6 +35,8 @@ namespace SubcultureRPG.Battle.UI
             if (_bgArt != null) _bgArt.Set(paths);
         }
         private RectTransform _stage, _enemyRow, _allyRow, _turnStrip, _skillBar;
+        private RectTransform _popupLayer;   // 피해 숫자(이펙트 위)
+        private SkillFx _fx;                 // 스킬 이펙트(유닛 줄 위)
         private Coroutine _shakeAnim;
 
         // 필살기 컷인
@@ -104,6 +106,8 @@ namespace SubcultureRPG.Battle.UI
             controller.OnStatusTick += HandleStatusTick;
             controller.OnBattleEnd += HandleEnd;
             controller.OnBattleFinishing += HandleFinishing;
+            controller.OnSideEffects += HandleSideEffects;
+            controller.OnTurnSkipped += HandleTurnSkipped;
             controller.OnAutoBattleChanged += HandleAutoChanged;
         }
 
@@ -118,6 +122,8 @@ namespace SubcultureRPG.Battle.UI
             controller.OnStatusTick -= HandleStatusTick;
             controller.OnBattleEnd -= HandleEnd;
             controller.OnBattleFinishing -= HandleFinishing;
+            controller.OnSideEffects -= HandleSideEffects;
+            controller.OnTurnSkipped -= HandleTurnSkipped;
             controller.OnAutoBattleChanged -= HandleAutoChanged;
         }
 
@@ -357,11 +363,98 @@ namespace SubcultureRPG.Battle.UI
             SetResultNext(null, null);
             SetInstruction("");
             ResetFinish();
+            _fx?.Clear();
 
             HideTip();
             BuildPanels(engine);
             RefreshTurnStrip();
             RefreshSkillPoints();
+
+            // 패시브 발동 알림(엔진은 전투마다 새로 만들어지므로 해제 불필요)
+            _battleStartedAt = Time.unscaledTime;
+            engine.PassiveTriggered += HandlePassive;
+        }
+
+        private float _battleStartedAt;
+        private readonly Dictionary<BattleUnit, float> _passiveNoteAt = new();
+
+        /// <summary>패시브 발동: 유닛 위에 '패시브 이름' 알림. 같은 유닛이 연달아 발동하면 살짝 늦춰 겹치지 않게.</summary>
+        private void HandlePassive(BattleUnit unit, PassiveDef p)
+        {
+            if (p == null || string.IsNullOrEmpty(p.name) || !_panels.TryGetValue(unit, out var panel)) return;
+            if (_canvas == null || !_canvas.gameObject.activeInHierarchy) return;
+            float now = Time.unscaledTime;
+            // 전투 시작 직후에는 패널 배치가 끝난 뒤에 표시
+            float at = Mathf.Max(now, _battleStartedAt + 0.45f);
+            if (_passiveNoteAt.TryGetValue(unit, out float last) && last + 0.35f > at) at = last + 0.35f;
+            _passiveNoteAt[unit] = at;
+            string text = $"<size=58%><color=#C9B8FF>패시브</color></size>\n{p.name}";
+            StartCoroutine(After(at - now, () =>
+            {
+                if (panel == null) return;
+                SpawnPopup(panel, text, new Color(1f, 0.9f, 0.6f), false, 0f, 24f, new Color(0.7f, 0.5f, 1f), 0f);
+                panel.Refresh();
+                RefreshSkillPoints();
+                RefreshTurnStrip();
+            }));
+        }
+
+        /// <summary>행동 밖에서 생긴 부가 결과(턴 시작 재생·패시브 회복 등).</summary>
+        private void HandleSideEffects(List<ActionResult.TargetHit> extras)
+        {
+            if (_fx != null) _fx.Speed = Mathf.Pow(Mathf.Max(1f, controller.Speed), 0.6f);
+            ShowExtras(extras, 0f);
+            foreach (var p in _panels.Values) p.Refresh();
+        }
+
+        private void HandleTurnSkipped(BattleUnit unit)
+        {
+            foreach (var p in _panels.Values) p.Refresh();
+            RefreshTip();
+            RefreshTurnStrip();
+            if (_panels.TryGetValue(unit, out var panel))
+                SpawnPopup(panel, "행동 불가", new Color(0.6f, 0.8f, 1f), false, 0f, 30f, new Color(0.3f, 0.5f, 0.9f), 0f);
+        }
+
+        /// <summary>
+        /// 부가 결과 표시: 추가 공격·반격(베기 이펙트 + 머리말 붙은 피해 숫자) / 흡혈·패시브 회복(초록 숫자).
+        /// 끝나는 시점을 반환.
+        /// </summary>
+        private float ShowExtras(List<ActionResult.TargetHit> hits, float start)
+        {
+            float t = start;
+            if (hits == null) return t;
+            foreach (var h in hits)
+            {
+                if (!h.extra || !_panels.TryGetValue(h.target, out var panel)) continue;
+                Vector2 pos = _fx != null ? _fx.ToLocal((RectTransform)panel.transform) : Vector2.zero;
+                string head = string.IsNullOrEmpty(h.label) ? "" : $"<size=55%>{h.label}</size>\n";
+                float at = t;
+                if (h.healed > 0)
+                {
+                    _fx?.Heal(pos, at);
+                    SpawnPopup(panel, $"{head}+{h.healed:N0}", new Color(0.4f, 0.95f, 0.55f), false, at + 0.05f, 28f, new Color(0.3f, 1f, 0.5f));
+                    t += 0.12f;
+                }
+                else if (h.totalDamage > 0)
+                {
+                    var elem = h.source != null ? h.source.element : Element.Physical;
+                    _fx?.Basic(elem, pos, 1f, at);
+                    var col = h.anyCrit ? new Color(1f, 0.85f, 0.35f) : new Color(1f, 0.8f, 0.6f);
+                    SpawnPopup(panel, $"{head}{h.totalDamage:N0}", col, h.anyCrit, at + 0.04f, 34f, new Color(1f, 0.6f, 0.3f));
+                    var hitPanel = panel;
+                    bool crit = h.anyCrit;
+                    StartCoroutine(After(at, () => { if (hitPanel != null) hitPanel.PlayHit(crit ? new Color(1f, 0.85f, 0.4f) : Color.white, 8f, 0.25f); }));
+                    // 추가 공격한 쪽도 살짝 튀어나옴
+                    if (h.source != null && _panels.TryGetValue(h.source, out var src))
+                    {
+                        var dir = h.source.team == Team.Ally ? new Vector2(0, 26) : new Vector2(0, -26);
+                        StartCoroutine(After(Mathf.Max(0f, at - 0.05f), () => { if (src != null) src.PlayLunge(dir, 0.2f); }));
+                    }
+                    t += 0.3f;
+                }
+            }
+            return t;
         }
 
         private void HandleTurnBegin(BattleUnit unit)
@@ -403,8 +496,15 @@ namespace SubcultureRPG.Battle.UI
             }
             else
             {
-                if (skill != null && skill.category == SkillCategory.Skill && p != null) ShowSkillBanner(p, actor, skill, 0.9f / speed);
-                controller.PresentationDelay = 0.2f / speed;
+                bool isSkill = skill != null && skill.category == SkillCategory.Skill;
+                if (isSkill && p != null) ShowSkillBanner(p, actor, skill, 0.9f / speed);
+                float delay = (isSkill ? 0.45f : 0.2f) / speed;
+                if (isSkill && p != null && _fx != null)
+                {
+                    _fx.Speed = 1f;
+                    _fx.Charge(skill.element, _fx.ToLocal((RectTransform)p.transform), 0.8f, delay);
+                }
+                controller.PresentationDelay = delay;
             }
         }
 
@@ -417,32 +517,113 @@ namespace SubcultureRPG.Battle.UI
             SetInstruction("");
 
             bool bigHit = false;
-            bool ult = result.skill != null && result.skill.IsUltimate;
+            var skill = result.skill;
+            var cat = skill != null ? skill.category : SkillCategory.Basic;
+            var elem = skill != null ? skill.element : Element.Physical;
+            bool ult = cat == SkillCategory.Ultimate;
+            float speed = Mathf.Max(1f, controller != null ? controller.Speed : 1f);
+            float sq = Mathf.Sqrt(speed);
+            float gap = 0.13f / sq;                                   // 다단 히트 간격
+            float fxScale = cat == SkillCategory.Basic ? 1f : cat == SkillCategory.Skill ? 1.15f : 1.3f;
+            float end = 0f;                                           // 연출이 끝나는 시점(다음 턴 대기용)
+            if (_fx != null) _fx.Speed = Mathf.Pow(speed, 0.6f);
+
+            // 연쇄 시전(처치 → 스킬 자동 재시전)이면 행동자 위에 순번과 피해 배율 표시
+            if (result.recast > 0 && result.actor != null && _panels.TryGetValue(result.actor, out var recastPanel))
+            {
+                string pen = result.recastMul < 0.999f ? $"  <color=#FFB0B0>피해 -{(1f - result.recastMul) * 100f:0}%</color>" : "";
+                SpawnPopup(recastPanel, $"<size=70%>연쇄 시전 {result.recast}회{pen}</size>", new Color(1f, 0.9f, 0.6f), false, 0f, 26f, new Color(0.8f, 0.5f, 1f), 0f);
+            }
+
+            bool anyDamage = false;
+            foreach (var h in result.hits) anyDamage |= !h.extra && h.totalDamage > 0;
+            if (ult && anyDamage && _fx != null) _fx.ScreenFlash(Traits.ColorOf(elem), 0.35f / sq, 0.35f);
+
             int i = 0;
             foreach (var h in result.hits)
             {
-                if (!_panels.TryGetValue(h.target, out var panel)) continue;
-                float delay = i++ * 0.05f;
+                if (h.extra || !_panels.TryGetValue(h.target, out var panel)) continue;
+                float delay = i++ * 0.06f / sq;
+                Vector2 pos = _fx != null ? _fx.ToLocal((RectTransform)panel.transform) : Vector2.zero;
+                float after = delay;   // 이 대상의 타격이 끝나는 시점
+
                 if (h.healed > 0)
                 {
-                    SpawnPopup(panel, "+" + h.healed.ToString("N0"), new Color(0.4f, 0.95f, 0.55f), false, delay);
+                    _fx?.Heal(pos, delay);
+                    SpawnPopup(panel, "+" + h.healed.ToString("N0"), new Color(0.4f, 0.95f, 0.55f), false, delay + 0.05f, 0f, new Color(0.3f, 1f, 0.5f));
                     panel.PlayHit(new Color(0.4f, 1f, 0.55f), 0f, 0.4f);
                 }
                 else if (h.totalDamage > 0)
                 {
+                    // 종류별 이펙트
+                    if (_fx != null)
+                    {
+                        if (cat == SkillCategory.Basic) _fx.Basic(elem, pos, fxScale, delay);
+                        else if (cat == SkillCategory.Skill) _fx.Skill(elem, pos, fxScale, delay);
+                        else _fx.Ultimate(elem, pos, fxScale, delay);
+                    }
+
+                    // 피해 숫자 스타일: 기본 32 · 스킬 38(속성 빛) · 궁극기 48(금빛)
+                    float size = cat == SkillCategory.Basic ? 32f : cat == SkillCategory.Skill ? 38f : 48f;
+                    Color? glow = cat == SkillCategory.Basic ? (Color?)null
+                        : cat == SkillCategory.Skill ? Traits.ColorOf(elem) : new Color(1f, 0.8f, 0.3f);
                     var col = h.anyCrit ? new Color(1f, 0.85f, 0.35f)
                         : (h.weakness ? new Color(1f, 0.6f, 0.9f) : Color.white);
-                    string txt = h.totalDamage.ToString("N0");
-                    if (h.anyCrit) txt = $"<size=55%>치명</size>\n{txt}";
-                    else if (h.weakness) txt = $"<size=55%>약점</size>\n{txt}";
-                    SpawnPopup(panel, txt, col, h.anyCrit || h.weakness || ult, delay);
-                    panel.PlayHit(h.anyCrit ? new Color(1f, 0.85f, 0.4f) : h.weakness ? new Color(1f, 0.55f, 0.85f) : Color.white,
-                        h.anyCrit || ult ? 14f : 8f, 0.32f);
+                    var flash = h.anyCrit ? new Color(1f, 0.85f, 0.4f) : h.weakness ? new Color(1f, 0.55f, 0.85f) : Color.white;
+                    float amp = h.anyCrit || ult ? 14f : 8f;
+
+                    int n = h.hitDamages != null ? h.hitDamages.Count : 0;
+                    if (n <= 1)
+                    {
+                        string txt = h.totalDamage.ToString("N0");
+                        if (h.anyCrit) txt = $"<size=55%>치명</size>\n{txt}";
+                        else if (h.weakness) txt = $"<size=55%>약점</size>\n{txt}";
+                        SpawnPopup(panel, txt, col, h.anyCrit || h.weakness || ult, delay + 0.04f, size * (h.anyCrit || h.weakness ? 1.2f : 1f), glow);
+                        panel.PlayHit(flash, amp, 0.32f);
+                        after = delay + 0.1f;
+                    }
+                    else
+                    {
+                        // 다단 히트: 타격마다 작은 숫자 + 추가 타격 이펙트 + 흔들림, 마지막에 총 피해
+                        for (int k = 0; k < n; k++)
+                        {
+                            float dk = delay + k * gap;
+                            bool crit = h.hitCrits != null && k < h.hitCrits.Count && h.hitCrits[k];
+                            if (k > 0) _fx?.Impact(elem, cat, pos, fxScale * 0.8f, dk);
+                            var hc = crit ? new Color(1f, 0.85f, 0.35f) : (h.weakness ? new Color(1f, 0.75f, 0.92f) : new Color(0.92f, 0.94f, 1f));
+                            float x = -70f + 140f * (n == 1 ? 0.5f : k / (float)(n - 1)) + Random.Range(-8f, 8f);
+                            SpawnPopup(panel, h.hitDamages[k].ToString("N0"), hc, false, dk + 0.03f, size * 0.72f, null, x);
+                            var fcol = crit ? new Color(1f, 0.85f, 0.4f) : flash;
+                            if (k == 0) panel.PlayHit(fcol, amp * 0.7f, 0.22f);
+                            else StartCoroutine(After(dk, () => panel.PlayHit(fcol, amp * 0.7f, 0.22f)));
+                        }
+                        float dt = delay + n * gap + 0.04f;
+                        string head = h.anyCrit ? "치명 · 총 피해" : h.weakness ? "약점 · 총 피해" : "총 피해";
+                        SpawnPopup(panel, $"<size=50%>{head}</size>\n{h.totalDamage:N0}", col, true, dt, size * 1.15f, glow ?? new Color(1f, 1f, 1f, 0.6f), 0f);
+                        after = dt;
+                    }
                     bigHit |= h.anyCrit || ult;
                 }
-                if (h.broke) { SpawnPopup(panel, "BREAK!", new Color(1f, 0.75f, 0.25f), true, delay + 0.08f); StartCoroutine(BreakBurst(panel)); bigHit = true; }
+                if (h.broke)
+                {
+                    float db = after + 0.06f;
+                    SpawnPopup(panel, "BREAK!", new Color(1f, 0.75f, 0.25f), true, db, 0f, new Color(1f, 0.7f, 0.25f));
+                    StartCoroutine(After(db, () => StartCoroutine(BreakBurst(panel))));
+                    bigHit = true;
+                    after = db;
+                }
+                if (h.appliedEffect != StatusType.None) _fx?.Status(h.appliedEffect, pos, after + 0.05f);
+                end = Mathf.Max(end, after);
             }
             if (bigHit) ScreenShake(ult ? 14f : 8f, ult ? 0.38f : 0.25f);
+
+            // 부가 결과(추가 공격·반격·흡혈·패시브 회복)는 본 타격이 끝난 뒤에
+            bool hasExtra = false;
+            foreach (var h in result.hits) hasExtra |= h.extra;
+            if (hasExtra) end = ShowExtras(result.hits, end + 0.18f / sq);
+
+            // 다단 히트·추가 공격이 다 보이도록 다음 턴을 잠깐 미룸
+            if (controller != null) controller.PostActionDelay = Mathf.Min(1.6f, Mathf.Max(0f, end - 0.1f));
 
             foreach (var p in _panels.Values) p.Refresh();
             RefreshSkillPoints();
@@ -454,6 +635,7 @@ namespace SubcultureRPG.Battle.UI
             if (dot > 0 && _panels.TryGetValue(unit, out var panel))
             {
                 SpawnPopup(panel, dot.ToString(), new Color(0.75f, 0.5f, 1f), false);
+                _fx?.Status(StatusType.Dot, _fx.ToLocal((RectTransform)panel.transform), 0f);
                 panel.Refresh();
             }
         }
@@ -509,6 +691,7 @@ namespace SubcultureRPG.Battle.UI
             if (e == null) { HideTip(); return; }
             bool buff = StatusText.IsBuff(e.type);
             string kind = buff ? "<color=#6FE0C0>버프</color>" : "<color=#FF8A8A>디버프</color>";
+            if (e.type == StatusType.Stun) kind = "<color=#8FB8FF>행동 불가</color>";
             _tipText.text = $"<b>{StatusText.Name(e.type)}</b>  <size=80%>{kind} · <color=#9AA3B5>{unit.Name}</color></size>\n" +
                             $"{StatusText.Detail(e)}\n" +
                             $"<color=#FFD36B>남은 턴 {e.remaining}</color>  <size=80%><color=#9AA3B5>(이 유닛의 턴이 시작될 때마다 1 감소)</color></size>";
@@ -655,7 +838,8 @@ namespace SubcultureRPG.Battle.UI
             if (!controller.Engine.CanUse(_inputActor, skill)) return;
 
             // 광역/자기 대상은 즉시 발동
-            if (skill.target == TargetType.AllEnemies || skill.target == TargetType.AllAllies || skill.target == TargetType.Self)
+            if (skill.target == TargetType.AllEnemies || skill.target == TargetType.AllAllies || skill.target == TargetType.Self
+                || skill.target == TargetType.RandomEnemies)
             {
                 Submit(skill, null);
                 return;
@@ -721,6 +905,9 @@ namespace SubcultureRPG.Battle.UI
             UIFactory.Stretch(_stage);
             _enemyRow = MakeRow("EnemyRow", _stage, new Vector2(0.5f, 1), new Vector2(0, -176), 18);
             _allyRow = MakeRow("AllyRow", _stage, new Vector2(0.5f, 0.5f), new Vector2(0, -40), 18);
+            _fx = SkillFx.Create(_stage);
+            _popupLayer = UIFactory.NewRect("Popups", _stage);
+            UIFactory.Stretch(_popupLayer);
 
             _instruction = UIFactory.AddText("Instruction", rootT, "", 26, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             var irt = _instruction.rectTransform;
@@ -912,35 +1099,59 @@ namespace SubcultureRPG.Battle.UI
             }
         }
 
-        private void SpawnPopup(UnitPanel panel, string text, Color color, bool big, float delay = 0f)
+        /// <summary>
+        /// 떠오르는 숫자/문구. size 0 = 기본(큰 44 · 보통 32). glow가 있으면 뒤에 그 색 빛.
+        /// x가 NaN이면 좌우 무작위. 이펙트보다 위(_popupLayer)에 그림.
+        /// </summary>
+        private void SpawnPopup(UnitPanel panel, string text, Color color, bool big, float delay = 0f,
+            float size = 0f, Color? glow = null, float x = float.NaN)
         {
-            var t = UIFactory.AddText("Popup", panel.transform, text, big ? 44 : 32, font, color,
+            Transform parent = _popupLayer != null ? _popupLayer : panel.transform;
+            var root = UIFactory.NewRect("Popup", parent);
+            UIFactory.Anchor(root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            root.sizeDelta = new Vector2(300, 120);
+            Image g = null;
+            Color gc = glow ?? Color.clear;
+            if (glow.HasValue)
+            {
+                g = UIFactory.AddImage("Glow", root, new Color(gc.r, gc.g, gc.b, 0f), ProceduralSprites.Glow);
+                g.preserveAspect = false;
+                UIFactory.Stretch(g.rectTransform, 20, 10, 20, 10);
+            }
+            var t = UIFactory.AddText("T", root, text, size > 0f ? size : (big ? 44 : 32), font, color,
                 TextAlignmentOptions.Center, FontStyles.Bold);
-            var rt = t.rectTransform;
-            UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            rt.sizeDelta = new Vector2(260, 110);
+            UIFactory.Stretch(t.rectTransform);
             t.richText = true; t.lineSpacing = -18f;
             t.alpha = 0f;
-            StartCoroutine(FloatDamage(t, Random.Range(-26f, 26f), big, delay));
+            Vector2 basePos = _popupLayer != null && _fx != null ? _fx.ToLocal((RectTransform)panel.transform) : Vector2.zero;
+            root.anchoredPosition = basePos;
+            StartCoroutine(FloatDamage(root, t, g, gc, basePos, float.IsNaN(x) ? Random.Range(-26f, 26f) : x, big, delay));
+        }
+
+        private IEnumerator After(float delay, System.Action action)
+        {
+            for (float t = 0; t < delay; t += Time.unscaledDeltaTime) yield return null;
+            action?.Invoke();
         }
 
         /// <summary>숫자: 크게 튀어나왔다 제자리(펀치) → 위로 떠오르며 사라짐.</summary>
-        private IEnumerator FloatDamage(TextMeshProUGUI t, float x, bool big, float delay)
+        private IEnumerator FloatDamage(RectTransform rt, TextMeshProUGUI t, Image glow, Color gc, Vector2 basePos, float x, bool big, float delay)
         {
             for (float d = 0; d < delay; d += Time.unscaledDeltaTime) yield return null;
-            var rt = t.rectTransform;
             float dur = big ? 1.0f : 0.8f, time = 0f;
-            while (time < dur && t != null)
+            while (time < dur && rt != null)
             {
                 time += Time.unscaledDeltaTime;
                 float k = time / dur;
                 float punch = k < 0.15f ? Mathf.Lerp(big ? 1.9f : 1.5f, 1f, k / 0.15f) : 1f;
                 rt.localScale = Vector3.one * punch;
-                rt.anchoredPosition = new Vector2(x, Mathf.Lerp(16f, big ? 84f : 70f, Mathf.SmoothStep(0, 1, k)));
-                t.alpha = k < 0.7f ? 1f : 1f - (k - 0.7f) / 0.3f;
+                rt.anchoredPosition = basePos + new Vector2(x, Mathf.Lerp(16f, big ? 84f : 70f, Mathf.SmoothStep(0, 1, k)));
+                float a = k < 0.7f ? 1f : 1f - (k - 0.7f) / 0.3f;
+                t.alpha = a;
+                if (glow != null) glow.color = new Color(gc.r, gc.g, gc.b, 0.55f * a * (k < 0.15f ? 1.4f : 1f));
                 yield return null;
             }
-            if (t != null) Destroy(t.gameObject);
+            if (rt != null) Destroy(rt.gameObject);
         }
 
         // ---------------- 전투 연출 ----------------

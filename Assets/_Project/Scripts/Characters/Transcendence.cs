@@ -4,7 +4,7 @@ using UnityEngine;
 namespace SubcultureRPG.Characters
 {
     /// <summary>
-    /// 합성(성급 승급)·초월 규칙 — 비용/보정/고유 패시브의 단일 기준.
+    /// 합성(성급 승급)·초월 규칙 — 비용/보정/단계별 보상의 단일 기준.
     ///
     /// · 합성: 중복 캐릭터를 소모해 성급을 1씩 올림 (태생 → … → 6성)
     /// · 초월: 6성에서 +1 ~ +6
@@ -95,7 +95,7 @@ namespace SubcultureRPG.Characters
 
         /// <summary>
         /// 태생 대비 최종 능력치 배율:
-        /// (현재 성급 배율 / 태생 배율) × 승급 패널티 × 초월 보정 × (+6이면 ×1.10).
+        /// (현재 성급 배율 / 태생 배율) × 승급 패널티 × 초월 보정.
         /// </summary>
         public static float StatMultiplier(Rarity native, int star, int transcend)
         {
@@ -106,7 +106,6 @@ namespace SubcultureRPG.Characters
             float m = StarMultiplier(star) / StarMultiplier(n);
             m *= 1f - PromotionPenalty * (star - n);
             m *= 1f + StatPerTranscend * transcend;
-            if (transcend >= 6) m *= 1.10f;
             return m;
         }
 
@@ -114,34 +113,20 @@ namespace SubcultureRPG.Characters
         public static float SkillMultiplier(int transcend) =>
             1f + SkillPerTranscend * Mathf.Clamp(transcend, 0, MaxTranscend);
 
-        /// <summary>전투 시작 에너지(+1: 25, +6: 추가 25).</summary>
-        public static int StartEnergy(int transcend) =>
-            (transcend >= 1 ? 25 : 0) + (transcend >= 6 ? 25 : 0);
+        // ---------------- 초월 단계별 보상 ----------------
+        // +1 / +3 / +6 : 캐릭터 고유 능력(Battle.CharacterKits) — 고유 패시브를 강화
+        // +2 / +4 / +5 : 기본 공격 / 스킬 / 궁극기 레벨 +3 (재료 없이 바로 적용, 최대 10 → 13)
 
-        // ---------------- 고유 패시브 (표시용) ----------------
+        /// <summary>초월로 얻는 스킬 레벨.</summary>
+        public const int SkillLevelStep = 3;
 
-        public struct Passive
-        {
-            public int level;      // 해금 초월 단계
-            public string name;
-            public string desc;
-        }
+        /// <summary>스킬 칸(0 기본 공격 · 1 스킬 · 2 궁극기)의 레벨을 올려 주는 초월 단계.</summary>
+        public static int SkillLevelUnlock(int slot) => slot == 0 ? 2 : slot == 1 ? 4 : 5;
 
-        /// <summary>역할별 초월 고유 패시브 목록(+1/+3/+5/+6).</summary>
-        public static List<Passive> Passives(Role role) => new()
-        {
-            new Passive { level = 1, name = "각성의 불꽃", desc = "전투 시작 시 에너지 +25" },
-            RolePassive(role),
-            new Passive { level = 5, name = "한계 돌파", desc = "필살기 계수 +25%, 브레이크 피해 ×1.5" },
-            new Passive { level = 6, name = "무지개 초월", desc = "전 능력치 +10%, 시작 에너지 +25 추가" },
-        };
+        /// <summary>이 초월 단계에서 해당 스킬 칸에 더해지는 레벨(재료 없이).</summary>
+        public static int SkillLevelBonus(int transcend, int slot) => transcend >= SkillLevelUnlock(slot) ? SkillLevelStep : 0;
 
-        private static Passive RolePassive(Role role) => role switch
-        {
-            Role.Tank => new Passive { level = 3, name = "불굴", desc = "방어력 +15%, 체력 +10%" },
-            Role.Support => new Passive { level = 3, name = "지휘관의 직감", desc = "부여 효과량 +30%, 속도 +8" },
-            Role.Healer => new Passive { level = 3, name = "생명의 축복", desc = "회복량 +30%" },
-            _ => new Passive { level = 3, name = "약점 간파", desc = "치명타 확률 +10%, 치명타 피해 +20%" },
-        };
+        /// <summary>고유 능력이 열리는 초월 단계인지(+1 / +3 / +6).</summary>
+        public static bool IsAbilityStep(int transcend) => transcend == 1 || transcend == 3 || transcend == 6;
     }
 }

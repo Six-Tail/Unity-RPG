@@ -24,7 +24,13 @@ namespace SubcultureRPG.Meta
     {
         public const int MaxLevel = 80;
         public const int MaxAscension = 3;   // 돌파 0~3 → 레벨 상한 20/40/60/80
-        public const int MaxSkillLevel = 10;
+        public const int MaxSkillLevel = 10;   // 재료로 올릴 수 있는 최대
+        /// <summary>초월 보너스까지 더한 최대 레벨(10 + 3).</summary>
+        public const int MaxSkillLevelAbsolute = MaxSkillLevel + SubcultureRPG.Characters.Transcendence.SkillLevelStep;
+
+        /// <summary>초월로 재료 없이 더해지는 스킬 레벨: +2(기본 공격) · +4(스킬) · +5(궁극기)에서 각각 +3.</summary>
+        public static int SkillBonus(int transcend, SkillSlot slot) =>
+            SubcultureRPG.Characters.Transcendence.SkillLevelBonus(transcend, (int)slot);
         public static readonly SkillSlot[] SkillSlots = { SkillSlot.Basic, SkillSlot.Skill, SkillSlot.Ultimate };
 
         public static string SkillSlotName(SkillSlot s) => s switch
@@ -37,6 +43,7 @@ namespace SubcultureRPG.Meta
         /// <summary>
         /// 스킬 Lv → Lv+1 비용(기본 공격·스킬·궁극기 각각).
         /// 1→3 초급(초록) · 3→5 중급(파랑) · 5→10 상급(보라) 교본, 8 · 9 · 10으로 올릴 때는 전설의 비전서(금색)도 필요.
+        /// 초월(+2 · +4 · +5)로 얻는 +3 레벨은 재료 없이 바로 더해집니다(SkillBonus).
         /// </summary>
         public static SkillCost SkillUpgrade(int level)
         {

@@ -39,6 +39,28 @@ namespace SubcultureRPG.Battle
 
         /// <summary>이번 전투 누적 기록(준/받은 피해·회복 등).</summary>
         public readonly BattleRecord record = new();
+
+        // --- 패시브(캐릭터 고유 · 초월 고유 능력) ---
+        public readonly List<PassiveDef> passives = new();
+        public int[] passiveUses = new int[0];          // 자기 턴 사이 발동 횟수(턴 시작에 초기화)
+        public float dmgBasic, dmgSkill, dmgUlt, dmgVsBroken, dmgVsDebuffed, dmgVsLowHP, dmgTakenDown;
+        public float stackAtk, stackCrit;               // 전투 중 쌓이는 보너스
+        public PassiveDef surviveDef;                   // 버티기 패시브(있으면)
+        public PassiveDef recastDef;                    // 연쇄 시전 패시브(있으면)
+        public bool recastPending;                      // 다음 행동이 연쇄 시전
+        public int recastChain;                         // 이번 연쇄에서 다시 시전한 횟수
+
+        /// <summary>연쇄 시전 n번째의 피해 감소 비율(1번째 v, 2번째부터 v2).</summary>
+        public float RecastPenalty(int n) =>
+            recastDef == null ? 0f : Mathf.Clamp01(n <= 1 ? recastDef.v : recastDef.v2);
+        public bool surviveUsed;
+        private int _surviveHealed;
+
+        // --- 턴 상태 ---
+        public bool skipTurn;       // 이번 턴 행동 불가(기절)
+        public bool inExtraTurn;    // 지금 턴이 추가 행동
+        public bool extraQueued;    // 추가 행동 예약됨
+        public int stunGuard;       // 기절 면역 남은 턴(연속 기절 방지)
         public readonly List<StatusEffect> effects = new();
 
         // 장비 등 추가 능력(StatBonus)
@@ -60,7 +82,42 @@ namespace SubcultureRPG.Battle
             level = Mathf.Max(1, data.level);
 
             var s = data.baseStats;
-            var b = data.bonus ?? new StatBonus();
+            var b = new StatBonus();
+            b.Add(data.bonus);
+
+            // 패시브: 상시 능력치는 보너스에 합치고, 조건부 피해 보정은 따로 보관
+            if (data.passives != null)
+                foreach (var p in data.passives)
+                {
+                    if (p == null) continue;
+                    passives.Add(p);
+                    if (p.effect == PassiveEffect.Recast) recastDef = p;
+                    if (p.trigger != PassiveTrigger.Static) continue;
+                    switch (p.effect)
+                    {
+                        case PassiveEffect.AtkPct: b.atkPct += p.v; break;
+                        case PassiveEffect.HpPct: b.hpPct += p.v; break;
+                        case PassiveEffect.DefPct: b.defPct += p.v; break;
+                        case PassiveEffect.SpdFlat: b.spd += p.v; break;
+                        case PassiveEffect.CritRate: b.critRate += p.v; break;
+                        case PassiveEffect.CritDmg: b.critDmg += p.v; break;
+                        case PassiveEffect.Penetration: b.penetration += p.v; break;
+                        case PassiveEffect.BreakEffect: b.breakEffect += p.v; break;
+                        case PassiveEffect.HealBonus: b.healBonus += p.v; break;
+                        case PassiveEffect.EffectHit: b.effectHit += p.v; break;
+                        case PassiveEffect.EffectRes: b.effectRes += p.v; break;
+                        case PassiveEffect.EnergyRegen: b.energyRegen += p.v; break;
+                        case PassiveEffect.DmgBasic: dmgBasic += p.v; break;
+                        case PassiveEffect.DmgSkill: dmgSkill += p.v; break;
+                        case PassiveEffect.DmgUlt: dmgUlt += p.v; break;
+                        case PassiveEffect.DmgVsBroken: dmgVsBroken += p.v; break;
+                        case PassiveEffect.DmgVsDebuffed: dmgVsDebuffed += p.v; break;
+                        case PassiveEffect.DmgVsLowHP: dmgVsLowHP += p.v; break;
+                        case PassiveEffect.DmgTakenDown: dmgTakenDown += p.v; break;
+                        case PassiveEffect.Survive: surviveDef = p; break;
+                    }
+                }
+            passiveUses = new int[passives.Count];
             maxHP = b.ApplyHP(Mathf.Max(1, s.MaxHPAt(level)));
             currentHP = maxHP;
             atk = b.ApplyAtk(Mathf.Max(0, s.AtkAt(level)));
@@ -103,8 +160,31 @@ namespace SubcultureRPG.Battle
         public int TakeDamage(int amount)
         {
             amount = Mathf.Max(0, amount);
+            bool lethal = currentHP > 0 && currentHP - amount <= 0;
             currentHP = Mathf.Max(0, currentHP - amount);
+            if (lethal && surviveDef != null && !surviveUsed)
+            {
+                // 버티기: 전투당 1회 체력 1로 살아남고 회복
+                surviveUsed = true;
+                currentHP = 1;
+                int before = currentHP;
+                Heal(Mathf.RoundToInt(maxHP * surviveDef.v));
+                _surviveHealed = Mathf.Max(1, currentHP - before);
+            }
             return amount;
+        }
+
+        /// <summary>방금 버티기가 발동했으면 true(회복량 반환). 한 번 읽으면 초기화.</summary>
+        public bool ConsumeSurvived(out int healed)
+        {
+            healed = _surviveHealed;
+            _surviveHealed = 0;
+            return healed > 0;
+        }
+
+        public void ResetPassiveUses()
+        {
+            for (int i = 0; i < passiveUses.Length; i++) passiveUses[i] = 0;
         }
 
         public void Heal(int amount) => currentHP = Mathf.Min(maxHP, currentHP + Mathf.Max(0, amount));
@@ -153,7 +233,20 @@ namespace SubcultureRPG.Battle
 
         // ---------------- 상태효과(버프/디버프/도트) ----------------
 
-        public int EffectiveAtk => Mathf.Max(0, Mathf.RoundToInt(atk * (1f + Modifier(StatusType.AtkUp) - Modifier(StatusType.AtkDown))));
+        public int EffectiveAtk => Mathf.Max(0, Mathf.RoundToInt(atk * (1f + Modifier(StatusType.AtkUp) - Modifier(StatusType.AtkDown) + stackAtk)));
+        public int EffectiveSpd => Mathf.Max(1, Mathf.RoundToInt(spd * Mathf.Max(0.2f, 1f + Modifier(StatusType.SpdUp) - Modifier(StatusType.SpdDown))));
+        public float EffectiveCritRate => Mathf.Clamp01(critRate + Modifier(StatusType.CritUp) + stackCrit);
+
+        public bool HasStatus(StatusType t)
+        {
+            foreach (var e in effects) if (e.type == t && e.remaining > 0) return true;
+            return false;
+        }
+
+        public bool IsTaunting => IsAlive && HasStatus(StatusType.Taunt);
+
+        /// <summary>디버프 전부 해제. 해제한 개수 반환.</summary>
+        public int Cleanse() => effects.RemoveAll(e => e.IsDebuff);
         public int EffectiveDef => Mathf.Max(0, Mathf.RoundToInt(def * (1f + Modifier(StatusType.DefUp) - Modifier(StatusType.DefDown))));
 
         private float Modifier(StatusType t)
@@ -166,9 +259,11 @@ namespace SubcultureRPG.Battle
         public int BuffCount { get { int n = 0; foreach (var e in effects) if (e.IsBuff) n++; return n; } }
         public int DebuffCount { get { int n = 0; foreach (var e in effects) if (e.IsDebuff) n++; return n; } }
 
-        public void ApplyEffect(StatusType type, float magnitude, int duration, BattleUnit source = null)
+        /// <summary>효과 부여(같은 종류는 더 큰 수치·더 긴 턴으로 갱신). 기절 면역 중이면 false.</summary>
+        public bool ApplyEffect(StatusType type, float magnitude, int duration, BattleUnit source = null)
         {
-            if (type == StatusType.None || duration <= 0) return;
+            if (type == StatusType.None || duration <= 0) return false;
+            if (type == StatusType.Stun && stunGuard > 0) return false;
             var existing = effects.Find(e => e.type == type);
             if (existing != null)
             {
@@ -177,11 +272,13 @@ namespace SubcultureRPG.Battle
                 if (source != null) existing.source = source;
             }
             else effects.Add(new StatusEffect(type, magnitude, duration) { source = source });
+            return true;
         }
 
-        /// <summary>턴 시작 처리: 도트 피해 + 효과 턴 감소/만료. 반환: 받은 도트 총량.</summary>
-        public int TickTurnStart()
+        /// <summary>턴 시작 처리: 도트 피해 + 재생 회복 + 효과 턴 감소/만료. 반환: 받은 도트 총량(regen = 회복량).</summary>
+        public int TickTurnStart(out int regen)
         {
+            regen = 0;
             int dot = 0;
             bool wasAlive = IsAlive;
             BattleUnit lastSource = null;
@@ -197,6 +294,22 @@ namespace SubcultureRPG.Battle
                 TakeDamage(dot);
                 record.taken += dot;
                 if (wasAlive && !IsAlive && lastSource != null) lastSource.record.kills++;
+            }
+
+            // 재생(살아 있을 때만)
+            if (IsAlive)
+            {
+                int before = currentHP;
+                foreach (var e in effects)
+                {
+                    if (e.type != StatusType.Regen) continue;
+                    int h = Mathf.Max(0, Mathf.RoundToInt(e.magnitude));
+                    Heal(h);
+                    if (e.source != null) e.source.record.healed += h;
+                    record.healReceived += h;
+                    regen += h;
+                }
+                if (currentHP == before && regen > 0 && before >= maxHP) regen = 0;   // 이미 가득이면 표시 안 함
             }
 
             for (int i = effects.Count - 1; i >= 0; i--)

@@ -23,6 +23,8 @@ namespace SubcultureRPG.Battle
         SingleAlly,
         AllAllies,
         Self,
+        RandomEnemies, // 타격마다 무작위 적(연타)
+        Blast,         // 대상 + 양옆(양옆은 splash 배율)
     }
 
     // 속성(Element)은 캐릭터 고유 특성이라 SubcultureRPG.Characters(CharacterTraits.cs)로 이동했습니다.
@@ -36,5 +38,11 @@ namespace SubcultureRPG.Battle
         DefUp,
         DefDown,
         Dot, // 지속 피해
+        SpdUp,
+        SpdDown,
+        CritUp,   // 치명타 확률 증가
+        Regen,    // 턴 시작마다 회복
+        Taunt,    // 도발: 적의 단일 대상 공격을 끌어옴
+        Stun,     // 기절: 다음 자기 턴 행동 불가
     }
 }

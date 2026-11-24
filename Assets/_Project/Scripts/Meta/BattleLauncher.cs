@@ -46,7 +46,7 @@ namespace SubcultureRPG.Meta
                     int skl = roster != null ? roster.SkillLevelOf(c) : 1;
                     int star = roster != null ? roster.StarOf(c) : 0;
                     int tr = roster != null ? roster.TranscendOf(c) : 0;
-                    var sk = roster != null ? roster.SkillLevels(c) : null;
+                    var sk = roster != null ? roster.EffectiveSkillLevels(c) : null;   // 초월 보너스 레벨 포함
                     var u = RuntimeUnits.FromCharacter(c, lvl, lookup, skl, star, tr, sk);
                     if (equipment != null && equipment.EquippedOn(c).Count > 0)
                     {

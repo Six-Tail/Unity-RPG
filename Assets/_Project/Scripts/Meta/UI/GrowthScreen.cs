@@ -406,6 +406,15 @@ namespace SubcultureRPG.Meta.UI
 
         // ---------------- 미리보기 유닛(능력치·스킬) ----------------
 
+        /// <summary>올린 스킬 레벨에 초월 보너스(+2 · +4 · +5에서 +3)를 더한 실제 적용 레벨.</summary>
+        private int[] WithBonus(CharacterData c, int[] levels)
+        {
+            var lv = (int[])levels.Clone();
+            int tr = roster.TranscendOf(c);
+            for (int i = 0; i < lv.Length && i < 3; i++) lv[i] += Leveling.SkillBonus(tr, (SkillSlot)i);
+            return lv;
+        }
+
         private struct SkillInfo
         {
             public string name;
@@ -417,6 +426,11 @@ namespace SubcultureRPG.Meta.UI
             public StatusType effect;
             public float effectMag, effectChance;
             public int effectTurns;
+            public float splash, lifesteal, advance;
+            public bool cleanse;
+            public StatusType selfEffect;
+            public float selfMag;
+            public int selfTurns;
         }
 
         /// <summary>
@@ -428,7 +442,7 @@ namespace SubcultureRPG.Meta.UI
             var o = roster.GetOwned(c);
             System.Func<CharacterData, BattleUnitData> lookup = null;
             if (database != null) lookup = database.GetUnit;
-            var data = RuntimeUnits.FromCharacter(c, o.level, lookup, o.skillLevel, roster.StarOf(c), roster.TranscendOf(c), skillLevels ?? roster.SkillLevels(c));
+            var data = RuntimeUnits.FromCharacter(c, o.level, lookup, o.skillLevel, roster.StarOf(c), roster.TranscendOf(c), WithBonus(c, skillLevels ?? roster.SkillLevels(c)));
             bool authored = lookup != null && lookup(c) == data;
             if (authored) data = Instantiate(data);
             if (equipment != null) data.bonus = equipment.BonusFor(c);
@@ -445,6 +459,8 @@ namespace SubcultureRPG.Meta.UI
                     power = sk.power, heal = sk.heal, hits = Mathf.Max(1, sk.hits),
                     breakDamage = sk.breakDamage, energyGain = sk.energyGain,
                     effect = sk.applyEffect, effectMag = sk.effectMagnitude, effectChance = sk.effectChance, effectTurns = sk.effectDuration,
+                    splash = sk.splash, lifesteal = sk.lifesteal, advance = sk.advance, cleanse = sk.cleanse,
+                    selfEffect = sk.selfEffect, selfMag = sk.selfEffectMagnitude, selfTurns = sk.selfEffectDuration,
                 };
             }
 
@@ -738,24 +754,14 @@ namespace SubcultureRPG.Meta.UI
 
         // ---------------- 스킬 탭 ----------------
 
-        private readonly Button[] _skSelBtn = new Button[3];
-        private readonly TextMeshProUGUI[] _skSelLbl = new TextMeshProUGUI[3];
+        private readonly Button[] _skSelBtn = new Button[4];
+        private readonly TextMeshProUGUI[] _skSelLbl = new TextMeshProUGUI[4];
         private TextMeshProUGUI _skTitle, _skDesc, _skStats, _skTable, _skCostText, _skUpLbl;
         private Button _skUpBtn;
         private int _skillSel;
 
-        private static string EffectName(StatusType t) => t switch
-        {
-            StatusType.AtkUp => "공격력 증가", StatusType.DefUp => "방어력 증가",
-            StatusType.AtkDown => "공격력 감소", StatusType.DefDown => "방어력 감소",
-            StatusType.Dot => "지속 피해", _ => "",
-        };
-
-        private static string TargetName(TargetType t) => t switch
-        {
-            TargetType.AllEnemies => "적 전체", TargetType.AllAllies => "아군 전체",
-            TargetType.SingleAlly => "아군 1명", TargetType.Self => "자신", _ => "적 1명",
-        };
+        private static string EffectName(StatusType t) => SkillText.Effect(t);
+        private static string TargetName(TargetType t) => SkillText.Target(t);
 
         private static string Pct(float v) => $"{v * 100f:0.#}%";
 
@@ -764,18 +770,34 @@ namespace SubcultureRPG.Meta.UI
         {
             string el = $"<color={Traits.Hex(s.element)}>{Traits.Name(s.element)}</color>";
             var parts = new List<string>();
-            if (s.heal > 0f && (s.target == TargetType.SingleAlly || s.target == TargetType.AllAllies || s.target == TargetType.Self))
+            bool ally = s.target == TargetType.SingleAlly || s.target == TargetType.AllAllies || s.target == TargetType.Self;
+            if (s.heal > 0f && ally)
                 parts.Add($"{TargetName(s.target)}의 체력을 공격력의 <b>{Pct(s.heal)}</b>만큼 회복합니다.");
             if (s.power > 0f)
-                parts.Add($"{TargetName(s.target)}에게 공격력의 <b>{Pct(s.power)}</b>" + (s.hits > 1 ? $" × {s.hits}회" : "") + $"만큼 {el} 피해를 줍니다.");
+            {
+                string hits = s.hits > 1 ? $" × {s.hits}회" : "";
+                if (s.target == TargetType.RandomEnemies)
+                    parts.Add($"무작위 적을 <b>{s.hits}회</b> 공격해 타격마다 공격력의 <b>{Pct(s.power)}</b>만큼 {el} 피해를 줍니다.");
+                else if (s.target == TargetType.Blast)
+                    parts.Add($"적 1명에게 공격력의 <b>{Pct(s.power)}</b>{hits}, 양옆의 적에게는 그 <b>{Pct(s.splash)}</b>만큼 {el} 피해를 줍니다.");
+                else
+                    parts.Add($"{TargetName(s.target)}에게 공격력의 <b>{Pct(s.power)}</b>{hits}만큼 {el} 피해를 줍니다.");
+            }
             if (s.effect != StatusType.None)
             {
                 string chance = s.effectChance < 0.999f ? $"{Pct(s.effectChance)} 확률로 " : "";
                 string who = s.power > 0f || s.heal > 0f ? "대상" : TargetName(s.target);
-                parts.Add(s.effect == StatusType.Dot
-                    ? $"{chance}{who}에게 {s.effectTurns}턴 동안 매 턴 공격력의 <b>{Pct(s.effectMag)}</b> 지속 피해를 줍니다."
-                    : $"{chance}{who}의 {EffectName(s.effect).Replace(" 증가", "을 <b>" + Pct(s.effectMag) + "</b> 올립니다").Replace(" 감소", "을 <b>" + Pct(s.effectMag) + "</b> 낮춥니다")} ({s.effectTurns}턴).");
+                parts.Add(s.effect == StatusType.Taunt
+                    ? $"{s.effectTurns}턴 동안 적의 단일 대상 공격을 자신에게 끌어옵니다(도발)."
+                    : s.effect == StatusType.Stun
+                        ? $"{chance}대상을 기절시켜 다음 턴에 행동하지 못하게 합니다."
+                        : $"{chance}{who}에게 <b>{StatusText.Short(s.effect, s.effectMag, s.effectTurns)}</b> 효과를 겁니다.");
             }
+            if (s.selfEffect != StatusType.None)
+                parts.Add($"사용 후 자신에게 <b>{StatusText.Short(s.selfEffect, s.selfMag, s.selfTurns)}</b> 효과를 겁니다.");
+            if (s.advance > 0f) parts.Add($"대상의 행동 게이지를 <b>{Pct(s.advance)}</b> 당깁니다.");
+            if (s.lifesteal > 0f) parts.Add($"준 피해의 <b>{Pct(s.lifesteal)}</b>만큼 체력을 회복합니다.");
+            if (s.cleanse) parts.Add("대상의 디버프를 모두 해제합니다.");
             if (parts.Count == 0) parts.Add("효과 없음");
             return string.Join(" ", parts);
         }
@@ -786,8 +808,39 @@ namespace SubcultureRPG.Meta.UI
 
         private void SelectSkill(int i)
         {
-            _skillSel = Mathf.Clamp(i, 0, 2);
+            _skillSel = Mathf.Clamp(i, 0, 3);   // 3 = 패시브
             Refresh();
+        }
+
+        /// <summary>초월로 재료 없이 더해진 스킬 레벨(+2 / +4 / +5에서 기본 공격 / 스킬 / 궁극기 +3).</summary>
+        private int SkillBonus(int slot) => roster.SkillBonusOf(_selected, (SkillSlot)slot);
+
+        /// <summary>'Lv. 7' 또는 초월 보너스가 있으면 'Lv. 7 <보라>+3</보라>'.</summary>
+        private string LevelText(int lv, int bonus) =>
+            bonus > 0 ? $"<color=#FFD36B>Lv. {lv}</color> <color=#B47CFF>+{bonus}</color>" : $"<color=#FFD36B>Lv. {lv}</color>";
+
+        /// <summary>패시브 보기: 고유 패시브(지금 초월 단계의 효과) + 초월 고유 능력(+1 / +3 / +6).</summary>
+        private void RefreshPassiveView()
+        {
+            var kit = CharacterKits.Get(_selected);
+            int tr = roster.TranscendOf(_selected);
+            bool upgraded = false;
+            foreach (var a in kit.TranscendAbilities()) upgraded |= tr >= a.unlock && a.upgrade.Count > 0;
+            _skTitle.text = $"<size=62%><color=#C9B8FF>패시브</color></size>  {kit.passive.name}" +
+                            (upgraded ? "  <size=58%><color=#B47CFF>초월 강화 적용 중</color></size>" : "");
+            _skDesc.text = CharacterKits.Describe(CharacterKits.CurrentPassive(_selected, tr));
+            var sb = new StringBuilder("<color=#9AA3B5>초월 고유 능력</color>");
+            foreach (var a in kit.TranscendAbilities())
+            {
+                bool on = tr >= a.unlock;
+                sb.Append('\n');
+                if (on) sb.Append($"<color={StarText.Rainbow[a.unlock - 1]}>+{a.unlock}</color> <b>{a.name}</b> — {a.Desc}");
+                else sb.Append($"<color=#6B7280>+{a.unlock} {a.name} — {a.Desc.Replace("<b>", "").Replace("</b>", "")}</color>");
+            }
+            _skStats.text = sb.ToString();
+            _skTable.text = "<color=#9AA3B5>패시브는 레벨이 없고 항상 적용됩니다. 초월 +1 · +3 · +6에서 패시브가 강화되고, +2 · +4 · +5에서는 기본 공격 · 스킬 · 궁극기 레벨이 재료 없이 +3 됩니다.</color>";
+            _skCostText.text = "";
+            _skUpBtn.gameObject.SetActive(false);
         }
 
         private void RefreshSkillTab()
@@ -810,16 +863,29 @@ namespace SubcultureRPG.Meta.UI
             {
                 bool on = i == _skillSel;
                 _skSelBtn[i].GetComponent<Image>().color = on ? new Color(0.5f, 0.35f, 0.75f, 0.98f) : new Color(1, 1, 1, 0.1f);
-                bool canUp = levels[i] < Leveling.MaxSkillLevel && CanAffordSkill(levels[i]);
+                bool canUp = CanAffordSkill(levels[i]);
                 _skSelLbl[i].text = $"<size=70%><color=#C9B8FF>{Leveling.SkillSlotName((SkillSlot)i)}</color></size>\n<b>{cur[i].name}</b>\n" +
-                                    $"<size=80%><color=#FFD36B>Lv. {levels[i]}</color> / {Leveling.MaxSkillLevel}" +
+                                    $"<size=80%>{LevelText(levels[i], SkillBonus(i))} / {Leveling.MaxSkillLevel}" +
                                     (canUp ? "  <color=#7CFF9A>레벨업 가능</color>" : "") + "</size>";
             }
+            {
+                // 4번째: 패시브
+                var kit = CharacterKits.Get(_selected);
+                int tr = roster.TranscendOf(_selected);
+                int open = (tr >= 1 ? 1 : 0) + (tr >= 3 ? 1 : 0) + (tr >= 6 ? 1 : 0);
+                _skSelBtn[3].GetComponent<Image>().color = _skillSel == 3 ? new Color(0.5f, 0.35f, 0.75f, 0.98f) : new Color(1, 1, 1, 0.1f);
+                _skSelLbl[3].text = $"<size=70%><color=#C9B8FF>패시브</color></size>\n<b>{kit.passive.name}</b>\n" +
+                                    $"<size=80%><color=#9AA3B5>초월 고유 능력 {open} / 3</color></size>";
+            }
+
+            if (_skillSel == 3) { RefreshPassiveView(); return; }
+            _skUpBtn.gameObject.SetActive(true);
 
             // 오른쪽: 선택한 스킬 상세
             int k = _skillSel;
             var s = cur[k];
             int lv = levels[k];
+            int bonus = SkillBonus(k);
             bool max = lv >= Leveling.MaxSkillLevel;
             // 레벨당 변화량(선형) — 다음 레벨 값 = 현재 + step
             float stepPower = (alt[k].power - s.power) * dir[k];
@@ -828,7 +894,7 @@ namespace SubcultureRPG.Meta.UI
 
             string elHex = Traits.Hex(s.element);
             _skTitle.text = $"<size=62%><color=#C9B8FF>{Leveling.SkillSlotName((SkillSlot)k)}</color></size>  {s.name}  " +
-                            $"<size=62%><color=#FFD36B>Lv. {lv}</color> / {Leveling.MaxSkillLevel}   <color={elHex}>{Traits.Name(s.element)}</color> · {TargetName(s.target)}</size>";
+                            $"<size=62%>{LevelText(lv, bonus)} / {Leveling.MaxSkillLevel}   <color={elHex}>{Traits.Name(s.element)}</color> · {TargetName(s.target)}</size>";
             _skDesc.text = Sentence(s);
 
             var sb = new StringBuilder();
@@ -847,10 +913,21 @@ namespace SubcultureRPG.Meta.UI
             if (s.effect != StatusType.None)
             {
                 string chance = s.effectChance < 0.999f ? $"  · 확률 {Pct(s.effectChance)}" : "";
-                string unitLabel = s.effect == StatusType.Dot ? "공격력 × " : "";
-                sb.Append($"<color=#9AA3B5>부여 효과</color>   {EffectName(s.effect)} {unitLabel}{Pair(s.effectMag, s.effectMag + stepMag, max)}  · {s.effectTurns}턴{chance}\n");
+                string unitLabel = s.effect == StatusType.Dot || s.effect == StatusType.Regen ? "공격력 × " : "";
+                string magText = SkillText.NoMagnitude(s.effect) ? "" : $" {unitLabel}{Pair(s.effectMag, s.effectMag + stepMag, max)}";
+                sb.Append($"<color=#9AA3B5>부여 효과</color>   {EffectName(s.effect)}{magText}  · {s.effectTurns}턴{chance}\n");
             }
-            if (s.breakDamage > 0) sb.Append($"<color=#9AA3B5>브레이크</color>   브레이크 게이지 -{s.breakDamage} (약점 속성일 때 · 약점이 아니면 약 1/3)\n");
+            if (s.selfEffect != StatusType.None)
+                sb.Append($"<color=#9AA3B5>자신 효과</color>   {StatusText.Short(s.selfEffect, s.selfMag, s.selfTurns)}\n");
+            {
+                var extra = new List<string>();
+                if (s.target == TargetType.Blast && s.splash > 0f) extra.Add($"양옆 피해 {Pct(s.splash)}");
+                if (s.advance > 0f) extra.Add($"행동 게이지 당김 {Pct(s.advance)}");
+                if (s.lifesteal > 0f) extra.Add($"흡혈 {Pct(s.lifesteal)}");
+                if (s.cleanse) extra.Add("디버프 해제");
+                if (extra.Count > 0) sb.Append($"<color=#9AA3B5>추가 효과</color>   {string.Join("  ·  ", extra)}\n");
+            }
+            if (s.breakDamage > 0) sb.Append($"<color=#9AA3B5>브레이크</color>   브레이크 게이지 -{s.breakDamage}" + (s.hits > 1 ? $" × {s.hits}회" : "") + " (약점 속성일 때 · 약점이 아니면 약 1/3)\n");
             string energy = s.category == SkillCategory.Ultimate ? "에너지 가득 필요 · 사용 시 전부 소모" : $"사용 시 에너지 +{s.energyGain}";
             string sp = s.category == SkillCategory.Ultimate ? "SP 변화 없음" : s.category == SkillCategory.Skill ? "SP -1" : "SP +1";
             sb.Append($"<color=#9AA3B5>에너지 · SP</color>   {energy}  ·  {sp}");
@@ -869,13 +946,18 @@ namespace SubcultureRPG.Meta.UI
                 tb.Append(L == lv ? $"<color=#FFD36B><b>{cell}</b></color>" : L == lv + 1 ? $"<color=#7CFF9A>{cell}</color>" : cell);
                 if (L < Leveling.MaxSkillLevel) tb.Append("   ");
             }
+            tb.Append(bonus > 0
+                ? $"\n<size=80%><color=#B47CFF>초월 보너스 +{bonus} 레벨이 포함된 수치입니다 (실제 적용 Lv. {lv + bonus})</color></size>"
+                : $"\n<size=80%><color=#B47CFF>초월 +{Transcendence.SkillLevelUnlock(k)}에서 재료 없이 레벨 +{Transcendence.SkillLevelStep}</color></size>");
             if (Mathf.Abs(step) < 0.0005f) tb.Append("  <size=80%><color=#9AA3B5>(레벨로 변하지 않음)</color></size>");
             _skTable.text = tb.ToString();
 
             // 비용 · 버튼
             if (max)
             {
-                _skCostText.text = "<color=#FFD36B>최대 레벨</color>";
+                _skCostText.text = bonus > 0
+                    ? $"<color=#FFD36B>최대 레벨</color>  <color=#B47CFF>(초월 보너스 +{bonus} 적용 중)</color>"
+                    : $"<color=#FFD36B>최대 레벨</color>  <color=#B47CFF>(초월 +{Transcendence.SkillLevelUnlock(k)}에서 재료 없이 +{Transcendence.SkillLevelStep})</color>";
                 _skUpLbl.text = "MAX";
                 _skUpBtn.interactable = false;
             }
@@ -901,7 +983,13 @@ namespace SubcultureRPG.Meta.UI
         private void SkillUp(SkillSlot slot)
         {
             if (_selected == null || roster == null) return;
-            if (!roster.CanUpgradeSkill(_selected, slot)) { Toast("이미 최대 레벨"); return; }
+            if ((int)slot > 2) return;
+            if (!roster.CanUpgradeSkill(_selected, slot))
+            {
+                Toast(roster.SkillBonusOf(_selected, slot) == 0
+                    ? $"최대 레벨 — 초월 +{Transcendence.SkillLevelUnlock((int)slot)}에서 재료 없이 +{Transcendence.SkillLevelStep} 레벨" : "이미 최대 레벨");
+                return;
+            }
             int lv = roster.SkillLevelOf(_selected, slot);
             var c = Leveling.SkillUpgrade(lv);
             if (Mat(c.book) < c.books) { Toast($"{Materials.Name(c.book)} 부족 ({Mat(c.book)}/{c.books})"); return; }
@@ -935,7 +1023,7 @@ namespace SubcultureRPG.Meta.UI
             _trInfo.text = $"태생 {(int)_selected.rarity}★{promoted}    중복 <b>{o.Duplicates}</b>장    " +
                            $"<color=#9AA3B5>풀 초월까지 {Transcendence.RemainingCost(_selected.rarity, starN, tr)} / {Transcendence.TotalCost(_selected.rarity)}장</color>\n" +
                            $"능력치 배율 <b>×{statMul:0.00}</b>    " + (tr > 0 ? $"<color=#B47CFF>초월 스킬 계수 +{Mathf.RoundToInt((skMul - 1f) * 100)}%</color>" : "<color=#6B7280>초월 스킬 계수 +0%</color>");
-            _trPassives.text = PassiveText(_selected.role, starN, tr);
+            _trPassives.text = TranscendRewardText(_selected, starN, tr);
 
             int mcost = roster.MergeCost(_selected);
             int mgold = Economy.MergeGold(starN, tr);
@@ -956,19 +1044,28 @@ namespace SubcultureRPG.Meta.UI
             }
         }
 
-        private static string PassiveText(Role role, int star, int transcend)
+        /// <summary>초월 단계별 보상: +1 · +3 · +6 고유 능력(패시브 강화), +2 · +4 · +5 스킬 레벨 +3(재료 없이).</summary>
+        private static string TranscendRewardText(CharacterData c, int star, int transcend)
         {
-            var sb = new StringBuilder("<b>초월 고유 패시브</b>");
+            var kit = CharacterKits.Get(c);
+            var sb = new StringBuilder("<b>초월 보상</b>");
             if (star < Transcendence.MaxStar) sb.Append("  <color=#9AA3B5><size=85%>(6★ 달성 후 초월)</size></color>");
-            foreach (var p in Transcendence.Passives(role))
+            for (int t = 1; t <= Transcendence.MaxTranscend; t++)
             {
-                bool on = transcend >= p.level;
-                string lvl = $"<color={StarText.Rainbow[p.level - 1]}>+{p.level}</color>";
+                string body = TranscendRewardLine(kit, t);
                 sb.Append('\n');
-                if (on) sb.Append($"{lvl} <b>{p.name}</b> — {p.desc}");
-                else sb.Append($"<color=#6B7280>+{p.level} {p.name} — {p.desc}</color>");
+                if (transcend >= t) sb.Append($"<color={StarText.Rainbow[t - 1]}>+{t}</color> {body}");
+                else sb.Append($"<color=#6B7280>+{t} {body.Replace("<b>", "").Replace("</b>", "")}</color>");
             }
             return sb.ToString();
+        }
+
+        private static string TranscendRewardLine(CharacterKit kit, int t)
+        {
+            KitAbility a = t == 1 ? kit.t1 : t == 3 ? kit.t3 : t == 6 ? kit.t6 : null;
+            if (a != null) return $"<b>{a.name}</b> — {a.Desc}";
+            int slot = t == 2 ? 0 : t == 4 ? 1 : 2;
+            return $"<b>{Leveling.SkillSlotName((SkillSlot)slot)} 레벨 +{Transcendence.SkillLevelStep}</b> (재료 없이 바로 적용 · 최대 Lv. {Leveling.MaxSkillLevelAbsolute})";
         }
 
         private void MergeOrTranscend()
@@ -989,9 +1086,11 @@ namespace SubcultureRPG.Meta.UI
                 if (roster.TranscendOf(_selected) >= Transcendence.MaxTranscend) { Toast("이미 최대 초월(+6)"); return; }
                 if (!roster.Transcend(_selected)) { Toast($"중복 캐릭터가 부족합니다 (필요 {cost})"); return; }
                 int t = roster.TranscendOf(_selected);
-                string unlocked = "";
-                foreach (var p in Transcendence.Passives(_selected.role))
-                    if (p.level == t) unlocked = $" — 패시브 해금: {p.name}";
+                var kit = CharacterKits.Get(_selected);
+                KitAbility ability = t == 1 ? kit.t1 : t == 3 ? kit.t3 : t == 6 ? kit.t6 : null;
+                string unlocked = ability != null
+                    ? $" — 고유 능력 해금: {ability.name}"
+                    : $" — {Leveling.SkillSlotName((SkillSlot)(t == 2 ? 0 : t == 4 ? 1 : 2))} 레벨 +{Transcendence.SkillLevelStep}";
                 Toast($"초월 +{t} 달성!{unlocked}");
             }
         }
@@ -1206,20 +1305,17 @@ namespace SubcultureRPG.Meta.UI
 
         private void BuildSkillPage(Transform page)
         {
-            // 왼쪽: 스킬 3개 선택
-            for (int i = 0; i < 3; i++)
+            // 왼쪽: 스킬 3개 + 패시브 선택
+            for (int i = 0; i < 4; i++)
             {
                 int idx = i;
-                _skSelBtn[i] = Btn(page, "", new Color(1, 1, 1, 0.1f), 0, -i * 126, 262, 116, () => SelectSkill(idx));
+                _skSelBtn[i] = Btn(page, "", new Color(1, 1, 1, 0.1f), 0, -i * 123, 262, 115, () => SelectSkill(idx));
                 _skSelLbl[i] = _skSelBtn[i].GetComponentInChildren<TextMeshProUGUI>();
                 _skSelLbl[i].alignment = TextAlignmentOptions.Left;
                 _skSelLbl[i].lineSpacing = 4f;
                 _skSelLbl[i].margin = new Vector4(10, 0, 4, 0);
                 _skSelLbl[i].fontSizeMax = 21;
             }
-            var hint = Txt(page, "<color=#9AA3B5>스킬을 눌러 상세 확인</color>", 15, FontStyles.Normal, TextAlignmentOptions.Top, 0, -384, 262, 24);
-            hint.raycastTarget = false;
-
             // 오른쪽: 상세
             var bg = UIFactory.AddImage("SkillDetail", page, new Color(0, 0, 0, 0.28f), ProceduralSprites.Rounded);
             bg.type = Image.Type.Sliced; bg.preserveAspect = false; bg.pixelsPerUnitMultiplier = 2f;

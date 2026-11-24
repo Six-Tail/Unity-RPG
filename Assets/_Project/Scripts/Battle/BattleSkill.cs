@@ -37,6 +37,20 @@ namespace SubcultureRPG.Battle
         [Min(0)] public int effectDuration = 2;
         [Range(0f, 1f)] public float effectChance = 1f;
 
+        [Header("추가 동작 (선택)")]
+        [Tooltip("Blast: 양옆 대상에게 들어가는 피해 비율(0.5 = 50%).")]
+        public float splash = 0f;
+        [Tooltip("흡혈: 준 피해의 이 비율만큼 시전자 회복.")]
+        public float lifesteal = 0f;
+        [Tooltip("아군 대상 스킬: 대상의 행동 게이지를 이 비율만큼 당김(0.5 = 절반).")]
+        [Range(0f, 1f)] public float advance = 0f;
+        [Tooltip("아군 대상 스킬: 대상의 디버프를 모두 해제.")]
+        public bool cleanse = false;
+        [Tooltip("사용 후 시전자 자신에게 거는 효과.")]
+        public StatusType selfEffect = StatusType.None;
+        public float selfEffectMagnitude = 0.2f;
+        [Min(0)] public int selfEffectDuration = 2;
+
         public bool IsUltimate => category == SkillCategory.Ultimate;
         public bool IsHeal => heal > 0f;
         public bool TargetsAllies =>

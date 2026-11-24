@@ -86,7 +86,7 @@ namespace SubcultureRPG.Battle
             foreach (var u in AllUnits())
                 if (u.IsAlive) u.actionValue -= min;   // 시간 전진
 
-            actor.actionValue = _cfg.baseActionValue / Mathf.Max(1, actor.spd); // 다음 차례 예약
+            actor.actionValue = _cfg.baseActionValue / Mathf.Max(1, actor.EffectiveSpd); // 다음 차례 예약(속도 버프 반영)
             return actor;
         }
 
@@ -109,7 +109,7 @@ namespace SubcultureRPG.Battle
                 for (int j = 0; j < sim.Count; j++)
                     sim[j] = new KeyValuePair<BattleUnit, float>(sim[j].Key, sim[j].Value - min);
 
-                sim[idx] = new KeyValuePair<BattleUnit, float>(cur.Key, _cfg.baseActionValue / Mathf.Max(1, cur.Key.spd));
+                sim[idx] = new KeyValuePair<BattleUnit, float>(cur.Key, _cfg.baseActionValue / Mathf.Max(1, cur.Key.EffectiveSpd));
                 order.Add(cur.Key);
             }
             return order;
@@ -120,8 +120,212 @@ namespace SubcultureRPG.Battle
         /// <summary>유닛 턴 시작: 브레이크 회복 + 도트/효과 틱. 반환: 이번 틱에 받은 도트 피해.</summary>
         public int StartTurn(BattleUnit actor)
         {
+            actor.skipTurn = false;
+            actor.recastPending = false;
+            actor.recastChain = 0;
+            actor.inExtraTurn = actor.extraQueued;
+            actor.extraQueued = false;
+            if (actor.inExtraTurn) return 0;   // 추가 행동: 효과 턴·지속 피해는 진행하지 않음
+
+            actor.ResetPassiveUses();
             actor.RecoverBreak();
-            return actor.TickTurnStart();
+            bool stunned = actor.HasStatus(StatusType.Stun);
+            int dot = actor.TickTurnStart(out int regen);
+            if (regen > 0)
+                _extras.Add(new ActionResult.TargetHit { target = actor, healed = regen, extra = true, label = "재생", source = actor });
+
+            if (stunned && actor.IsAlive) { actor.skipTurn = true; actor.stunGuard = 2; }   // 기절 후 2턴은 다시 기절하지 않음
+            else if (actor.stunGuard > 0) actor.stunGuard--;
+
+            if (actor.IsAlive && !actor.skipTurn) Fire(actor, PassiveTrigger.TurnStart, null);
+            return dot;
+        }
+
+        /// <summary>전투 시작 패시브 발동(컨트롤러가 OnBattleStart 알림 뒤에 한 번 호출).</summary>
+        public void StartBattle()
+        {
+            if (_started) return;
+            _started = true;
+            foreach (var u in allies) Fire(u, PassiveTrigger.BattleStart, null);
+            foreach (var u in enemies) Fire(u, PassiveTrigger.BattleStart, null);
+        }
+
+        private bool _started;
+
+        // ---------------- 패시브 ----------------
+
+        /// <summary>패시브가 발동했을 때(유닛, 효과). UI 알림용.</summary>
+        public event Action<BattleUnit, PassiveDef> PassiveTriggered;
+
+        /// <summary>행동 밖에서 생긴 부가 결과(턴 시작 회복 등)와 행동 중 쌓인 부가 결과.</summary>
+        private readonly List<ActionResult.TargetHit> _extras = new();
+
+        /// <summary>쌓인 부가 결과를 꺼냄(행동 밖: 턴 시작·전투 시작 뒤 컨트롤러가 호출).</summary>
+        public List<ActionResult.TargetHit> DrainExtras()
+        {
+            var list = new List<ActionResult.TargetHit>(_extras);
+            _extras.Clear();
+            return list;
+        }
+
+        /// <summary>owner의 trigger 패시브를 모두 발동. other = 관련 유닛(공격 대상 · 피격 시 공격자).</summary>
+        private void Fire(BattleUnit owner, PassiveTrigger trigger, BattleUnit other)
+        {
+            if (owner == null || !owner.IsAlive) return;
+            for (int i = 0; i < owner.passives.Count; i++)
+            {
+                var p = owner.passives[i];
+                if (p.trigger != trigger) continue;
+                if (p.limit > 0 && owner.passiveUses[i] >= p.limit) continue;
+                if (p.chance < 0.999f && _roll() >= p.chance) continue;
+                if (!Execute(owner, p, other)) continue;
+                owner.passiveUses[i]++;
+                PassiveTriggered?.Invoke(owner, p);
+            }
+        }
+
+        private bool ApplyStatus(BattleUnit owner, BattleUnit target, PassiveDef p)
+        {
+            if (target == null || !target.IsAlive) return false;
+            float mag = p.status == StatusType.Dot || p.status == StatusType.Regen ? owner.EffectiveAtk * p.v : p.v;
+            return target.ApplyEffect(p.status, mag, p.turns, owner);
+        }
+
+        private ActionResult.TargetHit HealEntry(BattleUnit source, BattleUnit target, int amount, string label)
+        {
+            source.record.healed += amount;
+            target.record.healReceived += amount;
+            return new ActionResult.TargetHit { target = target, healed = amount, extra = true, label = label, source = source };
+        }
+
+        /// <summary>피해 적용 + 기록 + 버티기 처리.</summary>
+        private void Damage(BattleUnit source, BattleUnit target, int amount)
+        {
+            target.TakeDamage(amount);
+            if (source != null) source.record.dealt += amount;
+            target.record.taken += amount;
+            if (target.ConsumeSurvived(out int healed))
+            {
+                _extras.Add(new ActionResult.TargetHit { target = target, healed = healed, extra = true, label = target.surviveDef.name, source = target });
+                target.record.healReceived += healed;
+                PassiveTriggered?.Invoke(target, target.surviveDef);
+            }
+        }
+
+        private bool Execute(BattleUnit owner, PassiveDef p, BattleUnit other)
+        {
+            switch (p.effect)
+            {
+                case PassiveEffect.ExtraTurn:
+                    if (owner.inExtraTurn || owner.extraQueued) return false;   // 추가 행동 중에는 다시 얻지 못함
+                    owner.extraQueued = true;
+                    owner.actionValue = 0f;
+                    return true;
+
+                case PassiveEffect.Energy:
+                    if (owner.UltimateReady) return false;
+                    owner.GainEnergy(Mathf.RoundToInt(p.v));
+                    return true;
+
+                case PassiveEffect.TeamEnergy:
+                    foreach (var u in Teammates(owner)) if (u.IsAlive) u.GainEnergy(Mathf.RoundToInt(p.v));
+                    return true;
+
+                case PassiveEffect.SkillPoint:
+                    if (SkillPointsOf(owner.team) >= _cfg.maxSkillPoints) return false;
+                    AddSkillPoints(owner.team, Mathf.RoundToInt(p.v));
+                    return true;
+
+                case PassiveEffect.HealSelf:
+                {
+                    if (owner.currentHP >= owner.maxHP) return false;
+                    int amt = Mathf.Max(1, Mathf.RoundToInt(owner.maxHP * p.v));
+                    owner.Heal(amt);
+                    _extras.Add(HealEntry(owner, owner, amt, p.name));
+                    return true;
+                }
+
+                case PassiveEffect.HealLowest:
+                {
+                    var t = LowestHPRatio(Teammates(owner));
+                    if (t == null || t.currentHP >= t.maxHP) return false;
+                    int amt = Mathf.Max(1, Mathf.RoundToInt(owner.EffectiveAtk * p.v * (1f + owner.healBonus)));
+                    t.Heal(amt);
+                    _extras.Add(HealEntry(owner, t, amt, p.name));
+                    return true;
+                }
+
+                case PassiveEffect.HealTeam:
+                {
+                    bool any = false;
+                    int amt = Mathf.Max(1, Mathf.RoundToInt(owner.EffectiveAtk * p.v * (1f + owner.healBonus)));
+                    foreach (var u in Teammates(owner))
+                    {
+                        if (!u.IsAlive || u.currentHP >= u.maxHP) continue;
+                        u.Heal(amt);
+                        _extras.Add(HealEntry(owner, u, amt, p.name));
+                        any = true;
+                    }
+                    return any;
+                }
+
+                case PassiveEffect.StatusSelf:
+                    return ApplyStatus(owner, owner, p);
+
+                case PassiveEffect.StatusTeam:
+                {
+                    bool any = false;
+                    foreach (var u in Teammates(owner)) any |= ApplyStatus(owner, u, p);
+                    return any;
+                }
+
+                case PassiveEffect.StatusTarget:
+                    return other != null && other.team != owner.team && ApplyStatus(owner, other, p);
+
+                case PassiveEffect.StatusEnemies:
+                {
+                    bool any = false;
+                    foreach (var u in Opponents(owner)) any |= ApplyStatus(owner, u, p);
+                    return any;
+                }
+
+                case PassiveEffect.FollowUp:
+                {
+                    var t = other != null && other.IsAlive && other.team != owner.team ? other : LowestHP(Opponents(owner));
+                    if (t == null) return false;
+                    var hit = DamageCalculator.Compute(owner, t, p.v, owner.element, SkillCategory.Basic, _roll(), _cfg, false);
+                    Damage(owner, t, hit.damage);
+                    if (hit.crit) owner.record.crits++;
+                    bool dead = !t.IsAlive;
+                    if (dead) owner.record.kills++;
+                    _extras.Add(new ActionResult.TargetHit
+                    {
+                        target = t, totalDamage = hit.damage, anyCrit = hit.crit, weakness = hit.weakness, defeated = dead,
+                        extra = true, label = p.trigger == PassiveTrigger.OnDamaged ? "반격" : "추가 공격", source = owner,
+                        hitDamages = new List<int> { hit.damage }, hitCrits = new List<bool> { hit.crit },
+                    });
+                    return true;
+                }
+
+                case PassiveEffect.AdvanceSelf:
+                    owner.actionValue *= 1f - Mathf.Clamp01(p.v);
+                    return true;
+
+                case PassiveEffect.AdvanceTeam:
+                    foreach (var u in Teammates(owner)) if (u.IsAlive) u.actionValue *= 1f - Mathf.Clamp01(p.v);
+                    return true;
+
+                case PassiveEffect.StackAtk:
+                    if (owner.stackAtk >= p.v * p.v2 - 0.0001f) return false;
+                    owner.stackAtk += p.v;
+                    return true;
+
+                case PassiveEffect.StackCrit:
+                    if (owner.stackCrit >= p.v * p.v2 - 0.0001f) return false;
+                    owner.stackCrit += p.v;
+                    return true;
+            }
+            return false;   // 상시 효과는 유닛 생성 때 이미 반영
         }
 
         // ---------------- 행동 처리 ----------------
@@ -139,58 +343,101 @@ namespace SubcultureRPG.Battle
             };
 
             bool heal = skill.IsHeal && skill.TargetsAllies;
+            bool attack = !skill.TargetsAllies;
             actor.record.actions++;
 
-            foreach (var target in targets)
+            // 연쇄 시전(처치 → 스킬 재시전): SP를 쓰지 않고, 재시전할수록 피해가 줄어듦
+            bool isRecast = actor.recastPending;
+            actor.recastPending = false;
+            float actionMul = 1f;
+            if (isRecast)
             {
-                if (target == null || !target.IsAlive) continue;
-                var th = new ActionResult.TargetHit { target = target };
+                actor.recastChain++;
+                actionMul = 1f - actor.RecastPenalty(actor.recastChain);
+                result.recast = actor.recastChain;
+            }
+            result.recastMul = actionMul;
 
-                if (heal)
+            // 대상별 결과(무작위 연타는 같은 대상이 여러 번 맞을 수 있어 대상 기준으로 모음)
+            var order = new List<BattleUnit>();
+            var acc = new Dictionary<BattleUnit, ActionResult.TargetHit>();
+            ActionResult.TargetHit Get(BattleUnit t)
+            {
+                if (!acc.TryGetValue(t, out var th))
                 {
+                    th = new ActionResult.TargetHit { target = t, hitDamages = new List<int>(), hitCrits = new List<bool>() };
+                    order.Add(t);
+                }
+                return th;
+            }
+
+            BattleUnit first = targets.Count > 0 ? targets[0] : null;   // 주 대상
+            int hits = Mathf.Max(1, skill.hits);
+
+            if (heal)
+            {
+                foreach (var target in targets)
+                {
+                    if (target == null || !target.IsAlive) continue;
+                    var th = Get(target);
                     int amount = Mathf.Max(1, Mathf.RoundToInt(actor.EffectiveAtk * skill.heal * (1f + actor.healBonus)));
                     target.Heal(amount);
                     actor.record.healed += amount;
                     target.record.healReceived += amount;
                     th.healed = amount;
+                    acc[target] = th;
                 }
-                else if (!skill.TargetsAllies)
+            }
+            else if (attack && skill.target == TargetType.RandomEnemies)
+            {
+                // 연타: 타격마다 살아 있는 적 중 무작위
+                for (int h = 0; h < hits; h++)
                 {
-                    int total = 0;
-                    bool anyCrit = false, anyWeak = false;
-                    for (int h = 0; h < Mathf.Max(1, skill.hits); h++)
+                    var t = RandomAlive(Opponents(actor));
+                    if (t == null) break;
+                    var th = Get(t);
+                    Strike(actor, t, skill, actionMul, ref th);
+                    acc[t] = th;
+                }
+                first = order.Count > 0 ? order[0] : first;
+            }
+            else if (attack)
+            {
+                foreach (var target in targets)
+                {
+                    if (target == null || !target.IsAlive) continue;
+                    // 확산: 양옆은 splash 배율
+                    float mul = skill.target == TargetType.Blast && target != first ? Mathf.Max(0f, skill.splash) : 1f;
+                    var th = Get(target);
+                    for (int h = 0; h < hits; h++)
                     {
                         if (!target.IsAlive) break;
-                        var hit = DamageCalculator.Compute(actor, target, skill, _roll(), _cfg);
-                        target.TakeDamage(hit.damage);
-                        actor.record.dealt += hit.damage;
-                        target.record.taken += hit.damage;
-                        if (hit.crit) actor.record.crits++;
-                        target.GainEnergy(_cfg.energyOnHit);
-                        total += hit.damage;
-                        anyCrit |= hit.crit;
-                        anyWeak |= hit.weakness;
-
-                        // 모든 공격이 브레이크 게이지를 깎고, 약점 속성이면 훨씬 많이 깎음 → 0이 되면 브레이크
-                        float breakRate = hit.weakness ? _cfg.breakRateWeak : _cfg.breakRateNormal;
-                        int breakAmount = Mathf.RoundToInt(skill.breakDamage * (1f + actor.breakEffect) * Mathf.Max(0f, breakRate));   // 브레이크 효율
-                        if (target.ReduceToughness(breakAmount))
-                        {
-                            int bonus = Mathf.Max(1, Mathf.RoundToInt(hit.damage * Mathf.Max(0f, _cfg.breakBonus) * (1f + actor.breakEffect)));
-                            target.TakeDamage(bonus);
-                            actor.record.dealt += bonus;
-                            target.record.taken += bonus;
-                            actor.record.breaks++;
-                            total += bonus;
-                            target.actionValue += _cfg.breakActionDelay; // 다음 행동 지연
-                            th.broke = true;
-                        }
+                        Strike(actor, target, skill, mul * actionMul, ref th);
                     }
-                    th.totalDamage = total;
-                    th.anyCrit = anyCrit;
-                    th.weakness = anyWeak;
+                    acc[target] = th;
+                }
+            }
+            else
+            {
+                foreach (var target in targets)
+                    if (target != null && target.IsAlive) acc[target] = Get(target);
+            }
+
+            long dealt = 0;
+            bool anyKill = false, anyCrit = false, anyWeak = false, anyBroke = false;
+            BattleUnit killed = null, broken = null;
+
+            foreach (var target in order)
+            {
+                var th = acc[target];
+                if (attack)
+                {
                     th.defeated = !target.IsAlive;
-                    if (th.defeated) actor.record.kills++;
+                    if (th.defeated) { actor.record.kills++; anyKill = true; killed = target; }
+                    anyCrit |= th.anyCrit;
+                    anyWeak |= th.weakness;
+                    if (th.broke) { anyBroke = true; broken = target; }
+                    dealt += th.totalDamage;
                 }
 
                 // 상태효과 부여(디버프는 적 대상, 버프는 아군 대상)
@@ -200,11 +447,18 @@ namespace SubcultureRPG.Battle
                     : skill.effectChance;
                 if (skill.applyEffect != StatusType.None && target.IsAlive && _roll() < chance)
                 {
-                    float mag = skill.applyEffect == StatusType.Dot
+                    float mag = skill.applyEffect == StatusType.Dot || skill.applyEffect == StatusType.Regen
                         ? actor.EffectiveAtk * skill.effectMagnitude
                         : skill.effectMagnitude;
-                    target.ApplyEffect(skill.applyEffect, mag, skill.effectDuration, actor);
-                    th.appliedEffect = skill.applyEffect;
+                    if (target.ApplyEffect(skill.applyEffect, mag, skill.effectDuration, actor))
+                        th.appliedEffect = skill.applyEffect;
+                }
+
+                // 아군 대상: 행동 당김 · 디버프 해제
+                if (skill.TargetsAllies && target.IsAlive)
+                {
+                    if (skill.advance > 0f) target.actionValue *= 1f - Mathf.Clamp01(skill.advance);
+                    if (skill.cleanse) target.Cleanse();
                 }
 
                 result.hits.Add(th);
@@ -213,13 +467,132 @@ namespace SubcultureRPG.Battle
             // 시전자 에너지 정산
             if (skill.IsUltimate) actor.ResetEnergy();
             else actor.GainEnergy(Mathf.RoundToInt(skill.energyGain * (1f + actor.energyRegen)));   // 에너지 회복 효율
-            result.energyAfter = actor.energy;
 
             // 스킬 포인트: 기본 +1, 스킬 -1 (필살기는 변화 없음)
-            if (skill.category == SkillCategory.Skill) AddSkillPoints(actor.team, -1);
+            if (skill.category == SkillCategory.Skill) { if (!isRecast) AddSkillPoints(actor.team, -1); }
             else if (skill.category == SkillCategory.Basic) AddSkillPoints(actor.team, +1);
 
+            if (actor.IsAlive)
+            {
+                // 자신에게 거는 효과
+                if (skill.selfEffect != StatusType.None)
+                {
+                    float mag = skill.selfEffect == StatusType.Dot || skill.selfEffect == StatusType.Regen
+                        ? actor.EffectiveAtk * skill.selfEffectMagnitude
+                        : skill.selfEffectMagnitude;
+                    actor.ApplyEffect(skill.selfEffect, mag, skill.selfEffectDuration, actor);
+                }
+
+                // 흡혈
+                if (attack && skill.lifesteal > 0f && dealt > 0)
+                {
+                    int amt = Mathf.Max(1, Mathf.RoundToInt(dealt * skill.lifesteal));
+                    actor.Heal(amt);
+                    _extras.Add(HealEntry(actor, actor, amt, "흡혈"));
+                }
+
+                // 패시브(행동자)
+                if (anyKill) Fire(actor, PassiveTrigger.OnKill, killed);
+                if (anyCrit) Fire(actor, PassiveTrigger.OnCrit, first);
+                if (anyBroke) Fire(actor, PassiveTrigger.OnBreak, broken);
+                if (anyWeak) Fire(actor, PassiveTrigger.OnWeakHit, first);
+                Fire(actor, skill.category == SkillCategory.Basic ? PassiveTrigger.AfterBasic
+                    : skill.category == SkillCategory.Skill ? PassiveTrigger.AfterSkill : PassiveTrigger.AfterUltimate, first);
+                if (attack && dealt > 0) Fire(actor, PassiveTrigger.AfterAttack, first);
+                if (heal) Fire(actor, PassiveTrigger.AfterHeal, first);
+            }
+
+            // 패시브(맞은 쪽)
+            if (attack)
+                foreach (var target in order)
+                    if (target.IsAlive && acc[target].totalDamage > 0) Fire(target, PassiveTrigger.OnDamaged, actor);
+
+            // 연쇄 시전 예약: 처치했고 연쇄 횟수가 남았으면 한 번 더, 아니면 연쇄 끝(피해 감소 초기화)
+            if (actor.recastDef != null)
+            {
+                if (actor.IsAlive && anyKill && !IsOver && actor.recastChain < Mathf.Max(0, actor.recastDef.limit) && RecastSkill(actor) != null)
+                {
+                    actor.recastPending = true;
+                    PassiveTriggered?.Invoke(actor, actor.recastDef);
+                }
+                else actor.recastChain = 0;
+            }
+
+            result.energyAfter = actor.energy;
+
+            // 부가 결과(추가 공격·반격·흡혈·패시브 회복)를 뒤에 붙임
+            result.hits.AddRange(_extras);
+            _extras.Clear();
             return result;
+        }
+
+        private static BattleSkill RecastSkill(BattleUnit actor)
+        {
+            foreach (var s in actor.skills)
+                if (s.category == SkillCategory.Skill && !s.TargetsAllies && s.power > 0f) return s;
+            return null;
+        }
+
+        /// <summary>
+        /// 연쇄 시전이 예약돼 있으면 쓸 스킬과 대상(체력이 가장 낮은 적)을 돌려줌.
+        /// 컨트롤러가 행동 직후 반복해서 확인 → ResolveAction을 다시 호출.
+        /// </summary>
+        public bool NextRecast(BattleUnit actor, out BattleSkill skill, out BattleUnit target)
+        {
+            skill = null; target = null;
+            if (actor == null || !actor.recastPending) return false;
+            if (!actor.IsAlive || IsOver) { actor.recastPending = false; actor.recastChain = 0; return false; }
+            skill = RecastSkill(actor);
+            target = LowestHP(Opponents(actor));
+            if (skill == null || target == null) { actor.recastPending = false; actor.recastChain = 0; return false; }
+            return true;
+        }
+
+        /// <summary>타격 1회: 피해 + 기록 + 브레이크 게이지.</summary>
+        private void Strike(BattleUnit actor, BattleUnit target, BattleSkill skill, float mul, ref ActionResult.TargetHit th)
+        {
+            var hit = DamageCalculator.Compute(actor, target, skill, _roll(), _cfg, mul);
+            Damage(actor, target, hit.damage);
+            if (hit.crit) actor.record.crits++;
+            th.hitDamages.Add(hit.damage);
+            th.hitCrits.Add(hit.crit);
+            target.GainEnergy(_cfg.energyOnHit);
+            th.totalDamage += hit.damage;
+            th.anyCrit |= hit.crit;
+            th.weakness |= hit.weakness;
+
+            // 모든 공격이 브레이크 게이지를 깎고, 약점 속성이면 훨씬 많이 깎음 → 0이 되면 브레이크
+            float breakRate = hit.weakness ? _cfg.breakRateWeak : _cfg.breakRateNormal;
+            int breakAmount = Mathf.RoundToInt(skill.breakDamage * (1f + actor.breakEffect) * Mathf.Max(0f, breakRate));   // 브레이크 효율
+            if (target.IsAlive && target.ReduceToughness(breakAmount))
+            {
+                int bonus = Mathf.Max(1, Mathf.RoundToInt(hit.damage * Mathf.Max(0f, _cfg.breakBonus) * (1f + actor.breakEffect)));
+                Damage(actor, target, bonus);
+                actor.record.breaks++;
+                th.breakBonusDamage += bonus;
+                th.totalDamage += bonus;
+                target.actionValue += _cfg.breakActionDelay; // 다음 행동 지연
+                th.broke = true;
+            }
+        }
+
+        /// <summary>도발 중인 상대가 있으면 단일 대상 공격은 그쪽으로.</summary>
+        private BattleUnit Redirect(BattleUnit actor, BattleUnit target)
+        {
+            if (target != null && target.IsTaunting) return target;
+            foreach (var u in Opponents(actor)) if (u.IsTaunting) return u;
+            return target;
+        }
+
+        private BattleUnit RandomAlive(List<BattleUnit> list)
+        {
+            int n = 0;
+            foreach (var u in list) if (u.IsAlive) n++;
+            if (n == 0) return null;
+            int pick = Mathf.Min(n - 1, Mathf.FloorToInt(_roll() * n));
+            foreach (var u in list)
+                if (u.IsAlive && pick-- == 0) return u;
+            return null;
         }
 
         private List<BattleUnit> ResolveTargets(BattleUnit actor, BattleSkill skill, BattleUnit primary)
@@ -245,10 +618,26 @@ namespace SubcultureRPG.Battle
                     else { var t = LowestHPRatio(Teammates(actor)); if (t != null) list.Add(t); }
                     break;
 
-                default: // SingleEnemy
-                    if (primary != null && primary.IsAlive && primary.team != actor.team) list.Add(primary);
-                    else { var t = FirstAlive(Opponents(actor)); if (t != null) list.Add(t); }
+                case TargetType.RandomEnemies:
+                    // 실제 대상은 타격마다 고름. 여기서는 살아 있는 적 1명만(대상 없음 방지)
+                    { var t = FirstAlive(Opponents(actor)); if (t != null) list.Add(t); }
                     break;
+
+                default: // SingleEnemy · Blast
+                {
+                    var opp = Opponents(actor);
+                    BattleUnit main = primary != null && primary.IsAlive && primary.team != actor.team ? primary : FirstAlive(opp);
+                    main = Redirect(actor, main);
+                    if (main == null) break;
+                    list.Add(main);
+                    if (skill.target == TargetType.Blast)
+                    {
+                        int i = opp.IndexOf(main);
+                        if (i - 1 >= 0 && opp[i - 1].IsAlive) list.Add(opp[i - 1]);
+                        if (i + 1 < opp.Count && opp[i + 1].IsAlive) list.Add(opp[i + 1]);
+                    }
+                    break;
+                }
             }
             return list;
         }
@@ -272,7 +661,7 @@ namespace SubcultureRPG.Battle
                     if (s.category == SkillCategory.Skill && s.power > best) { chosen = s; best = s.power; }
             }
 
-            var target = LowestHP(Opponents(actor));
+            var target = Redirect(actor, LowestHP(Opponents(actor)));   // 도발 중인 상대 우선
             return (chosen, target);
         }
 
@@ -296,11 +685,19 @@ namespace SubcultureRPG.Battle
                 foreach (var s in actor.skills)
                 {
                     if (!s.IsHeal || !CanUse(actor, s)) continue;
+                    if (s.target == TargetType.Self && hurt != actor) continue;   // 자기 회복은 자신이 위급할 때만
                     if (s.target == TargetType.AllAllies) { if (aoe == null || s.heal > aoe.heal) aoe = s; }
                     else if (single == null || s.heal > single.heal) single = s;
                 }
                 var heal = hurtCount >= 2 ? (aoe ?? single) : (single ?? aoe);
                 if (heal != null) return (heal, heal.target == TargetType.SingleAlly ? hurt : null);
+            }
+
+            // 1-1) 자기 회복 스킬: 자신의 HP < 50%
+            if (actor.HPRatio < 0.5f)
+            {
+                foreach (var s in actor.skills)
+                    if (s.IsHeal && s.target == TargetType.Self && CanUse(actor, s)) return (s, null);
             }
 
             // 2) 필살기 (회복 전용 필살기는 팀이 멀쩡하면 아껴 둠)
@@ -340,7 +737,8 @@ namespace SubcultureRPG.Battle
             if (s.TargetsAllies)
             {
                 // 버프: 이미 같은 버프가 걸려 있으면 사용 안 함
-                if (s.applyEffect == StatusType.None) return 0.5f;
+                if (s.applyEffect == StatusType.None) return s.advance > 0f ? 1.6f : 0.5f;
+                if (s.target == TargetType.Self) return HasEffect(actor, s.applyEffect) ? 0f : 1.6f;
                 foreach (var u in Teammates(actor))
                     if (u.IsAlive && !HasEffect(u, s.applyEffect)) return 1.6f;
                 return 0f;

@@ -29,7 +29,30 @@ namespace SubcultureRPG.UI
         /// <summary>고리(도넛).</summary>
         public static Sprite Ring => _ring != null ? _ring : (_ring = MakeCircle(64, 0.62f));
 
-        private static Sprite _triangle;
+        private static Sprite _triangle, _star;
+
+        /// <summary>네 갈래 반짝임(가운데 밝고 끝이 가늘어지는 십자 별). 타격 불꽃·회복 반짝임용.</summary>
+        public static Sprite Star => _star != null ? _star : (_star = MakeStar(64));
+
+        private static Sprite MakeStar(int size)
+        {
+            var tex = NewTex(size, size);
+            var px = new Color[size * size];
+            float h = size / 2f;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = Mathf.Abs(x + 0.5f - h) / h, dy = Mathf.Abs(y + 0.5f - h) / h;
+                    // 가로·세로 가는 빛줄기 + 가운데 둥근 빛
+                    float arm = Mathf.Max(Mathf.Clamp01(1f - dx) * Mathf.Clamp01(1f - dy * 9f), Mathf.Clamp01(1f - dy) * Mathf.Clamp01(1f - dx * 9f));
+                    float core = Mathf.Clamp01(1f - new Vector2(dx, dy).magnitude * 2.4f);
+                    float a = Mathf.Clamp01(Mathf.Pow(arm, 1.4f) + core * core);
+                    px[y * size + x] = new Color(1, 1, 1, a);
+                }
+            tex.SetPixels(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
 
         /// <summary>위쪽을 가리키는 삼각형(버프 ↑ 표시. 아래쪽은 180도 돌려서 사용).</summary>
         public static Sprite Triangle => _triangle != null ? _triangle : (_triangle = MakeTriangle(32));

@@ -229,6 +229,21 @@ const STATUS = [
   ['DefDown', '방어력 감소', 'a white shield with a bright red downward arrow beside it'],
   ['Dot', '지속 피해', 'a bright purple poison droplet with a small white skull inside'],
   ['Break', '브레이크', 'a white shield shattered into pieces with jagged cracks and small amber sparks'],
+  ['SpdUp', '속도 증가', 'a white winged boot with a bright green upward arrow beside it'],
+  ['SpdDown', '속도 감소', 'a white winged boot with a bright red downward arrow beside it'],
+  ['CritUp', '치명타 확률 증가', 'a white crosshair target reticle with a bright green upward arrow beside it'],
+  ['Regen', '재생', 'a bright green heart with a small white plus sign inside'],
+  ['Taunt', '도발', 'a bright orange shield with a bold white exclamation mark in the center'],
+  ['Stun', '기절', 'three bright yellow stars circling around a small white spiral'],
+];
+
+// 속성 아이콘(전투 유닛 패널 · 약점 표시). 파일명 = Element 이름
+const ELEMENT_ICONS = [
+  ['Physical', '물리', 'a silver-white sword emblem'],
+  ['Fire', '화염', 'a bright orange-red flame emblem'],
+  ['Ice', '얼음', 'a bright cyan six-pointed snowflake crystal emblem'],
+  ['Lightning', '번개', 'a bright violet lightning bolt emblem'],
+  ['Wind', '바람', 'a bright green swirling wind gust emblem'],
 ];
 const BG_CLEAR = 'isolated on a fully transparent background, no backdrop, no ground shadow';
 
@@ -285,6 +300,13 @@ function build() {
     list.push(withBackground({
       group: 'status', key, label: `상태 아이콘 — ${name}`,
       out: `Status/${key}.png`, aspect: '1:1', resolution: '1K', width: 128, height: 128, format: 'png',
+      negative: NEGATIVE,
+    }, `${look}. ${STYLE.status}`));
+
+  for (const [key, name, look] of ELEMENT_ICONS)
+    list.push(withBackground({
+      group: 'status', key: `Element${key}`, label: `속성 아이콘 — ${name}`,
+      out: `Elements/${key}.png`, aspect: '1:1', resolution: '1K', width: 128, height: 128, format: 'png',
       negative: NEGATIVE,
     }, `${look}. ${STYLE.status}`));
 

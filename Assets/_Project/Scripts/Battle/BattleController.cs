@@ -63,6 +63,14 @@ namespace SubcultureRPG.Battle
         public event Action<Team> OnBattleFinishing;
         public float FinishDelay { get; set; }
 
+        /// <summary>OnActionResolved 구독자가 요청한 행동 후 대기(실시간 초). 다단 히트 연출이 끝날 때까지 다음 턴을 미룸.</summary>
+        public float PostActionDelay { get; set; }
+
+        /// <summary>행동 밖에서 생긴 부가 결과(턴 시작 재생·패시브 회복 등).</summary>
+        public event Action<List<ActionResult.TargetHit>> OnSideEffects;
+        /// <summary>기절 등으로 턴을 넘김.</summary>
+        public event Action<BattleUnit> OnTurnSkipped;
+
         private Coroutine _loop;
         private bool _inputSubmitted;
         private BattleSkill _inputSkill;
@@ -80,6 +88,8 @@ namespace SubcultureRPG.Battle
             if (config == null) config = BattleConfig.CreateDefault();
             Engine = new BattleEngine(allyTeam, enemyTeam, config);
             OnBattleStart?.Invoke(Engine);
+            Engine.StartBattle();    // 전투 시작 패시브(HUD가 엔진 이벤트를 구독한 뒤)
+            FlushSideEffects();
             _loop = StartCoroutine(RunLoop());
         }
 
@@ -110,8 +120,17 @@ namespace SubcultureRPG.Battle
                 // 턴 시작: 브레이크 회복 + 도트/효과 틱
                 int dot = Engine.StartTurn(actor);
                 if (dot > 0) OnStatusTick?.Invoke(actor, dot);
+                FlushSideEffects();
                 if (Engine.IsOver) break;
                 if (!actor.IsAlive) { yield return Wait(betweenTurnDelay); continue; }
+
+                if (actor.skipTurn)
+                {
+                    // 기절: 행동 없이 턴 넘김
+                    OnTurnSkipped?.Invoke(actor);
+                    yield return Wait(betweenTurnDelay + 0.35f);
+                    continue;
+                }
 
                 OnTurnBegin?.Invoke(actor);
 
@@ -128,7 +147,8 @@ namespace SubcultureRPG.Battle
                     var (skill, target) = _inputSubmitted ? (_inputSkill, _inputTarget) : Engine.PickAutoAction(actor);
                     yield return Present(actor, skill, target);
                     var result = Engine.ResolveAction(actor, skill, target);
-                    OnActionResolved?.Invoke(result);
+                    yield return Resolved(result);
+                    yield return Recasts(actor);
                 }
                 else
                 {
@@ -137,7 +157,8 @@ namespace SubcultureRPG.Battle
                     var (skill, target) = actor.team == Team.Ally ? Engine.PickAutoAction(actor) : Engine.PickAction(actor);
                     yield return Present(actor, skill, target);
                     var result = Engine.ResolveAction(actor, skill, target);
-                    OnActionResolved?.Invoke(result);
+                    yield return Resolved(result);
+                    yield return Recasts(actor);
                 }
 
                 if (Engine.IsOver) break;
@@ -167,6 +188,34 @@ namespace SubcultureRPG.Battle
             OnActionStarting?.Invoke(actor, skill ?? actor.BasicSkill, target);
             float d = PresentationDelay;
             PresentationDelay = 0f;
+            for (float t = 0f; t < d; t += Time.unscaledDeltaTime) yield return null;
+        }
+
+        /// <summary>연쇄 시전(처치 → 스킬 자동 재시전)이 예약돼 있는 동안 이어서 행동.</summary>
+        private IEnumerator Recasts(BattleUnit actor)
+        {
+            while (!Engine.IsOver && Engine.NextRecast(actor, out var skill, out var target))
+            {
+                yield return Wait(0.2f);
+                yield return Present(actor, skill, target);
+                var result = Engine.ResolveAction(actor, skill, target);
+                yield return Resolved(result);
+            }
+        }
+
+        private void FlushSideEffects()
+        {
+            var extras = Engine.DrainExtras();
+            if (extras.Count > 0) OnSideEffects?.Invoke(extras);
+        }
+
+        /// <summary>행동 결과 알림 + 구독자가 요청한 연출 시간만큼 대기(실시간).</summary>
+        private IEnumerator Resolved(ActionResult result)
+        {
+            PostActionDelay = 0f;
+            OnActionResolved?.Invoke(result);
+            float d = PostActionDelay;
+            PostActionDelay = 0f;
             for (float t = 0f; t < d; t += Time.unscaledDeltaTime) yield return null;
         }
 
