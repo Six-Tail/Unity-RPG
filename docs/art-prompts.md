@@ -407,7 +407,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 46장
+## 재료 아이콘 (1:1) — 47장
 
 ### 소형 경험치 물약
 
@@ -607,6 +607,14 @@ a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, h
 
 ```
 two cute round chibi commander figures side by side, one blue and one pink, with a small glowing heart between them. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 소탕권
+
+- 파일: `Items/SweepTicket.png` · 256×256 · 화면비 1:1
+
+```
+a sleek silver and teal ticket card with a stylized swift sword-slash emblem and small wind streaks, a tiny golden star in the corner. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 들꽃 꽃다발 (호감도 선물)

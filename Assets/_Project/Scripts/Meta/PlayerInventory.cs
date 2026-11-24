@@ -94,6 +94,8 @@ namespace SubcultureRPG.Meta
             _items[MaterialType.EquipOre] = Count(MaterialType.EquipOre) + 200;
             _items[MaterialType.StaminaSmall] = Count(MaterialType.StaminaSmall) + 5;
             _items[MaterialType.StaminaLarge] = Count(MaterialType.StaminaLarge) + 3;
+            _items[MaterialType.SweepTicket] = Count(MaterialType.SweepTicket) + 30;
+            foreach (var g in Materials.Gifts) _items[g] = Count(g) + 5;   // 호감도 선물
             // 속성별 돌파 재료(40/60/80 돌파 각 1회분 정도)
             for (int e = 0; e <= (int)Element.Wind; e++)
             {

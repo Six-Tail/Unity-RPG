@@ -23,6 +23,7 @@ namespace SubcultureRPG.Meta
         public bool allSurvived;
         public int multiplier;      // 보상 배수(1~3)
         public int stamina;         // 쓴 행동력
+        public bool sweep;          // 전투 없이 소탕으로 받음
     }
 
     /// <summary>
@@ -495,6 +496,120 @@ namespace SubcultureRPG.Meta
             }
             else if (playAfter) StoryLibrary.MarkSeen(afterStory);
             OnStageFinished?.Invoke(result);
+        }
+
+        // ---------------- 소탕 ----------------
+
+        /// <summary>한 번에 소탕할 수 있는 최대 횟수.</summary>
+        public const int MaxSweep = 10;
+
+        /// <summary>소탕 1회에 쓰는 소탕권(보상 배수와 상관없이 1장).</summary>
+        public const int SweepTicketCost = 1;
+
+        /// <summary>가진 소탕권.</summary>
+        public int SweepTickets => inventory != null ? inventory.Count(MaterialType.SweepTicket) : 0;
+
+        /// <summary>
+        /// 지금 소탕할 수 있는 횟수(행동력 · 소탕권 · 최대 10). ★3으로 클리어한 스테이지(메인 · 특수 던전)만 — 보상 배수 · 반복 입장과 같은 자격.
+        /// 전투 중이면 0.
+        /// </summary>
+        public int SweepAffordable(StageData stage)
+        {
+            if (stage == null || Current != null || !StageEntry.CanBoost(stage, progress)) return 0;
+            if (database != null && progress != null && !progress.IsUnlocked(stage, database)) return 0;
+            int cost = StageEntry.CostOf(stage, progress);
+            int have = wallet != null ? wallet.Stamina : int.MaxValue;
+            int byStamina = cost <= 0 ? MaxSweep : have / cost;
+            return Mathf.Clamp(Mathf.Min(byStamina, SweepTickets / SweepTicketCost), 0, MaxSweep);
+        }
+
+        /// <summary>
+        /// 소탕: 전투 없이 runs 번 클리어한 것으로 치고 보상을 바로 받습니다(행동력 · 보상 배수는 전투와 같음).
+        /// 금화 · 재료 · 장비 · 지휘관 경험치를 받고, 임무에는 전투 승리(던전이면 던전 클리어)로 셉니다.
+        /// 캐릭터 경험치는 출전한 파티가 없어 받지 않습니다. 결과 설명을 돌려주고, 못 하면 null(LastError에 이유).
+        /// </summary>
+        public string Sweep(StageData stage, int runs)
+        {
+            LastError = null;
+            int can = SweepAffordable(stage);
+            if (stage == null || !StageEntry.CanBoost(stage, progress)) { LastError = "★3으로 클리어한 스테이지만 소탕할 수 있습니다"; return null; }
+            if (Current != null) { LastError = "전투 중에는 소탕할 수 없습니다"; return null; }
+            int cost = StageEntry.CostOf(stage, progress);
+            runs = Mathf.Min(runs, can);
+            if (runs <= 0)
+            {
+                LastError = SweepTickets < SweepTicketCost
+                    ? "소탕권이 없습니다\n<size=80%><color=#9AA3B5>일일 임무 '게임 접속' · 주간 임무 · 상점에서 얻을 수 있습니다</color></size>"
+                    : $"행동력이 부족합니다 (보유 {(wallet != null ? wallet.Stamina : 0)} / 필요 {cost})";
+                return null;
+            }
+            int m = StageEntry.MultiplierFor(stage, progress);
+            int total = cost * runs;
+            int tickets = SweepTicketCost * runs;
+            if (inventory == null || !inventory.Spend(MaterialType.SweepTicket, tickets)) { LastError = "소탕권이 부족합니다"; return null; }
+            if (wallet != null && !wallet.SpendStamina(total))
+            {
+                inventory.Add(MaterialType.SweepTicket, tickets);   // 되돌림
+                LastError = "행동력이 부족합니다";
+                return null;
+            }
+
+            int gold = 0;
+            var mats = new List<(MaterialType type, int count)>();
+            var equips = new List<EquipmentItem>();
+            for (int i = 0; i < runs; i++)
+            {
+                gold += stage.gold * m;
+                if (stage.rewards != null)
+                    foreach (var mr in stage.rewards)
+                    {
+                        if (mr == null || mr.count <= 0) continue;
+                        int idx = mats.FindIndex(x => x.type == mr.type);
+                        if (idx >= 0) mats[idx] = (mr.type, mats[idx].count + mr.count * m);
+                        else mats.Add((mr.type, mr.count * m));
+                    }
+                if (equipment != null && stage.equipmentDrops > 0 && stage.equipmentSets != null && stage.equipmentSets.Count > 0)
+                    for (int k = 0; k < stage.equipmentDrops * m; k++)
+                    {
+                        var it = equipment.AddRandom(stage.equipmentSets, stage.equipmentRarityWeights);
+                        if (it != null) equips.Add(it);
+                    }
+                if (progress != null) progress.RecordClear(stage, 3);
+                OnStageFinished?.Invoke(new StageResult
+                {
+                    stage = stage, win = true, stars = 3, allSurvived = true, sweep = true,
+                    multiplier = m, stamina = cost, gold = stage.gold * m,
+                });
+            }
+            if (gold > 0 && wallet != null) wallet.AddGold(gold);
+            if (inventory != null) foreach (var (type, count) in mats) inventory.Add(type, count);
+
+            int accountExp = total * PlayerProfile.ExpPerStamina;
+            int levelBefore = PlayerProfile.Instance.Level;
+            int levelUps = accountExp > 0 ? PlayerProfile.Instance.AddExp(accountExp) : 0;
+
+            var sb = new StringBuilder();
+            sb.Append($"<size=110%><b>{stage.Code} {stage.stageName}</b></size>   소탕 <b>{runs}회</b>\n");
+            sb.Append($"<size=85%><color=#7CFFB2>행동력 -{total}</color>   <color=#C9B6FF>소탕권 -{tickets}</color> <color=#9AA3B5>(남은 {SweepTickets}장)</color>   <color=#9AD4FF>지휘관 경험치 +{accountExp:N0}</color>");
+            if (levelUps > 0) sb.Append($"   <color=#FFD36B>Lv.{levelBefore} → Lv.{PlayerProfile.Instance.Level}!</color>");
+            sb.Append("</size>\n\n<color=#FFD36B>획득</color>");
+            if (m > 1) sb.Append($" <color=#FFB347>(보상 ×{m})</color>");
+            var parts = new List<string>();
+            if (gold > 0) parts.Add($"<color=#FFD36B>금화 {gold:N0}</color>");
+            foreach (var (type, count) in mats) parts.Add($"{Materials.RichName(type)} ×{count}");
+            sb.Append('\n').Append(parts.Count > 0 ? string.Join("\n", parts) : "없음");
+            if (equips.Count > 0)
+            {
+                var eq = new List<string>();
+                for (int i = 0; i < equips.Count && i < 6; i++)
+                    eq.Add($"{EquipStats.Stars(equips[i].Rarity)} {EquipSets.Rich(equips[i].set)} {EquipStats.SlotName(equips[i].slot)}");
+                sb.Append($"\n<color=#7FE3D6>장비 {equips.Count}개</color>  <size=85%>").Append(string.Join("  ·  ", eq));
+                if (equips.Count > 6) sb.Append($"  외 {equips.Count - 6}개");
+                sb.Append("</size>");
+            }
+            if (stage.characterExp > 0)
+                sb.Append("\n\n<size=80%><color=#9AA3B5>캐릭터 경험치는 전투로 클리어할 때만 받습니다</color></size>");
+            return sb.ToString();
         }
 
         private string BuildRewardText(StageResult r, bool allAlive, bool fast)

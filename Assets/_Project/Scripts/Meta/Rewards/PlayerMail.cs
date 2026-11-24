@@ -6,7 +6,7 @@ namespace SubcultureRPG.Meta
 {
     /// <summary>
     /// 우편함: 운영 선물 · 시스템 보상을 받아 두는 곳. 받기 전까지 사라지지 않습니다.
-    /// · 처음 접속하면 '신규 지휘관 환영 선물'이 한 번 들어옴(픽업 · 상시 뽑기권 10장씩, 크리스탈 2,000, 소형 행동력 물약 3개, 행동력 물약 1개)
+    /// · 처음 접속하면 '신규 지휘관 환영 선물'이 한 번 들어옴(픽업 · 상시 뽑기권 10장씩, 크리스탈 2,000, 소형 행동력 물약 3개, 행동력 물약 1개, 소탕권 20장)
     /// · 다른 시스템이 PlayerMail.Instance.Send(제목, 본문, 보상)으로 보냄(튜토리얼 완료 보상 등)
     /// 씬에 없어도 처음 쓸 때 스스로 만들어짐(PlayerMail.Instance).
     /// </summary>
@@ -58,7 +58,7 @@ namespace SubcultureRPG.Meta
         /// <summary>신규 유저 보상(튜닝 지점).</summary>
         public static RewardBundle WelcomeReward() => new RewardBundle()
             .Pickup(10).Standard(10).Crystals(2000)
-            .Mat(MaterialType.StaminaSmall, 3).Mat(MaterialType.StaminaLarge, 1);
+            .Mat(MaterialType.StaminaSmall, 3).Mat(MaterialType.StaminaLarge, 1).Mat(MaterialType.SweepTicket, 20);
 
         private void EnsureLoaded()
         {

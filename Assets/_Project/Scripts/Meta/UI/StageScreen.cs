@@ -79,6 +79,9 @@ namespace SubcultureRPG.Meta.UI
         private Button _storyBtn;
         private StageRunner _runner;
         private GameObject _multRow, _repeatRow;
+        private Button _sweep1, _sweepN;
+        private TextMeshProUGUI _sweep1Lbl, _sweepNLbl;
+        private int _sweepNRuns;
         private readonly List<(Button btn, int value)> _multBtns = new(), _repeatBtns = new();
         private float _staminaClock;
 
@@ -133,9 +136,59 @@ namespace SubcultureRPG.Meta.UI
             string haveText = wallet != null ? $"   <size=85%><color={(afford ? "#9AA3B5" : "#FF8A8A")}>(보유 {have})</color></size>" : "";
             _costText.text = $"<color=#7CFFB2>행동력</color> {costPart}{bonus}{haveText}";
 
+            RefreshSweep(s, unlocked && boost, cost);
             if (!unlocked) return;   // 잠김 문구는 RefreshDetail이 씀
             _sortieBtn.interactable = afford;
             _sortieLbl.text = afford ? $"편성 후 출격  <size=70%>· 행동력 {cost}</size>" : $"행동력 부족  <size=70%>({have} / {cost})</size>";
+        }
+
+        // ---------------- 소탕(★3 스테이지) ----------------
+
+        /// <summary>★3 스테이지면 출격 버튼을 왼쪽으로 줄이고 오른쪽에 '소탕 1회' · '소탕 N회'.</summary>
+        private void RefreshSweep(StageData s, bool show, int cost)
+        {
+            if (_sweep1 == null) return;
+            _sweep1.gameObject.SetActive(show);
+            _sweepN.gameObject.SetActive(show);
+            var srt = (RectTransform)_sortieBtn.transform;
+            srt.sizeDelta = new Vector2(show ? 300 : 420, 76);
+            srt.anchoredPosition = new Vector2(show ? -150 : 0, 30);
+            if (!show) return;
+            if (_runner == null) _runner = FindAnyObjectByType<StageRunner>();
+            int can = _runner != null ? _runner.SweepAffordable(s) : 0;
+            int tickets = _runner != null ? _runner.SweepTickets : 0;
+            _sweepNRuns = Mathf.Max(2, can);
+            // 소탕권이 없어도 눌러서 이유(획득처)를 볼 수 있게 1회 버튼은 켜 둠
+            _sweep1.interactable = true;
+            _sweepN.interactable = can >= 2;
+            string ticketHex = tickets > 0 ? "#C9B6FF" : "#FF8A8A";
+            _sweep1Lbl.text = $"소탕 1회\n<size=60%><color={ticketHex}>소탕권 {tickets}</color></size>";
+            _sweepNLbl.text = can >= 2 ? $"소탕 {can}회\n<size=60%>행동력 {cost * can}</size>"
+                                       : $"소탕 {StageRunner.MaxSweep}회\n<size=60%>{(tickets < 2 ? "소탕권 부족" : "행동력 부족")}</size>";
+        }
+
+        private void DoSweep(int runs)
+        {
+            if (_selected == null) return;
+            if (_runner == null) _runner = FindAnyObjectByType<StageRunner>();
+            if (_runner == null) return;
+            string text = _runner.Sweep(_selected, runs);
+            if (text == null) { Popups.Show("소탕", _runner.LastError ?? "소탕할 수 없습니다"); return; }
+            Popups.Show("소탕 완료", text);
+            RefreshEntry();
+        }
+
+        private Button SweepButton(Transform panel, float x, out TextMeshProUGUI label, UnityEngine.Events.UnityAction onClick)
+        {
+            var b = UIFactory.AddButton("Sweep", panel, "", 22, font, new Color(0.25f, 0.6f, 0.55f, 0.96f), Color.white);
+            var rt = (RectTransform)b.transform;
+            UIFactory.Anchor(rt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            rt.sizeDelta = new Vector2(140, 76); rt.anchoredPosition = new Vector2(x, 30);
+            label = b.GetComponentInChildren<TextMeshProUGUI>();
+            label.richText = true; label.lineSpacing = -10f;
+            b.onClick.AddListener(onClick);
+            b.gameObject.SetActive(false);
+            return b;
         }
 
         private void SetMultiplier(int v)
@@ -757,6 +810,9 @@ namespace SubcultureRPG.Meta.UI
             _sortieBtn.onClick.AddListener(() => { if (_selected != null) OnSortie?.Invoke(_selected); });
             _sortieLbl = _sortieBtn.GetComponentInChildren<TextMeshProUGUI>();
             _sortieLbl.richText = true;
+            _sortieLbl.enableAutoSizing = true; _sortieLbl.fontSizeMin = 18; _sortieLbl.fontSizeMax = 28;
+            _sweep1 = SweepButton(panel.transform, 82, out _sweep1Lbl, () => DoSweep(1));
+            _sweepN = SweepButton(panel.transform, 232, out _sweepNLbl, () => DoSweep(_sweepNRuns));
 
             BuildEntryControls(panel.transform);
 

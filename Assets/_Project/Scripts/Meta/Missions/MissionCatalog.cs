@@ -121,7 +121,7 @@ namespace SubcultureRPG.Meta.Missions
         private static List<Mission> Build() => new()
         {
             // ---- 일일 ----
-            Daily("d_login", MissionGoal.Login, 1, "게임 접속", Crystal(20)),
+            Daily("d_login", MissionGoal.Login, 1, "게임 접속", Crystal(20), Mat(MaterialType.SweepTicket, 5)),
             Daily("d_battle", MissionGoal.BattleWin, 3, "전투 3회 승리", Gold(10000)),
             Daily("d_dungeon", MissionGoal.DungeonClear, 2, "특수 던전 2회 클리어", Mat(MaterialType.ExpPotion, 5)),
             Daily("d_gacha", MissionGoal.GachaPull, 1, "뽑기 1회", Gold(5000)),
@@ -130,7 +130,7 @@ namespace SubcultureRPG.Meta.Missions
             Daily("d_all", MissionGoal.DailyClaim, 5, "일일 임무 5개 완료", Ticket(GachaBannerType.Standard, 1), Crystal(30)),
 
             // ---- 주간 ----
-            Weekly("w_battle", MissionGoal.BattleWin, 20, "전투 20회 승리", Crystal(100)),
+            Weekly("w_battle", MissionGoal.BattleWin, 20, "전투 20회 승리", Crystal(100), Mat(MaterialType.SweepTicket, 10)),
             Weekly("w_dungeon", MissionGoal.DungeonClear, 10, "특수 던전 10회 클리어", Mat(MaterialType.SkillBookPurple, 3)),
             Weekly("w_gacha", MissionGoal.GachaPull, 10, "뽑기 10회", Gold(50000)),
             Weekly("w_growth", MissionGoal.Growth, 10, "캐릭터 육성 10회", Mat(MaterialType.ExpLarge, 10)),

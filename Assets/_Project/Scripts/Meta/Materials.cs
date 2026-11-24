@@ -28,6 +28,7 @@ namespace SubcultureRPG.Meta
         GiftSmall = 15,       // 들꽃 꽃다발 (호감도 +50)       고급 — 상점
         GiftMedium = 16,      // 수제 쿠키 상자 (호감도 +150)   희귀 — 상점
         GiftLarge = 17,       // 별빛 브로치 (호감도 +400)      영웅 — 크리스탈 상점
+        SweepTicket = 18,     // 소탕권 (소탕 1회에 1장)         희귀 — 일일 · 주간 임무, 상점
 
         PhysicalAsc1 = 101, PhysicalAsc2 = 102, PhysicalAsc3 = 103,
         FireAsc1 = 111, FireAsc2 = 112, FireAsc3 = 113,
@@ -98,6 +99,7 @@ namespace SubcultureRPG.Meta
                 MaterialType.GiftSmall => "들꽃 꽃다발",
                 MaterialType.GiftMedium => "수제 쿠키 상자",
                 MaterialType.GiftLarge => "별빛 브로치",
+                MaterialType.SweepTicket => "소탕권",
                 _ => t.ToString(),
             };
         }
@@ -109,7 +111,7 @@ namespace SubcultureRPG.Meta
             return t switch
             {
                 MaterialType.ExpSmall or MaterialType.SkillBook or MaterialType.GiftSmall => 3,
-                MaterialType.GiftMedium => 4,
+                MaterialType.GiftMedium or MaterialType.SweepTicket => 4,
                 MaterialType.GiftLarge => 5,
                 MaterialType.ExpPotion or MaterialType.SkillBookBlue or MaterialType.EquipOre => 4,
                 MaterialType.StaminaSmall => 4,
@@ -126,7 +128,7 @@ namespace SubcultureRPG.Meta
             if (IsAscension(t)) return Category.Ascension;
             if (ExpValue(t) > 0) return Category.Exp;
             if (t == MaterialType.EquipOre) return Category.Equipment;
-            if (t == MaterialType.StarShard || StaminaValue(t) > 0 || IsSelector(t) || GiftExp(t) > 0) return Category.Etc;
+            if (t == MaterialType.StarShard || StaminaValue(t) > 0 || IsSelector(t) || GiftExp(t) > 0 || t == MaterialType.SweepTicket) return Category.Etc;
             return Category.Skill;
         }
 
@@ -145,7 +147,7 @@ namespace SubcultureRPG.Meta
             var list = new List<MaterialType>(ExpMaterials)
             {
                 MaterialType.SkillBook, MaterialType.SkillBookBlue, MaterialType.SkillBookPurple, MaterialType.SkillLegend,
-                MaterialType.EquipOre, MaterialType.StarShard, MaterialType.StaminaSmall, MaterialType.StaminaLarge,
+                MaterialType.EquipOre, MaterialType.StarShard, MaterialType.StaminaSmall, MaterialType.StaminaLarge, MaterialType.SweepTicket,
                 MaterialType.Select5, MaterialType.Select6,
                 MaterialType.GiftSmall, MaterialType.GiftMedium, MaterialType.GiftLarge,
             };
@@ -231,6 +233,9 @@ namespace SubcultureRPG.Meta
                        $"<color=#FFD36B>획득처</color>\n돌파 던전 · {el} {TierName(tier)}" +
                        (tier > 1 ? $"\n상점 교환소 (같은 속성 {TierName(tier - 1)} ×3 → 1)" : "");
             }
+            if (t == MaterialType.SweepTicket)
+                return head + "<color=#FFD36B>용도</color>\n★3으로 클리어한 스테이지 · 특수 던전을 전투 없이 바로 클리어(소탕 1회에 1장 + 행동력)\n스테이지 상세 → '소탕 1회' · '소탕 N회'\n\n" +
+                       "<color=#FFD36B>획득처</color>\n일일 임무 '게임 접속' ×5 · 주간 임무 '전투 20회 승리' ×10\n상점 (일반 상점 · 매일 / 크리스탈 상점 · 매주)\n신규 지휘관 환영 선물";
             int gift = GiftExp(t);
             if (gift > 0)
                 return head + $"<color=#FFD36B>용도</color>\n캐릭터에게 선물하면 호감도 <b>+{gift}</b>\n도감 → 캐릭터 → '호감도', 또는 홈의 대표 캐릭터 이름표\n\n" +

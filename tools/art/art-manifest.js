@@ -156,6 +156,7 @@ const ITEMS = [
   ['Select6', '태생 6성 캐릭터 선택권', 'a luxurious golden ticket card with six small golden stars across the top, a radiant rainbow-gold silhouette of a heroine in the center, sparkling gems on the corners'],
   ['GuildIcon', '길드 아이콘', 'a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, hanging from a golden pole'],
   ['FriendIcon', '친구 아이콘', 'two cute round chibi commander figures side by side, one blue and one pink, with a small glowing heart between them'],
+  ['SweepTicket', '소탕권', 'a sleek silver and teal ticket card with a stylized swift sword-slash emblem and small wind streaks, a tiny golden star in the corner'],
   // 호감도 선물(Materials.Gifts)
   ['GiftSmall', '들꽃 꽃다발 (호감도 선물)', 'a small bouquet of pastel wildflowers wrapped in cream paper and tied with a pink satin ribbon'],
   ['GiftMedium', '수제 쿠키 상자 (호감도 선물)', 'a cute pink gift box with its lid open showing heart-shaped and star-shaped homemade cookies, tied with a red ribbon bow'],
