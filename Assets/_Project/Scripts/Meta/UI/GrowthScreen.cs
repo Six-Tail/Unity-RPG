@@ -444,7 +444,7 @@ namespace SubcultureRPG.Meta.UI
             var data = RuntimeUnits.FromCharacter(c, o.level, lookup, o.skillLevel, roster.StarOf(c), roster.TranscendOf(c), WithBonus(c, skillLevels ?? roster.SkillLevels(c)));
             bool authored = lookup != null && lookup(c) == data;
             if (authored) data = Instantiate(data);
-            if (equipment != null) data.bonus = equipment.BonusFor(c);
+            data.bonus = PlayerBond.BonusFor(c, equipment);   // 장비 + 호감도
             if (authored) data.level = o.level;
 
             var unit = new BattleUnit(data, Team.Ally, _cfg);

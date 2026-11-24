@@ -129,10 +129,13 @@ namespace SubcultureRPG.Meta.Shop
                 Gold("gen_book3", MaterialType.SkillBookPurple, 1, 15000, 2),
                 Gold("gen_ore", MaterialType.EquipOre, 10, 5000, 5),
                 Gold("gen_stamina", MaterialType.StaminaSmall, 1, 8000, 2),
+                Gold("gen_gift1", MaterialType.GiftSmall, 2, 5000, 3),     // 호감도 선물
+                Gold("gen_gift2", MaterialType.GiftMedium, 1, 12000, 2),
 
                 // ---- 크리스탈 상점 (매주) ----
                 new ShopItem { id = "cry_gold", tab = ShopTab.Crystal, rewardGold = 50000, currency = ShopCurrency.Crystal, price = 100, limit = 5, reset = ShopReset.Weekly },
                 Crystal("cry_exp_crystal", MaterialType.ExpCrystal, 3, 120, 3),
+                Crystal("cry_gift3", MaterialType.GiftLarge, 1, 60, 5),
                 Crystal("cry_book3", MaterialType.SkillBookPurple, 3, 150, 3),
                 Crystal("cry_legend", MaterialType.SkillLegend, 1, 300, 2),
                 Crystal("cry_stamina", MaterialType.StaminaLarge, 1, 60, 6),

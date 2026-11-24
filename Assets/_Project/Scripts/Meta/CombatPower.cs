@@ -46,7 +46,7 @@ namespace SubcultureRPG.Meta
 
             var levels = roster.EffectiveSkillLevels(c);
             var data = RuntimeUnits.FromCharacter(c, o.level, null, o.skillLevel, roster.StarOf(c), roster.TranscendOf(c), levels);
-            if (equipment != null) data.bonus = equipment.BonusFor(c);
+            data.bonus = PlayerBond.BonusFor(c, equipment);   // 장비 + 호감도
             var unit = new BattleUnit(data, Team.Ally, _cfg);
             int power = Of(unit, levels);
 

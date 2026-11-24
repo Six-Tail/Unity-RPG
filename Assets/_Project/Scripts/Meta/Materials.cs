@@ -25,6 +25,9 @@ namespace SubcultureRPG.Meta
         StaminaLarge = 12,    // 행동력 물약 (행동력 +120)      영웅
         Select5 = 13,         // 태생 5★ 캐릭터 선택권           영웅 — 신규 출석 3일째
         Select6 = 14,         // 태생 6★ 캐릭터 선택권(픽업 제외) 전설 — 신규 출석 7일째
+        GiftSmall = 15,       // 들꽃 꽃다발 (호감도 +50)       고급 — 상점
+        GiftMedium = 16,      // 수제 쿠키 상자 (호감도 +150)   희귀 — 상점
+        GiftLarge = 17,       // 별빛 브로치 (호감도 +400)      영웅 — 크리스탈 상점
 
         PhysicalAsc1 = 101, PhysicalAsc2 = 102, PhysicalAsc3 = 103,
         FireAsc1 = 111, FireAsc2 = 112, FireAsc3 = 113,
@@ -92,6 +95,9 @@ namespace SubcultureRPG.Meta
                 MaterialType.StaminaLarge => "행동력 물약",
                 MaterialType.Select5 => "태생 5★ 캐릭터 선택권",
                 MaterialType.Select6 => "태생 6★ 캐릭터 선택권",
+                MaterialType.GiftSmall => "들꽃 꽃다발",
+                MaterialType.GiftMedium => "수제 쿠키 상자",
+                MaterialType.GiftLarge => "별빛 브로치",
                 _ => t.ToString(),
             };
         }
@@ -102,7 +108,9 @@ namespace SubcultureRPG.Meta
             if (IsAscension(t)) return 3 + TierOf(t);   // 초급 희귀 · 중급 영웅 · 상급 전설
             return t switch
             {
-                MaterialType.ExpSmall or MaterialType.SkillBook => 3,
+                MaterialType.ExpSmall or MaterialType.SkillBook or MaterialType.GiftSmall => 3,
+                MaterialType.GiftMedium => 4,
+                MaterialType.GiftLarge => 5,
                 MaterialType.ExpPotion or MaterialType.SkillBookBlue or MaterialType.EquipOre => 4,
                 MaterialType.StaminaSmall => 4,
                 MaterialType.ExpLarge or MaterialType.SkillBookPurple or MaterialType.StarShard or MaterialType.StaminaLarge or MaterialType.Select5 => 5,
@@ -118,7 +126,7 @@ namespace SubcultureRPG.Meta
             if (IsAscension(t)) return Category.Ascension;
             if (ExpValue(t) > 0) return Category.Exp;
             if (t == MaterialType.EquipOre) return Category.Equipment;
-            if (t == MaterialType.StarShard || StaminaValue(t) > 0 || IsSelector(t)) return Category.Etc;
+            if (t == MaterialType.StarShard || StaminaValue(t) > 0 || IsSelector(t) || GiftExp(t) > 0) return Category.Etc;
             return Category.Skill;
         }
 
@@ -139,11 +147,24 @@ namespace SubcultureRPG.Meta
                 MaterialType.SkillBook, MaterialType.SkillBookBlue, MaterialType.SkillBookPurple, MaterialType.SkillLegend,
                 MaterialType.EquipOre, MaterialType.StarShard, MaterialType.StaminaSmall, MaterialType.StaminaLarge,
                 MaterialType.Select5, MaterialType.Select6,
+                MaterialType.GiftSmall, MaterialType.GiftMedium, MaterialType.GiftLarge,
             };
             foreach (var e in Traits.AllElements)
                 for (int tier = 1; tier <= AscensionTiers; tier++) list.Add(Ascension(e, tier));
             return list;
         }
+
+        /// <summary>선물이 주는 호감도(선물이 아니면 0).</summary>
+        public static int GiftExp(MaterialType t) => t switch
+        {
+            MaterialType.GiftSmall => 50,
+            MaterialType.GiftMedium => 150,
+            MaterialType.GiftLarge => 400,
+            _ => 0,
+        };
+
+        /// <summary>선물(호감도 작은 순).</summary>
+        public static readonly MaterialType[] Gifts = { MaterialType.GiftSmall, MaterialType.GiftMedium, MaterialType.GiftLarge };
 
         /// <summary>캐릭터 선택권인지.</summary>
         public static bool IsSelector(MaterialType t) => t == MaterialType.Select5 || t == MaterialType.Select6;
@@ -210,6 +231,10 @@ namespace SubcultureRPG.Meta
                        $"<color=#FFD36B>획득처</color>\n돌파 던전 · {el} {TierName(tier)}" +
                        (tier > 1 ? $"\n상점 교환소 (같은 속성 {TierName(tier - 1)} ×3 → 1)" : "");
             }
+            int gift = GiftExp(t);
+            if (gift > 0)
+                return head + $"<color=#FFD36B>용도</color>\n캐릭터에게 선물하면 호감도 <b>+{gift}</b>\n도감 → 캐릭터 → '호감도', 또는 홈의 대표 캐릭터 이름표\n\n" +
+                       "<color=#FFD36B>획득처</color>\n" + (t == MaterialType.GiftLarge ? "상점 (크리스탈 상점 · 매주)" : "상점 (일반 상점 · 매일)");
             int exp = ExpValue(t);
             if (exp > 0)
                 return head + $"<color=#FFD36B>용도</color>\n캐릭터 경험치 <b>+{exp:N0}</b>\n육성 → 레벨 탭에서 재료를 골라 사용 (금화 필요)\n\n" +

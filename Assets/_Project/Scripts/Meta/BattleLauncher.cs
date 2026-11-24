@@ -48,15 +48,42 @@ namespace SubcultureRPG.Meta
                     int tr = roster != null ? roster.TranscendOf(c) : 0;
                     var sk = roster != null ? roster.EffectiveSkillLevels(c) : null;   // 초월 보너스 레벨 포함
                     var u = RuntimeUnits.FromCharacter(c, lvl, lookup, skl, star, tr, sk);
-                    if (equipment != null && equipment.EquippedOn(c).Count > 0)
+                    bool owned = roster != null && roster.IsOwned(c);
+                    if (owned || (equipment != null && equipment.EquippedOn(c).Count > 0))
                     {
                         if (lookup != null && lookup(c) == u) u = Instantiate(u);   // 저작 에셋은 건드리지 않음
-                        u.bonus = equipment.BonusFor(c);
+                        u.bonus = PlayerBond.BonusFor(c, equipment);                // 장비 + 호감도
                     }
                     allies.Add(u);
                 }
 
+            // 이기면 출전한 캐릭터의 호감도 +10
+            _lastParty = new List<CharacterData>(party);
+            if (_hooked != controller)
+            {
+                if (_hooked != null) _hooked.OnBattleEnd -= HandleEnd;
+                controller.OnBattleEnd += HandleEnd;
+                _hooked = controller;
+            }
+
             controller.SetTeams(allies, new List<BattleUnitData>(enemies ?? enemyTeam));
+        }
+
+        private List<CharacterData> _lastParty;
+        private BattleController _hooked;
+
+        private void HandleEnd(Team winner)
+        {
+            if (winner != Team.Ally || _lastParty == null) return;
+            var roster = this.roster != null ? this.roster : FindAnyObjectByType<PlayerRoster>();
+            var owned = _lastParty.FindAll(c => c != null && (roster == null || roster.IsOwned(c)));
+            _lastParty = null;
+            PlayerBond.Instance.OnVictory(owned);
+        }
+
+        private void OnDestroy()
+        {
+            if (_hooked != null) _hooked.OnBattleEnd -= HandleEnd;
         }
     }
 }

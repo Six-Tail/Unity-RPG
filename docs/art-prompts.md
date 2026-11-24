@@ -407,7 +407,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 43장
+## 재료 아이콘 (1:1) — 46장
 
 ### 소형 경험치 물약
 
@@ -607,6 +607,30 @@ a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, h
 
 ```
 two cute round chibi commander figures side by side, one blue and one pink, with a small glowing heart between them. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 들꽃 꽃다발 (호감도 선물)
+
+- 파일: `Items/GiftSmall.png` · 256×256 · 화면비 1:1
+
+```
+a small bouquet of pastel wildflowers wrapped in cream paper and tied with a pink satin ribbon. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 수제 쿠키 상자 (호감도 선물)
+
+- 파일: `Items/GiftMedium.png` · 256×256 · 화면비 1:1
+
+```
+a cute pink gift box with its lid open showing heart-shaped and star-shaped homemade cookies, tied with a red ribbon bow. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 별빛 브로치 (호감도 선물)
+
+- 파일: `Items/GiftLarge.png` · 256×256 · 화면비 1:1
+
+```
+an elegant golden star-shaped brooch set with a glowing pale-pink gem in the center, resting on a small velvet cushion, sparkling. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 별의 조각

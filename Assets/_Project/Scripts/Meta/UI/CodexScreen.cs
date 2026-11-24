@@ -27,7 +27,9 @@ namespace SubcultureRPG.Meta.UI
         private Image _portrait, _viewerImage;
         private TextMeshProUGUI _progress, _name, _stars, _traits, _line, _source, _owned, _lockLabel, _toast;
         private RectTransform _tabs, _grid, _milestones;
-        private Button _backBtn, _viewBtn;
+        private Button _backBtn, _viewBtn, _bondBtn;
+        private TextMeshProUGUI _bondLabel;
+        private NotifyBadge _bondBadge;
         private Action _onBack;
 
         private int _rarityTab;   // 0 = 전체, 그 외 성급(3~6)
@@ -50,8 +52,19 @@ namespace SubcultureRPG.Meta.UI
             BuildUI();
         }
 
-        private void OnEnable() { if (codex != null) codex.OnChanged += MarkDirty; }
-        private void OnDisable() { if (codex != null) codex.OnChanged -= MarkDirty; }
+        private void OnEnable()
+        {
+            if (codex != null) codex.OnChanged += MarkDirty;
+            PlayerBond.Instance.OnChanged += OnBondChanged;
+        }
+
+        private void OnDisable()
+        {
+            if (codex != null) codex.OnChanged -= MarkDirty;
+            if (FindAnyObjectByType<PlayerBond>() is PlayerBond b) b.OnChanged -= OnBondChanged;
+        }
+
+        private void OnBondChanged() { if (_selected != null && _bondBtn != null) RefreshDetail(); }
 
         private void Start() => Refresh();
 
@@ -214,6 +227,7 @@ namespace SubcultureRPG.Meta.UI
                 _name.text = ""; _stars.text = ""; _traits.text = ""; _line.text = ""; _source.text = ""; _owned.text = "";
                 _lockLabel.text = "";
                 _viewBtn.gameObject.SetActive(false);
+                _bondBtn.gameObject.SetActive(false);
                 return;
             }
 
@@ -242,11 +256,17 @@ namespace SubcultureRPG.Meta.UI
                 _owned.text = "<color=#FFD36B>보유 정보</color>\n" +
                               $"Lv.{o.level}" + (o.ascension > 0 ? $"  ·  돌파 {o.ascension}" : "") + "\n" +
                               $"현재 {StarText.Rich(curStar, o.transcend)}\n" +
-                              $"중복 {o.Duplicates}장";
+                              $"중복 {o.Duplicates}장  ·  <color=#FF9EC0>호감도 Lv.{PlayerBond.Instance.Level(c)}</color>";
             }
             else _owned.text = "<color=#FFD36B>보유 정보</color>\n<color=#9AA3B5>아직 획득하지 못한 캐릭터입니다</color>";
 
             _viewBtn.gameObject.SetActive(have && (sprite != null || live));
+            _bondBtn.gameObject.SetActive(have);
+            if (have)
+            {
+                _bondLabel.text = $"호감도 Lv.{PlayerBond.Instance.Level(c)}";
+                _bondBadge.Set(PlayerBond.Instance.HasNotice(c));
+            }
         }
 
         private void OpenViewer()
@@ -380,9 +400,17 @@ namespace SubcultureRPG.Meta.UI
             Place(_owned.rectTransform, new Vector2(0, 1), new Vector2(iw, 170), new Vector2(ix, -346), new Vector2(0, 1));
             _owned.lineSpacing = 6f;
 
-            _viewBtn = UIFactory.AddButton("View", pt, "일러스트 크게 보기", 20, font, new Color(0.25f, 0.62f, 0.95f, 0.98f), Color.white);
-            Place((RectTransform)_viewBtn.transform, new Vector2(0, 1), new Vector2(iw, 56), new Vector2(ix, -528), new Vector2(0, 1));
+            _viewBtn = UIFactory.AddButton("View", pt, "크게 보기", 20, font, new Color(0.25f, 0.62f, 0.95f, 0.98f), Color.white);
+            Place((RectTransform)_viewBtn.transform, new Vector2(0, 1), new Vector2(iw / 2f - 5, 56), new Vector2(ix, -528), new Vector2(0, 1));
             _viewBtn.onClick.AddListener(OpenViewer);
+            // 호감도(보유한 캐릭터만) — 받을 단계 보상 · 새 개인 스토리가 있으면 빨간 느낌표
+            _bondBtn = UIFactory.AddButton("Bond", pt, "호감도", 20, font, new Color(0.86f, 0.38f, 0.56f, 0.96f), Color.white);
+            Place((RectTransform)_bondBtn.transform, new Vector2(0, 1), new Vector2(iw / 2f - 5, 56), new Vector2(ix + iw / 2f + 5, -528), new Vector2(0, 1));
+            _bondLabel = _bondBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _bondLabel.enableAutoSizing = true; _bondLabel.fontSizeMin = 14; _bondLabel.fontSizeMax = 20;
+            _bondBadge = NotifyBadge.Attach(_bondBtn, font, 6, 6, 26);
+            _bondBtn.onClick.AddListener(() => { if (_selected != null) BondWindow.Open(_selected, font); });
+            _bondBtn.gameObject.SetActive(false);
 
             // 대표 대사(일러스트 아래)
             var lineBg = UIFactory.AddImage("LineBg", pt, new Color(1, 1, 1, 0.05f), ProceduralSprites.Rounded);

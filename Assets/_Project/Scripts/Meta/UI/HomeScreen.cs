@@ -48,6 +48,8 @@ namespace SubcultureRPG.Meta.UI
         private TextMeshProUGUI _badgeName, _badgeTitle, _badgeLevel;
         private RectTransform _badgeExp;
         private RectTransform _assistMask;
+        private TextMeshProUGUI _assistBond;
+        private NotifyBadge _assistBondBadge;
         private RectMask2D _assistSoft;
         private CanvasGroup _bubbleGroup;
         private Coroutine _bubbleRoutine, _bounceRoutine;
@@ -84,6 +86,7 @@ namespace SubcultureRPG.Meta.UI
             if (_missions != null) _missions.OnChanged += RefreshMissionBadge;
             _codex = FindAnyObjectByType<PlayerCodex>();
             if (_codex != null) _codex.OnChanged += RefreshCodexButton;
+            PlayerBond.Instance.OnChanged += RefreshBond;
             Refresh();
         }
 
@@ -91,6 +94,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_missions != null) _missions.OnChanged -= RefreshMissionBadge;
             if (_codex != null) _codex.OnChanged -= RefreshCodexButton;
+            if (FindAnyObjectByType<PlayerBond>() is PlayerBond bond) bond.OnChanged -= RefreshBond;
             var pf = FindAnyObjectByType<PlayerProfile>();
             if (pf != null) pf.OnChanged -= RefreshProfileBadge;
         }
@@ -107,6 +111,7 @@ namespace SubcultureRPG.Meta.UI
             RefreshMissionBadge();
             RefreshCodexButton();
             RefreshAssistant();
+            RefreshBond();
             RefreshProfileBadge();
             RefreshModeTiles();
         }
@@ -218,6 +223,7 @@ namespace SubcultureRPG.Meta.UI
             var c = Assistant();
             if (c == _shown && c != null) return;
             _shown = c;
+            RefreshBond();   // 이름표의 호감도 단계
             if (c == null)
             {
                 Live2DUI.Hide(_assistant);
@@ -261,14 +267,27 @@ namespace SubcultureRPG.Meta.UI
             Live2DUI.SetAlpha(_assistant, a);
         }
 
-        /// <summary>대표 캐릭터를 누르면: 톡 튀고 대표 대사 말풍선.</summary>
+        /// <summary>대표 캐릭터를 누르면: 톡 튀고 대표 대사 말풍선. 하루 3번까지 호감도 +10.</summary>
         private void PokeAssistant()
         {
             if (_shown == null) return;
             if (_bounceRoutine != null) StopCoroutine(_bounceRoutine);
             _bounceRoutine = StartCoroutine(Bounce());
             if (_bubbleRoutine != null) StopCoroutine(_bubbleRoutine);
-            _bubbleRoutine = StartCoroutine(Bubble(CharacterLines.Random(_shown)));   // 캐릭터별 로비 대사 중 무작위
+            string line = CharacterLines.Random(_shown);   // 캐릭터별 로비 대사 중 무작위
+            int got = PlayerBond.Instance.Touch(_shown);
+            if (got > 0) line += $"\n<size=72%><color=#E0457F>호감도 +{got}</color>  <color=#8A8FA0>(오늘 {PlayerBond.Instance.TouchesLeft}번 남음)</color></size>";
+            _bubbleRoutine = StartCoroutine(Bubble(line));
+        }
+
+        /// <summary>이름표의 호감도 단계 · 알림.</summary>
+        private void RefreshBond()
+        {
+            if (_assistBond == null) return;
+            var bond = PlayerBond.Instance;
+            _assistBond.text = _shown != null ? $"호감도 <b>Lv.{bond.Level(_shown)}</b>" : "";
+            if (_assistBondBadge != null) _assistBondBadge.Set(_shown != null && bond.HasNotice(_shown));
+            RefreshCodexButton();
         }
 
         private IEnumerator Bounce()
@@ -367,8 +386,9 @@ namespace SubcultureRPG.Meta.UI
         /// <summary>도감 버튼: 수집 현황 + 받을 수 있는 수집 보상 수.</summary>
         private void RefreshCodexButton()
         {
-            // 도감은 프로필에서 — 받을 수집 보상이 있으면 프로필 배지에 점
-            if (_profileBadge != null) _profileBadge.Set(_codex != null && _codex.ClaimableCount() > 0);
+            // 도감은 프로필에서 — 받을 수집 보상 · 호감도 보상(새 개인 스토리)이 있으면 프로필 배지에 점
+            if (_profileBadge != null)
+                _profileBadge.Set((_codex != null && _codex.ClaimableCount() > 0) || PlayerBond.Instance.NoticeCount(roster) > 0);
             if (_rosterText == null) return;
             int owned = roster != null ? roster.Owned.Count : 0;
             string count = _codex != null && _codex.Total > 0 ? $"{_codex.OwnedCount} / {_codex.Total}" : $"{owned}명";
@@ -466,7 +486,17 @@ namespace SubcultureRPG.Meta.UI
             nameBg.type = Image.Type.Sliced; nameBg.preserveAspect = false;
             UIFactory.Anchor(nameBg.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
             nameBg.rectTransform.sizeDelta = new Vector2(440, 104); nameBg.rectTransform.anchoredPosition = new Vector2(50, 40);
-            nameBg.raycastTarget = false;
+            // 이름표를 누르면 호감도 창
+            nameBg.raycastTarget = true;
+            var nameBtn = nameBg.gameObject.AddComponent<Button>();
+            nameBtn.transition = Selectable.Transition.None;
+            nameBtn.onClick.AddListener(() => { if (_shown != null) BondWindow.Open(_shown, font); });
+            nameBg.gameObject.AddComponent<ButtonFx>();
+            _assistBond = UIFactory.AddText("Bond", nameBg.transform, "", 20, font, new Color(1f, 0.62f, 0.75f), TextAlignmentOptions.Right);
+            _assistBond.richText = true;
+            UIFactory.Anchor(_assistBond.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            _assistBond.rectTransform.sizeDelta = new Vector2(200, 32); _assistBond.rectTransform.anchoredPosition = new Vector2(-20, -12);
+            _assistBondBadge = NotifyBadge.Attach(nameBg, font, 6, 6, 28);
             _assistStars = StarRow.Create(nameBg.transform, 26, TextAnchor.MiddleLeft, font);
             UIFactory.Anchor(_assistStars.Rect, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1));
             _assistStars.Rect.sizeDelta = new Vector2(-40, 32); _assistStars.Rect.anchoredPosition = new Vector2(20, -12);
