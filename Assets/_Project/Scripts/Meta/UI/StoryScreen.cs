@@ -126,7 +126,7 @@ namespace SubcultureRPG.Meta.UI
             {
                 if (_portraitKey[side] != line.portrait)
                 {
-                    var sp = GameArt.Load(line.portrait);
+                    var sp = GameArt.Standing(line.portrait);   // 배경 없는 버전 우선(장면 배경 위에 인물만)
                     _portraits[side].sprite = sp;
                     _portraits[side].enabled = sp != null;
                     _portraitKey[side] = line.portrait;
@@ -273,7 +273,7 @@ namespace SubcultureRPG.Meta.UI
                 img.preserveAspect = true;
                 var rt = img.rectTransform;
                 UIFactory.Anchor(rt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-                rt.sizeDelta = new Vector2(640, 900); rt.anchoredPosition = new Vector2(i == 0 ? -520 : 520, 60);
+                rt.sizeDelta = new Vector2(760, 1000); rt.anchoredPosition = new Vector2(i == 0 ? -520 : 520, 36);
                 img.enabled = false;
                 _portraits[i] = img;
             }

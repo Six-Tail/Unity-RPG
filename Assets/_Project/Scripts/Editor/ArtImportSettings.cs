@@ -20,7 +20,7 @@ namespace SubcultureRPG.EditorTools
 
             var ti = (TextureImporter)assetImporter;
             // 처음 임포트하거나, Sprite가 아닌 채로 들어와 있으면 기본 설정 적용(Sprite인 이미지는 그대로 둠)
-            if (!assetImporter.importSettingsMissing && IsSprite(ti)) return;
+            if (!assetImporter.importSettingsMissing && IsSprite(ti) && BorderOk(ti, path)) return;
             Apply(ti, path);
         }
 
@@ -36,7 +36,17 @@ namespace SubcultureRPG.EditorTools
             ti.wrapMode = TextureWrapMode.Clamp;
             ti.filterMode = FilterMode.Bilinear;
             ti.maxTextureSize = MaxSizeFor(path.Substring(ArtRoot.Length));
+            if (IsButton(path))
+            {
+                ti.spriteBorder = ButtonBorder;                                   // 9-slice
+                ti.textureCompression = TextureImporterCompression.Uncompressed;  // 얇은 테두리가 뭉개지지 않게
+            }
         }
+
+        // 버튼 그림(UI/button_*): 9-slice 테두리 = 왼 · 아래 · 오른 · 위 (tools/art/generate-buttons.js 의 규격과 같아야 함)
+        private static readonly Vector4 ButtonBorder = new Vector4(96, 44, 96, 44);
+        private static bool IsButton(string path) => path.StartsWith(ArtRoot + "UI/button_");
+        private static bool BorderOk(TextureImporter ti, string path) => !IsButton(path) || ti.spriteBorder == ButtonBorder;
 
         /// <summary>
         /// 스크립트가 다시 로드될 때마다 Sprite가 아닌 이미지를 찾아 고칩니다.
@@ -53,7 +63,7 @@ namespace SubcultureRPG.EditorTools
             };
         }
 
-        /// <summary>Resources/Art 아래에서 Sprite가 아닌 이미지를 Sprite로 바꿔 다시 임포트. 바꾼 개수를 돌려줍니다.</summary>
+        /// <summary>Resources/Art 아래에서 Sprite가 아니거나 규칙보다 작게 임포트된 이미지를 바로잡아 다시 임포트. 바꾼 개수를 돌려줍니다.</summary>
         private static int FixNonSprites()
         {
             string folder = ArtRoot.TrimEnd('/');
@@ -62,7 +72,9 @@ namespace SubcultureRPG.EditorTools
             foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { folder }))
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (!(AssetImporter.GetAtPath(path) is TextureImporter ti) || IsSprite(ti)) continue;
+                if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) continue;
+                // Sprite 이고 크기도 규칙 이상이면 그대로 둠. 규칙보다 작게 들어온 것(크기 규칙이 컴파일되기 전에 임포트된 새 폴더 등)은 다시 맞춤
+                if (IsSprite(ti) && BorderOk(ti, path) && ti.maxTextureSize >= MaxSizeFor(path.Substring(ArtRoot.Length))) continue;
                 Apply(ti, path);
                 ti.SaveAndReimport();
                 n++;
@@ -74,9 +86,11 @@ namespace SubcultureRPG.EditorTools
         private static int MaxSizeFor(string relative)
         {
             if (relative.StartsWith("Backgrounds/") || relative.StartsWith("Banners/")) return 2048;
-            if (relative.StartsWith("Characters/")) return 1024;
+            if (relative.StartsWith("Characters/") || relative.StartsWith("Cutouts/")) return 1024;
             if (relative.StartsWith("Enemies/")) return 512;
             if (relative.StartsWith("Title/keyart")) return 2048;       // 타이틀 키 아트(화면 전체)
+            if (relative.StartsWith("Events/") && relative.Contains("_bg")) return 2048;     // 이벤트 배경
+            if (relative.StartsWith("Events/") && relative.Contains("_host")) return 1024;   // 이벤트 진행 캐릭터 일러스트
             if (relative.StartsWith("Title/")) return 512;              // 로고 엠블럼
             if (relative.StartsWith("Gacha/scroll") || relative.StartsWith("Gacha/circle")) return 1024;   // 가챠 연출의 큰 소품
             return 256;   // Items · Thumbs · Equipment · Status · Elements · 작은 소품

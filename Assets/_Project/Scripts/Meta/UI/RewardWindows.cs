@@ -100,16 +100,23 @@ namespace SubcultureRPG.Meta.UI
             {
                 var bg = w.Box(body, state == 1 ? new Color(0.85f, 0.62f, 0.22f, 0.6f)
                     : special ? new Color(0.5f, 0.38f, 0.8f, 0.3f) : new Color(1, 1, 1, 0.07f), x, y, cw, ch, raycast: state == 1);
-                var dayText = w.Text(bg.transform, $"<b>{day}일</b>", 19, state == 1 ? Color.white : new Color(0.8f, 0.83f, 0.9f), TextAlignmentOptions.Left, 12, -8, 100, 26);
-                float icon = nb ? 130 : 74;
-                w.Icon(bg.transform, r.Icon(), (cw - icon) / 2f, nb ? -52 : -30, icon);
-                var rt = w.Text(bg.transform, r.Describe("\n") + (note != null ? $"\n<size=85%><color=#FFE08A>{note}</color></size>" : ""),
-                    nb ? 19 : 15, Color.white, TextAlignmentOptions.Center, 6, nb ? -196 : -106, cw - 12, ch - (nb ? 206 : 112));
+                // 글자는 크게, 자간 · 줄 간격은 넉넉하게(획이 굵은 글꼴이라 붙어 보이지 않도록)
+                var dayText = w.Text(bg.transform, $"<b>{day}일</b>", nb ? 27 : 23, state == 1 ? Color.white : new Color(0.8f, 0.83f, 0.9f),
+                    TextAlignmentOptions.Left, 14, nb ? -12 : -8, 120, nb ? 36 : 30);
+                dayText.characterSpacing = 3f;
+                float icon = nb ? 168 : 66;
+                w.Icon(bg.transform, r.Icon(), (cw - icon) / 2f, nb ? -78 : -36, icon);
+                var rt = w.Text(bg.transform, r.Describe("\n") + (note != null ? $"\n<size=82%><color=#FFE08A>{note}</color></size>" : ""),
+                    nb ? 24 : 19, Color.white, nb ? TextAlignmentOptions.Top : TextAlignmentOptions.Center,
+                    6, nb ? -276 : -104, cw - 12, nb ? ch - 292 : ch - 108);
                 rt.textWrappingMode = TextWrappingModes.Normal;
-                rt.enableAutoSizing = true; rt.fontSizeMin = 10; rt.fontSizeMax = nb ? 19 : 15;
+                rt.enableAutoSizing = true; rt.fontSizeMin = nb ? 17 : 14; rt.fontSizeMax = nb ? 24 : 19;
+                rt.characterSpacing = nb ? 4f : 3f;
+                rt.lineSpacing = nb ? 22f : 6f;
                 if (state == 1)
                 {
-                    w.Text(bg.transform, "<b>오늘</b>", 17, new Color(1f, 0.95f, 0.7f), TextAlignmentOptions.Right, cw - 92, -8, 80, 24);
+                    var today = w.Text(bg.transform, "<b>오늘</b>", nb ? 23 : 20, new Color(1f, 0.95f, 0.7f), TextAlignmentOptions.Right, cw - 104, nb ? -14 : -10, 90, nb ? 32 : 28);
+                    today.characterSpacing = 3f;
                     var b = bg.gameObject.AddComponent<Button>();
                     b.targetGraphic = bg;
                     b.onClick.AddListener(() => Claim(nb));
@@ -118,10 +125,22 @@ namespace SubcultureRPG.Meta.UI
                 else if (state == 0)
                 {
                     var shade = w.Box(bg.transform, new Color(0, 0, 0, 0.62f), 0, 0, cw, ch);
-                    var done = w.Text(shade.transform, "<b>받음</b>", 26, new Color(0.55f, 0.92f, 0.65f), TextAlignmentOptions.Center, 0, 0, 0, 0);
+                    var done = w.Text(shade.transform, "<b>받음</b>", nb ? 36 : 30, new Color(0.55f, 0.92f, 0.65f), TextAlignmentOptions.Center, 0, 0, 0, 0);
                     UIFactory.Stretch(done.rectTransform);
+                    done.characterSpacing = 6f;
                     dayText.transform.SetAsLastSibling();
                 }
+            }
+
+            // 아래 안내문 · 받은 칸 수
+            void Footer(string hint, int claimed, int total)
+            {
+                var h = w.Text(body, $"<color=#9AA3B5>{hint}</color>", 20, Color.white, TextAlignmentOptions.Left, 36, -852, 566, 84);
+                h.textWrappingMode = TextWrappingModes.Normal;
+                h.enableAutoSizing = true; h.fontSizeMin = 16; h.fontSizeMax = 20;
+                h.characterSpacing = 2f; h.lineSpacing = 12f;
+                var n = w.Text(body, $"받은 칸  <color=#FFD36B><b>{claimed}</b></color> / {total}", 27, Color.white, TextAlignmentOptions.Right, 1000, -876, 524, 40);
+                n.characterSpacing = 4f;
             }
 
             void Rebuild()
@@ -146,26 +165,25 @@ namespace SubcultureRPG.Meta.UI
                         int state = day <= claimed ? 0 : (day == claimed + 1 && can) ? 1 : 2;
                         Cell(36 + (i % 7) * 214, -152 - (i / 7) * 170, 204, 160, day, PlayerAttendance.MonthReward(day), state, day % 7 == 0, false, null);
                     }
-                    w.Text(body, "<color=#9AA3B5>하루에 한 칸(매일 05:00 기준). 빠진 날이 있어도 다음 칸부터 이어서 받습니다.\n28일을 모두 받으면 다음 날 1일부터 다시 시작합니다.</color>",
-                        17, Color.white, TextAlignmentOptions.Left, 36, -856, 600, 60);
-                    w.Text(body, $"받은 칸  <color=#FFD36B><b>{claimed}</b></color> / {PlayerAttendance.MonthDays}", 22, Color.white, TextAlignmentOptions.Right, 1000, -870, 524, 34);
+                    Footer("하루에 한 칸(매일 05:00 기준). 빠진 날이 있어도 다음 칸부터 이어서 받습니다. 28일을 모두 받으면 다음 날 1일부터 다시 시작합니다.",
+                        claimed, PlayerAttendance.MonthDays);
                 }
                 else
                 {
                     int claimed = a.NewbieClaimed;
                     can = a.CanClaimNewbie;
-                    w.Text(body, "처음 <color=#FFD36B>7번의 출석</color> 동안 더 좋은 보상을 드립니다.  <color=#C9A0FF>3일째</color> 태생 5★ 캐릭터 선택권  ·  <color=#FFD36B>7일째</color> 태생 6★ 캐릭터 선택권",
-                        22, Color.white, TextAlignmentOptions.Left, 36, -156, 1480, 36);
+                    var lead = w.Text(body, "처음 <color=#FFD36B>7번의 출석</color> 동안 더 좋은 보상을 드립니다.   <color=#C9A0FF>3일째</color> 태생 5★ 캐릭터 선택권   ·   <color=#FFD36B>7일째</color> 태생 6★ 캐릭터 선택권",
+                        25, Color.white, TextAlignmentOptions.Left, 36, -154, 1480, 40);
+                    lead.characterSpacing = 3f;
                     for (int i = 0; i < PlayerAttendance.NewbieDays; i++)
                     {
                         int day = i + 1;
                         int state = day <= claimed ? 0 : (day == claimed + 1 && can) ? 1 : 2;
                         string note = day == 3 ? "원하는 태생 5★ 1명" : day == 7 ? "픽업을 뺀 태생 6★ 1명" : null;
-                        Cell(36 + i * 214, -216, 204, 440, day, PlayerAttendance.NewbieReward(day), state, day == 3 || day == 7, true, note);
+                        Cell(36 + i * 214, -212, 204, 620, day, PlayerAttendance.NewbieReward(day), state, day == 3 || day == 7, true, note);
                     }
-                    w.Text(body, "<color=#9AA3B5>하루에 한 칸(매일 05:00 기준). 7칸을 모두 받으면 이 출석부는 사라집니다.\n출석부 28일과는 따로 받습니다.</color>",
-                        17, Color.white, TextAlignmentOptions.Left, 36, -856, 600, 60);
-                    w.Text(body, $"받은 칸  <color=#FFD36B><b>{claimed}</b></color> / {PlayerAttendance.NewbieDays}", 22, Color.white, TextAlignmentOptions.Right, 1000, -870, 524, 34);
+                    Footer("하루에 한 칸(매일 05:00 기준). 7칸을 모두 받으면 이 출석부는 사라집니다. 출석부 28일과는 따로 받습니다.",
+                        claimed, PlayerAttendance.NewbieDays);
                 }
                 bool nbNow = newbie;
                 w.Btn(body, can ? "출석 체크" : "오늘 출석 완료", 28, nbNow ? OverlayWindow.Gold : OverlayWindow.Blue, 620, -862, 320, 72, () => Claim(nbNow), can);

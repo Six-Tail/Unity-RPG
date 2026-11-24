@@ -16,23 +16,37 @@ namespace SubcultureRPG.Meta.UI
         public event System.Action<int> OnChallenge;
 
         private TextMeshProUGUI _themeName, _tagline, _period, _bonus, _weak, _summary;
-        private Image _halo, _boss;
+        private Image _halo, _boss, _emblem, _artFrame;
         private RectTransform _difficulties, _list;
         private Button _tabRewards, _tabShop;
         private bool _shopTab;
 
         private void Awake()
         {
-            BuildBase("기간 한정 이벤트", "Backgrounds/" + LimitedEvent.CurrentTheme.background, 73);   // 테마 전투 배경을 그대로 씀
+            // 배경: 이벤트 전용 그림(Events/{테마}_bg) → 없으면 테마 전투 배경
+            var theme0 = LimitedEvent.CurrentTheme;
+            BuildBase("기간 한정 이벤트",
+                GameArt.Load(theme0.ArtBackground) != null ? theme0.ArtBackground : "Backgrounds/" + theme0.background, 73);
             CurrencyBar.Create(_frame, font, null, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
 
             // ---- 왼쪽: 테마 ----
             _halo = UIFactory.AddImage("Halo", _frame, new Color(1, 1, 1, 0.3f), ProceduralSprites.Glow);
             _halo.preserveAspect = false;
             Top(_halo.rectTransform, -480, -150, 820, 820, new Vector2(0.5f, 1));
-            _boss = UIFactory.AddImage("Guardian", _frame, Color.white);
+            // 진행 캐릭터 일러스트(3:4) — 없으면 수호자 그림. 일러스트일 때는 테마 색 액자를 둠
+            _artFrame = UIFactory.AddImage("ArtFrame", _frame, Color.white);
+            Top(_artFrame.rectTransform, -480, -214, 474, 628, new Vector2(0.5f, 1));
+            var frameShadow = _artFrame.gameObject.AddComponent<Shadow>();
+            frameShadow.effectColor = new Color(0f, 0f, 0f, 0.6f);
+            frameShadow.effectDistance = new Vector2(0f, -6f);
+            _boss = UIFactory.AddImage("Art", _frame, Color.white);
             _boss.preserveAspect = true;
-            Top(_boss.rectTransform, -480, -220, 620, 620, new Vector2(0.5f, 1));
+            Top(_boss.rectTransform, -480, -220, 620, 616, new Vector2(0.5f, 1));
+
+            // 테마 엠블럼(이름 왼쪽)
+            _emblem = UIFactory.AddImage("Emblem", _frame, Color.white);
+            _emblem.preserveAspect = true;
+            Top(_emblem.rectTransform, -770, -98, 96, 96, new Vector2(0.5f, 1));
 
             _themeName = Text(_frame, "", 56, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
             Top(_themeName.rectTransform, -480, -104, 760, 70, new Vector2(0.5f, 1));
@@ -107,10 +121,15 @@ namespace SubcultureRPG.Meta.UI
             string themeHex = "#" + ColorUtility.ToHtmlStringRGB(theme.color);
 
             _themeName.text = $"<color={themeHex}><b>{theme.name}</b></color>";
-            _tagline.text = theme.tagline;
-            _halo.color = new Color(theme.color.r, theme.color.g, theme.color.b, 0.32f);
-            var art = GameArt.Enemy(theme.guardian);
+            var hostArt = GameArt.Load(theme.ArtHost);
+            _tagline.text = hostArt != null ? $"{theme.tagline}  <size=80%><color=#9AA3B5>· 진행 {theme.host}</color></size>" : theme.tagline;
+            _halo.color = new Color(theme.color.r, theme.color.g, theme.color.b, hostArt != null ? 0.2f : 0.32f);
+            var art = hostArt != null ? hostArt : GameArt.Enemy(theme.guardian);
             _boss.sprite = art; _boss.enabled = art != null;
+            _artFrame.enabled = hostArt != null;
+            _artFrame.color = theme.color;
+            var emblem = GameArt.Load(theme.ArtEmblem);
+            _emblem.sprite = emblem; _emblem.enabled = emblem != null;
 
             string el = $"<color={Traits.Hex(theme.element)}><b>{Traits.Name(theme.element)}</b></color>";
             _bonus.text = $"보너스 속성 {el}  <size=80%><color=#9AA3B5>파티 1명당 코인 +{LimitedEvent.BonusPerMember * 100f:0}% (최대 +{LimitedEvent.BonusPerMember * 400f:0}%)</color></size>";

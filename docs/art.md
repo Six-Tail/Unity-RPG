@@ -12,12 +12,15 @@
 | 폴더 | 파일명 | 크기 | 어디에 나오나 |
 |---|---|---|---|
 | `Characters/` | `{캐릭터 id}.png` (예: `c_seraphine.png`) | 768×1024 (3:4) | 홈·가챠 픽업 미리보기, 가챠 결과·6성 연출 |
+| `Cutouts/` | `{캐릭터 id}.png` | 768×1024 (투명 배경) | **배경 없는 일러스트** — 스토리 대화의 인물, 홈 화면의 대표 캐릭터(움직이는 일러스트가 없는 캐릭터만). 없으면 `Characters/` 일러스트 사용 — 아래 [배경 없는 일러스트](#배경-없는-일러스트-cutouts) |
+| `UI/` | `button_base.png` · `button_frame.png` | 208×128 (9-slice) | **모든 버튼**의 판(색을 입혀 씀) · 금테 — 아래 [버튼 그림](#버튼-그림-ui) |
 | `Thumbs/` | `{캐릭터 id}.png` | 256×256 | 육성·편성 목록, 전투 유닛 칸, 가챠 결과 카드 (없으면 일러스트 사용) |
 | `Enemies/` | `{적 이름}.png` (예: `그림자병.png`) | 512×512 | 전투 유닛 칸 |
 | `Items/` | `{MaterialType 이름}.png` (예: `ExpSmall.png`, `FireAsc2.png`) · 금화는 `Gold.png` | 256×256 | 가방 칸, 상점 상품 칸 |
 | `Equipment/` | `slot_{부위}.png` — `head` `hands` `body` `feet` `neck` `ring` | 256×256 | 장비 칸·장비 목록(글자 뒤에 옅게) |
 | `Backgrounds/` | `{키}.jpg` — 아래 표 | 1920×1080 (16:9) | 각 화면 배경 |
 | `Banners/` | `{픽업 캐릭터 id}.jpg` · `standard.jpg` | 1920×1080 | 가챠 화면 배경(배너별) |
+| `Events/` | `{테마 id}_bg.jpg` · `_host.png` · `_emblem.png` | 1920×1080 · 768×1024 · 256×256 | 기간 한정 이벤트 화면 · 홈 이벤트 배너 — [event.md](event.md) |
 | `Motion/` | `{캐릭터 id}.mp4` | 832×1088 · 6초 반복 | 6성 일러스트 자리의 움직이는 일러스트 — [live2d.md](live2d.md) |
 | `Status/` | `AtkUp` `AtkDown` `DefUp` `DefDown` `Dot` `Break` `SpdUp` `SpdDown` `CritUp` `Regen` `Taunt` `Stun` `.png` | 128×128 | 전투 버프·디버프 아이콘 — 기호만 그리고 배경은 투명(게임이 어두운 칸 + 효과 색 테두리를 그림). 없으면 색 + 글자 아이콘 |
 | `Elements/` | `Physical` `Fire` `Ice` `Lightning` `Wind` `.png` | 128×128 | 전투 유닛 패널의 속성 아이콘 · 약점 표시 — `--only status`에 함께 포함. 없으면 속성 색 원 + 글자 |
@@ -91,6 +94,37 @@ node tools/art/generate-art.js --write-prompts
 
 > Flux 계열(로컬)은 프롬프트에 "no text" 같은 말을 넣으면 오히려 글자를 그립니다. 그래서 그런 문구는 OpenAI 모델일 때만 자동으로 붙이고, 묘사에서도 간판·깃발처럼 글자를 부르는 단어는 피했습니다.
 
+## 배경 없는 일러스트 (Cutouts)
+
+캐릭터 일러스트에는 배경이 같이 그려져 있어, 다른 배경 위에 세우면 네모난 그림이 떠 보입니다. 그래서 **인물만 남긴 버전**을 따로 둡니다.
+
+```bash
+node tools/art/generate-cutouts.js --studio "<스튜디오 폴더>" --list              # 무엇을 만들지 · 고른 배경색 보기
+node tools/art/generate-cutouts.js --studio "<스튜디오 폴더>" --key c_ruru --yes   # 한 명만
+node tools/art/generate-cutouts.js --studio "<스튜디오 폴더>" --yes                # 아직 없는 캐릭터 전부
+```
+
+- 방법: 편집 모델(기본 `gpt-image-2.6-sunburst` · 유료 · 1명당 1장)에게 "인물은 그대로, 배경만 단색으로" 다시 그리게 한 뒤 그 단색을 투명하게 지웁니다. 구도 · 크기는 원래 일러스트와 같습니다.
+- 배경색은 일러스트에 덜 쓰인 쪽(초록 / 자홍)을 자동으로 고릅니다 — 초록 머리 캐릭터는 자홍. 머리카락이 같이 지워졌으면 `--chroma magenta`(또는 `green`) `--force`로 다시.
+- 모델이 그린 원본은 `docs/art-preview/cutouts/{id}_raw.png`에 남습니다(커밋 안 함). 지우는 정도만 다시 손보려면 `--rekey`(모델을 다시 부르지 않음 · 무료).
+- 쓰는 곳: `GameArt.Cutout(캐릭터)` · `GameArt.Standing("Characters/…")` — 스토리([StoryScreen](../Assets/_Project/Scripts/Meta/UI/StoryScreen.cs) — 태생 6성도 여기서는 움직이지 않는 배경 없는 그림)와 홈의 대표 캐릭터([HomeScreen](../Assets/_Project/Scripts/Meta/UI/HomeScreen.cs)). 홈에서 태생 6성처럼 움직이는 일러스트(배경 포함 반복 영상 · Live2D)가 있는 캐릭터는 그 영상을 그대로 쓰고, 나머지만 이 그림을 세웁니다.
+- 캐릭터를 추가했으면 일러스트를 만든 뒤 위 명령을 한 번 더 실행하세요.
+
+## 버튼 그림 (UI)
+
+게임의 버튼은 모두 `UIFactory.AddButton`으로 만들고, 이 함수가 `UI/button_base`(판) + `UI/button_frame`(금테)을 9-slice로 늘려 씁니다. 그림이 없으면 코드로 그린 둥근 버튼이 나옵니다.
+
+```bash
+node tools/art/generate-buttons.js --studio "<스튜디오 폴더>" --yes        # 새로 생성(유료 모델 1장)
+node tools/art/generate-buttons.js --studio "<스튜디오 폴더>" --rebuild    # 저장해 둔 원본으로 다시 다듬기만(무료)
+node tools/art/generate-buttons.js --studio "<스튜디오 폴더>" --raw 내그림.png   # 직접 그린 버튼(투명 배경 PNG)으로
+```
+
+- 모델이 그린 버튼 한 장(진주빛 판 + 금테, 투명 배경)을 **왼쪽 끝 96px + 가운데 16px + 왼쪽을 뒤집은 오른쪽 끝**으로 다시 짜 맞춰, 어떤 크기로 늘려도 모서리 장식이 찌그러지지 않게 합니다.
+- **판**은 회색조로 바꿔 저장합니다 → 버튼마다 지금까지 쓰던 색(파랑 · 금색 · 초록 · 빨강 · 옅은 흰색)을 그대로 입힙니다. **금테**는 금색 부분만 따로 떼어 색을 입히지 않고 겹칩니다.
+- 판이 옅은 버튼(꺼진 탭 · 닫기 · 비활성)은 금테도 같이 옅어집니다([ButtonFx](../Assets/_Project/Scripts/UI/ButtonFx.cs)).
+- 9-slice 테두리(좌우 96 · 위아래 44)는 [ArtImportSettings](../Assets/_Project/Scripts/Editor/ArtImportSettings.cs)가 임포트할 때 넣습니다. 규격을 바꾸면 스크립트의 `CAP` · `HEIGHT`와 `ButtonBorder` · `UIFactory.ButtonArtScale`을 같이 맞추세요.
+
 ## 직접 만든 그림 넣기
 
 1. [art-prompts.md](art-prompts.md)에서 프롬프트를 복사해 아무 이미지 도구로 생성(또는 직접 그림).
@@ -99,7 +133,7 @@ node tools/art/generate-art.js --write-prompts
 
 ## Unity 임포트 설정
 
-[ArtImportSettings.cs](../Assets/_Project/Scripts/Editor/ArtImportSettings.cs)가 `Resources/Art/` 아래 이미지를 **처음 임포트할 때** Sprite로 바꾸고 종류별 최대 크기(배경·배너 2048 · 캐릭터 1024 · 적 512 · 그 외 256)를 맞춥니다.
+[ArtImportSettings.cs](../Assets/_Project/Scripts/Editor/ArtImportSettings.cs)가 `Resources/Art/` 아래 이미지를 **처음 임포트할 때** Sprite로 바꾸고 종류별 최대 크기(배경·배너 2048 · 캐릭터 · 배경 없는 일러스트 1024 · 적 512 · 그 외 256)를 맞춥니다. 버튼 그림(`UI/button_*`)에는 9-slice 테두리도 넣습니다.
 프로젝트 기본 모드가 3D라 이 설정이 없으면 일반 텍스처로 들어와 게임이 찾지 못합니다.
 
 - 이미 임포트된 이미지의 설정은 건드리지 않습니다(인스펙터에서 바꾼 값 유지).

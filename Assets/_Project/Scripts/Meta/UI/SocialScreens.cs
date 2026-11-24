@@ -121,8 +121,9 @@ namespace SubcultureRPG.Meta.UI
                 _tabs[i] = TopButton(names[i], -620 + i * 250, -104, 236, Dim, () => { _tab = idx; _found = -1; Refresh(); });
             }
             _info = Text(_frame, "", 20, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.Right);
-            Top(_info.rectTransform, 160, -166, 900, 32, new Vector2(0.5f, 1));   // 탭 줄 아래(재화 · 버튼과 겹치지 않게)
-            _greetAll = TopButton("모두 인사", 655, -104, 170, Green, () =>
+            Top(_info.rectTransform, 90, -186, 920, 32, new Vector2(0.5f, 1));    // 탭 줄 아래, '모두 인사' 버튼 왼쪽
+            // 재화 표시(행동력 '가득참' 글자)와 붙지 않게 탭 줄이 아니라 목록 바로 위 오른쪽 끝에 둠
+            _greetAll = TopButton("모두 인사", 645, -176, 190, Green, () =>
             {
                 int n = PlayerSocial.Instance.GreetAll();
                 Toast(n > 0 ? $"{n}명에게 인사 — 행동력 +{n * PlayerSocial.GreetStamina} · 금화 +{n * PlayerSocial.GreetGold:N0}" : "오늘은 모두에게 인사했습니다");

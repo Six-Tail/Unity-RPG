@@ -8,11 +8,11 @@
 
 ## 테마 (2주씩 돌아가며)
 
-| 테마 | 보너스 속성 | 적(정령 · 수호자) | 배경 |
-|---|---|---|---|
-| 홍염 축제 | 화염 | 불꽃 정령 · 화염 수호자 | `battle_ch11` |
-| 서리 축제 | 얼음 | 서리 정령 · 서리 수호자 | `battle_ch10` |
-| 뇌명 축제 | 번개 | 번개 정령 · 뇌광 수호자 | `battle_ch12` |
+| 테마 | 보너스 속성 | 적(정령 · 수호자) | 진행 캐릭터 | 전투 배경 |
+|---|---|---|---|---|
+| 홍염 축제 (`ember`) | 화염 | 불꽃 정령 · 화염 수호자 | 에스텔 | `battle_ch11` |
+| 서리 축제 (`frost`) | 얼음 | 서리 정령 · 서리 수호자 | 오로라 | `battle_ch10` |
+| 뇌명 축제 (`thunder`) | 번개 | 번개 정령 · 뇌광 수호자 | 레나 | `battle_ch12` |
 
 적은 스테이지 데이터(돌파 던전)의 같은 이름 유닛을 복제해 레벨만 바꿔 씁니다. 약점도 그 유닛을 따릅니다.
 
@@ -62,4 +62,17 @@
 
 - 수치: `LimitedEvent`의 `Themes` · `Difficulties` · `Milestones` · `ShopItems`. 개방 장: `FeatureGate.EventChapter`.
 - 테스트: LimitedEvent 컴포넌트(실행 중 생기는 `LimitedEvent` 오브젝트) ⋮ → `테스트: 도전 횟수 초기화` · `테스트: 축제 코인 +3,000`.
-- 이미지: 코인 아이콘 `Items/EventCoin`(아직 없음 — 없으면 아이콘 없이 표시. `node tools/art/generate-art.js --key EventCoin`으로 생성).
+
+## 이미지
+
+`Assets/_Project/Resources/Art/Events/` — 테마 id(`ember` · `frost` · `thunder`)마다 3장. 없으면 아래 대체 표시로 나옵니다.
+
+| 파일 | 크기 | 쓰이는 곳 | 없을 때 |
+|---|---|---|---|
+| `{id}_bg.jpg` | 1920×1080 | 이벤트 화면 배경 · 홈 이벤트 배너의 바탕(배너 모양에 맞춰 잘림) | 테마 전투 배경 / 단색 배너 |
+| `{id}_host.png` | 768×1024 | 이벤트 화면 왼쪽의 진행 캐릭터 일러스트(테마 색 액자) — 축제 차림 | 수호자 그림 |
+| `{id}_emblem.png` | 256×256 (투명) | 이벤트 화면 테마 이름 옆 · 홈 이벤트 배너 아이콘 | 축제 코인 아이콘 |
+
+- 코인 아이콘: `Items/EventCoin`.
+- 진행 캐릭터 일러스트는 그 캐릭터의 일러스트(`Characters/{id}.png`)를 참고 이미지로 넣어 같은 인물로 그립니다.
+- 생성: `node tools/art/generate-art.js --studio "<스튜디오 폴더>" --only events` (프롬프트는 `tools/art/art-manifest.js`의 `EVENTS`). 테마를 추가하면 `LimitedEvent.Themes`와 `EVENTS`에 같은 id로 넣습니다.

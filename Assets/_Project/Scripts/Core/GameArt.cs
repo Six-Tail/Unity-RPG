@@ -10,6 +10,7 @@ namespace SubcultureRPG
     /// (없으면 null → 각 화면은 지금까지의 글자·색 표시로 대체)
     ///
     ///   Characters/{캐릭터 id}      전신·반신 일러스트 (예: Characters/c_seraphine)
+    ///   Cutouts/{캐릭터 id}         배경 없는 일러스트 — 스토리 대화 · 홈 화면처럼 배경 위에 인물만 세울 때 (없으면 일러스트 사용)
     ///   Thumbs/{캐릭터 id}          얼굴 썸네일 (없으면 일러스트 사용)
     ///   Enemies/{적 이름}           적 일러스트 (예: Enemies/그림자병)
     ///   Items/{MaterialType 이름}   재료 아이콘 (예: Items/ExpSmall, Items/FireAsc2)
@@ -61,6 +62,24 @@ namespace SubcultureRPG
             if (s != null) return s;
             if (c.thumbnail != null) return c.thumbnail;
             return Load("Thumbs/" + KeyOf(c));
+        }
+
+        /// <summary>배경 없는 캐릭터 일러스트(Cutouts/{id}). 없으면 null.</summary>
+        public static Sprite Cutout(CharacterData c) => c == null ? null : Load("Cutouts/" + KeyOf(c));
+
+        /// <summary>
+        /// 배경 위에 세울 인물 그림: "Characters/…" 경로면 배경 없는 버전(Cutouts/…)을 먼저 찾고, 없으면 그 경로 그대로.
+        /// (적 그림 등 다른 경로는 원래 배경이 없으므로 그대로 씀)
+        /// </summary>
+        public static Sprite Standing(string path)
+        {
+            const string prefix = "Characters/";
+            if (!string.IsNullOrEmpty(path) && path.StartsWith(prefix))
+            {
+                var s = Load("Cutouts/" + path.Substring(prefix.Length));
+                if (s != null) return s;
+            }
+            return Load(path);
         }
 
         /// <summary>캐릭터 썸네일: 에셋에 직접 연결한 thumbnail → Thumbs/{id} → 일러스트.</summary>

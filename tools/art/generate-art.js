@@ -108,7 +108,7 @@ function writePrompts() {
   L.push('로컬 Flux 모델에서는 붙이지 마세요 — 그 말 때문에 오히려 글자가 그려집니다. (일괄 생성 스크립트는 모델에 맞춰 자동 처리)', '');
   const title = {
     characters: '캐릭터 일러스트 (3:4)', enemies: '적 일러스트 (1:1)', items: '재료 아이콘 (1:1)',
-    equipment: '장비 부위 아이콘 (1:1)', status: '전투 상태 아이콘 (1:1)', gacha: '가챠 연출 소품', title: '타이틀 로고 · 키 아트', backgrounds: '화면 배경 (16:9)', banners: '가챠 배너 그림 (16:9)',
+    equipment: '장비 부위 아이콘 (1:1)', status: '전투 상태 아이콘 (1:1)', gacha: '가챠 연출 소품', title: '타이틀 로고 · 키 아트', events: '기간 한정 이벤트 (배경 · 일러스트 · 엠블럼)', backgrounds: '화면 배경 (16:9)', banners: '가챠 배너 그림 (16:9)',
   };
   for (const g of GROUPS) {
     const list = entries.filter((e) => e.group === g);

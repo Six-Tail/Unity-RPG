@@ -32,18 +32,24 @@ namespace SubcultureRPG.Meta
             public string id, name, tagline;
             public Element element;
             public string minion, guardian;   // 적 이름(스테이지 데이터의 같은 이름 유닛을 빌려 씀)
-            public string background;         // 전투 · 화면 배경(Resources/Art/Backgrounds/…)
+            public string background;         // 전투 배경(Resources/Art/Backgrounds/…) — 이벤트 전용 그림이 없을 때 화면 배경으로도 씀
+            public string host;               // 축제 진행 캐릭터(일러스트의 주인공) 이름
             public Color color;
+
+            // 이벤트 전용 그림(Resources/Art/Events/…): 화면 배경 · 진행 캐릭터 일러스트 · 엠블럼
+            public string ArtBackground => "Events/" + id + "_bg";
+            public string ArtHost => "Events/" + id + "_host";
+            public string ArtEmblem => "Events/" + id + "_emblem";
         }
 
         public static readonly Theme[] Themes =
         {
             new() { id = "ember", name = "홍염 축제", tagline = "꺼지지 않는 불꽃의 밤", element = Element.Fire,
-                    minion = "불꽃 정령", guardian = "화염 수호자", background = "battle_ch11", color = new Color(1f, 0.5f, 0.3f) },
+                    minion = "불꽃 정령", guardian = "화염 수호자", background = "battle_ch11", host = "에스텔", color = new Color(1f, 0.5f, 0.3f) },
             new() { id = "frost", name = "서리 축제", tagline = "얼어붙은 별빛 아래에서", element = Element.Ice,
-                    minion = "서리 정령", guardian = "서리 수호자", background = "battle_ch10", color = new Color(0.55f, 0.8f, 1f) },
+                    minion = "서리 정령", guardian = "서리 수호자", background = "battle_ch10", host = "오로라", color = new Color(0.55f, 0.8f, 1f) },
             new() { id = "thunder", name = "뇌명 축제", tagline = "천둥이 울리는 왕좌의 연회", element = Element.Lightning,
-                    minion = "번개 정령", guardian = "뇌광 수호자", background = "battle_ch12", color = new Color(0.78f, 0.6f, 1f) },
+                    minion = "번개 정령", guardian = "뇌광 수호자", background = "battle_ch12", host = "레나", color = new Color(0.78f, 0.6f, 1f) },
         };
 
         // ---------------- 난이도 ----------------

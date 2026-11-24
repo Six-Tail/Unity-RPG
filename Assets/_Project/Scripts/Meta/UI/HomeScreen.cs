@@ -48,6 +48,7 @@ namespace SubcultureRPG.Meta.UI
         private TextMeshProUGUI _badgeName, _badgeTitle, _badgeLevel;
         private RectTransform _badgeExp;
         private RectTransform _assistMask;
+        private RectMask2D _assistSoft;
         private CanvasGroup _bubbleGroup;
         private Coroutine _bubbleRoutine, _bounceRoutine;
         private CharacterData _shown;
@@ -224,8 +225,13 @@ namespace SubcultureRPG.Meta.UI
                 _assistName.text = "";
                 return;
             }
-            var sprite = GameArt.Portrait(c);
+            // 움직이는 일러스트(태생 6성 — 배경 포함 반복 영상 · Live2D)가 있으면 그대로 움직이게 두고,
+            // 없는 캐릭터는 배경 없는 그림(Cutouts)을 세움(없으면 원래 일러스트)
             bool live = Live2DUI.Show(_assistant, c);
+            var cutout = live ? null : GameArt.Cutout(c);
+            var sprite = cutout != null ? cutout : GameArt.Portrait(c);
+            // 배경이 있는 그림 · 영상은 가장자리를 흐려 로비에 녹임. 배경 없는 그림은 좌우 끝만 살짝
+            if (_assistSoft != null) _assistSoft.softness = cutout != null ? new Vector2Int(40, 0) : new Vector2Int(170, 150);
             _assistant.sprite = sprite;
             _assistant.enabled = !live && sprite != null;
             _assistant.color = Color.white;
@@ -413,12 +419,12 @@ namespace SubcultureRPG.Meta.UI
             var root = UIFactory.Frame(_root.transform);
 
             // 대표 캐릭터(왼쪽, 아래에 붙여 크게) — 누르면 대사
-            // 일러스트는 자체 배경이 있는 직사각형이라, 가장자리를 부드럽게 지워 로비 배경에 녹임(RectMask2D softness)
+            // 배경 없는 일러스트(Cutouts)를 세움. 없어서 배경 있는 직사각형 일러스트를 쓸 때는 가장자리를 부드럽게 지워 로비 배경에 녹임(RectMask2D softness)
             _assistMask = UIFactory.NewRect("AssistantMask", root);
             UIFactory.Anchor(_assistMask, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0f));
             _assistMask.sizeDelta = new Vector2(820, 0); _assistMask.anchoredPosition = new Vector2(-380, 0);
-            var soft = _assistMask.gameObject.AddComponent<RectMask2D>();
-            soft.softness = new Vector2Int(170, 150);
+            _assistSoft = _assistMask.gameObject.AddComponent<RectMask2D>();
+            _assistSoft.softness = new Vector2Int(170, 150);
             _assistMask.SetAsFirstSibling();
 
             // 뒤쪽 은은한 빛(캐릭터가 배경에서 떠 보이게)
@@ -527,6 +533,7 @@ namespace SubcultureRPG.Meta.UI
 
         private TextMeshProUGUI _arenaLabel, _raidLabel, _guildLabel, _friendLabel, _eventLabel;
         private Image _eventBg;
+        private BackgroundArt _eventArt;
         private NotifyBadge _eventBadge;
 
         /// <summary>기간 한정 이벤트 배너(왼쪽, 대표 캐릭터 이름 위).</summary>
@@ -541,7 +548,14 @@ namespace SubcultureRPG.Meta.UI
             b.targetGraphic = _eventBg;
             b.onClick.AddListener(() => Nav(HubScreen.Event));
             _eventBg.gameObject.AddComponent<ButtonFx>();
-            var icon = GameArt.Load(LimitedEvent.CoinIcon);
+            // 이벤트 배경 그림을 배너에 맞춰 잘라 깖(없으면 단색)
+            var theme = LimitedEvent.CurrentTheme;
+            _eventArt = BackgroundArt.Create(rt, 0.42f);
+            _eventArt.Set(theme.ArtBackground);
+            var artClip = rt.Find("BackgroundArt") as RectTransform;
+            if (artClip != null) UIFactory.Stretch(artClip, 3, 3, 3, 3);   // 테마 색 테두리가 보이게 살짝 안쪽으로
+            var icon = GameArt.Load(theme.ArtEmblem);
+            if (icon == null) icon = GameArt.Load(LimitedEvent.CoinIcon);
             float textLeft = 22;
             if (icon != null)
             {
@@ -565,7 +579,10 @@ namespace SubcultureRPG.Meta.UI
             var theme = LimitedEvent.CurrentTheme;
             bool open = FeatureGate.EventOpen;
             var c = theme.color;
-            _eventBg.color = open ? new Color(c.r * 0.45f, c.g * 0.3f, c.b * 0.3f, 0.9f) : new Color(0.2f, 0.21f, 0.26f, 0.88f);
+            bool art = _eventArt != null && _eventArt.HasImage;
+            // 그림이 깔려 있으면 바탕은 테두리 색 역할만(잠겨 있으면 어둡게)
+            _eventBg.color = !open ? new Color(0.2f, 0.21f, 0.26f, art ? 1f : 0.88f)
+                : art ? new Color(c.r, c.g, c.b, 1f) : new Color(c.r * 0.45f, c.g * 0.3f, c.b * 0.3f, 0.9f);
             var t = LimitedEvent.Remaining;
             string hex = "#" + ColorUtility.ToHtmlStringRGB(c);
             _eventLabel.text = $"<size=60%><color=#FFE08A>기간 한정 이벤트</color></size>\n<color={hex}>{theme.name}</color>  " +

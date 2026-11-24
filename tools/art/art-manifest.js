@@ -265,6 +265,7 @@ const RAID_BOSS = ['별을 삼키는 자', 'a colossal cosmic dragon-like devour
 
 const BG_DARK = {
   enemies: 'simple dark misty background', items: 'plain very dark navy background', equipment: 'plain very dark navy background',
+  events: 'plain very dark navy background',
   status: 'plain very dark navy background', gacha: 'plain very dark navy background', title: 'plain very dark navy background',
 };
 
@@ -294,6 +295,29 @@ const ELEMENT_ICONS = [
   ['Wind', '바람', 'a bright green swirling wind gust emblem'],
 ];
 const BG_CLEAR = 'isolated on a fully transparent background, no backdrop, no ground shadow';
+
+// 기간 한정 이벤트(LimitedEvent.Themes 와 같은 id) — 테마마다 배경 · 진행 캐릭터 일러스트 · 엠블럼
+// [테마 id, 이름, 진행 캐릭터 id, 축제 배경, 진행 캐릭터의 축제 차림 · 장면, 엠블럼]
+const EVENTS = [
+  ['ember', '홍염 축제', 'c_estelle',
+    'a lively fantasy town plaza at night during a fire festival, a great bonfire in the center, rows of glowing red and orange paper lanterns strung between buildings, ' +
+    'festival stalls with warm lights, fireworks blooming in the dark sky, drifting embers',
+    'wearing a festive fire-festival version of her outfit: a white and red festival robe with gold trim and a flower hair ornament, holding a glowing red paper lantern, ' +
+    'bright joyful smile, behind her a night festival with red lanterns, a bonfire and fireworks',
+    'a festival emblem badge: a stylized golden bonfire flame inside a round red paper lantern, small sparks around it'],
+  ['frost', '서리 축제', 'c_aurora',
+    'a frozen lake at night during an ice lantern festival, glowing pale-blue ice lanterns and ice sculptures on the ice, snow-covered pine trees with hanging lights, ' +
+    'a bright green and pink aurora across the starry sky, softly falling snow',
+    'wearing a festive winter-festival version of her outfit: a white fur-trimmed cape over a pale blue dress with snowflake ornaments, holding a glowing ice lantern, ' +
+    'gentle happy smile, behind her a frozen lake festival with ice lanterns and an aurora in the night sky',
+    'a festival emblem badge: a glowing pale-blue snowflake crystal inside a round ice lantern with a silver ring'],
+  ['thunder', '뇌명 축제', 'c_rena',
+    'a grand open-air banquet terrace of a mountaintop palace during a storm festival, long tables with golden cups, tall violet and gold banners without any writing, ' +
+    'crystal lightning-rod lamps glowing violet, dramatic storm clouds with distant lightning beyond the marble pillars',
+    'wearing a festive storm-festival version of her outfit: a short black and violet jacket with gold lightning-bolt embroidery over a party dress, holding a glowing violet crystal lamp, ' +
+    'energetic playful grin, behind her a palace banquet terrace with violet lamps and lightning in the storm clouds',
+    'a festival emblem badge: a bright violet lightning bolt crossing a golden goblet inside a round gold ring'],
+];
 
 function withBackground(e, text) {
   e.prompt = text.replace('%BG%', BG_DARK[e.group]);
@@ -436,6 +460,29 @@ function build() {
       prompt: `${look}. ${STYLE.background}`, negative: NEGATIVE + ', people, characters',
     });
 
+  // 기간 한정 이벤트: 테마별 배경(16:9) · 진행 캐릭터 일러스트(3:4, 캐릭터 일러스트 참고) · 엠블럼(1:1)
+  for (const [id, name, hostId, scene, hostLook, emblem] of EVENTS) {
+    const host = charById[hostId];
+    list.push({
+      group: 'events', key: `event_${id}_bg`, label: `${name} — 배경`,
+      out: `Events/${id}_bg.jpg`, aspect: '16:9', resolution: '2K', width: 1920, height: 1080, format: 'jpg',
+      prompt: `${scene}. ${STYLE.background}`, negative: NEGATIVE + ', people, characters',
+    });
+    list.push({
+      group: 'events', key: `event_${id}_host`, label: `${name} — 진행 캐릭터 일러스트`,
+      out: `Events/${id}_host.png`, aspect: '3:4', resolution: '1K', width: 768, height: 1024, format: 'png',
+      ref: `Characters/${hostId}.png`,
+      prompt: `the same character as in the reference image (same face, same hair style and hair color, same eye color), ${LOOK_KIND(host.look)}, ${host.look.split(',').slice(0, 3).join(',')}, ` +
+              `${hostLook}. ${STYLE.character.replace('light airy background with soft glow and simple geometric accents, ', '')}`,
+      negative: NEGATIVE,
+    });
+    list.push(withBackground({
+      group: 'events', key: `event_${id}_emblem`, label: `${name} — 엠블럼`,
+      out: `Events/${id}_emblem.png`, aspect: '1:1', resolution: '1K', width: 256, height: 256, format: 'png',
+      negative: NEGATIVE + ', text, letters',
+    }, `${emblem}. ${STYLE.item}`));
+  }
+
   for (const [key, name, charId, scene] of BANNERS) {
     const c = charId ? charById[charId] : null;
     const prompt = c
@@ -451,4 +498,4 @@ function build() {
   return list;
 }
 
-module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'backgrounds', 'banners'] };
+module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'events', 'backgrounds', 'banners'] };

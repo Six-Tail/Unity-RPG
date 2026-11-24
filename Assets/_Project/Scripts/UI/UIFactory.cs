@@ -86,14 +86,20 @@ namespace SubcultureRPG.UI
             return t;
         }
 
+        // 버튼 그림(Resources/Art 기준)과 배율: 스프라이트 높이 128px 을 화면 64 로 씀(테두리 좌우 48 · 위아래 22)
+        public const string ButtonBaseArt = "UI/button_base", ButtonFrameArt = "UI/button_frame";
+        private const float ButtonArtScale = 2f;
+
         public static Button AddButton(string name, Transform parent, string label, float fontSize,
             TMP_FontAsset font, Color bg, Color fg)
         {
-            // 둥근 그라데이션 버튼(9-slice) + 그림자 + 눌림 효과. 색은 bg로 입힘(흰 스프라이트 × 색).
+            // 버튼 그림(9-slice) + 그림자 + 눌림 효과. 색은 bg로 입힘(회색조 판 × 색), 금테는 그 위에 색 그대로 겹침.
+            // 그림: Resources/Art/UI/button_base · button_frame (tools/art/generate-buttons.js). 없으면 코드로 그린 둥근 버튼.
             var img = AddImage(name, parent, bg, null, raycast: true);
-            img.sprite = ProceduralSprites.Button;
+            var plate = GameArt.Load(ButtonBaseArt);
+            img.sprite = plate != null ? plate : ProceduralSprites.Button;
             img.type = Image.Type.Sliced;
-            img.pixelsPerUnitMultiplier = 1.5f;
+            img.pixelsPerUnitMultiplier = plate != null ? ButtonArtScale : 1.5f;
             img.preserveAspect = false;
             var shadow = img.gameObject.AddComponent<Shadow>();
             shadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
@@ -107,7 +113,20 @@ namespace SubcultureRPG.UI
             colors.disabledColor = new Color(0.55f, 0.55f, 0.58f, 0.55f);
             colors.fadeDuration = 0.08f;
             btn.colors = colors;
-            img.gameObject.AddComponent<ButtonFx>();
+            var fx = img.gameObject.AddComponent<ButtonFx>();
+
+            // 금테: 판이 옅은 버튼(꺼진 탭 · 비활성)에서는 같이 옅어지도록 ButtonFx 가 투명도를 맞춤
+            var rim = plate != null ? GameArt.Load(ButtonFrameArt) : null;
+            if (rim != null)
+            {
+                var frame = AddImage("Frame", img.transform, Color.white, rim);
+                frame.type = Image.Type.Sliced;
+                frame.pixelsPerUnitMultiplier = ButtonArtScale;
+                frame.preserveAspect = false;
+                Stretch(frame.rectTransform);
+                frame.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;   // 버튼에 레이아웃 그룹을 붙여도 테두리는 그대로
+                fx.SetFrame(frame, img);
+            }
 
             var txt = AddText("Label", img.transform, label, fontSize, font, fg, TextAlignmentOptions.Center, FontStyles.Bold);
             Stretch(txt.rectTransform, 8, 2, 8, 2);

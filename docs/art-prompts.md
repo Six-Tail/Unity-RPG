@@ -1121,6 +1121,80 @@ a game logo emblem: an ornate golden ship anchor whose top is a brilliant four-p
 the two women from the reference image standing back to back in the center of a wide key visual, both fully visible from the knees up: on the left an adult woman with long crimson hair with ember-orange tips, golden eyes, black and red battle dress with gold trim, holding a flaming greatsword, confident smile; on the right an adult woman with a silver-white bob haircut, pale blue eyes, white and navy military coat with a fur collar, holding twin slender ice rapiers, calm cold gaze; the background is split diagonally between a burning crimson night sky with falling embers and a frozen pale-blue sky with drifting snow crystals, a faint golden star-and-anchor constellation between them, dynamic heroic poses, open empty space along the bottom for a title. subculture mobile gacha game title key visual in modern Japanese and Korean anime style, wide 16:9 composition, beautiful youthful faces with large detailed sparkling eyes, crisp thin line art, bright clean cel shading with glossy highlights, luminous dramatic lighting, high quality
 ```
 
+## 기간 한정 이벤트 (배경 · 일러스트 · 엠블럼) — 9장
+
+### 홍염 축제 — 배경
+
+- 파일: `Events/ember_bg.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a lively fantasy town plaza at night during a fire festival, a great bonfire in the center, rows of glowing red and orange paper lanterns strung between buildings, festival stalls with warm lights, fireworks blooming in the dark sky, drifting embers. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 홍염 축제 — 진행 캐릭터 일러스트
+
+- 파일: `Events/ember_host.png` · 768×1024 · 화면비 3:4 · 참고 이미지 `Characters/c_estelle.png`
+
+```
+the same character as in the reference image (same face, same hair style and hair color, same eye color), bishoujo-style beautiful anime heroine, adult woman, wavy strawberry-blonde hair, warm orange eyes, wearing a festive fire-festival version of her outfit: a white and red festival robe with gold trim and a flower hair ornament, holding a glowing red paper lantern, bright joyful smile, behind her a night festival with red lanterns, a bonfire and fireworks. subculture mobile gacha game character illustration in modern Japanese and Korean anime style, beautiful youthful face with large detailed sparkling eyes, soft blush, slim stylish proportions, crisp thin line art, bright clean cel shading with soft pastel gradients and glossy highlights, trendy fashionable costume design mixing modern streetwear and uniform-jacket details with fantasy gear, lively charming pose and expression, original character design, single character, knee-up portrait, camera pulled back so the entire head and all of the hair are fully inside the frame with clear empty space above the head, face in the upper third of the frame, vertical composition, high quality
+```
+
+### 홍염 축제 — 엠블럼
+
+- 파일: `Events/ember_emblem.png` · 256×256 · 화면비 1:1
+
+```
+a festival emblem badge: a stylized golden bonfire flame inside a round red paper lantern, small sparks around it. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 서리 축제 — 배경
+
+- 파일: `Events/frost_bg.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a frozen lake at night during an ice lantern festival, glowing pale-blue ice lanterns and ice sculptures on the ice, snow-covered pine trees with hanging lights, a bright green and pink aurora across the starry sky, softly falling snow. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 서리 축제 — 진행 캐릭터 일러스트
+
+- 파일: `Events/frost_host.png` · 768×1024 · 화면비 3:4 · 참고 이미지 `Characters/c_aurora.png`
+
+```
+the same character as in the reference image (same face, same hair style and hair color, same eye color), bishoujo-style beautiful anime heroine, adult woman, very long hair fading from teal to pink, violet eyes, wearing a festive winter-festival version of her outfit: a white fur-trimmed cape over a pale blue dress with snowflake ornaments, holding a glowing ice lantern, gentle happy smile, behind her a frozen lake festival with ice lanterns and an aurora in the night sky. subculture mobile gacha game character illustration in modern Japanese and Korean anime style, beautiful youthful face with large detailed sparkling eyes, soft blush, slim stylish proportions, crisp thin line art, bright clean cel shading with soft pastel gradients and glossy highlights, trendy fashionable costume design mixing modern streetwear and uniform-jacket details with fantasy gear, lively charming pose and expression, original character design, single character, knee-up portrait, camera pulled back so the entire head and all of the hair are fully inside the frame with clear empty space above the head, face in the upper third of the frame, vertical composition, high quality
+```
+
+### 서리 축제 — 엠블럼
+
+- 파일: `Events/frost_emblem.png` · 256×256 · 화면비 1:1
+
+```
+a festival emblem badge: a glowing pale-blue snowflake crystal inside a round ice lantern with a silver ring. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 뇌명 축제 — 배경
+
+- 파일: `Events/thunder_bg.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a grand open-air banquet terrace of a mountaintop palace during a storm festival, long tables with golden cups, tall violet and gold banners without any writing, crystal lightning-rod lamps glowing violet, dramatic storm clouds with distant lightning beyond the marble pillars. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 뇌명 축제 — 진행 캐릭터 일러스트
+
+- 파일: `Events/thunder_host.png` · 768×1024 · 화면비 3:4 · 참고 이미지 `Characters/c_rena.png`
+
+```
+the same character as in the reference image (same face, same hair style and hair color, same eye color), bishoujo-style beautiful anime heroine, adult woman, yellow twin-tails with a black streak, purple eyes, wearing a festive storm-festival version of her outfit: a short black and violet jacket with gold lightning-bolt embroidery over a party dress, holding a glowing violet crystal lamp, energetic playful grin, behind her a palace banquet terrace with violet lamps and lightning in the storm clouds. subculture mobile gacha game character illustration in modern Japanese and Korean anime style, beautiful youthful face with large detailed sparkling eyes, soft blush, slim stylish proportions, crisp thin line art, bright clean cel shading with soft pastel gradients and glossy highlights, trendy fashionable costume design mixing modern streetwear and uniform-jacket details with fantasy gear, lively charming pose and expression, original character design, single character, knee-up portrait, camera pulled back so the entire head and all of the hair are fully inside the frame with clear empty space above the head, face in the upper third of the frame, vertical composition, high quality
+```
+
+### 뇌명 축제 — 엠블럼
+
+- 파일: `Events/thunder_emblem.png` · 256×256 · 화면비 1:1
+
+```
+a festival emblem badge: a bright violet lightning bolt crossing a golden goblet inside a round gold ring. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
 ## 화면 배경 (16:9) — 55장
 
 ### 스토리 1장 — 숲의 입구
