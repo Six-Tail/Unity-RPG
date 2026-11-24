@@ -31,6 +31,9 @@ namespace SubcultureRPG.Meta.UI
         private System.Action _onBack;
         private System.Action<List<CharacterData>> _launchHandler;   // null이면 launcher 기본 전투
         private RosterFilterBar _filterBar;
+        private readonly List<TextMeshProUGUI> _presetLabels = new();
+        private Button _autoEquipBtn, _saveBtn;
+        private PlayerEquipment _equipment;
 
         /// <summary>'전투 시작'으로 전투에 들어갔을 때.</summary>
         public event System.Action OnLaunched;
@@ -69,6 +72,9 @@ namespace SubcultureRPG.Meta.UI
 
         public void Show(bool on)
         {
+            // 선택이 비어 있으면 직전에 출격한 파티로 채움
+            if (on && _selected.Count == 0 && roster != null)
+                foreach (var c in PartyPresets.Last(roster)) if (_selected.Count < maxParty) _selected.Add(c);
             if (on) Rebuild();
             if (_root != null) _root.SetActive(on);
         }
@@ -163,6 +169,37 @@ namespace SubcultureRPG.Meta.UI
             srt.sizeDelta = new Vector2(280, 72); srt.anchoredPosition = new Vector2(0, 60);
             _startButton.onClick.AddListener(OnStart);
             _startLabel = _startButton.GetComponentInChildren<TextMeshProUGUI>();
+
+            // 프리셋(왼쪽 아래): 1 ~ 5 불러오기 + 저장
+            var presetTitle = UIFactory.AddText("PresetTitle", _root.transform, "편성 프리셋", 18, font, new Color(0.8f, 0.83f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UIFactory.Anchor(presetTitle.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            presetTitle.rectTransform.sizeDelta = new Vector2(300, 28); presetTitle.rectTransform.anchoredPosition = new Vector2(44, 128);
+            for (int i = 0; i < PartyPresets.Slots; i++)
+            {
+                int slot = i;
+                var pb = UIFactory.AddButton("Preset", _root.transform, "", 20, font, new Color(0.3f, 0.42f, 0.62f, 0.95f), Color.white);
+                var prt = (RectTransform)pb.transform;
+                UIFactory.Anchor(prt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+                prt.sizeDelta = new Vector2(100, 66); prt.anchoredPosition = new Vector2(40 + i * 108, 54);
+                var pl = pb.GetComponentInChildren<TextMeshProUGUI>();
+                pl.richText = true; pl.lineSpacing = -12f;
+                _presetLabels.Add(pl);
+                pb.onClick.AddListener(() => LoadPreset(slot));
+            }
+            _saveBtn = UIFactory.AddButton("SavePreset", _root.transform, "저장", 22, font, new Color(0.25f, 0.6f, 0.55f, 0.96f), Color.white);
+            var svrt = (RectTransform)_saveBtn.transform;
+            UIFactory.Anchor(svrt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            svrt.sizeDelta = new Vector2(100, 66); svrt.anchoredPosition = new Vector2(40 + PartyPresets.Slots * 108 + 8, 54);
+            _saveBtn.onClick.AddListener(OpenSavePreset);
+
+            // 장비 자동 장착(오른쪽 아래)
+            _autoEquipBtn = UIFactory.AddButton("AutoEquip", _root.transform, "장비 자동 장착\n<size=65%>선택한 파티</size>", 22, font, new Color(0.55f, 0.4f, 0.75f, 0.96f), Color.white);
+            var aert = (RectTransform)_autoEquipBtn.transform;
+            UIFactory.Anchor(aert, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            aert.sizeDelta = new Vector2(250, 72); aert.anchoredPosition = new Vector2(-40, 52);
+            var ael = _autoEquipBtn.GetComponentInChildren<TextMeshProUGUI>();
+            ael.richText = true; ael.lineSpacing = -14f;
+            _autoEquipBtn.onClick.AddListener(AutoEquipParty);
 
             // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
             _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
@@ -321,12 +358,84 @@ namespace SubcultureRPG.Meta.UI
             _countText.text = _selected.Count == 0 ? $"선택 0 / {maxParty}   <size=80%><color=#9AA3B5>캐릭터를 눌러 파티에 넣으세요</color></size>"
                 : $"선택 {_selected.Count} / {maxParty}   <size=80%><color=#7FE3FF>{string.Join(" · ", names)}</color></size>";
             _startButton.interactable = _selected.Count >= 1;
+            if (_autoEquipBtn != null) _autoEquipBtn.interactable = _selected.Count >= 1;
+            if (_saveBtn != null) _saveBtn.interactable = _selected.Count >= 1;
+            for (int i = 0; i < _presetLabels.Count; i++)
+            {
+                int n = PartyPresets.CountOf(i);
+                _presetLabels[i].text = $"<b>{i + 1}</b>\n<size=62%>{(n > 0 ? $"{n}명" : "<color=#9AA3B5>비어 있음</color>")}</size>";
+            }
+        }
+
+        // ---------------- 프리셋 ----------------
+
+        private void LoadPreset(int slot)
+        {
+            var party = PartyPresets.Get(slot, roster);
+            if (party.Count == 0)
+            {
+                Popups.Show($"프리셋 {slot + 1}", "비어 있는 프리셋입니다.\n파티를 고른 뒤 '저장'을 눌러 이 칸에 저장하세요.");
+                return;
+            }
+            _selected.Clear();
+            foreach (var c in party) if (_selected.Count < maxParty) _selected.Add(c);
+            RefreshSelection();
+            UpdateBottom();
+        }
+
+        private void OpenSavePreset()
+        {
+            if (_selected.Count == 0) return;
+            var w = OverlayWindow.Open("편성 프리셋에 저장", 980, 640, font);
+            var names = new List<string>();
+            foreach (var c in _selected) names.Add(c.displayName);
+            w.Text(w.Panel, $"<color=#9AA3B5>지금 파티</color>  <color=#7FE3FF>{string.Join(" · ", names)}</color>", 22, Color.white,
+                TextAlignmentOptions.Left, 36, -86, 900, 34);
+            for (int i = 0; i < PartyPresets.Slots; i++)
+            {
+                int slot = i;
+                float y = -136 - i * 96;
+                var row = w.Box(w.Panel, new Color(1, 1, 1, 0.06f), 36, y, 908, 84);
+                var members = PartyPresets.Get(i, roster);
+                var mn = new List<string>();
+                foreach (var c in members) mn.Add(c.displayName);
+                w.Text(row.transform, $"<b>프리셋 {i + 1}</b>", 24, Color.white, TextAlignmentOptions.Left, 22, -10, 200, 34);
+                w.Text(row.transform, mn.Count > 0 ? string.Join(" · ", mn) : "<color=#9AA3B5>비어 있음</color>", 19, new Color(0.85f, 0.88f, 0.94f),
+                    TextAlignmentOptions.Left, 22, -46, 640, 30);
+                w.Btn(row.transform, mn.Count > 0 ? "덮어쓰기" : "여기에 저장", 20, OverlayWindow.Green, 908 - 200, -14, 180, 56, () =>
+                {
+                    PartyPresets.Set(slot, _selected);
+                    w.Close();
+                    UpdateBottom();
+                });
+            }
+        }
+
+        // ---------------- 장비 자동 장착 ----------------
+
+        private void AutoEquipParty()
+        {
+            if (_selected.Count == 0) return;
+            if (_equipment == null) _equipment = FindAnyObjectByType<PlayerEquipment>();
+            if (_equipment == null || roster == null) return;
+            var lines = new List<string>();
+            int total = 0;
+            foreach (var c in _selected)   // 출전 순서대로 좋은 장비를 먼저 가져감
+            {
+                var (changed, before, after) = _equipment.AutoEquip(c, roster);
+                total += changed;
+                string diff = after > before ? $"<color=#7BE39A>+{after - before:N0}</color>" : "<color=#9AA3B5>그대로</color>";
+                lines.Add($"{c.displayName}  <size=85%>{(changed > 0 ? $"{changed}부위 교체" : "바꿀 장비 없음")} · 전투력 {after:N0} ({diff})</size>");
+            }
+            Popups.Show("장비 자동 장착", (total > 0 ? "" : "<color=#9AA3B5>이미 가장 좋은 장비를 끼고 있습니다</color>\n\n") + string.Join("\n", lines) +
+                "\n\n<size=80%><color=#9AA3B5>장착하지 않은 장비와 그 캐릭터가 낀 장비 중에서 고릅니다(다른 캐릭터의 장비는 그대로)</color></size>");
         }
 
         private void OnStart()
         {
             if (_selected.Count == 0) return;
             var team = new List<CharacterData>(_selected);
+            PartyPresets.SetLast(team);   // 다음에 편성 화면을 열면 이 파티로
             if (_launchHandler != null) _launchHandler(team);
             else if (launcher != null) launcher.Launch(team);
             else return;

@@ -85,6 +85,7 @@ namespace SubcultureRPG.Meta.UI
             _missions = FindAnyObjectByType<PlayerMissions>();
             if (_missions != null) _missions.OnChanged += RefreshMissionBadge;
             PlayerAchievements.Instance.OnChanged += RefreshMissionBadge;
+            SeasonPass.Instance.OnChanged += RefreshBadges;
             _codex = FindAnyObjectByType<PlayerCodex>();
             if (_codex != null) _codex.OnChanged += RefreshCodexButton;
             PlayerBond.Instance.OnChanged += RefreshBond;
@@ -95,6 +96,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_missions != null) _missions.OnChanged -= RefreshMissionBadge;
             if (FindAnyObjectByType<PlayerAchievements>() is PlayerAchievements ach) ach.OnChanged -= RefreshMissionBadge;
+            if (FindAnyObjectByType<SeasonPass>() is SeasonPass sp) sp.OnChanged -= RefreshBadges;
             if (_codex != null) _codex.OnChanged -= RefreshCodexButton;
             if (FindAnyObjectByType<PlayerBond>() is PlayerBond bond) bond.OnChanged -= RefreshBond;
             var pf = FindAnyObjectByType<PlayerProfile>();
@@ -546,10 +548,12 @@ namespace SubcultureRPG.Meta.UI
             float iconX = -50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14 - 78;
             var attend = IconButton(root, "Items/UiAttendance", "출석", new Vector2(iconX - 78, -30), () => AttendanceWindow.Open(font));
             var mailBtn = IconButton(root, "Items/UiMail", "우편", new Vector2(iconX - 156, -30), () => MailWindow.Open(font));
+            var passBtn = IconButton(root, "Items/UiPass", "패스", new Vector2(iconX - 234, -30), () => SeasonPassWindow.Open(font));
 
             // 빨간 느낌표: 받지 않은 보상 · 할 일이 있는 곳
             _attendBadge = NotifyBadge.Attach(attend, font, 8, 8, 28);
             _mailBadge = NotifyBadge.Attach(mailBtn, font, 8, 8, 28);
+            _passBadge = NotifyBadge.Attach(passBtn, font, 8, 8, 28);
             _stageBadge = NotifyBadge.Attach(stage, font);
             _missionBadge = NotifyBadge.Attach(mission, font);
             _raidBadge = NotifyBadge.Attach(raidBtn, font);
@@ -624,7 +628,7 @@ namespace SubcultureRPG.Meta.UI
             _eventBadge.Set(open && (ev.ClaimableCount > 0 || ev.AttemptsLeft == LimitedEvent.AttemptsPerDay));
         }
 
-        private NotifyBadge _profileBadge, _stageBadge, _missionBadge, _raidBadge, _guildBadge, _friendBadge, _mailBadge, _attendBadge;
+        private NotifyBadge _profileBadge, _stageBadge, _missionBadge, _raidBadge, _guildBadge, _friendBadge, _mailBadge, _attendBadge, _passBadge;
         private Button _stageTile, _arenaTile, _raidTile;
         private Color _arenaColor, _raidColor;
         private StageScreen _stageScreen;
@@ -636,7 +640,8 @@ namespace SubcultureRPG.Meta.UI
             if (_mailBadge == null) return;
             _mailBadge.Set(PlayerMail.Instance.UnclaimedCount > 0);
             _attendBadge.Set(PlayerAttendance.Instance.CanClaimAny);
-            _missionBadge.Set(_missions != null && _missions.ClaimableCount() > 0);
+            if (_passBadge != null) _passBadge.Set(SeasonPass.Instance.ClaimableCount() > 0);
+            _missionBadge.Set((_missions != null && _missions.ClaimableCount() > 0) || PlayerAchievements.Instance.ClaimableCount() > 0);
             _raidBadge.Set(FeatureGate.RaidOpen && WorldRaid.Instance.ClaimableCount > 0);
             _guildBadge.Set(PlayerGuild.Instance.BadgeCount > 0);
             _friendBadge.Set(PlayerSocial.Instance.BadgeCount > 0);

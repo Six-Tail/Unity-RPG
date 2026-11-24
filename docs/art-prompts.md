@@ -407,7 +407,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 47장
+## 재료 아이콘 (1:1) — 48장
 
 ### 소형 경험치 물약
 
@@ -567,6 +567,14 @@ a festive golden coin engraved with a firework star, small colorful ribbons and 
 
 ```
 a cream-colored sealed envelope with a red wax seal stamped with a golden star, a small golden wing on each side. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 시즌 패스 아이콘
+
+- 파일: `Items/UiPass.png` · 256×256 · 화면비 1:1
+
+```
+an ornate golden season pass badge shaped like a shield with a big star in the center and a purple ribbon banner across the bottom, small sparkles. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 출석부 아이콘

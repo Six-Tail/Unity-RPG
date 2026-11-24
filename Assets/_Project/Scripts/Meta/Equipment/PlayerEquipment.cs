@@ -88,6 +88,51 @@ namespace SubcultureRPG.Meta
             Changed();
         }
 
+        /// <summary>
+        /// 자동 장착: 장착하지 않은 장비와 이 캐릭터가 낀 장비 중에서 전투력이 가장 높아지는 조합으로 바꿔 낍니다.
+        /// 부위마다 가장 좋은 것을 고르고(세트 효과까지 맞추려고 두 번 훑음), 다른 캐릭터가 낀 장비는 건드리지 않습니다.
+        /// 돌려주는 값 = (바꾼 부위 수, 전투력 변화 전, 후).
+        /// </summary>
+        public (int changed, int before, int after) AutoEquip(CharacterData c, PlayerRoster roster)
+        {
+            string k = Key(c);
+            using var ev = CombatPower.EvaluatorFor(c, roster);
+            if (ev == null || string.IsNullOrEmpty(k)) return (0, 0, 0);
+
+            var cur = new Dictionary<EquipSlot, EquipmentItem>();
+            foreach (var s in EquipStats.AllSlots) cur[s] = EquippedIn(c, s);
+            List<EquipmentItem> Combo()
+            {
+                var l = new List<EquipmentItem>();
+                foreach (var v in cur.Values) if (v != null) l.Add(v);
+                return l;
+            }
+            int before = ev.Power(Combo()), best = before;
+            for (int pass = 0; pass < 2; pass++)
+                foreach (var s in EquipStats.AllSlots)
+                    foreach (var cand in _items)
+                    {
+                        if (cand.slot != s || cand == cur[s] || (cand.IsEquipped && cand.owner != k)) continue;
+                        var prev = cur[s];
+                        cur[s] = cand;
+                        int p = ev.Power(Combo());
+                        if (p > best) best = p; else cur[s] = prev;
+                    }
+
+            int changed = 0;
+            foreach (var s in EquipStats.AllSlots)
+            {
+                var pick = cur[s];
+                if (pick == null || pick.owner == k) continue;
+                var old = EquippedIn(c, s);
+                if (old != null) old.owner = "";
+                pick.owner = k;
+                changed++;
+            }
+            if (changed > 0) Changed();
+            return (changed, before, best);
+        }
+
         public void Unequip(EquipmentItem it)
         {
             if (it == null || !it.IsEquipped) return;

@@ -56,6 +56,47 @@ namespace SubcultureRPG.Meta
             return power;
         }
 
+        /// <summary>
+        /// 장비 조합 평가용(자동 장착): 같은 캐릭터를 장비만 바꿔 여러 번 계산합니다. 유닛 데이터는 한 번만 만들고 Dispose 때 정리.
+        /// 호감도 보너스는 포함, 장비는 Power(items)로 넘긴 것만.
+        /// </summary>
+        public sealed class Evaluator : System.IDisposable
+        {
+            private readonly BattleUnitData _data;
+            private readonly int[] _levels;
+            private readonly StatBonus _bond;
+
+            internal Evaluator(BattleUnitData data, int[] levels, StatBonus bond) { _data = data; _levels = levels; _bond = bond; }
+
+            public int Power(IEnumerable<EquipmentItem> items)
+            {
+                var b = new StatBonus();
+                b.Add(_bond);
+                b.Add(EquipRules.BonusOf(items));
+                _data.bonus = b;
+                return Of(new BattleUnit(_data, Team.Ally, _cfg), _levels);
+            }
+
+            public void Dispose()
+            {
+                if (_data == null) return;
+                if (_data.skills != null) foreach (var sk in _data.skills) if (sk != null) Object.Destroy(sk);
+                Object.Destroy(_data);
+            }
+        }
+
+        /// <summary>보유 캐릭터의 장비 평가기(보유하지 않았으면 null).</summary>
+        public static Evaluator EvaluatorFor(CharacterData c, PlayerRoster roster)
+        {
+            if (c == null || roster == null) return null;
+            var o = roster.GetOwned(c);
+            if (o == null) return null;
+            if (_cfg == null) _cfg = BattleConfig.CreateDefault();
+            var levels = roster.EffectiveSkillLevels(c);
+            var data = RuntimeUnits.FromCharacter(c, o.level, null, o.skillLevel, roster.StarOf(c), roster.TranscendOf(c), levels);
+            return new Evaluator(data, levels, PlayerBond.BonusFor(c, null));
+        }
+
         /// <summary>보유 캐릭터 전투력 합계.</summary>
         public static long Total(PlayerRoster roster, PlayerEquipment equipment)
         {
