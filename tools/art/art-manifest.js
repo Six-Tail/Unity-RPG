@@ -149,6 +149,7 @@ const ITEMS = [
   ['UiBag', '가방 아이콘', 'a brown leather adventurer backpack with a buckle strap'],
   ['ArenaCoin', '결투장 아이콘', 'two crossed golden swords over a round red shield emblem'],
   ['RaidIcon', '주간 보스 아이콘', 'a menacing purple demon skull emblem with a swirling black hole behind it and golden horns'],
+  ['EventCoin', '축제 코인 (기간 한정 이벤트)', 'a festive golden coin engraved with a firework star, small colorful ribbons and confetti around it'],
   ['UiMail', '우편함 아이콘', 'a cream-colored sealed envelope with a red wax seal stamped with a golden star, a small golden wing on each side'],
   ['UiAttendance', '출석부 아이콘', 'a wall calendar page with a big golden star stamp on it and a red ribbon bookmark, blue header band'],
   ['Select5', '태생 5성 캐릭터 선택권', 'an ornate purple and silver ticket card with five small silver stars across the top and a glowing violet silhouette of a heroine in the center'],

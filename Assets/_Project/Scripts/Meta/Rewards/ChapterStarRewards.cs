@@ -113,7 +113,7 @@ namespace SubcultureRPG.Meta
     /// </summary>
     public static class FeatureGate
     {
-        public const int ArenaChapter = 3, RaidChapter = 3;
+        public const int ArenaChapter = 3, RaidChapter = 3, EventChapter = 2;
 
         /// <summary>쉬움 난이도에서 1장부터 이어서 클리어한 마지막 장(없으면 0).</summary>
         public static int ClearedChapters()
@@ -133,6 +133,7 @@ namespace SubcultureRPG.Meta
 
         public static bool ArenaOpen => ClearedChapters() >= ArenaChapter;
         public static bool RaidOpen => ClearedChapters() >= RaidChapter;
+        public static bool EventOpen => ClearedChapters() >= EventChapter;
         public static string LockText(int chapter) => $"{chapter}장 클리어 시 개방";
     }
 }

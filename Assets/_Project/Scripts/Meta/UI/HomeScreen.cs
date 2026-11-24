@@ -170,6 +170,7 @@ namespace SubcultureRPG.Meta.UI
 
             PlayerArena.Instance.OnChanged += RefreshModeTiles;
             WorldRaid.Instance.OnChanged += RefreshModeTiles;
+            LimitedEvent.Instance.OnChanged += RefreshModeTiles;
             PlayerGuild.Instance.OnChanged += RefreshModeTiles;
             PlayerSocial.Instance.OnChanged += RefreshModeTiles;
             PlayerMail.Instance.OnChanged += RefreshBadges;
@@ -469,6 +470,8 @@ namespace SubcultureRPG.Meta.UI
             _assistName.rectTransform.sizeDelta = new Vector2(-40, 50); _assistName.rectTransform.anchoredPosition = new Vector2(22, 8);
             _assistName.enableAutoSizing = true; _assistName.fontSizeMin = 16; _assistName.fontSizeMax = 30;
 
+            BuildEventBanner(root);
+
             // 재화(오른쪽 위): 크리스탈 · 금화 알약
             CurrencyBar.Create(root, font, wallet, new Vector2(-50, -36), Currency.Crystal, Currency.Gold);
 
@@ -522,7 +525,56 @@ namespace SubcultureRPG.Meta.UI
             BuildPicker();
         }
 
-        private TextMeshProUGUI _arenaLabel, _raidLabel, _guildLabel, _friendLabel;
+        private TextMeshProUGUI _arenaLabel, _raidLabel, _guildLabel, _friendLabel, _eventLabel;
+        private Image _eventBg;
+        private NotifyBadge _eventBadge;
+
+        /// <summary>기간 한정 이벤트 배너(왼쪽, 대표 캐릭터 이름 위).</summary>
+        private void BuildEventBanner(Transform root)
+        {
+            _eventBg = UIFactory.AddImage("EventBanner", root, new Color(0.3f, 0.15f, 0.1f, 0.88f), ProceduralSprites.Rounded, raycast: true);
+            _eventBg.type = Image.Type.Sliced; _eventBg.preserveAspect = false;
+            var rt = _eventBg.rectTransform;
+            UIFactory.Anchor(rt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            rt.sizeDelta = new Vector2(440, 104); rt.anchoredPosition = new Vector2(50, 156);
+            var b = _eventBg.gameObject.AddComponent<Button>();
+            b.targetGraphic = _eventBg;
+            b.onClick.AddListener(() => Nav(HubScreen.Event));
+            _eventBg.gameObject.AddComponent<ButtonFx>();
+            var icon = GameArt.Load(LimitedEvent.CoinIcon);
+            float textLeft = 22;
+            if (icon != null)
+            {
+                var im = UIFactory.AddImage("Icon", rt, Color.white, icon);
+                im.preserveAspect = true;
+                UIFactory.Anchor(im.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                im.rectTransform.sizeDelta = new Vector2(76, 76); im.rectTransform.anchoredPosition = new Vector2(14, 0);
+                textLeft = 100;
+            }
+            _eventLabel = UIFactory.AddText("Label", rt, "", 28, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            _eventLabel.richText = true;
+            _eventLabel.lineSpacing = -4f;
+            UIFactory.Stretch(_eventLabel.rectTransform, textLeft, 8, 16, 8);
+            _eventLabel.enableAutoSizing = true; _eventLabel.fontSizeMin = 16; _eventLabel.fontSizeMax = 28;
+            _eventBadge = NotifyBadge.Attach(rt, font);
+        }
+
+        private void RefreshEventBanner()
+        {
+            if (_eventLabel == null) return;
+            var theme = LimitedEvent.CurrentTheme;
+            bool open = FeatureGate.EventOpen;
+            var c = theme.color;
+            _eventBg.color = open ? new Color(c.r * 0.45f, c.g * 0.3f, c.b * 0.3f, 0.9f) : new Color(0.2f, 0.21f, 0.26f, 0.88f);
+            var t = LimitedEvent.Remaining;
+            string hex = "#" + ColorUtility.ToHtmlStringRGB(c);
+            _eventLabel.text = $"<size=60%><color=#FFE08A>기간 한정 이벤트</color></size>\n<color={hex}>{theme.name}</color>  " +
+                               (open ? $"<size=55%><color=#E8E8F0>남은 {(t.Days > 0 ? $"{t.Days}일" : $"{t.Hours}시간")}</color></size>"
+                                     : $"<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.EventChapter)}</color></size>");
+            var ev = LimitedEvent.Instance;
+            _eventBadge.Set(open && (ev.ClaimableCount > 0 || ev.AttemptsLeft == LimitedEvent.AttemptsPerDay));
+        }
+
         private NotifyBadge _profileBadge, _stageBadge, _missionBadge, _raidBadge, _guildBadge, _friendBadge, _mailBadge, _attendBadge;
         private Button _stageTile, _arenaTile, _raidTile;
         private Color _arenaColor, _raidColor;
@@ -588,6 +640,7 @@ namespace SubcultureRPG.Meta.UI
                 var so = PlayerSocial.Instance;
                 _friendLabel.text = $"친구\n<size=55%>{so.Friends.Count}/{PlayerSocial.MaxFriends}명</size>";
             }
+            RefreshEventBanner();
             RefreshBadges();
         }
 

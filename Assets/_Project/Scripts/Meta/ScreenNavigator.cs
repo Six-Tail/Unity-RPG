@@ -23,6 +23,7 @@ namespace SubcultureRPG.Meta
         Raid,      // 주간 보스(월드 레이드)
         Friends,   // 친구
         Guild,     // 길드
+        Event,     // 기간 한정 이벤트
     }
 
     /// <summary>
@@ -45,6 +46,7 @@ namespace SubcultureRPG.Meta
         [SerializeField] private CodexScreen codex;
         [SerializeField] private ArenaScreen arena;
         [SerializeField] private RaidScreen raid;
+        [SerializeField] private EventScreen eventScreen;
         [SerializeField] private FriendScreen friends;
         [SerializeField] private GuildScreen guild;
 
@@ -77,6 +79,8 @@ namespace SubcultureRPG.Meta
             if (arena == null && home != null) arena = CreateMode<ArenaScreen>("ArenaScreen");
             if (raid == null) raid = FindAnyObjectByType<RaidScreen>();
             if (raid == null && home != null) raid = CreateMode<RaidScreen>("RaidScreen");
+            if (eventScreen == null) eventScreen = FindAnyObjectByType<EventScreen>();
+            if (eventScreen == null && home != null) eventScreen = CreateMode<EventScreen>("EventScreen");
             if (friends == null) friends = FindAnyObjectByType<FriendScreen>();
             if (friends == null && home != null) friends = CreateMode<FriendScreen>("FriendScreen");
             if (guild == null) guild = FindAnyObjectByType<GuildScreen>();
@@ -162,6 +166,13 @@ namespace SubcultureRPG.Meta
                     $"주간 보스  ·  {WorldRaid.BossName}  <size=60%><color=#C9A0FF>제한 시간 {WorldRaid.TimeLimit:0}초</color></size>", "도전!",
                     team => WorldRaid.Instance.Fight(team), HubScreen.Raid, "← 주간 보스");
             }
+            if (eventScreen != null)
+            {
+                eventScreen.SetBackAction(GoHome);
+                eventScreen.OnChallenge += d => OpenModeParty(
+                    $"{LimitedEvent.CurrentTheme.name}  ·  {LimitedEvent.Difficulties[d].name}  <size=60%><color=#FFD36B>{Characters.Traits.Name(LimitedEvent.CurrentTheme.element)} 캐릭터 1명당 코인 +10%</color></size>", "도전!",
+                    team => LimitedEvent.Instance.Fight(d, team), HubScreen.Event, "← 이벤트");
+            }
             if (party != null)
             {
                 party.SetBackAction(GoHome);
@@ -188,6 +199,12 @@ namespace SubcultureRPG.Meta
         public void Go(HubScreen screen)
         {
             // 결투장 · 주간 보스는 3장을 클리어해야 열림
+            if (screen == HubScreen.Event && !FeatureGate.EventOpen)
+            {
+                Popups.Show("기간 한정 이벤트",
+                    $"아직 열리지 않았습니다.\n<color=#FFD36B>{FeatureGate.EventChapter}장</color>(쉬움)을 클리어하면 열립니다.\n\n<color=#9AA3B5>지금 {FeatureGate.ClearedChapters()}장까지 클리어</color>");
+                return;
+            }
             if ((screen == HubScreen.Arena && !FeatureGate.ArenaOpen) || (screen == HubScreen.Raid && !FeatureGate.RaidOpen))
             {
                 int need = screen == HubScreen.Arena ? FeatureGate.ArenaChapter : FeatureGate.RaidChapter;
@@ -203,11 +220,12 @@ namespace SubcultureRPG.Meta
             }
 
             // 홈/스테이지 목록으로 돌아오면 스테이지 출격 모드 해제
-            if (screen == HubScreen.Home || screen == HubScreen.Stage || screen == HubScreen.Arena || screen == HubScreen.Raid)
+            if (screen == HubScreen.Home || screen == HubScreen.Stage || screen == HubScreen.Arena || screen == HubScreen.Raid || screen == HubScreen.Event)
             {
                 _modeReturn = null;
                 PlayerArena.Instance.Leave();   // 끝나지 않은 전투에서 나오면 도전권 · 도전 횟수 반환
                 WorldRaid.Instance.Leave();
+                LimitedEvent.Instance.Leave();
                 if (stageRunner != null) stageRunner.Clear();
                 if (party != null)
                 {
@@ -228,6 +246,7 @@ namespace SubcultureRPG.Meta
             if (codex != null) codex.Show(screen == HubScreen.Codex);
             if (arena != null) arena.Show(screen == HubScreen.Arena);
             if (raid != null) raid.Show(screen == HubScreen.Raid);
+            if (eventScreen != null) eventScreen.Show(screen == HubScreen.Event);
             if (friends != null) friends.Show(screen == HubScreen.Friends);
             if (guild != null) guild.Show(screen == HubScreen.Guild);
             if (battleHud != null) battleHud.Show(screen == HubScreen.Battle);
