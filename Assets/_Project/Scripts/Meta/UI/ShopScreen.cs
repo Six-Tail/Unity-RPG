@@ -24,7 +24,7 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private TMP_FontAsset font;
 
         private GameObject _root, _confirmRoot;
-        private TextMeshProUGUI _currency, _hint, _detName, _detSub, _detDesc, _detLimit, _qtyText, _total, _toast;
+        private TextMeshProUGUI _hint, _detName, _detSub, _detDesc, _detLimit, _qtyText, _total, _toast;
         private TextMeshProUGUI _confirmBody;
         private RectTransform _tabs, _content;
         private Button _backBtn, _buyBtn;
@@ -105,8 +105,6 @@ namespace SubcultureRPG.Meta.UI
         {
             if (_root == null || shop == null) return;
             _periodSeen = PlayerShop.PeriodKey(ShopReset.Daily, DateTime.Now);
-            _currency.text = wallet == null ? "" :
-                $"<color=#8FE9FF>크리스탈  {wallet.Crystals:N0}</color>      <color=#FFD36B>금화  {wallet.Gold:N0}</color>";
 
             RebuildTabs();
 
@@ -155,9 +153,7 @@ namespace SubcultureRPG.Meta.UI
             _detLimit.text = LimitText(it, detailed: true);
 
             _qtyText.text = $"{_qty}";
-            string got = it.IsGold
-                ? $"<color=#FFD36B>금화 {(long)it.rewardGold * it.amount * _qty:N0}</color>"
-                : $"{Materials.RichName(it.reward)} ×{(long)it.amount * _qty:N0}";
+            string got = it.GotText(_qty);
             _total.text = $"획득  {got}\n가격  {it.PriceText(_qty)}";
 
             string block = shop.BlockReason(it, _qty);
@@ -168,7 +164,9 @@ namespace SubcultureRPG.Meta.UI
         private string Describe(ShopItem it)
         {
             var sb = new System.Text.StringBuilder();
-            if (it.IsGold)
+            if (it.IsTicket)
+                sb.Append($"<color=#FFD36B>용도</color>\n{(it.ticketType == SubcultureRPG.Gacha.GachaBannerType.Pickup ? "픽업" : "상시")} 뽑기 1회 (크리스탈 대신 사용)\n\n");
+            else if (it.IsGold)
                 sb.Append("<color=#FFD36B>용도</color>\n레벨업 · 돌파 · 스킬 · 합성/초월 · 장비 강화에 쓰는 공용 재화\n\n");
             else
             {
@@ -178,7 +176,8 @@ namespace SubcultureRPG.Meta.UI
                 sb.Append(cut > 0 ? d.Substring(0, cut).TrimEnd('\n') : d).Append("\n\n");
             }
             sb.Append("<color=#FFD36B>보유</color>\n");
-            sb.Append(it.IsGold ? $"금화 {(wallet != null ? wallet.Gold : 0):N0}" : $"{Materials.Name(it.reward)} {Count(it.reward):N0}");
+            sb.Append(it.IsTicket ? $"{it.RewardName} {(wallet != null ? wallet.Tickets(it.ticketType) : 0):N0}"
+                : it.IsGold ? $"금화 {(wallet != null ? wallet.Gold : 0):N0}" : $"{Materials.Name(it.reward)} {Count(it.reward):N0}");
             if (it.currency == ShopCurrency.Material)
                 sb.Append($"\n{Materials.Name(it.costMaterial)} {Count(it.costMaterial):N0}  <color=#9AA3B5>(교환 재료)</color>");
             return sb.ToString();
@@ -240,7 +239,7 @@ namespace SubcultureRPG.Meta.UI
             group.alpha = soldOut ? 0.45f : 1f;
 
             // 아이콘(Resources/Art/Items/{재료} · 금화는 Items/Gold) — 있으면 왼쪽에 그림, 수량은 오른쪽
-            var icon = it.IsGold ? GameArt.Load("Items/Gold") : GameArt.MaterialIcon(it.reward);
+            var icon = GameArt.Load(it.IconPath);
             if (icon != null)
             {
                 var im = UIFactory.AddImage("Icon", inner.transform, Color.white, icon);
@@ -318,9 +317,7 @@ namespace SubcultureRPG.Meta.UI
             if (block != null) { Toast($"<color=#FF8A8A>{block}</color>"); RefreshDetail(); return; }
             if (!shop.Buy(it, qty)) { Toast("<color=#FF8A8A>구매하지 못했습니다</color>"); return; }
 
-            string got = it.IsGold
-                ? $"<color=#FFD36B>금화 {(long)it.rewardGold * it.amount * qty:N0}</color>"
-                : $"{Materials.RichName(it.reward)} ×{(long)it.amount * qty:N0}";
+            string got = it.GotText(qty);
             Toast($"{got}  획득!");
             _qty = 1;
             Refresh();
@@ -358,20 +355,19 @@ namespace SubcultureRPG.Meta.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.05f, 0.06f, 0.09f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
             BackgroundArt.Create(_root.transform, 0.72f).Set("Backgrounds/shop");
-            var root = _root.transform;
+            Transform root = UIFactory.Frame(_root.transform);   // 넓은 화면에서도 1920 폭 설계를 가운데에
 
             var title = UIFactory.AddText("Title", root, "상점", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Place(title.rectTransform, new Vector2(0.5f, 1), new Vector2(600, 56), new Vector2(0, -30));
 
-            _currency = UIFactory.AddText("Currency", root, "", 26, font, Color.white, TextAlignmentOptions.Right, FontStyles.Bold);
-            Place(_currency.rectTransform, new Vector2(1, 1), new Vector2(700, 40), new Vector2(-50, -38), new Vector2(1, 1));
+            CurrencyBar.Create(root, font, wallet, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
 
             // 탭
             _tabs = UIFactory.NewRect("Tabs", root);

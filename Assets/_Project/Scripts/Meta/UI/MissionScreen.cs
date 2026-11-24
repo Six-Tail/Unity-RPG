@@ -23,7 +23,7 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private TMP_FontAsset font;
 
         private GameObject _root;
-        private TextMeshProUGUI _currency, _hint, _toast, _claimAllLabel;
+        private TextMeshProUGUI _hint, _toast, _claimAllLabel;
         private RectTransform _tabs, _content;
         private Button _backBtn, _claimAllBtn;
         private Action _onBack;
@@ -100,9 +100,6 @@ namespace SubcultureRPG.Meta.UI
             if (_root == null || missions == null) return;
             _periodSeen = Shop.PlayerShop.PeriodKey(Shop.ShopReset.Daily, DateTime.Now);
 
-            _currency.text = wallet == null ? "" :
-                $"<color=#8FE9FF>크리스탈  {wallet.Crystals:N0}</color>      <color=#FFD36B>금화  {wallet.Gold:N0}</color>\n" +
-                $"<size=80%><color=#FFB3E6>픽업 뽑기권  {wallet.PickupTickets:N0}      상시 뽑기권  {wallet.StandardTickets:N0}</color></size>";
 
             RebuildTabs();
             Clear(_content);
@@ -246,7 +243,7 @@ namespace SubcultureRPG.Meta.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 
@@ -258,9 +255,8 @@ namespace SubcultureRPG.Meta.UI
             var title = UIFactory.AddText("Title", root, "임무", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Place(title.rectTransform, new Vector2(0.5f, 1), new Vector2(600, 56), new Vector2(0, -30));
 
-            _currency = UIFactory.AddText("Currency", root, "", 26, font, Color.white, TextAlignmentOptions.TopRight, FontStyles.Bold);
-            Place(_currency.rectTransform, new Vector2(1, 1), new Vector2(900, 76), new Vector2(-50, -30), new Vector2(1, 1));
-            _currency.lineSpacing = 4f;
+            CurrencyBar.Create(root, font, wallet, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
+            CurrencyBar.Create(root, font, wallet, new Vector2(-50, -94), Currency.PickupTicket, Currency.StandardTicket);   // 임무 보상에 뽑기권이 있어 함께
 
             // 탭
             _tabs = UIFactory.NewRect("Tabs", root);

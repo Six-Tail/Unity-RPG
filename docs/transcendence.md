@@ -63,6 +63,22 @@
 - **+2 · +4 · +5의 레벨 +3은 재료 없이 바로 적용**됩니다. 재료로 올리는 레벨(최대 10)에 더해져 최대 Lv. 13이 되고, 육성 화면에 `Lv. 7 +3`처럼 표시됩니다. 규칙: `Transcendence.SkillLevelBonus` / `PlayerRoster.EffectiveSkillLevels`.
 - 이전의 공통 패시브(각성의 불꽃 · 역할별 +3 · 한계 돌파 · 무지개 초월 전 능력치 +10%)는 없어지고 캐릭터 고유 능력으로 바뀌었습니다. 그래서 +6 능력치 배율이 1.43 → 1.30입니다.
 
+## 풀 초월 이후 중복 → 별의 조각
+
+이미 **풀 초월(6★ +6)** 한 캐릭터를 또 뽑으면, 그 1장은 중복으로 쌓이지 않고 **별의 조각**(가방 `기타` 탭)으로 바뀝니다.
+
+| 태생 | 1장당 조각 |
+|---|---|
+| 6★ | 50 |
+| 5★ | 15 |
+| 4★ | 5 |
+| 3★ | 2 |
+
+- 상점 **교환소**: 별의 조각 20 → 픽업 뽑기권 1 · 15 → 상시 뽑기권 1 (구매 제한 없음)
+- 가챠 결과 카드 아래에 `별의 조각 +50` 표시
+- 조각 도입 전 세이브: 풀 초월 캐릭터에 남아 있던 중복은 게임을 켤 때 한 번 조각으로 바뀝니다.
+- 수치: `StarShards`([Materials.cs](../Assets/_Project/Scripts/Meta/Materials.cs)) · 변환: `PlayerRoster.HandlePulled` / `ConvertMaxedDuplicates`
+
 ## 표시
 
 - 별: 코드로 생성한 **입체 별 아이콘** ([StarSprites.cs](../Assets/_Project/Scripts/Meta/UI/StarSprites.cs), [StarRow.cs](../Assets/_Project/Scripts/Meta/UI/StarRow.cs))

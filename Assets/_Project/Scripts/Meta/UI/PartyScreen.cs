@@ -106,7 +106,7 @@ namespace SubcultureRPG.Meta.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 

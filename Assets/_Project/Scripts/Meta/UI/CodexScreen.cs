@@ -292,14 +292,14 @@ namespace SubcultureRPG.Meta.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.05f, 0.06f, 0.09f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
             BackgroundArt.Create(_root.transform, 0.74f).Set("Backgrounds/codex", "Backgrounds/growth");
-            var root = _root.transform;
+            Transform root = UIFactory.Frame(_root.transform);   // 넓은 화면에서도 1920 폭 설계를 가운데에
 
             var title = UIFactory.AddText("Title", root, "캐릭터 도감", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Place(title.rectTransform, new Vector2(0.5f, 1), new Vector2(600, 56), new Vector2(0, -30));

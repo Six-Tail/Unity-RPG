@@ -60,7 +60,12 @@ namespace SubcultureRPG.Meta
             Load();
         }
 
-        private void OnEnable() { if (gacha != null) gacha.OnPulled += HandlePulled; }
+        private void OnEnable()
+        {
+            if (gacha != null) gacha.OnPulled += HandlePulled;
+            // 가챠 결과 카드: 풀 초월 캐릭터는 '별의 조각 +N'
+            SubcultureRPG.Gacha.UI.GachaResultPanel.ExtraNote = c => IsMaxed(c) ? $"별의 조각 +{StarShards.PerCopy(c.rarity)}" : null;
+        }
         private void OnDisable() { if (gacha != null) gacha.OnPulled -= HandlePulled; }
 
         private void Start()
@@ -82,13 +87,56 @@ namespace SubcultureRPG.Meta
                 Save();
                 OnRosterChanged?.Invoke();
             }
+
+            // 풀 초월 후 남은 중복 → 별의 조각(한 번만 해당되고, 이후엔 뽑을 때 바로 변환)
+            ConvertMaxedDuplicates();
         }
 
         private void HandlePulled(List<GachaResult> results)
         {
-            foreach (var r in results) Add(r.character, false);
+            int shards = 0;
+            foreach (var r in results)
+            {
+                // 이미 풀 초월(6★ +6)이면 중복으로 쌓지 않고 별의 조각으로
+                if (r.character != null && IsMaxed(r.character)) { shards += StarShards.PerCopy(r.character.rarity); continue; }
+                Add(r.character, false);
+            }
+            if (shards > 0) GrantShards(shards);
             Save();
             OnRosterChanged?.Invoke();
+        }
+
+        /// <summary>풀 초월(6★ +6)했는가.</summary>
+        public bool IsMaxed(CharacterData c) =>
+            GetOwned(c) != null && StarOf(c) >= Transcendence.MaxStar && TranscendOf(c) >= Transcendence.MaxTranscend;
+
+        private PlayerInventory _inventory;
+
+        private void GrantShards(int n)
+        {
+            if (n <= 0) return;
+            if (_inventory == null) _inventory = FindAnyObjectByType<PlayerInventory>();
+            if (_inventory != null) _inventory.Add(MaterialType.StarShard, n);
+            else Debug.LogWarning($"[PlayerRoster] 가방이 없어 별의 조각 {n}개를 지급하지 못했습니다.");
+        }
+
+        /// <summary>
+        /// 이미 풀 초월한 캐릭터에 남아 있는 중복(조각 도입 전 세이브)을 별의 조각으로 바꿈. 바꾼 조각 수.
+        /// </summary>
+        public int ConvertMaxedDuplicates()
+        {
+            int shards = 0;
+            if (database == null) return 0;
+            foreach (var c in database.Characters)
+            {
+                if (c == null || !IsMaxed(c)) continue;
+                var o = GetOwned(c);
+                if (o.Duplicates <= 0) continue;
+                shards += o.Duplicates * StarShards.PerCopy(c.rarity);
+                o.count = 1;
+            }
+            if (shards > 0) { GrantShards(shards); Save(); OnRosterChanged?.Invoke(); }
+            return shards;
         }
 
         public void Add(CharacterData c, bool notify = true)

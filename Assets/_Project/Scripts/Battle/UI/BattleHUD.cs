@@ -214,6 +214,40 @@ namespace SubcultureRPG.Battle.UI
             }
         }
 
+        /// <summary>이 HUD가 쓰는 한글 폰트(실행 중에 만드는 다른 화면이 같은 폰트를 쓰도록).</summary>
+        public TMP_FontAsset Font => font;
+
+        private System.Func<string> _retryHandler;
+        private TextMeshProUGUI _resultToast;
+        private Coroutine _resultToastRoutine;
+
+        /// <summary>
+        /// '다시' 버튼 동작 가로채기(스테이지 모드). 반환값이 null/빈 문자열이면 성공, 아니면 그 문구를 결과 화면에 표시.
+        /// null을 넘기면 기본 동작(같은 팀으로 재시작).
+        /// </summary>
+        public void SetRetryHandler(System.Func<string> handler) => _retryHandler = handler;
+
+        /// <summary>결과 화면 버튼 위에 잠깐 뜨는 알림(행동력 부족 등).</summary>
+        public void ShowResultToast(string msg)
+        {
+            if (_resultToast == null) return;
+            if (_resultToastRoutine != null) StopCoroutine(_resultToastRoutine);
+            _resultToastRoutine = StartCoroutine(ResultToastRoutine(msg));
+        }
+
+        private IEnumerator ResultToastRoutine(string msg)
+        {
+            _resultToast.text = msg;
+            _resultToast.alpha = 1f;
+            for (float t = 0; t < 2.2f; t += Time.unscaledDeltaTime)
+            {
+                _resultToast.alpha = t < 1.7f ? 1f : 1f - (t - 1.7f) / 0.5f;
+                yield return null;
+            }
+            _resultToast.text = "";
+            _resultToastRoutine = null;
+        }
+
         /// <summary>결과 화면 '홈으로' 버튼 문구(예: 스테이지로).</summary>
         public void SetExitLabel(string label)
         {
@@ -364,6 +398,7 @@ namespace SubcultureRPG.Battle.UI
             SetInstruction("");
             ResetFinish();
             _fx?.Clear();
+            if (_resultToast != null) _resultToast.text = "";
 
             HideTip();
             BuildPanels(engine);
@@ -886,7 +921,7 @@ namespace SubcultureRPG.Battle.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 
@@ -997,7 +1032,22 @@ namespace SubcultureRPG.Battle.UI
             var rrt = (RectTransform)retry.transform;
             UIFactory.Anchor(rrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             rrt.sizeDelta = new Vector2(220, 70); rrt.anchoredPosition = new Vector2(0, -170);
-            retry.onClick.AddListener(() => { SetResultNext(null, null); _resultGO.SetActive(false); controller.Begin(); });
+            retry.onClick.AddListener(() =>
+            {
+                if (_retryHandler != null)
+                {
+                    // 스테이지 모드: 행동력 확인 후 같은 스테이지로 다시 출격(실패하면 이유 표시)
+                    string err = _retryHandler();
+                    if (!string.IsNullOrEmpty(err)) ShowResultToast(err);
+                    return;
+                }
+                SetResultNext(null, null); _resultGO.SetActive(false); controller.Begin();
+            });
+
+            _resultToast = UIFactory.AddText("ResultToast", _resultGO.transform, "", 24, font, new Color(1f, 0.55f, 0.5f), TextAlignmentOptions.Center, FontStyles.Bold);
+            var rtt = _resultToast.rectTransform;
+            UIFactory.Anchor(rtt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            rtt.sizeDelta = new Vector2(1200, 36); rtt.anchoredPosition = new Vector2(0, -114);
             _retryRt = rrt;
 
             var stats = UIFactory.AddButton("Stats", _resultGO.transform, "전투 기록", 28, font, new Color(0.25f, 0.45f, 0.75f, 0.95f), Color.white);

@@ -33,7 +33,7 @@ namespace SubcultureRPG.Meta.UI
 
         // 공통
         private GameObject _root;
-        private TextMeshProUGUI _goldText, _toast, _backLabel;
+        private TextMeshProUGUI _toast, _backLabel;
         private Button _backBtn;
         private System.Action _onBack;
         private EquipmentPanel _equipPanel;
@@ -388,7 +388,6 @@ namespace SubcultureRPG.Meta.UI
 
         private void Refresh()
         {
-            if (_goldText != null) _goldText.text = $"<color=#FFD36B>금화 {Gold:N0}</color>";
             if (!_inDetail || _selected == null || roster == null) return;
             var o = roster.GetOwned(_selected);
             if (o == null) return;
@@ -1117,7 +1116,7 @@ namespace SubcultureRPG.Meta.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 
@@ -1128,8 +1127,7 @@ namespace SubcultureRPG.Meta.UI
 
             var title = UIFactory.AddText("Title", root, "캐릭터 육성", 36, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Place(title.rectTransform, new Vector2(0.5f, 1), new Vector2(600, 48), new Vector2(0, -30));
-            _goldText = UIFactory.AddText("Gold", root, "", 24, font, Color.white, TextAlignmentOptions.Right, FontStyles.Bold);
-            Place(_goldText.rectTransform, new Vector2(1, 1), new Vector2(500, 36), new Vector2(-50, -36), new Vector2(1, 1));
+            CurrencyBar.Create(root, font, wallet, new Vector2(-50, -32), Currency.Gold);
 
             BuildList(root);
 
@@ -1140,7 +1138,7 @@ namespace SubcultureRPG.Meta.UI
 
             // 테스트 버튼(좌하단)
             var charge = UIFactory.AddButton("Charge", root, "재료·금화·장비 충전(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
-            Place((RectTransform)charge.transform, new Vector2(0, 0), new Vector2(240, 48), new Vector2(30, 30), new Vector2(0, 0));
+            Place((RectTransform)charge.transform, new Vector2(0, 0), new Vector2(300, 48), new Vector2(30, 30), new Vector2(0, 0));
             charge.onClick.AddListener(() =>
             {
                 if (inventory != null) inventory.GrantTest();
@@ -1148,7 +1146,7 @@ namespace SubcultureRPG.Meta.UI
                 if (wallet != null) wallet.AddGold(100000);
             });
             var dup = UIFactory.AddButton("DupTest", root, "선택 캐릭 중복 +6(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
-            Place((RectTransform)dup.transform, new Vector2(0, 0), new Vector2(280, 48), new Vector2(290, 30), new Vector2(0, 0));
+            Place((RectTransform)dup.transform, new Vector2(0, 0), new Vector2(300, 48), new Vector2(346, 30), new Vector2(0, 0));
             dup.onClick.AddListener(() =>
             {
                 if (roster == null) return;
@@ -1179,10 +1177,15 @@ namespace SubcultureRPG.Meta.UI
 
             const int cols = 7;
             float gridW = cols * _cell.x + (cols - 1) * 12;
-            _grid = UIFactory.NewRect("Grid", list);
-            UIFactory.Anchor(_grid, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            _grid.sizeDelta = new Vector2(gridW, 700); _grid.anchoredPosition = new Vector2(0, -246);   // 필터 바(3줄, -120 ~ -228) 아래
+            // 목록은 필터 바 아래 ~ 하단 테스트 버튼 위에서 스크롤(캐릭터가 늘어도 겹치지 않음)
+            const int pad = 14;
+            var view = UIFactory.NewRect("GridView", list);
+            UIFactory.Anchor(view, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            view.sizeDelta = new Vector2(gridW + pad * 2, 730); view.anchoredPosition = new Vector2(0, -246 + pad);   // 필터 바(3줄, -120 ~ -228) 아래
+            _grid = UIFactory.NewRect("Grid", view);
             var gl = _grid.gameObject.AddComponent<GridLayoutGroup>();
+            gl.padding = new RectOffset(pad, pad, pad, pad);   // 테두리·확대가 잘리지 않게
+            UIFactory.MakeVerticalScroll(view, _grid);
             gl.cellSize = _cell; gl.spacing = new Vector2(12, 14);
             gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = cols;
             gl.childAlignment = TextAnchor.UpperCenter;

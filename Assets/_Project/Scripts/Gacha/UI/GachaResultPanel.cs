@@ -11,11 +11,13 @@ namespace SubcultureRPG.Gacha.UI
 {
     /// <summary>
     /// 가챠 결과 연출. GachaController.OnPulled 를 구독해 자동 재생합니다.
-    ///  1) 잠긴 상자 → 자물쇠를 누르면 열쇠가 나타나 돌아가고 상자가 열림
+    ///  1) 소환 계약서(마법 스크롤)가 펼쳐짐 → 서명란을 문질러(또는 눌러) 서명 → 인장이 찍히고 서명이 빛남
+    ///     → 스크롤이 아래에서부터 타올라 사라지며 마법진에서 빛기둥
     ///     (최고 등급에 따라 빛 색: 태생 6★ 금빛 · 5★ 보라 · 그 외 파랑)
     ///  2) 카드가 한 줄로 차례대로 나타나고, 카드마다 등급 색 세로 빛줄기
     ///  3) 태생 6★: 잠깐 멈칫 → 검은 화면에 대표 대사 → 금빛으로 밝아지며 일러스트 + 별 6개 → 일러스트가 카드 안으로
-    /// 프리팹 없이 이 컴포넌트가 Canvas·상자·카드·버튼을 코드로 만듭니다.
+    /// 프리팹 없이 이 컴포넌트가 Canvas·스크롤·카드·버튼을 코드로 만듭니다.
+    /// 그림: Resources/Art/Gacha/{scroll · circle · quill · seal}.png, Backgrounds/gacha_summon (없으면 단색 도형으로 대신).
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SubcultureRPG/Gacha/Gacha Result Panel")]
@@ -50,10 +52,19 @@ namespace SubcultureRPG.Gacha.UI
         private TextMeshProUGUI _againLabel, _title;
 
         // 상자
-        private RectTransform _chest, _lid, _lockRT, _shackle, _key, _aura, _rays;
-        private CanvasGroup _chestGroup, _lockGroup, _keyGroup;
-        private Image _auraImg;
-        private TextMeshProUGUI _hint;
+        // 소환 계약서(마법 스크롤) 의식
+        private RectTransform _ritual, _scrollClip, _scroll, _inkLayer, _quill, _seal, _circle, _pillar, _burnLine, _emberLayer;
+        private CanvasGroup _ritualGroup, _scrollTextGroup, _quillGroup;
+        private Image _circleImg, _pillarImg, _burnImg, _sealImg;
+        private TextMeshProUGUI _hint, _scrollCount;
+        private readonly List<Image> _ink = new();
+        private float _inkLength;
+        private Vector2 _lastInk;
+        private bool _hasLastInk, _signed, _signing, _autoSign;
+        private const float ScrollW = 1100f, ScrollH = 619f, ClipPad = 30f;
+        private const float SignNeed = 520f;            // 이만큼(px) 그으면 서명 완료
+        private static readonly Rect SignBand = new(-410f, -238f, 820f, 150f);   // 스크롤 가운데 기준 서명란
+        private static readonly Color InkColor = new(0.17f, 0.09f, 0.05f, 0.95f);
         private bool _lockClicked;
 
         // 6성 연출
@@ -103,6 +114,12 @@ namespace SubcultureRPG.Gacha.UI
         /// <summary>'다시 뽑기' 버튼의 비용 문구(multi → 리치 텍스트). 뽑기권/크리스탈 표시용. null이면 크리스탈 비용.</summary>
         public void SetCostLabel(System.Func<bool, string> label) => _costLabel = label;
 
+        /// <summary>
+        /// 카드 아래 덧붙일 표시(예: 풀 초월 캐릭터 → '별의 조각 +50'). null/빈 문자열이면 없음.
+        /// 가챠는 육성 정보를 모르므로 메타(로스터)가 연결합니다.
+        /// </summary>
+        public static System.Func<CharacterData, string> ExtraNote;
+
         /// <summary>결과 표시 + 연출 시작.</summary>
         public void Show(List<GachaResult> results)
         {
@@ -133,7 +150,6 @@ namespace SubcultureRPG.Gacha.UI
         private IEnumerator Sequence()
         {
             _skip = false;
-            _lockClicked = false;
             _footer.SetActive(false);
             _skipButton.gameObject.SetActive(true);
             _tint.color = Clear(_tint.color);
@@ -141,21 +157,27 @@ namespace SubcultureRPG.Gacha.UI
             _cutIn.gameObject.SetActive(false);
             _title.text = _results.Count > 1 ? "10연 뽑기 결과" : "뽑기 결과";
             BuildCards();
-            ResetChest();
+            ResetRitual();
 
-            // 1) 상자: 자물쇠를 누를 때까지 대기
-            _chest.gameObject.SetActive(true);
-            yield return Fade(_chestGroup, 0f, 1f, 0.3f);
-            while (!_lockClicked && !_skip)
+            // 1) 소환 계약서: 펼쳐짐 → 서명 대기 → 인장 · 점화 · 소멸 → 빛기둥
+            _ritual.gameObject.SetActive(true);
+            yield return UnrollScroll();
+            float idle = 0f;
+            while (!_signed && !_skip)
             {
-                float k = 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
-                _hint.alpha = k;
-                _lockRT.localScale = Vector3.one * (1f + 0.04f * Mathf.Sin(Time.unscaledTime * 6f));
+                if (_autoSign) { _autoSign = false; yield return AutoSign(); continue; }
+                _hint.alpha = 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
+                if (!_signing)
+                {
+                    // 깃펜이 서명란 왼쪽에서 살짝 흔들리며 기다림
+                    idle += Dt;
+                    Vector2 rest = _hasLastInk ? _lastInk : new Vector2(-300f, -170f);
+                    MoveQuill(rest + new Vector2(0f, 6f + 5f * Mathf.Sin(idle * 3.2f)));
+                }
                 yield return null;
             }
             _hint.alpha = 0f;
-            _lockRT.localScale = Vector3.one;
-            yield return OpenChest(BestColor());
+            yield return SealAndSummon(BestColor());
 
             // 2) 카드 공개
             for (int i = 0; i < _cards.Count; i++)
@@ -190,77 +212,252 @@ namespace SubcultureRPG.Gacha.UI
             _sequence = null;
         }
 
-        // ---------------- 상자 ----------------
+        // ---------------- 소환 계약서 ----------------
 
-        private void ResetChest()
+        private void ResetRitual()
         {
-            _chestGroup.alpha = 0f;
-            _lid.anchoredPosition = new Vector2(0, 70); _lid.localEulerAngles = Vector3.zero;
-            _lid.GetComponent<CanvasGroup>().alpha = 1f;
-            _lockGroup.alpha = 1f;
-            _shackle.anchoredPosition = new Vector2(0, 44);
-            _keyGroup.alpha = 0f;
-            _key.anchoredPosition = new Vector2(260, -150); _key.localEulerAngles = Vector3.zero; _key.localScale = Vector3.one;
-            _auraImg.color = Clear(_auraImg.color); _aura.localScale = Vector3.one * 0.6f;
-            foreach (Transform r in _rays) r.GetComponent<Image>().color = Clear(Color.white);
-            _hint.alpha = 1f;
+            foreach (var d in _ink) if (d != null) Destroy(d.gameObject);
+            _ink.Clear();
+            _inkLength = 0f; _hasLastInk = false; _signed = false; _signing = false; _autoSign = false;
+
+            _ritualGroup.alpha = 1f;
+            _scrollClip.sizeDelta = new Vector2(ScrollW + ClipPad * 2, ScrollH + ClipPad * 2);
+            _scroll.localScale = new Vector3(0f, 1f, 1f);
+            _scroll.anchoredPosition = new Vector2(0, -ClipPad);
+            _scrollTextGroup.alpha = 0f;
+            _sealImg.color = Clear(Color.white);
+            _seal.localScale = Vector3.one;
+            _circleImg.color = Clear(Color.white);
+            _circle.localScale = Vector3.one * 0.6f; _circle.localEulerAngles = Vector3.zero;
+            _pillarImg.color = Clear(Color.white);
+            _burnImg.color = Clear(Color.white);
+            _quillGroup.alpha = 0f;
+            _hint.alpha = 0f;
+            _scrollCount.text = _results != null && _results.Count > 1 ? $"—  {_results.Count}회 소환  —" : "—  1회 소환  —";
+            for (int i = _emberLayer.childCount - 1; i >= 0; i--) Destroy(_emberLayer.GetChild(i).gameObject);
         }
 
-        private IEnumerator OpenChest(Color c)
+        /// <summary>스크롤이 가운데에서 양옆으로 펼쳐지고 글씨·깃펜이 나타남.</summary>
+        private IEnumerator UnrollScroll()
+        {
+            const float dur = 0.5f;
+            for (float t = 0; t < dur && !_skip; t += Dt)
+            {
+                float k = t / dur;
+                float back = 1f + 2.0f * Mathf.Pow(k - 1f, 3) + 1.0f * Mathf.Pow(k - 1f, 2);   // 살짝 넘쳤다 돌아옴
+                _scroll.localScale = new Vector3(Mathf.Max(0f, back), 1f, 1f);
+                _circleImg.color = new Color(1f, 1f, 1f, 0.12f * k);
+                yield return null;
+            }
+            _scroll.localScale = Vector3.one;
+            for (float t = 0; t < 0.3f && !_skip; t += Dt)
+            {
+                _scrollTextGroup.alpha = t / 0.3f;
+                _quillGroup.alpha = t / 0.3f;
+                MoveQuill(new Vector2(-300f, -164f + 30f * (1f - t / 0.3f)));
+                yield return null;
+            }
+            _scrollTextGroup.alpha = 1f; _quillGroup.alpha = 1f;
+        }
+
+        // --- 서명 입력(SignaturePad → 화면 좌표) ---
+
+        private Vector2 ToInk(Vector2 screen)
+        {
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_inkLayer, screen, null, out var local);
+            local.x = Mathf.Clamp(local.x, SignBand.xMin, SignBand.xMax);
+            local.y = Mathf.Clamp(local.y, SignBand.yMin, SignBand.yMax);
+            return local;
+        }
+
+        private void OnSignDown(Vector2 screen)
+        {
+            if (_signed || _sequence == null) return;
+            _signing = true;
+            _hasLastInk = false;
+            AddInk(ToInk(screen));
+        }
+
+        private void OnSignDrag(Vector2 screen)
+        {
+            if (!_signing || _signed) return;
+            AddInk(ToInk(screen));
+            if (_inkLength >= SignNeed * 1.6f) { _signing = false; _signed = true; }   // 충분히 그었으면 손을 떼지 않아도 완료
+        }
+
+        private void OnSignUp()
+        {
+            if (!_signing) return;
+            _signing = false;
+            if (_inkLength >= SignNeed) _signed = true;
+            else _autoSign = true;      // 살짝만 긋거나 눌렀다 떼면 나머지는 자동으로 서명
+        }
+
+        /// <summary>서명란 좌표 p까지 잉크를 이어 그림(5px 간격으로 점을 찍음) + 깃펜 이동.</summary>
+        private void AddInk(Vector2 p)
+        {
+            if (_hasLastInk)
+            {
+                float dist = Vector2.Distance(_lastInk, p);
+                int steps = Mathf.Min(40, Mathf.FloorToInt(dist / 5f));
+                for (int i = 1; i <= steps; i++) Dot(Vector2.Lerp(_lastInk, p, i / (float)(steps + 1)));
+                _inkLength += dist;
+            }
+            Dot(p);
+            _lastInk = p; _hasLastInk = true;
+            MoveQuill(p);
+        }
+
+        private void Dot(Vector2 p)
+        {
+            if (_ink.Count >= 520) return;
+            var img = UIFactory.AddImage("Ink", _inkLayer, InkColor, Sprites.Circle);
+            float size = Random.Range(7f, 10f);
+            Center(img.rectTransform, p.x, p.y, size, size);
+            _ink.Add(img);
+        }
+
+        /// <summary>깃펜 촉을 서명란 좌표 p에.</summary>
+        private void MoveQuill(Vector2 inkPos)
+        {
+            _quill.position = _inkLayer.TransformPoint(inkPos);
+        }
+
+        /// <summary>자동 서명: 흘림체 한 줄을 0.8초에 걸쳐 씀.</summary>
+        private IEnumerator AutoSign()
+        {
+            float x0 = SignBand.xMin + 90f, len = 600f, baseY = -172f;
+            _hasLastInk = false;
+            const float dur = 0.8f;
+            for (float t = 0; t < dur && !_skip; t += Dt)
+            {
+                float k = t / dur;
+                float e = EaseInOut(k);
+                var pt = new Vector2(x0 + len * e + 20f * Mathf.Sin(e * 15f), baseY + 36f * Mathf.Sin(e * 19f) * (1f - 0.45f * e));
+                AddInk(pt);
+                yield return null;
+            }
+            // 마지막 밑줄 삐침
+            Vector2 a = _lastInk;
+            for (float t = 0; t < 0.18f && !_skip; t += Dt)
+            {
+                float k = t / 0.18f;
+                AddInk(a + new Vector2(-260f * k, -34f - 10f * Mathf.Sin(k * Mathf.PI)));
+                yield return null;
+            }
+            _signed = true;
+        }
+
+        /// <summary>인장 → 서명이 등급 색으로 빛남 → 스크롤이 아래에서부터 타올라 사라짐 → 마법진 빛기둥.</summary>
+        private IEnumerator SealAndSummon(Color c)
         {
             if (!_skip)
             {
-                // 열쇠가 나타나 자물쇠로
-                // 열쇠 끝(피벗에서 17px)이 열쇠 구멍(상자 기준 0, 56)에 닿도록
-                Vector2 keyStart = new(260, -150), keyEnd = new(-17, 56);
-                for (float t = 0; t < 0.45f && !_skip; t += Dt)
-                {
-                    float k = EaseOut(t / 0.45f);
-                    _keyGroup.alpha = Mathf.Clamp01(t / 0.2f);
-                    _key.anchoredPosition = Vector2.Lerp(keyStart, keyEnd, k);
-                    yield return null;
-                }
-                _key.anchoredPosition = keyEnd;
-                // 돌리기(긴 축으로 반 바퀴 — 2D에서는 위아래로 뒤집히는 모양)
-                for (float t = 0; t < 0.32f && !_skip; t += Dt)
-                {
-                    _key.localScale = new Vector3(1f, Mathf.Cos(Mathf.PI * EaseOut(t / 0.32f)), 1f);
-                    yield return null;
-                }
-                _key.localScale = new Vector3(1f, -1f, 1f);
-                // 자물쇠가 풀림
+                // 깃펜이 물러나고 인장이 쾅
+                Vector3 q0 = _quill.position;
                 for (float t = 0; t < 0.22f && !_skip; t += Dt)
                 {
                     float k = t / 0.22f;
-                    _shackle.anchoredPosition = new Vector2(0, 44 + 30 * k);
-                    _lockGroup.alpha = 1f - k;
-                    _keyGroup.alpha = 1f - k;
+                    _quill.position = q0 + new Vector3(60f, 90f, 0f) * k * _quill.lossyScale.x;
+                    _quillGroup.alpha = 1f - k;
+                    yield return null;
+                }
+                _quillGroup.alpha = 0f;
+                for (float t = 0; t < 0.16f && !_skip; t += Dt)
+                {
+                    float k = t / 0.16f;
+                    _seal.localScale = Vector3.one * Mathf.Lerp(2.6f, 1f, k * k);
+                    _sealImg.color = new Color(1f, 1f, 1f, k);
+                    yield return null;
+                }
+                _seal.localScale = Vector3.one; _sealImg.color = Color.white;
+                // 찍히는 충격: 스크롤이 살짝 흔들리고 번쩍
+                for (float t = 0; t < 0.22f && !_skip; t += Dt)
+                {
+                    float k = 1f - t / 0.22f;
+                    _scroll.anchoredPosition = new Vector2(Mathf.Sin(t * 90f) * 7f * k, -ClipPad + Mathf.Cos(t * 70f) * 4f * k);
+                    _flash.color = new Color(1f, 0.95f, 0.8f, 0.25f * k);
+                    yield return null;
+                }
+                _scroll.anchoredPosition = new Vector2(0, -ClipPad);
+                _flash.color = Clear(_flash.color);
+
+                // 서명이 등급 색으로 빛나고, 글씨는 흐려지고, 뒤에서 마법진이 떠오름
+                var glow = Color.Lerp(c, Color.white, 0.35f);
+                for (float t = 0; t < 0.55f && !_skip; t += Dt)
+                {
+                    float k = t / 0.55f;
+                    var ic = Color.Lerp(InkColor, glow, k);
+                    foreach (var d in _ink) if (d != null) { d.color = ic; d.rectTransform.localScale = Vector3.one * (1f + 0.5f * k); }
+                    _scrollTextGroup.alpha = 1f - 0.7f * k;
+                    _circleImg.color = new Color(c.r, c.g, c.b, Mathf.Lerp(0.12f, 0.85f, k));
+                    _circle.localScale = Vector3.one * Mathf.Lerp(0.6f, 1f, EaseOut(k));
+                    _circle.Rotate(0, 0, 40f * Dt);
+                    _tint.color = new Color(c.r, c.g, c.b, 0.08f * k);
+                    yield return null;
+                }
+
+                // 스크롤이 아래에서부터 타올라 사라짐(불티가 위로 날림)
+                float full = ScrollH + ClipPad * 2;
+                const float burn = 0.95f;
+                float emberAcc = 0f;
+                for (float t = 0; t < burn && !_skip; t += Dt)
+                {
+                    float k = EaseInOut(t / burn);
+                    float h = Mathf.Lerp(full, 0f, k);
+                    _scrollClip.sizeDelta = new Vector2(ScrollW + ClipPad * 2, h);
+                    float edgeY = _scrollClip.anchoredPosition.y - h;       // 타는 선(잘리는 아래쪽 끝)
+                    _burnLine.anchoredPosition = new Vector2(0, edgeY);
+                    _burnImg.color = new Color(c.r, c.g, c.b, 0.9f * Mathf.Sin(Mathf.Clamp01(t / burn) * Mathf.PI));
+                    emberAcc += Dt * 90f;
+                    while (emberAcc >= 1f) { emberAcc -= 1f; StartCoroutine(Ember(new Vector2(Random.Range(-ScrollW * 0.48f, ScrollW * 0.48f), edgeY), c)); }
+                    _circle.Rotate(0, 0, (60f + 180f * k) * Dt);
+                    _circleImg.color = new Color(c.r, c.g, c.b, 0.85f);
                     yield return null;
                 }
             }
-            _lockGroup.alpha = 0f; _keyGroup.alpha = 0f;
+            _scrollClip.sizeDelta = new Vector2(ScrollW + ClipPad * 2, 0f);
+            _burnImg.color = Clear(_burnImg.color);
+            _quillGroup.alpha = 0f;
 
-            // 뚜껑이 열리며 등급 색 빛
-            var lidGroup = _lid.GetComponent<CanvasGroup>();
-            float dur = _skip ? 0.15f : 0.55f;
+            // 마법진이 커지며 빛기둥 + 번쩍
+            float dur = _skip ? 0.12f : 0.6f;
             for (float t = 0; t < dur; t += Dt)
             {
                 float k = EaseOut(t / dur);
-                _lid.anchoredPosition = new Vector2(-30 * k, 70 + 120 * k);
-                _lid.localEulerAngles = new Vector3(0, 0, 22f * k);
-                lidGroup.alpha = 1f - 0.6f * k;
-                _auraImg.color = new Color(c.r, c.g, c.b, 0.95f * k);
-                _aura.localScale = Vector3.one * Mathf.Lerp(0.6f, 1.8f, k);
-                _rays.localEulerAngles = new Vector3(0, 0, 25f * k);
-                foreach (Transform r in _rays) r.GetComponent<Image>().color = new Color(c.r, c.g, c.b, 0.55f * k);
-                _flash.color = new Color(c.r, c.g, c.b, 0.45f * Mathf.Sin(k * Mathf.PI));
-                _tint.color = new Color(c.r, c.g, c.b, 0.12f * k);
+                _circle.localScale = Vector3.one * Mathf.Lerp(1f, 1.45f, k);
+                _circle.Rotate(0, 0, 420f * Dt);
+                _circleImg.color = new Color(c.r, c.g, c.b, 0.9f);
+                _pillar.sizeDelta = new Vector2(Mathf.Lerp(120f, 520f, k), 1500f);
+                _pillarImg.color = new Color(c.r, c.g, c.b, 0.85f * Mathf.Sin(k * Mathf.PI * 0.9f));
+                _flash.color = new Color(c.r, c.g, c.b, 0.5f * Mathf.Sin(k * Mathf.PI));
+                _tint.color = new Color(c.r, c.g, c.b, 0.12f);
                 yield return null;
             }
             _flash.color = Clear(_flash.color);
-            if (!_skip) yield return Wait(0.3f);
-            yield return Fade(_chestGroup, 1f, 0f, _skip ? 0.1f : 0.35f);
-            _chest.gameObject.SetActive(false);
+            yield return Fade(_ritualGroup, 1f, 0f, _skip ? 0.08f : 0.3f);
+            _ritual.gameObject.SetActive(false);
+        }
+
+        /// <summary>불티 1개: 타는 선에서 위로 흔들리며 날아오르다 사라짐.</summary>
+        private IEnumerator Ember(Vector2 pos, Color c)
+        {
+            var img = UIFactory.AddImage("Ember", _emberLayer, Color.white, Random.value < 0.5f ? Sprites.Star : Sprites.Glow);
+            var rt = img.rectTransform;
+            float size = Random.Range(10f, 26f), life = Random.Range(0.5f, 1.0f);
+            float vx = Random.Range(-50f, 50f), vy = Random.Range(120f, 320f), sway = Random.Range(2f, 6f);
+            Center(rt, pos.x, pos.y, size, size);
+            var hot = Color.Lerp(c, Color.white, 0.6f);
+            for (float t = 0; t < life && img != null; t += Dt)
+            {
+                float k = t / life;
+                rt.anchoredPosition = pos + new Vector2(vx * t + Mathf.Sin(t * sway * 3f) * 12f, vy * t);
+                rt.sizeDelta = Vector2.one * size * (1f - 0.7f * k);
+                var col = Color.Lerp(hot, c, k); col.a = 1f - k;
+                img.color = col;
+                yield return null;
+            }
+            if (img != null) Destroy(img.gameObject);
         }
 
         // ---------------- 카드 ----------------
@@ -335,6 +532,19 @@ namespace SubcultureRPG.Gacha.UI
                 UIFactory.Stretch(stars.rectTransform, 2, 0, 2, 4);
                 var name = UIFactory.AddText("Name", band.transform, r.character != null ? r.character.displayName : "???", Mathf.Clamp(w * 0.105f, 13, 24), font, Color.white, TextAlignmentOptions.Bottom, FontStyles.Bold);
                 UIFactory.Stretch(name.rectTransform, 2, 5, 2, 0);
+
+                string note = ExtraNote != null && r.character != null ? ExtraNote(r.character) : null;
+                if (!string.IsNullOrEmpty(note))
+                {
+                    var nb = UIFactory.AddImage("Note", inner.transform, new Color(0.35f, 0.2f, 0.6f, 0.95f), Sprites.Rounded);
+                    nb.type = Image.Type.Sliced; nb.preserveAspect = false;
+                    var nrt = nb.rectTransform;
+                    UIFactory.Anchor(nrt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+                    nrt.sizeDelta = new Vector2(w - 10, 28); nrt.anchoredPosition = new Vector2(0, -36);
+                    var nt = UIFactory.AddText("T", nb.transform, note, 15, font, new Color(1f, 0.92f, 1f), TextAlignmentOptions.Center, FontStyles.Bold);
+                    nt.enableAutoSizing = true; nt.fontSizeMin = 10; nt.fontSizeMax = 15;
+                    UIFactory.Stretch(nt.rectTransform, 4, 0, 4, 0);
+                }
 
                 if (r.isFeatured && r.rarity == Rarity.R6)
                 {
@@ -488,13 +698,15 @@ namespace SubcultureRPG.Gacha.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 
             _root = UIFactory.AddImage("Root", _canvas.transform, new Color(0.03f, 0.035f, 0.06f, 0.97f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
             var root = _root.transform;
+            // 소환 의식 배경(없으면 어두운 단색 그대로)
+            SubcultureRPG.UI.BackgroundArt.Create(root, 0.62f).Set("Backgrounds/gacha_summon");
 
             _tint = UIFactory.AddImage("Tint", root, Clear(Color.white));
             UIFactory.Stretch(_tint.rectTransform);
@@ -509,7 +721,7 @@ namespace SubcultureRPG.Gacha.UI
             _cardLayer = UIFactory.NewRect("Cards", root);
             UIFactory.Stretch(_cardLayer);
 
-            BuildChest(root);
+            BuildRitual(root);
             BuildCutIn(root);
 
             _skipButton = UIFactory.AddButton("Skip", root, "SKIP ▶▶", 22, font, new Color(1, 1, 1, 0.16f), Color.white);
@@ -524,95 +736,103 @@ namespace SubcultureRPG.Gacha.UI
             UIFactory.Stretch(_flash.rectTransform);
         }
 
-        private void BuildChest(Transform root)
+        private void BuildRitual(Transform root)
         {
-            _chest = UIFactory.NewRect("Chest", root);
-            UIFactory.Anchor(_chest, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            _chest.sizeDelta = new Vector2(600, 600); _chest.anchoredPosition = new Vector2(0, -30);
-            _chestGroup = _chest.gameObject.AddComponent<CanvasGroup>();
+            _ritual = UIFactory.NewRect("Ritual", root);
+            UIFactory.Stretch(_ritual);
+            _ritualGroup = _ritual.gameObject.AddComponent<CanvasGroup>();
+            const float cy = 20f;   // 스크롤 중심 높이
 
-            _aura = UIFactory.NewRect("Aura", _chest);
-            UIFactory.Anchor(_aura, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            _aura.sizeDelta = new Vector2(760, 760); _aura.anchoredPosition = new Vector2(0, 60);
-            _auraImg = _aura.gameObject.AddComponent<Image>();
-            _auraImg.sprite = Sprites.Glow; _auraImg.raycastTarget = false; _auraImg.color = Clear(Color.white);
+            // 마법진(스크롤 뒤) · 빛기둥
+            var circleArt = GameArt.Load("Gacha/circle");
+            _circleImg = UIFactory.AddImage("Circle", _ritual, Clear(Color.white), circleArt != null ? circleArt : Sprites.Ring);
+            _circle = _circleImg.rectTransform;
+            Center(_circle, 0, cy, 900, 900);
+            _pillarImg = UIFactory.AddImage("Pillar", _ritual, Clear(Color.white), Sprites.Beam);
+            _pillarImg.preserveAspect = false;
+            _pillar = _pillarImg.rectTransform;
+            Center(_pillar, 0, cy + 120, 120, 1500);
 
-            _rays = UIFactory.NewRect("Rays", _chest);
-            UIFactory.Anchor(_rays, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            _rays.anchoredPosition = new Vector2(0, 70);
-            for (int i = 0; i < 8; i++)
+            // 스크롤: 위쪽을 고정한 틀(clip) 안에 두고, 틀 높이를 줄여 아래에서부터 사라지게 함
+            _scrollClip = UIFactory.NewRect("ScrollClip", _ritual);
+            UIFactory.Anchor(_scrollClip, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f));
+            _scrollClip.sizeDelta = new Vector2(ScrollW + ClipPad * 2, ScrollH + ClipPad * 2);
+            _scrollClip.anchoredPosition = new Vector2(0, cy + ScrollH / 2f + ClipPad);
+            _scrollClip.gameObject.AddComponent<RectMask2D>();
+
+            _scroll = UIFactory.NewRect("Scroll", _scrollClip);
+            UIFactory.Anchor(_scroll, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            _scroll.sizeDelta = new Vector2(ScrollW, ScrollH); _scroll.anchoredPosition = new Vector2(0, -ClipPad);
+            var scrollArt = GameArt.Load("Gacha/scroll");
+            if (scrollArt != null)
             {
-                var ray = UIFactory.AddImage("Ray", _rays, Clear(Color.white), Sprites.Beam);
-                ray.preserveAspect = false;
-                var rrt = ray.rectTransform;
-                UIFactory.Anchor(rrt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-                rrt.sizeDelta = new Vector2(46, 900); rrt.localEulerAngles = new Vector3(0, 0, i * 22.5f);
+                var paper = UIFactory.AddImage("Paper", _scroll, Color.white, scrollArt);
+                paper.preserveAspect = false;
+                UIFactory.Stretch(paper.rectTransform);
+            }
+            else
+            {
+                var paper = UIFactory.AddImage("Paper", _scroll, new Color(0.93f, 0.85f, 0.66f), Sprites.Rounded);
+                paper.type = Image.Type.Sliced; paper.preserveAspect = false;
+                UIFactory.Stretch(paper.rectTransform);
             }
 
-            var shadow = UIFactory.AddImage("Shadow", _chest, new Color(0, 0, 0, 0.5f), Sprites.Circle);
-            Center(shadow.rectTransform, 0, -132, 440, 60);
+            // 계약 문구
+            var text = UIFactory.NewRect("Text", _scroll);
+            UIFactory.Stretch(text);
+            _scrollTextGroup = text.gameObject.AddComponent<CanvasGroup>();
+            _scrollTextGroup.blocksRaycasts = false;
+            var brown = new Color(0.30f, 0.17f, 0.08f);
+            var ttl = UIFactory.AddText("Title", text, "소환 계약서", 46, font, brown, TextAlignmentOptions.Center, FontStyles.Bold);
+            Center(ttl.rectTransform, 0, 178, 700, 60);
+            var body = UIFactory.AddText("Body", text, "별의 부름에 응하는 자여,\n이 서약에 따라 나의 곁에서 함께 싸워 주기를.", 25, font,
+                new Color(0.36f, 0.22f, 0.12f), TextAlignmentOptions.Center);
+            body.lineSpacing = 14f;
+            Center(body.rectTransform, 0, 78, 760, 100);
+            _scrollCount = UIFactory.AddText("Count", text, "", 24, font, new Color(0.55f, 0.33f, 0.12f), TextAlignmentOptions.Center, FontStyles.Bold);
+            Center(_scrollCount.rectTransform, 0, -22, 600, 36);
+            var line = UIFactory.AddImage("SignLine", text, new Color(0.30f, 0.17f, 0.08f, 0.55f));
+            Center(line.rectTransform, -40, -206, 620, 3);
+            var signLbl = UIFactory.AddText("SignLabel", text, "서명", 20, font, new Color(0.36f, 0.22f, 0.12f, 0.85f), TextAlignmentOptions.Left, FontStyles.Bold);
+            Center(signLbl.rectTransform, -330, -226, 100, 28);
 
-            var wood = new Color(0.44f, 0.27f, 0.13f);
-            var woodDark = new Color(0.30f, 0.18f, 0.08f);
-            var brass = new Color(0.92f, 0.72f, 0.30f);
+            // 잉크(서명) · 인장
+            _inkLayer = UIFactory.NewRect("Ink", _scroll);
+            UIFactory.Stretch(_inkLayer);
+            var sealArt = GameArt.Load("Gacha/seal");
+            _sealImg = UIFactory.AddImage("Seal", _scroll, Clear(Color.white), sealArt != null ? sealArt : Sprites.Circle);
+            _seal = _sealImg.rectTransform;
+            Center(_seal, 372, -150, 170, 170);
 
-            // 몸체
-            var body = Rounded(_chest, "Body", wood, 0, -30, 400, 200);
-            Rounded(body.transform, "Panel", woodDark, 0, -6, 360, 150);
-            Rounded(body.transform, "BandL", brass, -130, 0, 30, 200);
-            Rounded(body.transform, "BandR", brass, 130, 0, 30, 200);
-            Rounded(body.transform, "Trim", brass, 0, -92, 400, 18);
+            // 서명 입력(스크롤 전체를 눌러도 됨 — 잉크는 서명란 안에만 그려짐)
+            var padImg = UIFactory.AddImage("SignPad", _scroll, new Color(0, 0, 0, 0), null, raycast: true);
+            UIFactory.Stretch(padImg.rectTransform);
+            var pad = padImg.gameObject.AddComponent<SignaturePad>();
+            pad.Down = OnSignDown; pad.Drag = OnSignDrag; pad.Up = OnSignUp;
 
-            // 뚜껑(아래쪽 경첩 기준으로 열림)
-            _lid = UIFactory.NewRect("Lid", _chest);
-            UIFactory.Anchor(_lid, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f));
-            _lid.sizeDelta = new Vector2(420, 110); _lid.anchoredPosition = new Vector2(0, 70);
-            _lid.gameObject.AddComponent<CanvasGroup>();
-            var lidImg = Rounded(_lid, "LidBody", new Color(0.52f, 0.32f, 0.16f), 0, 0, 420, 110);
-            UIFactory.Stretch(lidImg.rectTransform);
-            Rounded(_lid, "LidBandL", brass, -136, 0, 30, 110).rectTransform.anchoredPosition = new Vector2(-136, 0);
-            Rounded(_lid, "LidBandR", brass, 136, 0, 30, 110).rectTransform.anchoredPosition = new Vector2(136, 0);
-            var lidTrim = Rounded(_lid, "LidTrim", brass, 0, 0, 420, 16);
-            UIFactory.Anchor(lidTrim.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-            lidTrim.rectTransform.anchoredPosition = Vector2.zero;
+            // 타는 선 · 불티 · 깃펜(스크롤 틀 밖 — 잘리지 않음)
+            _burnImg = UIFactory.AddImage("BurnLine", _ritual, Clear(Color.white), Sprites.Glow);
+            _burnImg.preserveAspect = false;
+            _burnLine = _burnImg.rectTransform;
+            Center(_burnLine, 0, 0, ScrollW + 160, 70);
+            _emberLayer = UIFactory.NewRect("Embers", _ritual);
+            UIFactory.Stretch(_emberLayer);
 
-            // 자물쇠(버튼)
-            _lockRT = UIFactory.NewRect("Lock", _chest);
-            UIFactory.Anchor(_lockRT, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            _lockRT.sizeDelta = new Vector2(110, 150); _lockRT.anchoredPosition = new Vector2(0, 62);
-            _lockGroup = _lockRT.gameObject.AddComponent<CanvasGroup>();
-            var shackleImg = UIFactory.AddImage("Shackle", _lockRT, new Color(0.82f, 0.84f, 0.9f), Sprites.Ring);
-            _shackle = shackleImg.rectTransform;
-            Center(_shackle, 0, 44, 70, 70);
-            var plate = Rounded(_lockRT, "Plate", brass, 0, -14, 92, 92);
-            plate.raycastTarget = true;
-            var keyhole = UIFactory.AddImage("Keyhole", plate.transform, new Color(0.12f, 0.08f, 0.04f), Sprites.Circle);
-            Center(keyhole.rectTransform, 0, 8, 22, 22);
-            var slot = UIFactory.AddImage("Slot", plate.transform, new Color(0.12f, 0.08f, 0.04f));
-            Center(slot.rectTransform, 0, -10, 9, 26);
-            var lockBtn = plate.gameObject.AddComponent<Button>();
-            lockBtn.targetGraphic = plate;
-            lockBtn.onClick.AddListener(() => _lockClicked = true);
+            var quillArt = GameArt.Load("Gacha/quill");
+            var quillImg = UIFactory.AddImage("Quill", _ritual, Color.white, quillArt != null ? quillArt : Sprites.Triangle);
+            _quill = quillImg.rectTransform;
+            UIFactory.Anchor(_quill, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.07f, 0.13f));   // 촉(왼쪽 아래)이 기준점
+            _quill.sizeDelta = new Vector2(150, 150);
+            _quillGroup = quillImg.gameObject.AddComponent<CanvasGroup>();
+            _quillGroup.blocksRaycasts = false;
 
-            // 열쇠(처음엔 숨김, 오른쪽 아래에서 자물쇠로)
-            _key = UIFactory.NewRect("Key", _chest);
-            UIFactory.Anchor(_key, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 0.5f));
-            _key.sizeDelta = new Vector2(150, 60);
-            _keyGroup = _key.gameObject.AddComponent<CanvasGroup>();
-            var keyCol = new Color(1f, 0.86f, 0.45f);
-            var bow = UIFactory.AddImage("Bow", _key, keyCol, Sprites.Ring);
-            Center(bow.rectTransform, 50, 0, 56, 56);
-            var shaft = UIFactory.AddImage("Shaft", _key, keyCol);
-            Center(shaft.rectTransform, -15, 0, 86, 12);
-            var tooth1 = UIFactory.AddImage("Tooth1", _key, keyCol);
-            Center(tooth1.rectTransform, -48, -12, 10, 16);
-            var tooth2 = UIFactory.AddImage("Tooth2", _key, keyCol);
-            Center(tooth2.rectTransform, -32, -10, 10, 12);
+            _hint = UIFactory.AddText("Hint", _ritual, "서명란을 문질러 서명하세요   <size=75%>(한 번 눌러도 자동으로 서명됩니다)</size>", 28, font,
+                Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            _hint.richText = true;
+            Center(_hint.rectTransform, 0, cy - ScrollH / 2f - 62, 1100, 44);
+            _hint.raycastTarget = false;
 
-            _hint = UIFactory.AddText("Hint", _chest, "자물쇠를 눌러 상자를 여세요", 28, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            Center(_hint.rectTransform, 0, -200, 700, 44);
-
-            _chest.gameObject.SetActive(false);
+            _ritual.gameObject.SetActive(false);
         }
 
         private void BuildCutIn(Transform root)
@@ -727,6 +947,7 @@ namespace SubcultureRPG.Gacha.UI
             if (_sequence != null) { StopCoroutine(_sequence); _sequence = null; }
             StopAllCoroutines();
             if (_cutIn != null) _cutIn.gameObject.SetActive(false);
+            if (_ritual != null) _ritual.gameObject.SetActive(false);
         }
 
         private void EnsureEventSystem()
@@ -735,5 +956,16 @@ namespace SubcultureRPG.Gacha.UI
             var es = new GameObject("EventSystem", typeof(EventSystem));
             es.AddComponent<StandaloneInputModule>();
         }
+    }
+
+    /// <summary>서명 입력: 누르기·끌기·떼기를 화면 좌표로 넘겨 줌(계약 스크롤 위의 투명 판).</summary>
+    public class SignaturePad : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
+    {
+        public System.Action<Vector2> Down, Drag;
+        public System.Action Up;
+
+        public void OnPointerDown(PointerEventData e) => Down?.Invoke(e.position);
+        public void OnDrag(PointerEventData e) => Drag?.Invoke(e.position);
+        public void OnPointerUp(PointerEventData e) => Up?.Invoke();
     }
 }

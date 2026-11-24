@@ -20,6 +20,7 @@ namespace SubcultureRPG.Meta
         SkillBookBlue = 7,    // 중급 스킬 교본 (스킬 Lv.3~5)   희귀
         SkillBookPurple = 8,  // 상급 스킬 교본 (스킬 Lv.5~10)  영웅
         SkillLegend = 9,      // 전설의 비전서 (스킬 Lv.8~10)    전설 — 이벤트·상점 교환
+        StarShard = 10,       // 별의 조각 (풀 초월 캐릭터 중복 → 교환소에서 뽑기권)  영웅
 
         PhysicalAsc1 = 101, PhysicalAsc2 = 102, PhysicalAsc3 = 103,
         FireAsc1 = 111, FireAsc2 = 112, FireAsc3 = 113,
@@ -82,6 +83,7 @@ namespace SubcultureRPG.Meta
                 MaterialType.SkillBookPurple => "상급 스킬 교본",
                 MaterialType.SkillLegend => "전설의 비전서",
                 MaterialType.EquipOre => "장비 강화석",
+                MaterialType.StarShard => "별의 조각",
                 _ => t.ToString(),
             };
         }
@@ -94,19 +96,20 @@ namespace SubcultureRPG.Meta
             {
                 MaterialType.ExpSmall or MaterialType.SkillBook => 3,
                 MaterialType.ExpPotion or MaterialType.SkillBookBlue or MaterialType.EquipOre => 4,
-                MaterialType.ExpLarge or MaterialType.SkillBookPurple => 5,
+                MaterialType.ExpLarge or MaterialType.SkillBookPurple or MaterialType.StarShard => 5,
                 _ => 6,   // 경험치 결정 · 전설의 비전서
             };
         }
 
         /// <summary>가방 분류.</summary>
-        public enum Category { Exp, Skill, Ascension, Equipment }
+        public enum Category { Exp, Skill, Ascension, Equipment, Etc }
 
         public static Category CategoryOf(MaterialType t)
         {
             if (IsAscension(t)) return Category.Ascension;
             if (ExpValue(t) > 0) return Category.Exp;
             if (t == MaterialType.EquipOre) return Category.Equipment;
+            if (t == MaterialType.StarShard) return Category.Etc;
             return Category.Skill;
         }
 
@@ -115,6 +118,7 @@ namespace SubcultureRPG.Meta
             Category.Exp => "경험치 재료",
             Category.Skill => "스킬 재료",
             Category.Ascension => "돌파 재료",
+            Category.Etc => "기타",
             _ => "장비 재료",
         };
 
@@ -124,7 +128,7 @@ namespace SubcultureRPG.Meta
             var list = new List<MaterialType>(ExpMaterials)
             {
                 MaterialType.SkillBook, MaterialType.SkillBookBlue, MaterialType.SkillBookPurple, MaterialType.SkillLegend,
-                MaterialType.EquipOre,
+                MaterialType.EquipOre, MaterialType.StarShard,
             };
             foreach (var e in Traits.AllElements)
                 for (int tier = 1; tier <= AscensionTiers; tier++) list.Add(Ascension(e, tier));
@@ -191,6 +195,7 @@ namespace SubcultureRPG.Meta
                 MaterialType.SkillBookBlue => "<color=#FFD36B>용도</color>\n스킬 Lv.3 → 5\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 2단계 이상\n상점 (일반 상점)",
                 MaterialType.SkillBookPurple => "<color=#FFD36B>용도</color>\n스킬 Lv.5 → 10\n\n<color=#FFD36B>획득처</color>\n스킬 교본 던전 3단계 이상\n상점 (일반 · 크리스탈 상점)",
                 MaterialType.SkillLegend => "<color=#FFD36B>용도</color>\n스킬 Lv.7 → 8 · 9 · 10 (상급 교본과 함께)\n\n<color=#FFD36B>획득처</color>\n상점 (크리스탈 상점 · 교환소: 상급 스킬 교본 ×8 → 1)\n이벤트 (준비 중)",
+                MaterialType.StarShard => "<color=#FFD36B>용도</color>\n상점 교환소에서 뽑기권으로 교환 (픽업 뽑기권 1장 = 조각 " + StarShards.PickupTicketPrice + "개 · 상시 뽑기권 1장 = " + StarShards.StandardTicketPrice + "개)\n\n<color=#FFD36B>획득처</color>\n이미 풀 초월(6★ +6)한 캐릭터를 다시 뽑으면 자동 변환\n태생 6★ " + StarShards.PerCopy(6) + "개 · 5★ " + StarShards.PerCopy(5) + "개 · 4★ " + StarShards.PerCopy(4) + "개 · 3★ " + StarShards.PerCopy(3) + "개",
                 MaterialType.EquipOre => "<color=#FFD36B>용도</color>\n장비 강화 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n특수 던전 · 장비 던전\n장비 분해 · 상점 (일반 상점)",
                 _ => "",
             };
@@ -222,5 +227,20 @@ namespace SubcultureRPG.Meta
 
         /// <summary>등급 색 재료 이름(리치 텍스트).</summary>
         public static string RichName(MaterialType t) => $"<color={Grades.Hex(Grade(t))}>{Name(t)}</color>";
+    }
+
+    /// <summary>
+    /// 별의 조각: 이미 풀 초월(6★ +6)한 캐릭터를 또 뽑으면 그 1장이 조각으로 바뀝니다.
+    /// 조각은 상점 교환소에서 뽑기권으로 교환(튜닝 지점).
+    /// </summary>
+    public static class StarShards
+    {
+        public const int PickupTicketPrice = 20;
+        public const int StandardTicketPrice = 15;
+
+        /// <summary>중복 1장당 조각(태생 성급 기준).</summary>
+        public static int PerCopy(int nativeStar) => nativeStar switch { >= 6 => 50, 5 => 15, 4 => 5, _ => 2 };
+
+        public static int PerCopy(SubcultureRPG.Characters.Rarity native) => PerCopy((int)native);
     }
 }

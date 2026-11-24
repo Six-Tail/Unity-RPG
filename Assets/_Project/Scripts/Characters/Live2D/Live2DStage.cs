@@ -112,6 +112,7 @@ namespace SubcultureRPG.Characters
 
             if (_current != c || _model == null)
             {
+                if (_current != c) DisplaceUsers(user);
                 Clear();
                 EnsureRig();
                 _current = c;
@@ -128,6 +129,24 @@ namespace SubcultureRPG.Characters
             _cam.enabled = true;
             _idleSince = -1f;
             return _rt;
+        }
+
+
+        /// <summary>
+        /// 무대가 다른 캐릭터로 바뀌어 기존 표시 자리(RawImage)가 밀려났을 때. 그 자리는 정적 일러스트로 돌아가야 합니다.
+        /// (무대가 하나라 같은 텍스처를 계속 보여 주면 엉뚱한 캐릭터가 보임)
+        /// </summary>
+        public static event System.Action<RawImage> Displaced;
+
+        /// <summary>지금 보이는 곳에서 이 무대를 쓰고 있는가.</summary>
+        public static bool InUse => _instance != null && _instance._users.Exists(u => u != null && u.isActiveAndEnabled);
+
+        private void DisplaceUsers(RawImage keep)
+        {
+            if (_users.Count == 0) return;
+            var old = new List<RawImage>(_users);
+            foreach (var u in old)
+                if (u != null && u != keep) Displaced?.Invoke(u);
         }
 
         /// <summary>표시 중인 곳에서 빠집니다(다른 곳이 쓰고 있으면 무대는 유지). 무대가 없으면 만들지 않습니다.</summary>

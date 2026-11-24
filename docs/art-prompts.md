@@ -399,7 +399,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 25장
+## 재료 아이콘 (1:1) — 30장
 
 ### 소형 경험치 물약
 
@@ -479,6 +479,46 @@ a chunk of blue-steel ore with glowing cyan veins. game item icon, single object
 
 ```
 a neat stack of shiny gold coins with a star emblem. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 크리스탈
+
+- 파일: `Items/Crystal.png` · 256×256 · 화면비 1:1
+
+```
+a brilliant faceted cyan-blue gem crystal with a white sparkle highlight, gacha premium currency. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 행동력
+
+- 파일: `Items/Stamina.png` · 256×256 · 화면비 1:1
+
+```
+a glowing mint-green energy lightning bolt inside a round emblem, stamina energy icon. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 별의 조각
+
+- 파일: `Items/StarShard.png` · 256×256 · 화면비 1:1
+
+```
+a glowing violet and gold crystal shard shaped like a broken star, sparkling with tiny stars. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 픽업 뽑기권
+
+- 파일: `Items/PickupTicket.png` · 256×256 · 화면비 1:1
+
+```
+an ornate pink and gold summon ticket card with a glowing star emblem in the center. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 상시 뽑기권
+
+- 파일: `Items/StandardTicket.png` · 256×256 · 화면비 1:1
+
+```
+an ornate sky-blue and silver summon ticket card with a glowing star emblem in the center. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 단련의 파편 (물리 초급 · 40 돌파)
@@ -789,7 +829,89 @@ a bright violet lightning bolt emblem. flat vector game status effect icon, one 
 a bright green swirling wind gust emblem. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
 ```
 
-## 화면 배경 (16:9) — 30장
+## 가챠 연출 소품 — 4장
+
+### 가챠 연출 — 계약 스크롤
+
+- 파일: `Gacha/scroll.png` · 1280×720 · 화면비 16:9
+
+```
+an unrolled ancient magic contract parchment scroll laid flat and seen straight from the front, wide horizontal sheet with rolled wooden rods at the left and right ends, ornate golden filigree border, faint arcane rune watermark, a large empty blank area in the center. fantasy game UI illustration, single object centered, anime game art style, clean line art, soft cel shading, high detail, plain very dark navy background
+```
+
+### 가챠 연출 — 소환 마법진
+
+- 파일: `Gacha/circle.png` · 768×768 · 화면비 1:1
+
+```
+an ornate glowing golden arcane summoning magic circle seen from directly above, concentric rings, intricate runes and a star in the center, perfectly round and symmetrical. fantasy game UI illustration, single object centered, anime game art style, clean line art, soft cel shading, high detail, plain very dark navy background
+```
+
+### 가챠 연출 — 깃펜
+
+- 파일: `Gacha/quill.png` · 256×256 · 화면비 1:1
+
+```
+a white feather quill pen with a golden nib, tilted diagonally with the nib pointing to the lower left, a faint blue magic glow at the tip. fantasy game UI illustration, single object centered, anime game art style, clean line art, soft cel shading, high detail, plain very dark navy background
+```
+
+### 가챠 연출 — 계약 인장
+
+- 파일: `Gacha/seal.png` · 256×256 · 화면비 1:1
+
+```
+a round crimson wax seal with an embossed golden star emblem and a small ribbon. fantasy game UI illustration, single object centered, anime game art style, clean line art, soft cel shading, high detail, plain very dark navy background
+```
+
+## 화면 배경 (16:9) — 36장
+
+### 스토리 1장 — 숲의 입구
+
+- 파일: `Backgrounds/story_ch1_gate.jpg` · 1920×1080 · 화면비 16:9
+
+```
+the edge of a dark ancient forest at dawn, a ruined mossy stone gate arch covered in vines, a dirt road leading into misty trees, cold blue morning light. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 1장 — 안개 낀 숲길
+
+- 파일: `Backgrounds/story_ch1_forest.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a deep misty forest path at twilight, huge twisted trees, faint purple shadow wisps drifting between trunks, abandoned wooden archer platforms high in the branches. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 1장 — 그림자 야영지
+
+- 파일: `Backgrounds/story_ch1_camp.jpg` · 1920×1080 · 화면비 16:9
+
+```
+an abandoned sinister war camp in a forest clearing at night, torn dark tents, a bonfire burning with purple flames, scattered spears and banners. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 1장 — 어둠군주의 제단
+
+- 파일: `Backgrounds/story_ch1_altar.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a sinister ancient dark stone altar among forest ruins under a blood-red moon, glowing purple runes on broken pillars, swirling shadow energy rising into the sky. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 스토리 1장 — 새벽
+
+- 파일: `Backgrounds/story_ch1_dawn.jpg` · 1920×1080 · 화면비 16:9
+
+```
+golden sunrise breaking over forest ruins, the last dark mist dissolving into warm light, dew on leaves, a calm hopeful morning sky. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 가챠 소환 의식(계약 스크롤 뒤 배경)
+
+- 파일: `Backgrounds/gacha_summon.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a dark circular arcane summoning chamber, tall stone pillars with faint glowing blue runes, drifting golden dust motes, a soft beam of light falling on an empty stone dais in the center. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
 
 ### 홈
 

@@ -28,6 +28,8 @@ namespace SubcultureRPG.Meta.Shop
 
         public MaterialType reward;
         public int rewardGold;          // > 0 이면 금화 상품(reward 무시)
+        public bool rewardTicket;       // 뽑기권 상품(reward 무시)
+        public SubcultureRPG.Gacha.GachaBannerType ticketType;
         public int amount = 1;          // 1회 구매당 지급 수
 
         public ShopCurrency currency;
@@ -38,10 +40,23 @@ namespace SubcultureRPG.Meta.Shop
         public ShopReset reset;
 
         public bool IsGold => rewardGold > 0;
-        public int Grade => IsGold ? 4 : Materials.Grade(reward);
+        public bool IsTicket => rewardTicket;
+        public int Grade => IsTicket ? 6 : IsGold ? 4 : Materials.Grade(reward);
 
-        public string RewardName => IsGold ? $"금화 {rewardGold:N0}" : Materials.Name(reward);
-        public string RewardRichName => IsGold ? $"<color=#FFD36B>금화 {rewardGold:N0}</color>" : Materials.RichName(reward);
+        public string RewardName => IsTicket ? PlayerWallet.TicketName(ticketType) : IsGold ? $"금화 {rewardGold:N0}" : Materials.Name(reward);
+        public string RewardRichName => IsTicket
+            ? $"<color={(ticketType == SubcultureRPG.Gacha.GachaBannerType.Pickup ? "#FFB3E6" : "#9FD8FF")}>{PlayerWallet.TicketName(ticketType)}</color>"
+            : IsGold ? $"<color=#FFD36B>금화 {rewardGold:N0}</color>" : Materials.RichName(reward);
+
+        /// <summary>아이콘 그림 경로(Resources/Art 기준).</summary>
+        public string IconPath => IsTicket
+            ? (ticketType == SubcultureRPG.Gacha.GachaBannerType.Pickup ? "Items/PickupTicket" : "Items/StandardTicket")
+            : IsGold ? "Items/Gold" : "Items/" + reward;
+
+        /// <summary>qty회 구매로 받는 것(예: '픽업 뽑기권 ×2').</summary>
+        public string GotText(int qty) => IsGold
+            ? $"<color=#FFD36B>금화 {(long)rewardGold * amount * qty:N0}</color>"
+            : $"{RewardRichName} ×{(long)amount * qty:N0}";
 
         /// <summary>가격 표시(예: '금화 4,000', '크리스탈 120', '상급 스킬 교본 ×8').</summary>
         public string PriceText(int qty = 1)
@@ -60,7 +75,7 @@ namespace SubcultureRPG.Meta.Shop
     /// 상점 상품 목록(튜닝 지점). 가격은 스테이지·던전 보상 규모에 맞춰 잡았습니다.
     /// - 일반 상점: 던전에서 모자란 재료를 금화로 보충 (매일 초기화)
     /// - 크리스탈 상점: 금화 묶음 · 경험치 결정 · 전설의 비전서 (매주 초기화)
-    /// - 교환소: 상급 교본 → 비전서, 같은 속성 돌파 재료 하위 3개 → 상위 1개
+    /// - 교환소: 별의 조각 → 뽑기권, 상급 교본 → 비전서, 같은 속성 돌파 재료 하위 3개 → 상위 1개
     /// </summary>
     public static class ShopCatalog
     {
@@ -121,6 +136,17 @@ namespace SubcultureRPG.Meta.Shop
                 Crystal("cry_legend", MaterialType.SkillLegend, 1, 300, 2),
 
                 // ---- 교환소 ----
+                // 별의 조각 → 뽑기권(무제한)
+                new ShopItem
+                {
+                    id = "ex_ticket_pickup", tab = ShopTab.Exchange, rewardTicket = true, ticketType = SubcultureRPG.Gacha.GachaBannerType.Pickup,
+                    amount = 1, currency = ShopCurrency.Material, costMaterial = MaterialType.StarShard, price = StarShards.PickupTicketPrice,
+                },
+                new ShopItem
+                {
+                    id = "ex_ticket_standard", tab = ShopTab.Exchange, rewardTicket = true, ticketType = SubcultureRPG.Gacha.GachaBannerType.Standard,
+                    amount = 1, currency = ShopCurrency.Material, costMaterial = MaterialType.StarShard, price = StarShards.StandardTicketPrice,
+                },
                 new ShopItem
                 {
                     id = "ex_legend", tab = ShopTab.Exchange, reward = MaterialType.SkillLegend, amount = 1,

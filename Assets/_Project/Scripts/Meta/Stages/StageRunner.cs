@@ -20,6 +20,8 @@ namespace SubcultureRPG.Meta
         public List<EquipmentItem> equipment;
         public int allyActions;
         public bool allSurvived;
+        public int multiplier;      // 보상 배수(1~3)
+        public int stamina;         // 쓴 행동력
     }
 
     /// <summary>
@@ -77,6 +79,18 @@ namespace SubcultureRPG.Meta
         private readonly List<CharacterData> _party = new();
         private readonly List<BattleUnitData> _spawned = new();
         private int _allyActions;
+
+        // 행동력 · 보상 배수 · 반복 입장
+        private int _paidStamina;       // 이번 전투에 낸 행동력(패배·이탈 시 반환)
+        private int _multiplier = 1;    // 이번 전투 보상 배수
+        private int _repeatLeft;        // 남은 반복 횟수(-1 = 행동력 소진까지)
+        private int _repeatRun;         // 반복 중 몇 번째 입장인지(1부터)
+
+        /// <summary>마지막 출격 실패 이유(행동력 부족 등). 성공하면 null.</summary>
+        public string LastError { get; private set; }
+
+        /// <summary>반복 입장 중 승리 후 다음 입장까지 대기(초).</summary>
+        [SerializeField] private float repeatDelaySeconds = 3f;
 
         private void Awake()
         {
@@ -141,9 +155,103 @@ namespace SubcultureRPG.Meta
             return new[] { "Backgrounds/" + key, "Backgrounds/battle" };
         }
 
+        /// <summary>
+        /// 스테이지 출격(편성 화면에서). 행동력을 쓰고, ★3 던전이면 고른 보상 배수 · 반복 입장 설정을 적용.
+        /// 행동력이 부족하면 false(LastError에 이유).
+        /// </summary>
         public bool Launch(StageData stage, IList<CharacterData> party)
         {
-            if (stage == null || launcher == null || party == null || party.Count == 0) return false;
+            _repeatLeft = StageEntry.RepeatFor(stage, progress);
+            _repeatRun = 1;
+
+            // 처음 출격하는 스테이지에 스토리가 있으면: 스토리 → 전투
+            var before = StoryLibrary.Before(stage);
+            if (before != null && !StoryLibrary.Seen(before) && stage != null && party != null && party.Count > 0)
+            {
+                int cost = StageEntry.CostOf(stage, progress);
+                if (wallet != null && wallet.Stamina < cost)
+                {
+                    LastError = $"행동력이 부족합니다 (보유 {wallet.Stamina} / 필요 {cost})";
+                    return false;
+                }
+                var team = new List<CharacterData>(party);
+                Current = stage;   // 스토리 중에도 '스테이지 전투 중'으로 취급(나가면 스테이지 화면으로)
+                _party.Clear();
+                _party.AddRange(team);
+                Story.Play(before, () =>
+                {
+                    StoryLibrary.MarkSeen(before);
+                    if (Current != stage) return;   // 스토리 도중 다른 화면으로 나감
+                    if (!LaunchInternal(stage, team) && hud != null) hud.ShowResultToast(LastError);
+                });
+                return true;
+            }
+            return LaunchInternal(stage, party);
+        }
+
+        // ---------------- 스토리 ----------------
+
+        private SubcultureRPG.Meta.UI.StoryScreen _story;
+
+        /// <summary>스토리 화면(씬에 없으면 만들어 씀).</summary>
+        private SubcultureRPG.Meta.UI.StoryScreen Story
+        {
+            get
+            {
+                if (_story == null) _story = SubcultureRPG.Meta.UI.StoryScreen.Ensure(hud != null ? hud.Font : null);
+                return _story;
+            }
+        }
+
+        /// <summary>이 스테이지에 다시 볼 수 있는 스토리가 있는가(한 번 본 것만).</summary>
+        public static bool HasReplay(StageData stage) =>
+            StoryLibrary.Seen(StoryLibrary.Before(stage)) || StoryLibrary.Seen(StoryLibrary.After(stage));
+
+        /// <summary>스토리 다시 보기(전 → 후 순서, 본 것만).</summary>
+        public void ReplayStory(StageData stage)
+        {
+            var before = StoryLibrary.Before(stage);
+            var after = StoryLibrary.After(stage);
+            bool b = StoryLibrary.Seen(before), a = StoryLibrary.Seen(after);
+            if (b) Story.Play(before, () => { if (a) Story.Play(after, null); });
+            else if (a) Story.Play(after, null);
+        }
+
+        [ContextMenu("스토리 기록 초기화(다시 자동 재생)")]
+        private void ResetStories() => StoryLibrary.ResetSeen();
+
+        /// <summary>같은 스테이지·파티로 다시(결과 화면 '다시'). 반복 설정은 처음부터.</summary>
+        private string RetryCurrent()
+        {
+            if (Current == null || _party.Count == 0) return "다시 시작할 스테이지가 없습니다";
+            return Launch(Current, new List<CharacterData>(_party)) ? null : LastError;
+        }
+
+        /// <summary>반복 입장: 같은 스테이지·파티로 다음 회차.</summary>
+        private void LaunchRepeat()
+        {
+            if (Current == null || _party.Count == 0) return;
+            _repeatRun++;
+            if (!LaunchInternal(Current, new List<CharacterData>(_party)) && hud != null) hud.ShowResultToast(LastError);
+        }
+
+        private bool LaunchInternal(StageData stage, IList<CharacterData> party)
+        {
+            LastError = null;
+            if (stage == null || launcher == null || party == null || party.Count == 0) { LastError = "출격할 수 없습니다"; return false; }
+
+            // 지난 전투가 끝나지 않은 채 다시 출격하면 그 행동력은 돌려줌
+            RefundStamina();
+
+            int mult = StageEntry.MultiplierFor(stage, progress);
+            int cost = StageEntry.BaseCost(stage) * mult;
+            if (wallet != null && !wallet.SpendStamina(cost))
+            {
+                LastError = $"행동력이 부족합니다 (보유 {wallet.Stamina} / 필요 {cost})";
+                return false;
+            }
+            _paidStamina = wallet != null ? cost : 0;
+            _multiplier = mult;
 
             CleanupSpawned();
             var enemies = new List<BattleUnitData>();
@@ -158,13 +266,26 @@ namespace SubcultureRPG.Meta
                     enemies.Add(u);
                     _spawned.Add(u);
                 }
-            if (enemies.Count == 0) { Debug.LogWarning($"[StageRunner] {stage.Code} 적 구성이 비어 있습니다."); return false; }
+            if (enemies.Count == 0)
+            {
+                Debug.LogWarning($"[StageRunner] {stage.Code} 적 구성이 비어 있습니다.");
+                RefundStamina();
+                LastError = "적 구성이 비어 있습니다";
+                return false;
+            }
 
             Current = stage;
+            var copy = new List<CharacterData>(party);   // party가 _party 자신일 수 있음
             _party.Clear();
-            _party.AddRange(party);
-            if (hud != null) hud.SetBackground(BattleBackgrounds(stage));
-            launcher.Launch(party, enemies);
+            _party.AddRange(copy);
+            if (hud != null)
+            {
+                hud.SetBackground(BattleBackgrounds(stage));
+                hud.SetRetryHandler(RetryCurrent);
+            }
+            // 반복 입장 중에는 자동 전투로
+            if (_repeatLeft != 0 && controller != null) controller.AutoBattle = true;
+            launcher.Launch(copy, enemies);
             return true;
         }
 
@@ -181,7 +302,14 @@ namespace SubcultureRPG.Meta
         private void LaunchNext(StageData next)
         {
             if (next == null || _party.Count == 0) return;
-            Launch(next, new List<CharacterData>(_party));
+            if (!Launch(next, new List<CharacterData>(_party)) && hud != null) hud.ShowResultToast(LastError);
+        }
+
+        /// <summary>낸 행동력 반환(패배·이탈).</summary>
+        private void RefundStamina()
+        {
+            if (_paidStamina > 0 && wallet != null) wallet.AddStamina(_paidStamina);
+            _paidStamina = 0;
         }
 
         /// <summary>난이도 보정: 복제본의 HP·ATK·DEF(기본치·성장치)에 배율.</summary>
@@ -196,8 +324,11 @@ namespace SubcultureRPG.Meta
         /// <summary>스테이지 모드 종료(허브 복귀 시).</summary>
         public void Clear()
         {
+            RefundStamina();   // 끝나지 않은 전투에서 나가면 행동력 반환
             Current = null;
             _party.Clear();
+            _repeatLeft = 0;
+            if (hud != null) hud.SetRetryHandler(null);
         }
 
         private void CleanupSpawned()
@@ -222,16 +353,26 @@ namespace SubcultureRPG.Meta
             var stage = Current;
             if (stage == null) return;
 
-            var result = new StageResult { stage = stage, win = winner == Team.Ally, allyActions = _allyActions };
+            var result = new StageResult
+            {
+                stage = stage, win = winner == Team.Ally, allyActions = _allyActions,
+                multiplier = Mathf.Max(1, _multiplier), stamina = _paidStamina,
+            };
 
             if (!result.win)
             {
+                int refund = _paidStamina;
+                RefundStamina();
+                _repeatLeft = 0;
                 if (hud != null)
                     hud.SetResultDetail($"<size=110%>{stage.Code} {stage.stageName}</size>\n" +
-                                        "<color=#9AA3B5>보상 없음 — 캐릭터를 육성하거나 파티를 바꿔 다시 도전하세요</color>");
+                                        "<color=#9AA3B5>보상 없음 — 캐릭터를 육성하거나 파티를 바꿔 다시 도전하세요</color>" +
+                                        (refund > 0 ? $"\n<color=#7CFFB2>행동력 {refund} 반환</color>" : ""));
                 OnStageFinished?.Invoke(result);
                 return;
             }
+            _paidStamina = 0;   // 승리 → 행동력 소모 확정
+            int m = result.multiplier;
 
             // 별 평가
             bool allAlive = controller != null && controller.Engine != null &&
@@ -250,21 +391,22 @@ namespace SubcultureRPG.Meta
                 result.crystals = stage.firstClearCrystals;
                 if (wallet != null) wallet.Add(stage.firstClearCrystals);
             }
+            // 매 클리어 보상 × 배수(첫 클리어 크리스탈은 배수 없음)
             if (stage.gold > 0)
             {
-                result.gold = stage.gold;
-                if (wallet != null) wallet.AddGold(stage.gold);
+                result.gold = stage.gold * m;
+                if (wallet != null) wallet.AddGold(result.gold);
             }
             if (inventory != null && stage.rewards != null)
-                foreach (var m in stage.rewards)
-                    if (m != null && m.count > 0) inventory.Add(m.type, m.count);
+                foreach (var mr in stage.rewards)
+                    if (mr != null && mr.count > 0) inventory.Add(mr.type, mr.count * m);
             if (roster != null && stage.characterExp > 0)
                 foreach (var c in _party)
-                    if (c != null) roster.AddExp(c, stage.characterExp);
+                    if (c != null) roster.AddExp(c, stage.characterExp * m);
             if (equipment != null && stage.equipmentDrops > 0 && stage.equipmentSets != null && stage.equipmentSets.Count > 0)
             {
                 result.equipment = new List<EquipmentItem>();
-                for (int i = 0; i < stage.equipmentDrops; i++)
+                for (int i = 0; i < stage.equipmentDrops * m; i++)
                 {
                     var it = equipment.AddRandom(stage.equipmentSets, stage.equipmentRarityWeights);
                     if (it != null) result.equipment.Add(it);
@@ -278,13 +420,59 @@ namespace SubcultureRPG.Meta
                 detail += $"\n<color={Difficulties.Hex(StageDifficulty.Hard)}>하드 난이도 개방!</color>  <size=80%>스테이지 화면 위쪽 난이도 버튼</size>";
             if (hellWasLocked && progress.IsDifficultyUnlocked(database, StageDifficulty.Hell))
                 detail += $"\n<color={Difficulties.Hex(StageDifficulty.Hell)}>극악 난이도 개방!</color>  <size=80%>스테이지 화면 위쪽 난이도 버튼</size>";
+            // 처음 본 클리어 후 스토리가 있으면 결과 화면 위에서 먼저 재생(자동 진행은 그 뒤에)
+            var afterStory = StoryLibrary.After(stage);
+            bool playAfter = afterStory != null && !StoryLibrary.Seen(afterStory);
+            if (playAfter) _repeatLeft = 0;
+
             if (hud != null)
             {
-                hud.SetResultDetail(detail);
                 var next = NextStageOf(stage);
-                if (next != null)
-                    hud.SetResultNext($"다음 스테이지로  ·  {next.Code}", () => LaunchNext(next), autoNextSeconds);
+                if (_repeatLeft != 0)
+                {
+                    // 반복 입장: 횟수가 남았고 행동력이 되면 잠시 뒤 같은 던전으로
+                    if (_repeatLeft > 0) _repeatLeft--;
+                    int cost = StageEntry.BaseCost(stage) * StageEntry.MultiplierFor(stage, progress);
+                    bool afford = wallet == null || wallet.Stamina >= cost;
+                    string total = _repeatLeft < 0 ? "최대" : $"{_repeatRun + _repeatLeft}";
+                    if (afford && (_repeatLeft != 0))
+                    {
+                        detail += $"\n<color=#7FE3D6>반복 입장 {_repeatRun} / {total}회 완료</color>";
+                        string left = _repeatLeft < 0 ? "행동력 소진까지" : $"남은 {_repeatLeft}회";
+                        hud.SetResultNext($"반복 입장  ·  {left}", LaunchRepeat, repeatDelaySeconds);
+                    }
+                    else
+                    {
+                        detail += afford
+                            ? $"\n<color=#7FE3D6>반복 입장 {_repeatRun}회 완료</color>"
+                            : $"\n<color=#FF8A8A>행동력이 부족해 반복 입장을 멈췄습니다</color>  <size=80%>({_repeatRun}회 완료 · 필요 {cost})</size>";
+                        _repeatLeft = 0;
+                    }
+                }
+                else if (next != null)
+                {
+                    int cost = StageEntry.CostOf(next, progress);
+                    if (wallet == null || wallet.Stamina >= cost)
+                    {
+                        if (!playAfter) hud.SetResultNext($"다음 스테이지로  ·  {next.Code}", () => LaunchNext(next), autoNextSeconds);
+                    }
+                    else
+                        detail += $"\n<color=#FF8A8A>행동력 부족</color>  <size=80%>다음 스테이지 {next.Code} 필요 {cost} · 보유 {wallet.Stamina}</size>";
+                }
+                hud.SetResultDetail(detail);
+
+                if (playAfter)
+                {
+                    Story.Play(afterStory, () =>
+                    {
+                        StoryLibrary.MarkSeen(afterStory);
+                        // 스토리가 끝난 뒤에는 자동으로 넘기지 않고 버튼만 보여 줌
+                        if (Current == stage && next != null && (wallet == null || wallet.Stamina >= StageEntry.CostOf(next, progress)))
+                            hud.SetResultNext($"다음 스테이지로  ·  {next.Code}", () => LaunchNext(next), 0f);
+                    });
+                }
             }
+            else if (playAfter) StoryLibrary.MarkSeen(afterStory);
             OnStageFinished?.Invoke(result);
         }
 
@@ -299,16 +487,20 @@ namespace SubcultureRPG.Meta
             sb.Append(Check(true)).Append(" 클리어   ");
             sb.Append(Check(allAlive)).Append(" 아군 전원 생존   ");
             sb.Append(Check(fast)).Append($" 아군 행동 {s.turnLimit}회 이내 ({r.allyActions}회)");
+            if (r.stamina > 0) sb.Append($"   <color=#7CFFB2>행동력 -{r.stamina}</color>");
             sb.Append("</size>\n");
 
-            sb.Append("<color=#FFD36B>획득</color>  ");
+            int mul = Mathf.Max(1, r.multiplier);
+            sb.Append("<color=#FFD36B>획득</color>");
+            if (mul > 1) sb.Append($" <color=#FFB347>(보상 ×{mul})</color>");
+            sb.Append("  ");
             var parts = new List<string>();
             if (r.crystals > 0) parts.Add($"<color=#8FE9FF>크리스탈 {r.crystals}</color> <size=75%>(첫 클리어)</size>");
             if (r.gold > 0) parts.Add($"<color=#FFD36B>금화 {r.gold:N0}</color>");
             if (s.rewards != null)
                 foreach (var m in s.rewards)
-                    if (m != null && m.count > 0) parts.Add($"{Materials.RichName(m.type)} ×{m.count}");
-            if (s.characterExp > 0) parts.Add($"캐릭터 경험치 +{s.characterExp}");
+                    if (m != null && m.count > 0) parts.Add($"{Materials.RichName(m.type)} ×{m.count * mul}");
+            if (s.characterExp > 0) parts.Add($"캐릭터 경험치 +{s.characterExp * mul}");
             sb.Append(parts.Count > 0 ? string.Join("  ·  ", parts) : "없음");
             if (r.equipment != null && r.equipment.Count > 0)
             {

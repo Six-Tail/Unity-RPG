@@ -141,6 +141,11 @@ const ITEMS = [
   ['SkillLegend', '전설의 비전서', 'a legendary golden scroll tied with a red seal ribbon, radiating golden light'],
   ['EquipOre', '장비 강화석', 'a chunk of blue-steel ore with glowing cyan veins'],
   ['Gold', '금화', 'a neat stack of shiny gold coins with a star emblem'],
+  ['Crystal', '크리스탈', 'a brilliant faceted cyan-blue gem crystal with a white sparkle highlight, gacha premium currency'],
+  ['Stamina', '행동력', 'a glowing mint-green energy lightning bolt inside a round emblem, stamina energy icon'],
+  ['StarShard', '별의 조각', 'a glowing violet and gold crystal shard shaped like a broken star, sparkling with tiny stars'],
+  ['PickupTicket', '픽업 뽑기권', 'an ornate pink and gold summon ticket card with a glowing star emblem in the center'],
+  ['StandardTicket', '상시 뽑기권', 'an ornate sky-blue and silver summon ticket card with a glowing star emblem in the center'],
 ];
 
 // 돌파 재료: 속성 5 × 등급 3 (파일명 = {Element}Asc{1~3})
@@ -169,6 +174,13 @@ const EQUIP_SLOTS = [
 
 // ---------------------------------------------------------------- 배경
 const BACKGROUNDS = [
+  // 챕터 1 스토리 장면(대화 화면 배경)
+  ['story_ch1_gate', '스토리 1장 — 숲의 입구', 'the edge of a dark ancient forest at dawn, a ruined mossy stone gate arch covered in vines, a dirt road leading into misty trees, cold blue morning light'],
+  ['story_ch1_forest', '스토리 1장 — 안개 낀 숲길', 'a deep misty forest path at twilight, huge twisted trees, faint purple shadow wisps drifting between trunks, abandoned wooden archer platforms high in the branches'],
+  ['story_ch1_camp', '스토리 1장 — 그림자 야영지', 'an abandoned sinister war camp in a forest clearing at night, torn dark tents, a bonfire burning with purple flames, scattered spears and banners'],
+  ['story_ch1_altar', '스토리 1장 — 어둠군주의 제단', 'a sinister ancient dark stone altar among forest ruins under a blood-red moon, glowing purple runes on broken pillars, swirling shadow energy rising into the sky'],
+  ['story_ch1_dawn', '스토리 1장 — 새벽', 'golden sunrise breaking over forest ruins, the last dark mist dissolving into warm light, dew on leaves, a calm hopeful morning sky'],
+  ['gacha_summon', '가챠 소환 의식(계약 스크롤 뒤 배경)', 'a dark circular arcane summoning chamber, tall stone pillars with faint glowing blue runes, drifting golden dust motes, a soft beam of light falling on an empty stone dais in the center'],
   ['home', '홈', 'a cozy medieval fantasy great hall interior at dusk, tall arched windows overlooking a fantasy town with castle spires, warm glowing lanterns, wooden beams, plain cloth drapes'],
   ['gacha', '가챠(배너 그림이 없을 때)', 'a mystical summoning hall, glowing magic circle on the floor, floating crystals, starry dome ceiling'],
   ['stage', '스테이지 선택', 'a vast fantasy continent seen from a high cliff at dawn, distant forests, mountains, a fortress and a volcano on the horizon'],
@@ -217,7 +229,7 @@ const BANNERS = [
 // 로컬 Flux 는 투명을 못 그리므로 게임 칸과 비슷한 어두운 단색 배경으로.
 const BG_DARK = {
   enemies: 'simple dark misty background', items: 'plain very dark navy background', equipment: 'plain very dark navy background',
-  status: 'plain very dark navy background',
+  status: 'plain very dark navy background', gacha: 'plain very dark navy background',
 };
 
 // 전투 상태 아이콘 [키(StatusType 이름 · Break), 표시 이름, 묘사] — 게임은 Status/{키}.png 로 찾음(없으면 색 + 글자 아이콘).
@@ -253,8 +265,24 @@ function withBackground(e, text) {
   return e;
 }
 
+// 가챠 연출 소품(계약 스크롤 서명) [키, 이름, 묘사, 화면비, 가로, 세로]
+const GACHA_PROPS = [
+  ['scroll', '계약 스크롤', 'an unrolled ancient magic contract parchment scroll laid flat and seen straight from the front, wide horizontal sheet with rolled wooden rods at the left and right ends, ornate golden filigree border, faint arcane rune watermark, a large empty blank area in the center', '16:9', 1280, 720],
+  ['circle', '소환 마법진', 'an ornate glowing golden arcane summoning magic circle seen from directly above, concentric rings, intricate runes and a star in the center, perfectly round and symmetrical', '1:1', 768, 768],
+  ['quill', '깃펜', 'a white feather quill pen with a golden nib, tilted diagonally with the nib pointing to the lower left, a faint blue magic glow at the tip', '1:1', 256, 256],
+  ['seal', '계약 인장', 'a round crimson wax seal with an embossed golden star emblem and a small ribbon', '1:1', 256, 256],
+];
+const GACHA_STYLE = 'fantasy game UI illustration, single object centered, anime game art style, clean line art, soft cel shading, high detail, %BG%';
+
 function build() {
   const list = [];
+  for (const [key, name, look, aspect, w, h] of GACHA_PROPS)
+    list.push(withBackground({
+      group: 'gacha', key: `gacha_${key}`, label: `가챠 연출 — ${name}`,
+      out: `Gacha/${key}.png`, aspect, resolution: '1K', width: w, height: h, format: 'png',
+      negative: NEGATIVE + ', text, letters, writing, signature',
+    }, `${look}. ${GACHA_STYLE}`));
+
   const charById = {};
 
   for (const [id, name, star, el, role, look] of CHARACTERS) {
@@ -332,4 +360,4 @@ function build() {
   return list;
 }
 
-module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'status', 'backgrounds', 'banners'] };
+module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'status', 'gacha', 'backgrounds', 'banners'] };

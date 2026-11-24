@@ -19,6 +19,44 @@ namespace SubcultureRPG.UI
             return rt;
         }
 
+        /// <summary>
+        /// 가운데 고정 폭 프레임(세로는 부모에 맞춤). 좌우 끝에 붙는 화면(목록 왼쪽 · 상세 오른쪽)을
+        /// 넓은 화면에서도 1920 폭 설계 그대로 가운데에 모아 줍니다. 배경·전체 화면 덮개는 프레임 밖(부모)에 둡니다.
+        /// </summary>
+        public static RectTransform Frame(Transform parent, float width = 1920f)
+        {
+            var rt = NewRect("Frame", parent);
+            rt.anchorMin = new Vector2(0.5f, 0f); rt.anchorMax = new Vector2(0.5f, 1f); rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(width, 0f); rt.anchoredPosition = Vector2.zero;
+            return rt;
+        }
+
+        /// <summary>
+        /// view 안에서 content를 세로로 스크롤(내용이 view보다 길 때만 움직임).
+        /// content는 위쪽에 붙어 폭을 채우고, 높이는 내용(레이아웃 그룹·텍스트)에 맞춰 늘어납니다.
+        /// </summary>
+        public static ScrollRect MakeVerticalScroll(RectTransform view, RectTransform content)
+        {
+            if (view.GetComponent<Graphic>() == null)
+            {
+                var hit = view.gameObject.AddComponent<Image>();   // 빈 곳을 잡고 끌 수 있도록
+                hit.color = new Color(0, 0, 0, 0);
+            }
+            if (view.GetComponent<RectMask2D>() == null) view.gameObject.AddComponent<RectMask2D>();
+            content.SetParent(view, false);
+            content.anchorMin = new Vector2(0, 1); content.anchorMax = new Vector2(1, 1); content.pivot = new Vector2(0.5f, 1);
+            content.sizeDelta = Vector2.zero; content.anchoredPosition = Vector2.zero;
+            var fit = content.GetComponent<ContentSizeFitter>();
+            if (fit == null) fit = content.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var scroll = view.gameObject.AddComponent<ScrollRect>();
+            scroll.content = content; scroll.viewport = view;
+            scroll.horizontal = false; scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f;
+            return scroll;
+        }
+
         public static Image AddImage(string name, Transform parent, Color color, Sprite sprite = null, bool raycast = false)
         {
             var rt = NewRect(name, parent);

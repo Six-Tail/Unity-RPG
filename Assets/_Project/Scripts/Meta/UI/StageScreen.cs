@@ -20,6 +20,7 @@ namespace SubcultureRPG.Meta.UI
     {
         [SerializeField] private StageDatabase database;
         [SerializeField] private StageProgress progress;
+        [SerializeField, Tooltip("행동력(비우면 자동 탐색).")] private PlayerWallet wallet;
         [SerializeField] private TMP_FontAsset font;
 
         public StageDatabase Database => database;
@@ -46,11 +47,161 @@ namespace SubcultureRPG.Meta.UI
         private void Awake()
         {
             if (progress == null) progress = FindAnyObjectByType<StageProgress>();
+            if (wallet == null) wallet = FindAnyObjectByType<PlayerWallet>();
             BuildUI();
         }
 
-        private void OnEnable() { if (progress != null) progress.OnChanged += Refresh; }
-        private void OnDisable() { if (progress != null) progress.OnChanged -= Refresh; }
+        private void OnEnable()
+        {
+            if (progress != null) progress.OnChanged += Refresh;
+            if (wallet != null) wallet.OnChanged += OnWalletChanged;
+        }
+
+        private void OnDisable()
+        {
+            if (progress != null) progress.OnChanged -= Refresh;
+            if (wallet != null) wallet.OnChanged -= OnWalletChanged;
+        }
+
+        private void OnWalletChanged()
+        {
+            RefreshStamina();
+            RefreshEntry();
+        }
+
+        // ---------------- 행동력 · 보상 배수 · 반복 입장 ----------------
+
+        private TextMeshProUGUI _costText, _boostHint;
+        private ScrollRect _detScroll;
+        private StageData _detShown;
+        private Button _storyBtn;
+        private StageRunner _runner;
+        private GameObject _multRow, _repeatRow;
+        private readonly List<(Button btn, int value)> _multBtns = new(), _repeatBtns = new();
+        private float _staminaClock;
+
+        private void Update()
+        {
+            // 다음 회복까지 남은 시간 표시(1초마다)
+            if (_root == null || !_root.activeInHierarchy) return;
+            _staminaClock -= Time.unscaledDeltaTime;
+            if (_staminaClock > 0f) return;
+            _staminaClock = 1f;
+            RefreshStamina();
+        }
+
+        private void RefreshStamina()
+        {
+            // 행동력 표시는 CurrencyBar가 스스로 갱신(다음 회복까지 남은 시간 포함)
+        }
+
+        /// <summary>상세 패널 아래쪽: 행동력 비용 · 보상 배수 · 반복 입장 · 출격 버튼 상태.</summary>
+        private void RefreshEntry()
+        {
+            if (_costText == null || _selected == null) return;
+            var s = _selected;
+            bool unlocked = progress == null || progress.IsUnlocked(s, database);
+            bool boost = StageEntry.CanBoost(s, progress);
+            int mult = StageEntry.MultiplierFor(s, progress);
+            int baseCost = StageEntry.BaseCost(s);
+            int cost = baseCost * mult;
+            int have = wallet != null ? wallet.Stamina : int.MaxValue;
+            bool afford = wallet == null || have >= cost;
+
+            _multRow.SetActive(boost);
+            _repeatRow.SetActive(boost);
+            _boostHint.gameObject.SetActive(!boost);
+            _boostHint.text = "<color=#9AA3B5>★3으로 클리어하면 <color=#FFD36B>보상 배수(x2 · x3)</color>와 <color=#7FE3D6>반복 입장</color>을 쓸 수 있습니다</color>";
+
+            foreach (var (btn, v) in _multBtns)
+            {
+                bool on = v == StageEntry.Multiplier;
+                btn.GetComponent<Image>().color = on ? new Color(0.85f, 0.6f, 0.2f, 0.98f) : new Color(1, 1, 1, 0.12f);
+                btn.transform.localScale = Vector3.one * (on ? 1.06f : 1f);
+            }
+            foreach (var (btn, v) in _repeatBtns)
+            {
+                bool on = v == StageEntry.Repeat;
+                btn.GetComponent<Image>().color = on ? new Color(0.2f, 0.6f, 0.6f, 0.98f) : new Color(1, 1, 1, 0.12f);
+                btn.transform.localScale = Vector3.one * (on ? 1.06f : 1f);
+            }
+
+            string costPart = mult > 1 ? $"{baseCost} × {mult} = <b>{cost}</b>" : $"<b>{cost}</b>";
+            string bonus = mult > 1 ? $"   <color=#FFD36B>보상 ×{mult}</color>" : "";
+            string haveText = wallet != null ? $"   <size=85%><color={(afford ? "#9AA3B5" : "#FF8A8A")}>(보유 {have})</color></size>" : "";
+            _costText.text = $"<color=#7CFFB2>행동력</color> {costPart}{bonus}{haveText}";
+
+            if (!unlocked) return;   // 잠김 문구는 RefreshDetail이 씀
+            _sortieBtn.interactable = afford;
+            _sortieLbl.text = afford ? $"편성 후 출격  <size=70%>· 행동력 {cost}</size>" : $"행동력 부족  <size=70%>({have} / {cost})</size>";
+        }
+
+        private void SetMultiplier(int v)
+        {
+            StageEntry.Multiplier = v;
+            RefreshEntry();
+        }
+
+        private void SetRepeat(int v)
+        {
+            StageEntry.Repeat = v;
+            RefreshEntry();
+        }
+
+        private void BuildEntryControls(Transform panel)
+        {
+            _costText = UIFactory.AddText("Cost", panel, "", 21, font, Color.white, TextAlignmentOptions.Center);
+            var crt = _costText.rectTransform;
+            UIFactory.Anchor(crt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            crt.sizeDelta = new Vector2(-40, 32); crt.anchoredPosition = new Vector2(0, 212);
+
+            _multRow = OptionRow(panel, "보상 배수", 160, out var multHolder);
+            for (int m = 1; m <= StageEntry.MaxMultiplier; m++)
+            {
+                int v = m;
+                var b = OptionButton(multHolder, $"x{m}", 96, () => SetMultiplier(v));
+                _multBtns.Add((b, v));
+            }
+            _repeatRow = OptionRow(panel, "반복 입장", 112, out var repHolder);
+            foreach (var r in StageEntry.RepeatOptions)
+            {
+                int v = r;
+                var b = OptionButton(repHolder, StageEntry.RepeatLabel(r), 76, () => SetRepeat(v));
+                _repeatBtns.Add((b, v));
+            }
+
+            _boostHint = UIFactory.AddText("BoostHint", panel, "", 18, font, Color.white, TextAlignmentOptions.Center);
+            var hrt = _boostHint.rectTransform;
+            UIFactory.Anchor(hrt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            hrt.sizeDelta = new Vector2(-60, 80); hrt.anchoredPosition = new Vector2(0, 118);
+            _boostHint.enableAutoSizing = true; _boostHint.fontSizeMin = 13; _boostHint.fontSizeMax = 18;
+        }
+
+        private GameObject OptionRow(Transform panel, string label, float y, out RectTransform holder)
+        {
+            var row = UIFactory.NewRect(label, panel);
+            UIFactory.Anchor(row, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            row.sizeDelta = new Vector2(-40, 44); row.anchoredPosition = new Vector2(0, y);
+            var lbl = UIFactory.AddText("L", row, label, 19, font, new Color(0.8f, 0.83f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UIFactory.Anchor(lbl.rectTransform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f));
+            lbl.rectTransform.sizeDelta = new Vector2(120, 0); lbl.rectTransform.anchoredPosition = new Vector2(20, 0);
+            holder = UIFactory.NewRect("Buttons", row);
+            UIFactory.Stretch(holder, 140, 0, 10, 0);
+            var hl = holder.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hl.spacing = 8; hl.childAlignment = TextAnchor.MiddleLeft;
+            hl.childControlWidth = true; hl.childControlHeight = true;
+            hl.childForceExpandWidth = false; hl.childForceExpandHeight = false;
+            return row.gameObject;
+        }
+
+        private Button OptionButton(RectTransform holder, string label, float width, UnityEngine.Events.UnityAction onClick)
+        {
+            var b = UIFactory.AddButton("Opt", holder, label, 20, font, new Color(1, 1, 1, 0.12f), Color.white);
+            var le = b.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = width; le.preferredHeight = 44;
+            b.onClick.AddListener(onClick);
+            return b;
+        }
 
         private void Start()
         {
@@ -121,6 +272,7 @@ namespace SubcultureRPG.Meta.UI
             int total = 0, max = 0;
             foreach (var s in database.Ordered(_difficulty)) { total += progress != null ? progress.StarsOf(s) : 0; max += 3; }
             _totalStars.text = $"<size=75%><color={Difficulties.Hex(_difficulty)}>{Difficulties.Name(_difficulty)}</color></size>  <color=#FFD36B>★</color> {total} / {max}";
+            RefreshStamina();
 
             if (_dungeonMode)
             {
@@ -476,10 +628,14 @@ namespace SubcultureRPG.Meta.UI
             }
 
             _detBody.text = sb.ToString();
+            if (_detScroll != null && _detShown != s) _detScroll.verticalNormalizedPosition = 1f;   // 다른 스테이지를 고르면 맨 위부터
+            _detShown = s;
+            if (_storyBtn != null) _storyBtn.gameObject.SetActive(StageRunner.HasReplay(s));
 
             _sortieBtn.interactable = unlocked;
             _sortieLbl.text = unlocked ? "편성 후 출격"
                 : (s.IsDungeon && s.unlockAfter != null ? $"{s.unlockAfter.Code} 클리어 시 개방" : "이전 스테이지를 클리어하세요");
+            RefreshEntry();
         }
 
         // ---------------- UI 구성 ----------------
@@ -493,7 +649,7 @@ namespace SubcultureRPG.Meta.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 
@@ -509,7 +665,15 @@ namespace SubcultureRPG.Meta.UI
             _totalStars = UIFactory.AddText("TotalStars", _root.transform, "", 26, font, Color.white, TextAlignmentOptions.Right, FontStyles.Bold);
             var tsrt = _totalStars.rectTransform;
             UIFactory.Anchor(tsrt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
-            tsrt.sizeDelta = new Vector2(300, 40); tsrt.anchoredPosition = new Vector2(-50, -36);
+            tsrt.sizeDelta = new Vector2(300, 34); tsrt.anchoredPosition = new Vector2(-50, -112);   // 행동력 알약 아래
+
+            // 행동력(오른쪽 위, 다른 화면의 재화 알약과 같은 모양) + 테스트 충전(왼쪽 옆)
+            CurrencyBar.Create(_root.transform, font, wallet, new Vector2(-50, -32), Currency.Stamina);
+            var refill = UIFactory.AddButton("StaminaTest", _root.transform, "행동력 +120 (테스트)", 16, font, new Color(1, 1, 1, 0.12f), Color.white);
+            var rfrt = (RectTransform)refill.transform;
+            UIFactory.Anchor(rfrt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            rfrt.sizeDelta = new Vector2(196, 40); rfrt.anchoredPosition = new Vector2(-50 - CurrencyBar.PillW - 14, -38);
+            refill.onClick.AddListener(() => { if (wallet != null) wallet.AddStamina(120); });
 
             // 위: 난이도 + 돌파 던전 · 아래: 챕터 번호
             _modeTabs = TabRow("ModeTabs", -98, 44, 10);
@@ -521,10 +685,14 @@ namespace SubcultureRPG.Meta.UI
             chrt.sizeDelta = new Vector2(1000, 44); chrt.anchoredPosition = new Vector2(-380, -200);
 
             // 스테이지 노드(3열)
-            _nodes = UIFactory.NewRect("Nodes", _root.transform);
-            UIFactory.Anchor(_nodes, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            _nodes.sizeDelta = new Vector2(1000, 700); _nodes.anchoredPosition = new Vector2(-380, -256);
+            // 노드 목록은 스크롤(던전 단계가 많아도 아래로 넘치지 않음)
+            var nodesView = UIFactory.NewRect("NodesView", _root.transform);
+            UIFactory.Anchor(nodesView, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            nodesView.sizeDelta = new Vector2(1016, 780); nodesView.anchoredPosition = new Vector2(-380, -248);
+            _nodes = UIFactory.NewRect("Nodes", nodesView);
             var gl = _nodes.gameObject.AddComponent<GridLayoutGroup>();
+            gl.padding = new RectOffset(8, 8, 8, 8);   // 선택 테두리가 잘리지 않게
+            UIFactory.MakeVerticalScroll(nodesView, _nodes);
             _grid = gl;
             gl.cellSize = new Vector2(300, 170); gl.spacing = new Vector2(30, 30);
             gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = 3;
@@ -551,14 +719,16 @@ namespace SubcultureRPG.Meta.UI
             _detTitle = UIFactory.AddText("Title", panel.transform, "", 34, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             var trt = _detTitle.rectTransform;
             UIFactory.Anchor(trt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            trt.sizeDelta = new Vector2(-40, 50); trt.anchoredPosition = new Vector2(0, -24);
+            trt.sizeDelta = new Vector2(-40, 50); trt.anchoredPosition = new Vector2(0, -44);
+            _detTitle.enableAutoSizing = true; _detTitle.fontSizeMin = 20; _detTitle.fontSizeMax = 34;
 
-            _detBody = UIFactory.AddText("Body", panel.transform, "", 21, font, Color.white, TextAlignmentOptions.TopLeft);
-            var brt = _detBody.rectTransform;
-            UIFactory.Stretch(brt, 36, 120, 36, 90);
+            // 본문은 글자를 줄이지 않고 스크롤(내용이 길면 위아래로 끌어서 봄)
+            var bodyView = UIFactory.NewRect("BodyView", panel.transform);
+            UIFactory.Stretch(bodyView, 28, 252, 20, 90);
+            _detBody = UIFactory.AddText("Body", bodyView, "", 20, font, Color.white, TextAlignmentOptions.TopLeft);
             _detBody.lineSpacing = 6f;
-            _detBody.enableAutoSizing = true;
-            _detBody.fontSizeMin = 14; _detBody.fontSizeMax = 21;
+            _detBody.margin = new Vector4(8, 4, 14, 12);
+            _detScroll = UIFactory.MakeVerticalScroll(bodyView, _detBody.rectTransform);
 
             _sortieBtn = UIFactory.AddButton("Sortie", panel.transform, "", 28, font, new Color(0.85f, 0.45f, 0.25f, 0.95f), Color.white);
             var srt = (RectTransform)_sortieBtn.transform;
@@ -566,6 +736,21 @@ namespace SubcultureRPG.Meta.UI
             srt.sizeDelta = new Vector2(420, 76); srt.anchoredPosition = new Vector2(0, 30);
             _sortieBtn.onClick.AddListener(() => { if (_selected != null) OnSortie?.Invoke(_selected); });
             _sortieLbl = _sortieBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _sortieLbl.richText = true;
+
+            BuildEntryControls(panel.transform);
+
+            // 스토리 다시 보기(이미 본 스토리가 있는 스테이지만)
+            _storyBtn = UIFactory.AddButton("Story", panel.transform, "스토리 다시 보기", 18, font, new Color(0.45f, 0.35f, 0.75f, 0.95f), Color.white);
+            var strt2 = (RectTransform)_storyBtn.transform;
+            UIFactory.Anchor(strt2, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            strt2.sizeDelta = new Vector2(176, 36); strt2.anchoredPosition = new Vector2(-14, -14);   // 제목 줄 오른쪽 끝
+            _storyBtn.onClick.AddListener(() =>
+            {
+                if (_runner == null) _runner = FindAnyObjectByType<StageRunner>();
+                if (_runner != null && _selected != null) _runner.ReplayStory(_selected);
+            });
+            _storyBtn.gameObject.SetActive(false);
 
             _detPanel.SetActive(false);
         }

@@ -171,3 +171,7 @@ portraitImage.enabled = !live && sprite != null;       // 없으면 정적 일�
 - 무대 텍스처는 알파가 곱해진(premultiplied) 색으로 그려지는 것을 확인했습니다 → UI에는 전용 셰이더(`Resources/Shaders/UI-Premultiplied`)로 합성합니다.
 - 매출 1,000만 엔 이상 사업자는 Cubism SDK 릴리스 라이선스 계약이 필요합니다(SDK의 `LICENSE.md`).
 - 오디오 모듈을 켜면서 씬에 `AudioListener`가 필요해져, 실행 시 없으면 메인 카메라에 자동으로 붙입니다([AudioBootstrap](../Assets/_Project/Scripts/Core/AudioBootstrap.cs)).
+
+## 무대 공유와 자리 되찾기
+
+Live2D 모델과 반복 영상은 각각 **무대 하나**(`Live2DStage` / `MotionVideoStage`)를 여러 화면이 같이 씁니다. 그래서 한 화면이 다른 캐릭터를 무대에 올리면, 먼저 쓰던 화면은 `Displaced` 이벤트로 알림을 받아 **정적 일러스트로 물러납니다**(같은 텍스처를 계속 보여 주면 엉뚱한 캐릭터가 보이던 문제 — 예: 뽑기 후 픽업 배너 그림이 방금 뽑은 상시 6성으로 바뀜). 무대가 비면 `Live2DSlot`이 0.25초마다 확인해 다시 움직이는 일러스트로 되돌립니다.

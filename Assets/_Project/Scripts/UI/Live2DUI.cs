@@ -18,6 +18,35 @@ namespace SubcultureRPG.UI
     {
         private const string ChildName = "Live2D";
 
+        static Live2DUI()
+        {
+            Live2DStage.Displaced += Fallback;
+            MotionVideoStage.Displaced += Fallback;
+        }
+
+        /// <summary>
+        /// 무대를 다른 곳에 빼앗긴 자리: 움직이는 일러스트를 끄고 정적 일러스트를 다시 보여 줌.
+        /// 무대가 비면 Live2DSlot이 알아서 움직이는 일러스트로 되돌립니다.
+        /// </summary>
+        private static void Fallback(RawImage raw)
+        {
+            if (raw == null) return;
+            var slot = raw.GetComponent<Live2DSlot>();
+            raw.enabled = false;
+            raw.texture = null;
+            if (slot == null) return;
+            slot.displaced = true;
+            if (slot.host is Image img)
+            {
+                var still = GameArt.Portrait(slot.character);
+                if (still != null) { img.sprite = still; img.enabled = true; }
+            }
+        }
+
+        /// <summary>그 캐릭터의 무대를 지금 다른 보이는 곳이 쓰고 있는가.</summary>
+        internal static bool StageBusy(CharacterData c) =>
+            Live2DStage.Has(c) ? Live2DStage.InUse : MotionVideoStage.InUse;
+
         /// <summary>host(정적 일러스트 Image) 위에 움직이는 일러스트 표시. 표시했으면 true.</summary>
         public static bool Show(Graphic host, CharacterData c)
         {
@@ -51,6 +80,10 @@ namespace SubcultureRPG.UI
 
             if (tex == null) { Hide(host); return false; }
 
+            var slot = raw.GetComponent<Live2DSlot>();
+            if (slot == null) slot = raw.gameObject.AddComponent<Live2DSlot>();
+            slot.host = host; slot.character = c; slot.displaced = false;
+
             raw.texture = tex;
             raw.material = material;
             raw.color = Color.white;
@@ -67,6 +100,8 @@ namespace SubcultureRPG.UI
             if (raw == null) return;
             raw.enabled = false;
             raw.texture = null;
+            var slot = raw.GetComponent<Live2DSlot>();
+            if (slot != null) slot.displaced = false;
             Live2DStage.ReleaseUser(raw);
             MotionVideoStage.ReleaseUser(raw);
         }
@@ -109,6 +144,28 @@ namespace SubcultureRPG.UI
             fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             fitter.aspectRatio = 0.75f;
             return raw;
+        }
+    }
+
+    /// <summary>
+    /// 움직이는 일러스트 자리 기록(어느 Image 자리에 어떤 캐릭터를 띄웠는지).
+    /// 무대를 빼앗겨 정적 일러스트로 물러났다면, 무대가 비었을 때 다시 움직이는 일러스트로 돌아갑니다.
+    /// </summary>
+    public class Live2DSlot : MonoBehaviour
+    {
+        public Graphic host;
+        public CharacterData character;
+        public bool displaced;
+        private float _poll;
+
+        private void Update()
+        {
+            if (!displaced || host == null || character == null) return;
+            _poll -= Time.unscaledDeltaTime;
+            if (_poll > 0f) return;
+            _poll = 0.25f;
+            if (!host.gameObject.activeInHierarchy || Live2DUI.StageBusy(character)) return;
+            if (Live2DUI.Show(host, character)) host.enabled = false;
         }
     }
 }

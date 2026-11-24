@@ -30,12 +30,19 @@ namespace SubcultureRPG.Meta.UI
         private GameObject _root, _ratesOverlay;
         private Image _portrait, _frame;
         private TextMeshProUGUI _frameFallback;
-        private TextMeshProUGUI _crystalText, _ticketText, _bannerText, _pityText, _featuredName, _featuredStars, _lineup, _toast, _ratesText;
+        private CurrencyBar _pickupBar, _standardBar;
+        private TextMeshProUGUI _bannerText, _pityText, _featuredName, _featuredStars, _lineup, _toast, _ratesText;
         private TextMeshProUGUI _singleLabel, _multiLabel, _chargeLabel;
         private RectTransform _catTabs, _bannerTabs;
         private Button _singleBtn, _multiBtn, _backBtn;
         private System.Action _onBack;
         private BackgroundArt _bg;
+
+        // 픽업 전환 연출
+        private GachaBanner _shownBanner;
+        private Coroutine _switchRoutine;
+        private Image _veil, _sweep;
+        private CanvasGroup _featGroup;
 
         // 뽑기 확인 창(별도 캔버스 — 결과 화면 위에도 뜸)
         private GameObject _confirmRoot;
@@ -96,9 +103,82 @@ namespace SubcultureRPG.Meta.UI
 
         private void OnBannerChanged()
         {
+            var b = gacha != null ? gacha.Banner : null;
             RebuildTabs();
-            BuildFeatured();
             Refresh();
+            // 다른 배너로 바뀌면 카드 뒤집기 연출, 처음 열 때는 바로
+            if (_shownBanner != null && b != _shownBanner && isActiveAndEnabled && _root != null && _root.activeInHierarchy)
+            {
+                if (_switchRoutine != null) StopCoroutine(_switchRoutine);
+                _switchRoutine = StartCoroutine(SwitchRoutine());
+            }
+            else
+            {
+                BuildFeatured();
+                ResetSwitchVisuals();
+            }
+            _shownBanner = b;
+        }
+
+        private void ResetSwitchVisuals()
+        {
+            if (_frame != null) _frame.rectTransform.localScale = Vector3.one;
+            if (_featGroup != null) _featGroup.alpha = 1f;
+            if (_veil != null) _veil.color = new Color(0, 0, 0, 0);
+            if (_sweep != null) _sweep.gameObject.SetActive(false);
+            if (_featuredName != null) _featuredName.rectTransform.anchoredPosition = new Vector2(0, -232);
+        }
+
+        /// <summary>
+        /// 배너 전환: 카드가 옆으로 뒤집히며 사라지고(배경은 살짝 어두워짐) → 새 캐릭터로 바뀐 뒤
+        /// 반대편에서 뒤집혀 나타나며 살짝 튕기고, 빛줄기가 카드를 훑고, 이름이 아래에서 떠오름.
+        /// </summary>
+        private System.Collections.IEnumerator SwitchRoutine()
+        {
+            var frt = _frame.rectTransform;
+            bool hadCard = _frame.gameObject.activeSelf;
+
+            // 1) 접히며 사라짐
+            const float outDur = 0.16f;
+            for (float t = 0; t < outDur; t += Time.unscaledDeltaTime)
+            {
+                float k = t / outDur;
+                float e = k * k;
+                if (hadCard) frt.localScale = new Vector3(Mathf.Lerp(1f, 0f, e), Mathf.Lerp(1f, 0.94f, e), 1f);
+                _featGroup.alpha = 1f - e;
+                _veil.color = new Color(0, 0, 0, 0.45f * e);
+                yield return null;
+            }
+
+            // 2) 내용 교체
+            BuildFeatured();
+            bool hasCard = _frame.gameObject.activeSelf;
+            frt.localScale = hasCard ? new Vector3(0f, 0.94f, 1f) : Vector3.one;
+
+            // 3) 펼쳐지며 나타남(살짝 튕김) + 빛줄기 + 이름 떠오름
+            const float inDur = 0.34f;
+            if (hasCard) _sweep.gameObject.SetActive(true);
+            var nrt = _featuredName.rectTransform;
+            for (float t = 0; t < inDur; t += Time.unscaledDeltaTime)
+            {
+                float k = t / inDur;
+                float back = 1f + 2.2f * Mathf.Pow(k - 1f, 3) + 1.2f * Mathf.Pow(k - 1f, 2);   // easeOutBack
+                if (hasCard) frt.localScale = new Vector3(Mathf.Max(0f, back), Mathf.Lerp(0.94f, 1f, k), 1f);
+                _featGroup.alpha = Mathf.Clamp01(k * 1.6f);
+                _veil.color = new Color(0, 0, 0, 0.45f * (1f - k));
+                nrt.anchoredPosition = new Vector2(0, -232 - 18f * (1f - Mathf.Clamp01(k * 1.4f)));
+                if (hasCard)
+                {
+                    // 빛줄기가 왼쪽 아래 → 오른쪽 위로 훑음
+                    var srt = _sweep.rectTransform;
+                    float sk = Mathf.Clamp01((k - 0.25f) / 0.75f);
+                    srt.anchoredPosition = new Vector2(Mathf.Lerp(-260f, 260f, sk), 0f);
+                    _sweep.color = new Color(1f, 0.97f, 0.85f, 0.55f * Mathf.Sin(sk * Mathf.PI));
+                }
+                yield return null;
+            }
+            ResetSwitchVisuals();
+            _switchRoutine = null;
         }
 
         // ---------------- 비용 ----------------
@@ -176,12 +256,9 @@ namespace SubcultureRPG.Meta.UI
         private void Refresh()
         {
             if (_root == null) return;
-            if (_crystalText != null)
-                _crystalText.text = wallet != null ? $"크리스탈  {wallet.Crystals:N0}" : "";
-            if (_ticketText != null)
-                _ticketText.text = wallet == null ? "" :
-                    $"<color={(CurType == GachaBannerType.Pickup ? "#FFB3E6" : "#9AA3B5")}>픽업 뽑기권  {wallet.PickupTickets:N0}</color>      " +
-                    $"<color={(CurType == GachaBannerType.Standard ? "#FFB3E6" : "#9AA3B5")}>상시 뽑기권  {wallet.StandardTickets:N0}</color>";
+            // 지금 배너에서 쓰는 뽑기권만(픽업 ↔ 상시)
+            if (_pickupBar != null) _pickupBar.gameObject.SetActive(CurType == GachaBannerType.Pickup);
+            if (_standardBar != null) _standardBar.gameObject.SetActive(CurType == GachaBannerType.Standard);
 
             var b = gacha != null ? gacha.Banner : null;
             if (_bannerText != null) _bannerText.text = b != null ? b.bannerName : "배너 없음";
@@ -221,20 +298,67 @@ namespace SubcultureRPG.Meta.UI
             if (standards.Count > 0)
                 CatTab("상시 뽑기", cur != null && !cur.IsPickup, () => gacha.Select(standards[0]));
 
-            // 픽업: 아래 줄에 픽업 캐릭터별 배너
+            // 픽업: 카드 왼쪽 세로 목록(썸네일 + 이름) — 카드·제목과 겹치지 않음
             bool showSub = cur != null && cur.IsPickup && pickups.Count > 1;
             _bannerTabs.gameObject.SetActive(showSub);
             if (showSub)
                 foreach (var p in pickups)
-                {
-                    var pb = p;
-                    bool on = pb == cur;
-                    var btn = UIFactory.AddButton("BannerTab", _bannerTabs, $"<size=80%>★6</size>  {pb.ShortName}", 20, font,
-                        on ? new Color(0.95f, 0.55f, 0.75f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
-                    var le = btn.gameObject.AddComponent<LayoutElement>();
-                    le.preferredWidth = 200; le.preferredHeight = 44;
-                    btn.onClick.AddListener(() => gacha.Select(pb));
-                }
+                    BannerTab(p, p == cur);
+        }
+
+        /// <summary>픽업 캐릭터 탭 1개: 썸네일 + ★6 이름 + 속성. 선택된 탭은 분홍 바탕 · 왼쪽 강조 막대 · 살짝 커지는 연출.</summary>
+        private void BannerTab(GachaBanner pb, bool on)
+        {
+            var feat = pb.featured6;
+            var btn = UIFactory.AddButton("BannerTab", _bannerTabs, "", 20, font,
+                on ? new Color(0.95f, 0.5f, 0.72f, 0.96f) : new Color(0.1f, 0.1f, 0.16f, 0.82f), Color.white);
+            var rt = (RectTransform)btn.transform;
+            var le = btn.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = 232; le.preferredHeight = 76;
+            btn.onClick.AddListener(() => { if (gacha.Banner != pb) gacha.Select(pb); });
+
+            // 썸네일
+            var thumbBg = UIFactory.AddImage("ThumbBg", rt, new Color(0, 0, 0, 0.45f));
+            UIFactory.Anchor(thumbBg.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+            thumbBg.rectTransform.sizeDelta = new Vector2(60, 60); thumbBg.rectTransform.anchoredPosition = new Vector2(10, 0);
+            var sprite = feat != null ? GameArt.Thumb(feat) : null;
+            if (sprite != null)
+            {
+                var th = UIFactory.AddImage("Thumb", thumbBg.transform, Color.white, sprite);
+                th.preserveAspect = true;
+                UIFactory.Stretch(th.rectTransform, 2, 2, 2, 2);
+            }
+
+            // 이름 · 속성
+            var lbl = btn.GetComponentInChildren<TextMeshProUGUI>();
+            lbl.alignment = TextAlignmentOptions.Left;
+            lbl.richText = true;
+            UIFactory.Stretch(lbl.rectTransform, 80, 0, 8, 0);
+            string el = feat != null ? $"<size=72%><color={(on ? "#FFFFFF" : Traits.Hex(feat.element))}>{Traits.Name(feat.element)} · {Traits.Name(feat.role)}</color></size>" : "";
+            lbl.text = $"<size=72%><color={(on ? "#FFF1A8" : "#FFC73F")}>★6</color></size> <b>{pb.ShortName}</b>\n{el}";
+            lbl.color = on ? Color.white : new Color(0.85f, 0.87f, 0.93f);
+
+            if (on)
+            {
+                // 왼쪽 강조 막대 + 선택 연출(톡 커졌다 자리잡음)
+                var bar = UIFactory.AddImage("Accent", rt, new Color(1f, 0.92f, 0.6f, 1f));
+                UIFactory.Anchor(bar.rectTransform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f));
+                bar.rectTransform.sizeDelta = new Vector2(5, -14); bar.rectTransform.anchoredPosition = new Vector2(2, 0);
+                StartCoroutine(TabPop(rt));
+            }
+        }
+
+        private System.Collections.IEnumerator TabPop(RectTransform rt)
+        {
+            const float dur = 0.28f;
+            for (float t = 0; t < dur && rt != null; t += Time.unscaledDeltaTime)
+            {
+                float k = t / dur;
+                float s = k < 0.4f ? Mathf.Lerp(0.94f, 1.08f, k / 0.4f) : Mathf.Lerp(1.08f, 1.04f, (k - 0.4f) / 0.6f);
+                rt.localScale = Vector3.one * s;
+                yield return null;
+            }
+            if (rt != null) rt.localScale = Vector3.one * 1.04f;
         }
 
         private void CatTab(string label, bool on, UnityEngine.Events.UnityAction onClick)
@@ -319,7 +443,7 @@ namespace SubcultureRPG.Meta.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
             EnsureEventSystem();
 
@@ -337,13 +461,24 @@ namespace SubcultureRPG.Meta.UI
             _pityText = UIFactory.AddText("Pity", root, "", 20, font, new Color(1f, 0.8f, 0.4f), TextAlignmentOptions.Center);
             Place(_pityText.rectTransform, new Vector2(0.5f, 1), new Vector2(800, 56), new Vector2(0, -146));
 
-            // 픽업 배너 선택(픽업 분류일 때만)
-            _bannerTabs = Row("BannerTabs", root, new Vector2(0, -206), 44, 10);
+            // 배너 전환 때 배경을 살짝 가리는 막(배경 바로 위)
+            _veil = UIFactory.AddImage("SwitchVeil", root, new Color(0, 0, 0, 0));
+            UIFactory.Stretch(_veil.rectTransform);
+            _veil.raycastTarget = false;
+            _veil.transform.SetSiblingIndex(_catTabs.GetSiblingIndex());   // 배경 바로 위, 제목·탭 아래
 
-            _crystalText = UIFactory.AddText("Crystal", root, "", 24, font, new Color(0.6f, 0.9f, 1f), TextAlignmentOptions.Right, FontStyles.Bold);
-            Place(_crystalText.rectTransform, new Vector2(1, 1), new Vector2(520, 36), new Vector2(-30, -30), new Vector2(1, 1));
-            _ticketText = UIFactory.AddText("Tickets", root, "", 20, font, Color.white, TextAlignmentOptions.Right, FontStyles.Bold);
-            Place(_ticketText.rectTransform, new Vector2(1, 1), new Vector2(620, 30), new Vector2(-30, -70), new Vector2(1, 1));
+            // 픽업 배너 선택(픽업 분류일 때만) — 카드 왼쪽 세로 목록
+            _bannerTabs = UIFactory.NewRect("BannerTabs", root);
+            Place(_bannerTabs, new Vector2(0.5f, 0.5f), new Vector2(240, 420), new Vector2(-196, 32), new Vector2(1f, 0.5f));
+            var vl = _bannerTabs.gameObject.AddComponent<VerticalLayoutGroup>();
+            vl.spacing = 12; vl.childAlignment = TextAnchor.MiddleRight;
+            vl.childControlWidth = true; vl.childControlHeight = true;
+            vl.childForceExpandWidth = false; vl.childForceExpandHeight = false;
+
+            // 재화(오른쪽 위): [지금 배너의 뽑기권] [크리스탈] — 배너 종류가 바뀌면 뽑기권 쪽만 바뀜
+            _pickupBar = CurrencyBar.Create(root, font, wallet, new Vector2(-50, -32), Currency.PickupTicket, Currency.Crystal);
+            _standardBar = CurrencyBar.Create(root, font, wallet, new Vector2(-50, -32), Currency.StandardTicket, Currency.Crystal);
+            _standardBar.gameObject.SetActive(false);
 
             // 픽업 캐릭터 액자(중앙, 이름 위) — 성급 색 테두리 + 그림자, 안쪽 3:4
             _frame = UIFactory.AddImage("FeaturedFrame", root, new Color(1f, 0.8f, 0.3f, 1f));
@@ -356,6 +491,13 @@ namespace SubcultureRPG.Meta.UI
             _portrait = UIFactory.AddImage("Featured", frameInner.transform, Color.white);
             UIFactory.Stretch(_portrait.rectTransform, 1, 1, 1, 1);
             _portrait.preserveAspect = true;
+            frameInner.gameObject.AddComponent<RectMask2D>();   // 빛줄기가 카드 밖으로 안 나가게
+            _sweep = UIFactory.AddImage("Sweep", frameInner.transform, new Color(1, 1, 1, 0), ProceduralSprites.Beam);
+            UIFactory.Anchor(_sweep.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            _sweep.rectTransform.sizeDelta = new Vector2(90, 620);
+            _sweep.rectTransform.localEulerAngles = new Vector3(0, 0, -28f);
+            _sweep.raycastTarget = false;
+            _sweep.gameObject.SetActive(false);
             _frameFallback = UIFactory.AddText("Fallback", frameInner.transform, "", 34, font, new Color(1f, 0.85f, 0.45f), TextAlignmentOptions.Center, FontStyles.Bold);
             UIFactory.Stretch(_frameFallback.rectTransform, 10, 10, 10, 10);
 
@@ -365,8 +507,16 @@ namespace SubcultureRPG.Meta.UI
             _featuredName = UIFactory.AddText("FName", root, "", 30, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Place(_featuredName.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(700, 40), new Vector2(0, -232), new Vector2(0.5f, 0.5f));
 
+            // 전환 때 함께 사라졌다 나타나는 묶음(별·이름·라인업은 아래에서 이 그룹으로 옮김)
+            var featRt = UIFactory.NewRect("FeaturedInfo", root);
+            UIFactory.Stretch(featRt);
+            _featGroup = featRt.gameObject.AddComponent<CanvasGroup>();
+            _featGroup.blocksRaycasts = false;
+            _featuredStars.transform.SetParent(featRt, false);
+            _featuredName.transform.SetParent(featRt, false);
+
             // 상시 6성 라인업(상시 분류일 때)
-            _lineup = UIFactory.AddText("Lineup", root, "", 28, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            _lineup = UIFactory.AddText("Lineup", featRt, "", 28, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Place(_lineup.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(700, 420), new Vector2(0, -20), new Vector2(0.5f, 0.5f));
             _lineup.lineSpacing = 12f;
 
@@ -431,7 +581,7 @@ namespace SubcultureRPG.Meta.UI
             var scaler = cgo.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;   // 어떤 화면비에서도 1920×1080 설계 영역이 전부 보이게(남는 쪽은 여백)
             cgo.gameObject.AddComponent<GraphicRaycaster>();
 
             _confirmRoot = UIFactory.AddImage("Dim", canvas.transform, new Color(0, 0, 0, 0.7f), null, raycast: true).gameObject;

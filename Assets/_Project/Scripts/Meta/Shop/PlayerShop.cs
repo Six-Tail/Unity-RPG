@@ -87,7 +87,8 @@ namespace SubcultureRPG.Meta.Shop
                     _ => $"{Materials.Name(item.costMaterial)}이(가) 부족합니다",
                 };
             if (wallet == null && item.currency != ShopCurrency.Material) return "지갑을 찾을 수 없습니다";
-            if (inventory == null && (!item.IsGold || item.currency == ShopCurrency.Material)) return "가방을 찾을 수 없습니다";
+            if (inventory == null && ((!item.IsGold && !item.IsTicket) || item.currency == ShopCurrency.Material)) return "가방을 찾을 수 없습니다";
+            if (wallet == null && (item.IsGold || item.IsTicket)) return "지갑을 찾을 수 없습니다";
             return null;
         }
 
@@ -107,7 +108,8 @@ namespace SubcultureRPG.Meta.Shop
             if (!paid) return false;
 
             int got = item.amount * qty;
-            if (item.IsGold) wallet.AddGold(item.rewardGold * got);
+            if (item.IsTicket) wallet.AddTickets(item.ticketType, got);
+            else if (item.IsGold) wallet.AddGold(item.rewardGold * got);
             else inventory.Add(item.reward, got);
 
             if (item.limit > 0)
