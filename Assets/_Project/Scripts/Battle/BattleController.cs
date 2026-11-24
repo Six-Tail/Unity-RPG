@@ -82,8 +82,15 @@ namespace SubcultureRPG.Battle
         }
 
         /// <summary>전투 시작(진행 중이면 중단 후 새로).</summary>
+        /// <summary>
+        /// 승패와 관계없이 전투를 끝냄(예: 주간 보스 행동 제한). 지금 행동이 끝난 뒤 winner로 종료 처리.
+        /// </summary>
+        public void RequestEnd(Team winner) => _forcedWinner = winner;
+        private Team? _forcedWinner;
+
         public void Begin()
         {
+            _forcedWinner = null;
             Stop();
             if (config == null) config = BattleConfig.CreateDefault();
             Engine = new BattleEngine(allyTeam, enemyTeam, config);
@@ -110,7 +117,7 @@ namespace SubcultureRPG.Battle
 
         private IEnumerator RunLoop()
         {
-            while (!Engine.IsOver)
+            while (!Engine.IsOver && !_forcedWinner.HasValue)
             {
                 var actor = Engine.NextActor();
                 if (actor == null) break;
@@ -161,15 +168,17 @@ namespace SubcultureRPG.Battle
                     yield return Recasts(actor);
                 }
 
-                if (Engine.IsOver) break;
+                if (Engine.IsOver || _forcedWinner.HasValue) break;
                 yield return Wait(betweenTurnDelay);
             }
 
             CurrentActor = null;
             WaitingForInput = false;
-            if (Engine.Winner.HasValue)
+            var endWinner = _forcedWinner ?? Engine.Winner;
+            _forcedWinner = null;
+            if (endWinner.HasValue)
             {
-                var winner = Engine.Winner.Value;
+                var winner = endWinner.Value;
                 FinishDelay = 0f;
                 OnBattleFinishing?.Invoke(winner);
                 float d = FinishDelay;

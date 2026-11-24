@@ -217,6 +217,15 @@ namespace SubcultureRPG.Battle.UI
         /// <summary>이 HUD가 쓰는 한글 폰트(실행 중에 만드는 다른 화면이 같은 폰트를 쓰도록).</summary>
         public TMP_FontAsset Font => font;
 
+        private string _endFinish, _endTitle;
+        private Color _endColor;
+
+        /// <summary>다음 전투 종료 때만 마무리 글자 · 결과 제목을 바꿈(예: 주간 보스 '전투 종료'). 한 번 쓰면 원래대로.</summary>
+        public void SetEndTexts(string finish, string title, Color color)
+        {
+            _endFinish = finish; _endTitle = title; _endColor = color;
+        }
+
         private System.Func<string> _retryHandler;
         private TextMeshProUGUI _resultToast;
         private Coroutine _resultToastRoutine;
@@ -788,6 +797,7 @@ namespace SubcultureRPG.Battle.UI
 
             var col = win ? new Color(1f, 0.86f, 0.4f) : new Color(0.85f, 0.35f, 0.35f);
             _finishText.text = win ? "FINISH!" : "전멸...";
+            if (!string.IsNullOrEmpty(_endFinish)) { _finishText.text = _endFinish; col = _endColor; }
             _finishText.color = col;
             _finishText.gameObject.SetActive(true);
             _finishFlash.gameObject.SetActive(true);
@@ -861,6 +871,8 @@ namespace SubcultureRPG.Battle.UI
             bool win = winner == Team.Ally;
             _resultText.text = win ? "승리!" : "패배...";
             _resultText.color = win ? new Color(1f, 0.85f, 0.35f) : new Color(0.9f, 0.5f, 0.5f);
+            if (!string.IsNullOrEmpty(_endTitle)) { _resultText.text = _endTitle; _resultText.color = _endColor; }
+            _endFinish = null; _endTitle = null;
             _resultGO.SetActive(true);
             StartCoroutine(ResultIntro(win));
         }

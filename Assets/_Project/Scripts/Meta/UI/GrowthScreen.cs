@@ -469,6 +469,63 @@ namespace SubcultureRPG.Meta.UI
             return (unit, infos);
         }
 
+        // ---- 전투력 표시: 바뀌면 숫자가 굴러가며 증가(초록) · 감소(빨강) ----
+        private string _hLinePrefix = "", _hLineSuffix = "";
+        private CharacterData _powerChar;
+        private int _powerShown, _powerTarget;
+        private Coroutine _powerRoutine;
+
+        private void ShowPower(int target)
+        {
+            bool same = _powerChar == _selected;
+            _powerChar = _selected;
+            _powerTarget = target;
+            if (!same || _powerShown == target || !isActiveAndEnabled)
+            {
+                if (_powerRoutine != null) { StopCoroutine(_powerRoutine); _powerRoutine = null; }
+                _powerShown = target;
+                WritePowerLine(target, 0, 0f);
+                return;
+            }
+            if (_powerRoutine != null) StopCoroutine(_powerRoutine);
+            _powerRoutine = StartCoroutine(PowerRoll(_powerShown, target));
+        }
+
+        private System.Collections.IEnumerator PowerRoll(int from, int to)
+        {
+            int delta = to - from;
+            const float dur = 0.9f;
+            for (float t = 0; t < dur; t += Time.unscaledDeltaTime)
+            {
+                float k = 1f - Mathf.Pow(1f - t / dur, 3f);   // 처음 빠르게, 끝에서 천천히
+                _powerShown = Mathf.RoundToInt(Mathf.Lerp(from, to, k));
+                WritePowerLine(_powerShown, delta, 1f);
+                yield return null;
+            }
+            _powerShown = to;
+            // 결과 숫자는 잠깐 색을 유지한 뒤 원래 색으로
+            for (float t = 0; t < 0.8f; t += Time.unscaledDeltaTime)
+            {
+                WritePowerLine(to, delta, 1f - t / 0.8f);
+                yield return null;
+            }
+            WritePowerLine(to, 0, 0f);
+            _powerRoutine = null;
+        }
+
+        /// <summary>레벨 줄 다시 쓰기. tint 1 = 증가 초록/감소 빨강, 0 = 기본 주황. delta가 있으면 옆에 '+N' / '-N'.</summary>
+        private void WritePowerLine(int value, int delta, float tint)
+        {
+            if (_hLine == null) return;
+            Color baseC = new Color(1f, 0.7f, 0.28f);
+            Color hot = delta >= 0 ? new Color(0.45f, 1f, 0.55f) : new Color(1f, 0.42f, 0.42f);
+            string hex = ColorUtility.ToHtmlStringRGB(Color.Lerp(baseC, hot, Mathf.Clamp01(tint)));
+            string diff = delta != 0 && tint > 0.05f
+                ? $" <size=80%><color=#{ColorUtility.ToHtmlStringRGB(hot)}{Mathf.RoundToInt(255 * Mathf.Clamp01(tint)):X2}>{(delta > 0 ? "+" : "-")}{Mathf.Abs(delta):N0}</color></size>"
+                : "";
+            _hLine.text = _hLinePrefix + $"   <color=#{hex}>전투력 <b>{value:N0}</b></color>{diff}" + _hLineSuffix;
+        }
+
         private void RefreshHeader(OwnedCharacter o)
         {
             int cap = Leveling.LevelCap(o.ascension);
@@ -476,9 +533,9 @@ namespace SubcultureRPG.Meta.UI
             string exp = o.level >= cap ? (o.ascension >= Leveling.MaxAscension ? "MAX" : "상한 — 돌파 필요") : $"EXP {o.exp:N0} / {Leveling.ExpForNext(o.level):N0}";
             var (u, _) = Preview(_selected);
             int power = CombatPower.Of(u, WithBonus(_selected, roster.SkillLevels(_selected)));
-            _hLine.text = $"<color=#FFD36B>Lv. {o.level}</color> / {cap}" + (o.ascension > 0 ? $"   <color=#FFD36B>돌파 {o.ascension}</color>" : "") +
-                          $"   <color=#FFB347>전투력 <b>{power:N0}</b></color>" +
-                          $"   <size=85%><color=#9AA3B5>{exp}</color></size>";
+            _hLinePrefix = $"<color=#FFD36B>Lv. {o.level}</color> / {cap}" + (o.ascension > 0 ? $"   <color=#FFD36B>돌파 {o.ascension}</color>" : "");
+            _hLineSuffix = $"   <size=85%><color=#9AA3B5>{exp}</color></size>";
+            ShowPower(power);
 
             string P(float v) => $"{v * 100f:0.#}%";
             var l = new StringBuilder();

@@ -96,6 +96,7 @@ namespace SubcultureRPG.Meta.UI
         private TextMeshProUGUI _name, _title, _level, _expText, _power, _info;
         private RectTransform _expFill;
         private TMP_InputField _greeting;
+        private TextMeshProUGUI _codexLabel;
         private System.Action _onLobby;
 
         private static ProfilePanel Ensure(TMP_FontAsset font)
@@ -159,6 +160,9 @@ namespace SubcultureRPG.Meta.UI
                          $"<color=#9AA3B5>지휘관 경험치</color>   스테이지 클리어 시 쓴 행동력 × {PlayerProfile.ExpPerStamina}";
 
             _greeting.SetTextWithoutNotify(pf.Greeting);
+            var codex = FindAnyObjectByType<SubcultureRPG.Meta.Codex.PlayerCodex>();
+            int claim = codex != null ? codex.ClaimableCount() : 0;
+            if (_codexLabel != null) _codexLabel.text = "도감" + (claim > 0 ? $"  <color=#FFE08A><size=70%>●{claim}</size></color>" : "");
 
             Clear(_top5);
             for (int i = 0; i < Mathf.Min(5, powers.Count); i++) TopCell(powers[i].Key, powers[i].Value, i);
@@ -452,12 +456,26 @@ namespace SubcultureRPG.Meta.UI
             var close = UIFactory.AddButton("Close", p, "닫기", 26, _font, new Color(1, 1, 1, 0.16f), Color.white);
             var cr = (RectTransform)close.transform;
             UIFactory.Anchor(cr, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            cr.sizeDelta = new Vector2(260, 66); cr.anchoredPosition = new Vector2(-150, 30);
+            cr.sizeDelta = new Vector2(240, 66); cr.anchoredPosition = new Vector2(-270, 30);
             close.onClick.AddListener(Close);
             var lobby = UIFactory.AddButton("Lobby", p, "로비 설정", 26, _font, new Color(0.25f, 0.55f, 0.85f, 0.96f), Color.white);
             var lr = (RectTransform)lobby.transform;
             UIFactory.Anchor(lr, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            lr.sizeDelta = new Vector2(300, 66); lr.anchoredPosition = new Vector2(150, 30);
+            lr.sizeDelta = new Vector2(240, 66); lr.anchoredPosition = new Vector2(270, 30);
+
+            // 도감(홈에서 옮겨 옴) — 받을 수집 보상 수 표시
+            var codexBtn = UIFactory.AddButton("Codex", p, "도감", 26, _font, new Color(0.3f, 0.36f, 0.52f, 0.96f), Color.white);
+            var kr = (RectTransform)codexBtn.transform;
+            UIFactory.Anchor(kr, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            kr.sizeDelta = new Vector2(240, 66); kr.anchoredPosition = new Vector2(0, 30);
+            _codexLabel = codexBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _codexLabel.richText = true;
+            codexBtn.onClick.AddListener(() =>
+            {
+                Close();
+                var nav = FindAnyObjectByType<ScreenNavigator>();
+                if (nav != null) nav.Go(HubScreen.Codex);
+            });
             lobby.onClick.AddListener(() => { var a = _onLobby; Close(); a?.Invoke(); });
 
             // ---- 하위 창 레이어 ----

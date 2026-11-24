@@ -213,7 +213,15 @@ bishoujo-style beautiful anime heroine, young adult woman, short purple hair, co
 bishounen-style handsome pretty-boy anime hero, young adult man, green bandana, traveler cloak, large wooden shield, emerald green and white color mood, swirling leaves, three-star character, simple modest outfit, plain background. subculture mobile gacha game character illustration in modern Japanese and Korean anime style, beautiful youthful face with large detailed sparkling eyes, soft blush, slim stylish proportions, crisp thin line art, bright clean cel shading with soft pastel gradients and glossy highlights, trendy fashionable costume design mixing modern streetwear and uniform-jacket details with fantasy gear, lively charming pose and expression, light airy background with soft glow and simple geometric accents, original character design, single character, knee-up portrait, camera pulled back so the entire head and all of the hair are fully inside the frame with clear empty space above the head, face in the upper third of the frame, vertical composition, high quality
 ```
 
-## 적 일러스트 (1:1) — 23장
+## 적 일러스트 (1:1) — 24장
+
+### 주간 보스 — 별을 삼키는 자
+
+- 파일: `Enemies/별을 삼키는 자.png` · 512×512 · 화면비 1:1
+
+```
+a colossal cosmic dragon-like devourer made of black void and starlight, many glowing violet eyes, a swirling black hole in its chest, huge spread wings full of stars, menacing. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
+```
 
 ### 그림자병
 
@@ -399,7 +407,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 32장
+## 재료 아이콘 (1:1) — 36장
 
 ### 소형 경험치 물약
 
@@ -511,6 +519,38 @@ a small round glass vial of glowing mint-green liquid with a tiny lightning bolt
 
 ```
 a large ornate flask of glowing emerald-green liquid with a golden lightning bolt emblem and gold filigree. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 상점 아이콘
+
+- 파일: `Items/UiShop.png` · 256×256 · 화면비 1:1
+
+```
+a cute fantasy shop stall icon with a striped awning and a small gold coin. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 가방 아이콘
+
+- 파일: `Items/UiBag.png` · 256×256 · 화면비 1:1
+
+```
+a brown leather adventurer backpack with a buckle strap. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 결투장 아이콘
+
+- 파일: `Items/ArenaCoin.png` · 256×256 · 화면비 1:1
+
+```
+two crossed golden swords over a round red shield emblem. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 주간 보스 아이콘
+
+- 파일: `Items/RaidIcon.png` · 256×256 · 화면비 1:1
+
+```
+a menacing purple demon skull emblem with a swirling black hole behind it and golden horns. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 별의 조각
@@ -945,7 +985,7 @@ a game logo emblem: an ornate golden ship anchor whose top is a brilliant four-p
 the two women from the reference image standing back to back in the center of a wide key visual, both fully visible from the knees up: on the left an adult woman with long crimson hair with ember-orange tips, golden eyes, black and red battle dress with gold trim, holding a flaming greatsword, confident smile; on the right an adult woman with a silver-white bob haircut, pale blue eyes, white and navy military coat with a fur collar, holding twin slender ice rapiers, calm cold gaze; the background is split diagonally between a burning crimson night sky with falling embers and a frozen pale-blue sky with drifting snow crystals, a faint golden star-and-anchor constellation between them, dynamic heroic poses, open empty space along the bottom for a title. subculture mobile gacha game title key visual in modern Japanese and Korean anime style, wide 16:9 composition, beautiful youthful faces with large detailed sparkling eyes, crisp thin line art, bright clean cel shading with glossy highlights, luminous dramatic lighting, high quality
 ```
 
-## 화면 배경 (16:9) — 51장
+## 화면 배경 (16:9) — 53장
 
 ### 스토리 1장 — 숲의 입구
 
@@ -1105,6 +1145,22 @@ a black altar floating above an endless void, giant broken chains of light, shat
 
 ```
 a wide fantasy continent seen from a high cliff at sunrise, fragments of broken chains dissolving into golden light in the sky, calm sea on the horizon, hopeful. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 결투장
+
+- 파일: `Backgrounds/arena.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a grand fantasy colosseum arena at sunset, circular stone stands with colorful banners, a sand floor with a glowing golden emblem in the center, dramatic sky. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 주간 보스
+
+- 파일: `Backgrounds/raid.jpg` · 1920×1080 · 화면비 16:9
+
+```
+a vast cosmic battlefield on a floating stone platform under a starry void, a giant swirling black hole in the sky devouring stars, purple and gold light. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
 ```
 
 ### 가챠 소환 의식(계약 스크롤 뒤 배경)

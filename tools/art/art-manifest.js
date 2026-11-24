@@ -145,6 +145,10 @@ const ITEMS = [
   ['Stamina', '행동력', 'a glowing mint-green energy lightning bolt inside a round emblem, stamina energy icon'],
   ['StaminaSmall', '소형 행동력 물약', 'a small round glass vial of glowing mint-green liquid with a tiny lightning bolt symbol on the label and a cork'],
   ['StaminaLarge', '행동력 물약', 'a large ornate flask of glowing emerald-green liquid with a golden lightning bolt emblem and gold filigree'],
+  ['UiShop', '상점 아이콘', 'a cute fantasy shop stall icon with a striped awning and a small gold coin'],
+  ['UiBag', '가방 아이콘', 'a brown leather adventurer backpack with a buckle strap'],
+  ['ArenaCoin', '결투장 아이콘', 'two crossed golden swords over a round red shield emblem'],
+  ['RaidIcon', '주간 보스 아이콘', 'a menacing purple demon skull emblem with a swirling black hole behind it and golden horns'],
   ['StarShard', '별의 조각', 'a glowing violet and gold crystal shard shaped like a broken star, sparkling with tiny stars'],
   ['PickupTicket', '픽업 뽑기권', 'an ornate pink and gold summon ticket card with a glowing star emblem in the center'],
   ['StandardTicket', '상시 뽑기권', 'an ornate sky-blue and silver summon ticket card with a glowing star emblem in the center'],
@@ -198,6 +202,8 @@ const BACKGROUNDS = [
   ['story_ch14_boss', '스토리 14장 — 황혼의 경계', 'a vast empty plain split between golden sunset on one side and starry night on the other, a lone towering black gate standing on the boundary'],
   ['story_ch15_boss', '스토리 15장 — 종말의 제단', 'a black altar floating above an endless void, giant broken chains of light, shattered stone platforms, a solar eclipse with a burning corona in the sky'],
   ['story_ch15_end', '스토리 15장 — 여명', 'a wide fantasy continent seen from a high cliff at sunrise, fragments of broken chains dissolving into golden light in the sky, calm sea on the horizon, hopeful'],
+  ['arena', '결투장', 'a grand fantasy colosseum arena at sunset, circular stone stands with colorful banners, a sand floor with a glowing golden emblem in the center, dramatic sky'],
+  ['raid', '주간 보스', 'a vast cosmic battlefield on a floating stone platform under a starry void, a giant swirling black hole in the sky devouring stars, purple and gold light'],
   ['gacha_summon', '가챠 소환 의식(계약 스크롤 뒤 배경)', 'a dark circular arcane summoning chamber, tall stone pillars with faint glowing blue runes, drifting golden dust motes, a soft beam of light falling on an empty stone dais in the center'],
   ['home', '홈', 'a cozy medieval fantasy great hall interior at dusk, tall arched windows overlooking a fantasy town with castle spires, warm glowing lanterns, wooden beams, plain cloth drapes'],
   ['gacha', '가챠(배너 그림이 없을 때)', 'a mystical summoning hall, glowing magic circle on the floor, floating crystals, starry dome ceiling'],
@@ -245,6 +251,9 @@ const BANNERS = [
 
 // 아이콘·적 배경: OpenAI 모델은 투명 배경을 지원하므로 투명으로(칸 색과 어긋나는 네모가 안 생김),
 // 로컬 Flux 는 투명을 못 그리므로 게임 칸과 비슷한 어두운 단색 배경으로.
+// 주간 보스(월드 레이드) — 적 그림과 같은 방식(Enemies/{이름}.png)
+const RAID_BOSS = ['별을 삼키는 자', 'a colossal cosmic dragon-like devourer made of black void and starlight, many glowing violet eyes, a swirling black hole in its chest, huge spread wings full of stars, menacing'];
+
 const BG_DARK = {
   enemies: 'simple dark misty background', items: 'plain very dark navy background', equipment: 'plain very dark navy background',
   status: 'plain very dark navy background', gacha: 'plain very dark navy background', title: 'plain very dark navy background',
@@ -294,6 +303,12 @@ const GACHA_STYLE = 'fantasy game UI illustration, single object centered, anime
 
 function build() {
   const list = [];
+  list.push(withBackground({
+    group: 'enemies', key: RAID_BOSS[0], label: `주간 보스 — ${RAID_BOSS[0]}`,
+    out: `Enemies/${RAID_BOSS[0]}.png`, aspect: '1:1', resolution: '1K', width: 512, height: 512, format: 'png',
+    negative: NEGATIVE,
+  }, `${RAID_BOSS[1]}. ${STYLE.enemy}`));
+
   // 프로필 테두리(아바타 뒤에 깔고 가운데에 원형 아바타를 올림 — 가운데가 비지 않아도 됨)
   for (const [key, name, look] of [
     ['f_bronze', '청동 테두리', 'made of worn bronze with simple rivets and a small laurel motif'],

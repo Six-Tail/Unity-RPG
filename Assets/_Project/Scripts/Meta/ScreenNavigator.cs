@@ -19,6 +19,8 @@ namespace SubcultureRPG.Meta
         Shop,      // 값이 직렬화되므로 새 화면은 뒤에만 추가
         Mission,
         Codex,
+        Arena,     // 결투장(PVP)
+        Raid,      // 주간 보스(월드 레이드)
     }
 
     /// <summary>
@@ -39,6 +41,11 @@ namespace SubcultureRPG.Meta
         [SerializeField] private ShopScreen shop;
         [SerializeField] private MissionScreen mission;
         [SerializeField] private CodexScreen codex;
+        [SerializeField] private ArenaScreen arena;
+        [SerializeField] private RaidScreen raid;
+
+        /// <summary>결투장 · 주간 보스 전투에서 나갈 때 돌아갈 화면(없으면 스테이지/홈 규칙).</summary>
+        private HubScreen? _modeReturn;
         [SerializeField] private BattleHUD battleHud;
         [SerializeField] private BattleController battle;
         [SerializeField] private HubScreen startScreen = HubScreen.Home;
@@ -62,6 +69,32 @@ namespace SubcultureRPG.Meta
             if (mission == null && home != null) mission = CreateMission();   // 임무도 마찬가지
             if (codex == null) codex = FindAnyObjectByType<CodexScreen>();
             if (codex == null && home != null) codex = CreateCodex();         // 도감도 마찬가지
+            if (arena == null) arena = FindAnyObjectByType<ArenaScreen>();
+            if (arena == null && home != null) arena = CreateMode<ArenaScreen>("ArenaScreen");
+            if (raid == null) raid = FindAnyObjectByType<RaidScreen>();
+            if (raid == null && home != null) raid = CreateMode<RaidScreen>("RaidScreen");
+        }
+
+        /// <summary>결투장 · 주간 보스 화면을 코드로 추가(폰트는 홈 화면과 같게).</summary>
+        private T CreateMode<T>(string name) where T : ModeScreenBase
+        {
+            var go = new GameObject(name);
+            go.SetActive(false);   // Awake(UI 구성) 전에 폰트 지정
+            var s = go.AddComponent<T>();
+            s.SetFont(home.Font);
+            go.SetActive(true);
+            return s;
+        }
+
+        /// <summary>출격 모드 편성 화면을 열고, 전투에서 나가면 back 화면으로.</summary>
+        private void OpenModeParty(string title, string start, System.Action<System.Collections.Generic.List<SubcultureRPG.Characters.CharacterData>> launch,
+            HubScreen back, string backLabel)
+        {
+            if (party == null) return;
+            _modeReturn = back;
+            party.SetLaunchMode(team => launch(team), title, start);
+            party.SetBackAction(() => Go(back), backLabel);
+            Go(HubScreen.Party);
         }
 
         /// <summary>씬에 도감 화면이 없으면 코드로 추가(폰트는 홈 화면과 같게).</summary>
@@ -105,6 +138,20 @@ namespace SubcultureRPG.Meta
             if (shop != null) shop.SetBackAction(GoHome);
             if (mission != null) mission.SetBackAction(GoHome);
             if (codex != null) codex.SetBackAction(GoHome);
+            if (arena != null)
+            {
+                arena.SetBackAction(GoHome);
+                arena.OnChallenge += o => OpenModeParty(
+                    $"결투장  ·  {o.name}  <size=60%><color=#FFB347>상대 전투력 {o.power:N0}</color></size>", "도전!",
+                    team => PlayerArena.Instance.Fight(o, team), HubScreen.Arena, "← 결투장");
+            }
+            if (raid != null)
+            {
+                raid.SetBackAction(GoHome);
+                raid.OnChallenge += () => OpenModeParty(
+                    $"주간 보스  ·  {WorldRaid.BossName}  <size=60%><color=#C9A0FF>아군 행동 {WorldRaid.ActionLimit}회</color></size>", "도전!",
+                    team => WorldRaid.Instance.Fight(team), HubScreen.Raid, "← 주간 보스");
+            }
             if (party != null)
             {
                 party.SetBackAction(GoHome);
@@ -137,8 +184,11 @@ namespace SubcultureRPG.Meta
             }
 
             // 홈/스테이지 목록으로 돌아오면 스테이지 출격 모드 해제
-            if (screen == HubScreen.Home || screen == HubScreen.Stage)
+            if (screen == HubScreen.Home || screen == HubScreen.Stage || screen == HubScreen.Arena || screen == HubScreen.Raid)
             {
+                _modeReturn = null;
+                PlayerArena.Instance.Leave();   // 끝나지 않은 전투에서 나오면 도전권 · 도전 횟수 반환
+                WorldRaid.Instance.Leave();
                 if (stageRunner != null) stageRunner.Clear();
                 if (party != null)
                 {
@@ -157,6 +207,8 @@ namespace SubcultureRPG.Meta
             if (shop != null) shop.Show(screen == HubScreen.Shop);
             if (mission != null) mission.Show(screen == HubScreen.Mission);
             if (codex != null) codex.Show(screen == HubScreen.Codex);
+            if (arena != null) arena.Show(screen == HubScreen.Arena);
+            if (raid != null) raid.Show(screen == HubScreen.Raid);
             if (battleHud != null) battleHud.Show(screen == HubScreen.Battle);
         }
 
@@ -176,6 +228,7 @@ namespace SubcultureRPG.Meta
 
         private void OnPartyLaunched()
         {
+            if (_modeReturn.HasValue) { Go(HubScreen.Battle); return; }   // 결투장 · 주간 보스는 각자 나가기 문구를 정함
             bool stageBattle = stageRunner != null && stageRunner.Current != null;
             if (battleHud != null) battleHud.SetExitLabel(stageBattle ? "스테이지로" : "홈으로");
             Go(HubScreen.Battle);
@@ -183,6 +236,13 @@ namespace SubcultureRPG.Meta
 
         private void ExitBattle()
         {
+            if (_modeReturn.HasValue)
+            {
+                var back = _modeReturn.Value;
+                if (battle != null) battle.Stop();
+                Go(back);
+                return;
+            }
             bool stageBattle = stageRunner != null && stageRunner.Current != null;
             if (stageBattle && stage != null) stage.Focus(stageRunner.Current);   // '다음 스테이지'로 진행했으면 그 스테이지 선택
             if (battle != null) battle.Stop();

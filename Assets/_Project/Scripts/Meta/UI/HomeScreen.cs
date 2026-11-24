@@ -107,6 +107,7 @@ namespace SubcultureRPG.Meta.UI
             RefreshCodexButton();
             RefreshAssistant();
             RefreshProfileBadge();
+            RefreshModeTiles();
         }
 
         private void RefreshProfileBadge()
@@ -164,6 +165,14 @@ namespace SubcultureRPG.Meta.UI
             _badgeExp.offsetMin = Vector2.zero; _badgeExp.offsetMax = Vector2.zero;
 
             PlayerProfile.Instance.OnChanged += RefreshProfileBadge;
+
+            _profileDot = UIFactory.AddImage("Dot", rt, new Color(1f, 0.35f, 0.35f), ProceduralSprites.Circle);
+            UIFactory.Anchor(_profileDot.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(0.5f, 0.5f));
+            _profileDot.rectTransform.sizeDelta = new Vector2(18, 18); _profileDot.rectTransform.anchoredPosition = new Vector2(-10, -10);
+            _profileDot.enabled = false;
+
+            PlayerArena.Instance.OnChanged += RefreshModeTiles;
+            WorldRaid.Instance.OnChanged += RefreshModeTiles;
         }
 
         // ---------------- 대표 캐릭터 ----------------
@@ -349,6 +358,8 @@ namespace SubcultureRPG.Meta.UI
         /// <summary>도감 버튼: 수집 현황 + 받을 수 있는 수집 보상 수.</summary>
         private void RefreshCodexButton()
         {
+            // 도감은 프로필에서 — 받을 수집 보상이 있으면 프로필 배지에 점
+            if (_profileDot != null) _profileDot.enabled = _codex != null && _codex.ClaimableCount() > 0;
             if (_rosterText == null) return;
             int owned = roster != null ? roster.Owned.Count : 0;
             string count = _codex != null && _codex.Total > 0 ? $"{_codex.OwnedCount} / {_codex.Total}" : $"{owned}명";
@@ -465,17 +476,77 @@ namespace SubcultureRPG.Meta.UI
             var stage = Tile(root, "스테이지\n<size=50%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.96f), new Vector2(cx, 268), new Vector2(w, 170), 52, () => Nav(HubScreen.Stage));
             var gachaBtn = Tile(root, "가챠\n<size=50%>캐릭터 소환</size>", new Color(0.78f, 0.56f, 0.2f, 0.96f), new Vector2(cx, 118), new Vector2(w, 110), 42, () => Nav(HubScreen.Gacha));
 
+            // 2열 타일: 육성 · 임무 / 결투장 · 주간 보스 (상점 · 가방은 오른쪽 위 아이콘, 도감 · 대표 변경은 프로필에서)
             float tw = (w - 16f) / 2f, lx = cx - (tw + 16f) / 2f, rx = cx + (tw + 16f) / 2f;
-            Tile(root, "육성\n<size=55%>레벨 · 스킬 · 초월</size>", new Color(0.33f, 0.55f, 0.4f, 0.95f), new Vector2(lx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Growth));
-            var mission = Tile(root, "", new Color(0.3f, 0.45f, 0.8f, 0.95f), new Vector2(rx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Mission));
+            Tile(root, "육성\n<size=55%>레벨 · 스킬 · 초월</size>", new Color(0.33f, 0.55f, 0.4f, 0.95f), new Vector2(lx, -24), new Vector2(tw, 130), 36, () => Nav(HubScreen.Growth));
+            var mission = Tile(root, "", new Color(0.3f, 0.45f, 0.8f, 0.95f), new Vector2(rx, -24), new Vector2(tw, 130), 36, () => Nav(HubScreen.Mission));
             _missionLabel = mission.GetComponentInChildren<TextMeshProUGUI>();
-            Tile(root, "상점\n<size=55%>구매 · 교환</size>", new Color(0.72f, 0.33f, 0.5f, 0.95f), new Vector2(lx, -136), new Vector2(tw, 112), 34, () => Nav(HubScreen.Shop));
-            Tile(root, "가방\n<size=55%>재료 확인</size>", new Color(0.24f, 0.48f, 0.55f, 0.95f), new Vector2(rx, -136), new Vector2(tw, 112), 34, () => Nav(HubScreen.Bag));
-            var codex = Tile(root, "", new Color(0.26f, 0.3f, 0.42f, 0.95f), new Vector2(lx, -262), new Vector2(tw, 112), 34, () => Nav(HubScreen.Codex));
-            _rosterText = codex.GetComponentInChildren<TextMeshProUGUI>();
-            Tile(root, "대표 변경\n<size=55%>로비 캐릭터</size>", new Color(0.45f, 0.35f, 0.7f, 0.95f), new Vector2(rx, -262), new Vector2(tw, 112), 32, OpenPicker);
+            var arenaBtn = Tile(root, "", new Color(0.72f, 0.3f, 0.3f, 0.95f), new Vector2(lx, -170), new Vector2(tw, 130), 36, () => Nav(HubScreen.Arena));
+            _arenaLabel = arenaBtn.GetComponentInChildren<TextMeshProUGUI>();
+            TileIcon(arenaBtn, "Items/ArenaCoin");
+            var raidBtn = Tile(root, "", new Color(0.45f, 0.3f, 0.7f, 0.95f), new Vector2(rx, -170), new Vector2(tw, 130), 36, () => Nav(HubScreen.Raid));
+            _raidLabel = raidBtn.GetComponentInChildren<TextMeshProUGUI>();
+            TileIcon(raidBtn, "Items/RaidIcon");
+
+            // 상점 · 가방: 재화 알약 왼쪽 아이콘
+            IconButton(root, "Items/UiShop", "상점", new Vector2(-50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14 - 78, -30), () => Nav(HubScreen.Shop));
+            IconButton(root, "Items/UiBag", "가방", new Vector2(-50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14, -30), () => Nav(HubScreen.Bag));
 
             BuildPicker();
+        }
+
+        private TextMeshProUGUI _arenaLabel, _raidLabel;
+        private Image _profileDot;
+
+        /// <summary>결투장 · 주간 보스 타일 문구(남은 도전 · 받을 보상).</summary>
+        private void RefreshModeTiles()
+        {
+            if (_arenaLabel != null)
+            {
+                var a = PlayerArena.Instance;
+                var (tier, _) = PlayerArena.Tier(a.Points);
+                _arenaLabel.text = $"결투장\n<size=55%>{tier} · 도전권 {a.Tickets}/{PlayerArena.MaxTickets}</size>";
+            }
+            if (_raidLabel != null)
+            {
+                var r = WorldRaid.Instance;
+                int n = r.ClaimableCount;
+                _raidLabel.text = "주간 보스" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "") + $"\n<size=55%>남은 도전 {r.AttemptsLeft}/{WorldRaid.AttemptsPerDay}</size>";
+            }
+        }
+
+        /// <summary>타일 왼쪽에 아이콘(글자는 오른쪽으로 밀림).</summary>
+        private static void TileIcon(Button tile, string icon)
+        {
+            var sp = GameArt.Load(icon);
+            if (sp == null) return;
+            var img = UIFactory.AddImage("Icon", tile.transform, Color.white, sp);
+            img.preserveAspect = true;
+            UIFactory.Anchor(img.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+            img.rectTransform.sizeDelta = new Vector2(88, 88); img.rectTransform.anchoredPosition = new Vector2(16, 0);
+            var lbl = tile.GetComponentInChildren<TextMeshProUGUI>();
+            if (lbl != null) lbl.rectTransform.offsetMin = new Vector2(96, lbl.rectTransform.offsetMin.y);
+        }
+
+        /// <summary>오른쪽 위 작은 아이콘 버튼(아이콘 + 아래 이름).</summary>
+        private void IconButton(Transform parent, string icon, string label, Vector2 pos, UnityEngine.Events.UnityAction onClick)
+        {
+            var bg = UIFactory.AddImage(label, parent, new Color(0.04f, 0.05f, 0.09f, 0.72f), ProceduralSprites.Rounded, raycast: true);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            var rt = bg.rectTransform;
+            UIFactory.Anchor(rt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            rt.sizeDelta = new Vector2(68, 68); rt.anchoredPosition = pos;
+            var b = bg.gameObject.AddComponent<Button>();
+            b.targetGraphic = bg;
+            b.onClick.AddListener(onClick);
+            bg.gameObject.AddComponent<ButtonFx>();
+            var sp = GameArt.Load(icon);
+            var img = UIFactory.AddImage("Icon", rt, Color.white, sp);
+            img.preserveAspect = true;
+            UIFactory.Stretch(img.rectTransform, 8, 14, 8, 4);
+            img.enabled = sp != null;
+            var t = UIFactory.AddText("Label", rt, label, 15, font, Color.white, TextAlignmentOptions.Bottom, FontStyles.Bold);
+            UIFactory.Stretch(t.rectTransform, 0, 2, 0, 0);
         }
 
         private Button Tile(Transform parent, string label, Color bg, Vector2 pos, Vector2 size, float fontSize, UnityEngine.Events.UnityAction onClick)
