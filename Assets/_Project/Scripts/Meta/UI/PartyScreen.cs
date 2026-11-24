@@ -157,6 +157,7 @@ namespace SubcultureRPG.Meta.UI
             crt.sizeDelta = new Vector2(1200, 36); crt.anchoredPosition = new Vector2(0, 130);
 
             _startButton = UIFactory.AddButton("Start", _root.transform, "전투 시작", 26, font, new Color(0.8f, 0.6f, 0.2f, 0.95f), Color.white);
+            TutorialTargets.Set("party.start", _startButton);
             var srt = (RectTransform)_startButton.transform;
             UIFactory.Anchor(srt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
             srt.sizeDelta = new Vector2(280, 72); srt.anchoredPosition = new Vector2(0, 60);

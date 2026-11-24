@@ -162,7 +162,7 @@ namespace SubcultureRPG.Meta.UI
             _greeting.SetTextWithoutNotify(pf.Greeting);
             var codex = FindAnyObjectByType<SubcultureRPG.Meta.Codex.PlayerCodex>();
             int claim = codex != null ? codex.ClaimableCount() : 0;
-            if (_codexLabel != null) _codexLabel.text = "도감" + (claim > 0 ? $"  <color=#FFE08A><size=70%>●{claim}</size></color>" : "");
+            if (_codexLabel != null) _codexLabel.text = "도감" + (claim > 0 ? "  <color=#FF6B6B><b>!</b></color>" : "");
 
             Clear(_top5);
             for (int i = 0; i < Mathf.Min(5, powers.Count); i++) TopCell(powers[i].Key, powers[i].Value, i);

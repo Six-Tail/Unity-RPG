@@ -1333,6 +1333,8 @@ namespace SubcultureRPG.Meta.UI
             _lvClear = Btn(page, "초기화", new Color(1, 1, 1, 0.14f), 150, -416, 170, 64, ResetAndRefresh);
             _lvAuto = Btn(page, "자동 선택", new Color(0.28f, 0.5f, 0.75f, 0.95f), 340, -416, 210, 64, AutoSelect);
             _lvConfirm = Btn(page, "레벨업", new Color(0.3f, 0.62f, 0.4f, 0.98f), 570, -416, 240, 64, ConfirmLevelUp);
+            TutorialTargets.Set("growth.auto", _lvAuto);
+            TutorialTargets.Set("growth.confirm", _lvConfirm);
         }
 
         private void ResetAndRefresh() { ResetLevelSelection(); Refresh(); }

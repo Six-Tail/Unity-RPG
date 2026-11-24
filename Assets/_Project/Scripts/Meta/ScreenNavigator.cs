@@ -187,6 +187,15 @@ namespace SubcultureRPG.Meta
         /// <summary>지정 화면만 표시.</summary>
         public void Go(HubScreen screen)
         {
+            // 결투장 · 주간 보스는 3장을 클리어해야 열림
+            if ((screen == HubScreen.Arena && !FeatureGate.ArenaOpen) || (screen == HubScreen.Raid && !FeatureGate.RaidOpen))
+            {
+                int need = screen == HubScreen.Arena ? FeatureGate.ArenaChapter : FeatureGate.RaidChapter;
+                Popups.Show(screen == HubScreen.Arena ? "결투장" : "주간 보스",
+                    $"아직 열리지 않았습니다.\n<color=#FFD36B>{need}장</color>(쉬움)을 클리어하면 열립니다.\n\n<color=#9AA3B5>지금 {FeatureGate.ClearedChapters()}장까지 클리어</color>");
+                return;
+            }
+
             if (screen == HubScreen.Dungeon)
             {
                 if (stage != null) stage.OpenSpecial();
@@ -225,6 +234,13 @@ namespace SubcultureRPG.Meta
         }
 
         public void GoHome() => Go(HubScreen.Home);
+
+        /// <summary>스테이지 화면을 특수 던전(종류 지정) 탭으로 엶.</summary>
+        public void OpenDungeon(StageKind kind)
+        {
+            if (stage != null) stage.OpenSpecial(kind);
+            Go(HubScreen.Stage);
+        }
 
         /// <summary>스테이지 상세의 '편성 후 출격' → 출격 모드 편성 화면.</summary>
         private void OnStageSortie(StageData s)

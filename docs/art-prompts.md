@@ -407,7 +407,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 38장
+## 재료 아이콘 (1:1) — 42장
 
 ### 소형 경험치 물약
 
@@ -551,6 +551,38 @@ two crossed golden swords over a round red shield emblem. game item icon, single
 
 ```
 a menacing purple demon skull emblem with a swirling black hole behind it and golden horns. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 우편함 아이콘
+
+- 파일: `Items/UiMail.png` · 256×256 · 화면비 1:1
+
+```
+a cream-colored sealed envelope with a red wax seal stamped with a golden star, a small golden wing on each side. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 출석부 아이콘
+
+- 파일: `Items/UiAttendance.png` · 256×256 · 화면비 1:1
+
+```
+a wall calendar page with a big golden star stamp on it and a red ribbon bookmark, blue header band. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 태생 5성 캐릭터 선택권
+
+- 파일: `Items/Select5.png` · 256×256 · 화면비 1:1
+
+```
+an ornate purple and silver ticket card with five small silver stars across the top and a glowing violet silhouette of a heroine in the center. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 태생 6성 캐릭터 선택권
+
+- 파일: `Items/Select6.png` · 256×256 · 화면비 1:1
+
+```
+a luxurious golden ticket card with six small golden stars across the top, a radiant rainbow-gold silhouette of a heroine in the center, sparkling gems on the corners. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 길드 아이콘

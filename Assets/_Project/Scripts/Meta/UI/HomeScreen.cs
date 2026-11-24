@@ -166,15 +166,15 @@ namespace SubcultureRPG.Meta.UI
 
             PlayerProfile.Instance.OnChanged += RefreshProfileBadge;
 
-            _profileDot = UIFactory.AddImage("Dot", rt, new Color(1f, 0.35f, 0.35f), ProceduralSprites.Circle);
-            UIFactory.Anchor(_profileDot.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(0.5f, 0.5f));
-            _profileDot.rectTransform.sizeDelta = new Vector2(18, 18); _profileDot.rectTransform.anchoredPosition = new Vector2(-10, -10);
-            _profileDot.enabled = false;
+            _profileBadge = NotifyBadge.Attach(rt, font);   // 도감 수집 보상
 
             PlayerArena.Instance.OnChanged += RefreshModeTiles;
             WorldRaid.Instance.OnChanged += RefreshModeTiles;
             PlayerGuild.Instance.OnChanged += RefreshModeTiles;
             PlayerSocial.Instance.OnChanged += RefreshModeTiles;
+            PlayerMail.Instance.OnChanged += RefreshBadges;
+            PlayerAttendance.Instance.OnChanged += RefreshBadges;
+            ChapterStarRewards.OnChanged += RefreshBadges;
         }
 
         // ---------------- 대표 캐릭터 ----------------
@@ -361,7 +361,7 @@ namespace SubcultureRPG.Meta.UI
         private void RefreshCodexButton()
         {
             // 도감은 프로필에서 — 받을 수집 보상이 있으면 프로필 배지에 점
-            if (_profileDot != null) _profileDot.enabled = _codex != null && _codex.ClaimableCount() > 0;
+            if (_profileBadge != null) _profileBadge.Set(_codex != null && _codex.ClaimableCount() > 0);
             if (_rosterText == null) return;
             int owned = roster != null ? roster.Owned.Count : 0;
             string count = _codex != null && _codex.Total > 0 ? $"{_codex.OwnedCount} / {_codex.Total}" : $"{owned}명";
@@ -369,14 +369,13 @@ namespace SubcultureRPG.Meta.UI
             _rosterText.text = "도감" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "") + $"\n<size=55%>수집 {count}</size>";
         }
 
-        /// <summary>임무 버튼에 지금 받을 수 있는 보상 수 표시.</summary>
+        /// <summary>임무 타일: 받을 보상 수 + 빨간 느낌표.</summary>
         private void RefreshMissionBadge()
         {
             if (_missionLabel == null) return;
             int n = _missions != null ? _missions.ClaimableCount() : 0;
-            _missionLabel.text = n > 0
-                ? $"임무  <color=#FFE08A><size=70%>●{n}</size></color>\n<size=55%>받을 보상 {n}개</size>"
-                : "임무\n<size=55%>일일 · 주간</size>";
+            _missionLabel.text = n > 0 ? $"임무\n<size=55%>받을 보상 {n}개</size>" : "임무\n<size=55%>일일 · 주간</size>";
+            if (_missionBadge != null) _missionBadge.Set(n > 0);
         }
 
         private void Nav(HubScreen screen)
@@ -475,19 +474,22 @@ namespace SubcultureRPG.Meta.UI
 
             // 메뉴(오른쪽): 스테이지(크게) → 가챠 → 2열 타일
             const float cx = 590f, w = 580f;
-            var stage = Tile(root, "스테이지\n<size=50%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.96f), new Vector2(cx, 268), new Vector2(w, 170), 52, () => Nav(HubScreen.Stage));
+            var stage = _stageTile = Tile(root, "스테이지\n<size=50%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.96f), new Vector2(cx, 268), new Vector2(w, 170), 52, () => Nav(HubScreen.Stage));
             var gachaBtn = Tile(root, "가챠\n<size=50%>캐릭터 소환</size>", new Color(0.78f, 0.56f, 0.2f, 0.96f), new Vector2(cx, 118), new Vector2(w, 110), 42, () => Nav(HubScreen.Gacha));
 
             // 2열 타일: 육성 · 임무 / 결투장 · 주간 보스 (상점 · 가방은 오른쪽 위 아이콘, 도감 · 대표 변경은 프로필에서)
             float tw = (w - 16f) / 2f, lx = cx - (tw + 16f) / 2f, rx = cx + (tw + 16f) / 2f;
-            Tile(root, "육성\n<size=55%>레벨 · 스킬 · 초월</size>", new Color(0.33f, 0.55f, 0.4f, 0.95f), new Vector2(lx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Growth));
+            var growthTile = Tile(root, "육성\n<size=55%>레벨 · 스킬 · 초월</size>", new Color(0.33f, 0.55f, 0.4f, 0.95f), new Vector2(lx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Growth));
             var mission = Tile(root, "", new Color(0.3f, 0.45f, 0.8f, 0.95f), new Vector2(rx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Mission));
             _missionLabel = mission.GetComponentInChildren<TextMeshProUGUI>();
+            _arenaColor = new Color(0.72f, 0.3f, 0.3f, 0.95f); _raidColor = new Color(0.45f, 0.3f, 0.7f, 0.95f);
             var arenaBtn = Tile(root, "", new Color(0.72f, 0.3f, 0.3f, 0.95f), new Vector2(lx, -136), new Vector2(tw, 112), 34, () => Nav(HubScreen.Arena));
             _arenaLabel = arenaBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _arenaTile = arenaBtn;
             TileIcon(arenaBtn, "Items/ArenaCoin");
             var raidBtn = Tile(root, "", new Color(0.45f, 0.3f, 0.7f, 0.95f), new Vector2(rx, -136), new Vector2(tw, 112), 34, () => Nav(HubScreen.Raid));
             _raidLabel = raidBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _raidTile = raidBtn;
             TileIcon(raidBtn, "Items/RaidIcon");
             var guildBtn = Tile(root, "", new Color(0.25f, 0.42f, 0.62f, 0.95f), new Vector2(lx, -262), new Vector2(tw, 112), 34, () => Nav(HubScreen.Guild));
             _guildLabel = guildBtn.GetComponentInChildren<TextMeshProUGUI>();
@@ -499,42 +501,94 @@ namespace SubcultureRPG.Meta.UI
             // 상점 · 가방: 재화 알약 왼쪽 아이콘
             IconButton(root, "Items/UiShop", "상점", new Vector2(-50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14 - 78, -30), () => Nav(HubScreen.Shop));
             IconButton(root, "Items/UiBag", "가방", new Vector2(-50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14, -30), () => Nav(HubScreen.Bag));
+            // 출석부 · 우편함(받을 것이 있으면 빨간 느낌표)
+            float iconX = -50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14 - 78;
+            var attend = IconButton(root, "Items/UiAttendance", "출석", new Vector2(iconX - 78, -30), () => AttendanceWindow.Open(font));
+            var mailBtn = IconButton(root, "Items/UiMail", "우편", new Vector2(iconX - 156, -30), () => MailWindow.Open(font));
+
+            // 빨간 느낌표: 받지 않은 보상 · 할 일이 있는 곳
+            _attendBadge = NotifyBadge.Attach(attend, font, 8, 8, 28);
+            _mailBadge = NotifyBadge.Attach(mailBtn, font, 8, 8, 28);
+            _stageBadge = NotifyBadge.Attach(stage, font);
+            _missionBadge = NotifyBadge.Attach(mission, font);
+            _raidBadge = NotifyBadge.Attach(raidBtn, font);
+            _guildBadge = NotifyBadge.Attach(guildBtn, font);
+            _friendBadge = NotifyBadge.Attach(friendBtn, font);
+
+            // 튜토리얼이 가리킬 곳
+            TutorialTargets.Set("home.stage", stage);
+            TutorialTargets.Set("home.growth", growthTile);
 
             BuildPicker();
         }
 
         private TextMeshProUGUI _arenaLabel, _raidLabel, _guildLabel, _friendLabel;
-        private Image _profileDot;
+        private NotifyBadge _profileBadge, _stageBadge, _missionBadge, _raidBadge, _guildBadge, _friendBadge, _mailBadge, _attendBadge;
+        private Button _stageTile, _arenaTile, _raidTile;
+        private Color _arenaColor, _raidColor;
+        private StageScreen _stageScreen;
+        private StageProgress _stageProgress;
 
-        /// <summary>결투장 · 주간 보스 타일 문구(남은 도전 · 받을 보상).</summary>
+        /// <summary>빨간 느낌표 갱신: 받지 않은 보상이 있으면 켜고, 받으면 끔.</summary>
+        private void RefreshBadges()
+        {
+            if (_mailBadge == null) return;
+            _mailBadge.Set(PlayerMail.Instance.UnclaimedCount > 0);
+            _attendBadge.Set(PlayerAttendance.Instance.CanClaimAny);
+            _missionBadge.Set(_missions != null && _missions.ClaimableCount() > 0);
+            _raidBadge.Set(FeatureGate.RaidOpen && WorldRaid.Instance.ClaimableCount > 0);
+            _guildBadge.Set(PlayerGuild.Instance.BadgeCount > 0);
+            _friendBadge.Set(PlayerSocial.Instance.BadgeCount > 0);
+            if (_stageScreen == null) _stageScreen = FindAnyObjectByType<StageScreen>();
+            if (_stageProgress == null) _stageProgress = FindAnyObjectByType<StageProgress>();
+            _stageBadge.Set(_stageScreen != null && ChapterStarRewards.ClaimableTotal(_stageScreen.Database, _stageProgress) > 0);
+        }
+
+        /// <summary>잠긴 타일은 어둡게.</summary>
+        private static void TileLocked(Button tile, bool locked, Color normal)
+        {
+            if (tile == null) return;
+            tile.image.color = locked ? new Color(0.26f, 0.27f, 0.32f, 0.9f) : normal;
+        }
+
+        /// <summary>결투장 · 주간 보스 · 길드 · 친구 타일 문구 + 잠금 표시 + 빨간 느낌표.</summary>
         private void RefreshModeTiles()
         {
+            int cleared = FeatureGate.ClearedChapters();
             if (_arenaLabel != null)
             {
-                var a = PlayerArena.Instance;
-                var (tier, _) = PlayerArena.Tier(a.Points);
-                _arenaLabel.text = $"결투장\n<size=55%>{tier} · {a.MyRank}위 · 도전권 {a.Tickets}/{PlayerArena.MaxTickets}</size>";
+                bool open = cleared >= FeatureGate.ArenaChapter;
+                TileLocked(_arenaTile, !open, _arenaColor);
+                if (!open) _arenaLabel.text = $"결투장\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.ArenaChapter)}</color></size>";
+                else
+                {
+                    var a = PlayerArena.Instance;
+                    var (tier, _) = PlayerArena.Tier(a.Points);
+                    _arenaLabel.text = $"결투장\n<size=55%>{tier} · {a.MyRank}위 · 도전권 {a.Tickets}/{PlayerArena.MaxTickets}</size>";
+                }
             }
             if (_raidLabel != null)
             {
-                var r = WorldRaid.Instance;
-                int n = r.ClaimableCount;
-                _raidLabel.text = "주간 보스" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "") + $"\n<size=55%>남은 도전 {r.AttemptsLeft}/{WorldRaid.AttemptsPerDay}</size>";
+                bool open = cleared >= FeatureGate.RaidChapter;
+                TileLocked(_raidTile, !open, _raidColor);
+                if (!open) _raidLabel.text = $"주간 보스\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.RaidChapter)}</color></size>";
+                else
+                {
+                    var r = WorldRaid.Instance;
+                    _raidLabel.text = $"주간 보스\n<size=55%>남은 도전 {r.AttemptsLeft}/{WorldRaid.AttemptsPerDay}</size>";
+                }
             }
             if (_guildLabel != null)
             {
                 var g = PlayerGuild.Instance;
-                int n = g.BadgeCount;
-                _guildLabel.text = "길드" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "") +
-                                   $"\n<size=55%>{(g.Joined ? $"{g.Name} Lv.{g.Level}" : "가입 · 창설")}</size>";
+                _guildLabel.text = $"길드\n<size=55%>{(g.Joined ? $"{g.Name} Lv.{g.Level}" : "가입 · 창설")}</size>";
             }
             if (_friendLabel != null)
             {
-                var s = PlayerSocial.Instance;
-                int n = s.BadgeCount;
-                _friendLabel.text = "친구" + (n > 0 ? $"  <color=#FFE08A><size=70%>●{n}</size></color>" : "") +
-                                    $"\n<size=55%>{s.Friends.Count}/{PlayerSocial.MaxFriends}명</size>";
+                var so = PlayerSocial.Instance;
+                _friendLabel.text = $"친구\n<size=55%>{so.Friends.Count}/{PlayerSocial.MaxFriends}명</size>";
             }
+            RefreshBadges();
         }
 
         /// <summary>타일 왼쪽에 아이콘(글자는 오른쪽으로 밀림).</summary>
@@ -551,7 +605,7 @@ namespace SubcultureRPG.Meta.UI
         }
 
         /// <summary>오른쪽 위 작은 아이콘 버튼(아이콘 + 아래 이름).</summary>
-        private void IconButton(Transform parent, string icon, string label, Vector2 pos, UnityEngine.Events.UnityAction onClick)
+        private RectTransform IconButton(Transform parent, string icon, string label, Vector2 pos, UnityEngine.Events.UnityAction onClick)
         {
             var bg = UIFactory.AddImage(label, parent, new Color(0.04f, 0.05f, 0.09f, 0.72f), ProceduralSprites.Rounded, raycast: true);
             bg.type = Image.Type.Sliced; bg.preserveAspect = false;
@@ -569,6 +623,7 @@ namespace SubcultureRPG.Meta.UI
             img.enabled = sp != null;
             var t = UIFactory.AddText("Label", rt, label, 15, font, Color.white, TextAlignmentOptions.Bottom, FontStyles.Bold);
             UIFactory.Stretch(t.rectTransform, 0, 2, 0, 0);
+            return rt;
         }
 
         private Button Tile(Transform parent, string label, Color bg, Vector2 pos, Vector2 size, float fontSize, UnityEngine.Events.UnityAction onClick)

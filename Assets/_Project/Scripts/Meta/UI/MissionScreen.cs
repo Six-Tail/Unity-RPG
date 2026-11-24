@@ -132,7 +132,7 @@ namespace SubcultureRPG.Meta.UI
                 var tab = t;
                 bool on = _tab == t;
                 int n = missions.ClaimableCount(t);
-                string label = MissionCatalog.PeriodName(t) + (n > 0 ? $"  <color=#FF8A8A><size=80%>●{n}</size></color>" : "");
+                string label = MissionCatalog.PeriodName(t) + (n > 0 ? "  <color=#FF6B6B><b>!</b></color>" : "");
                 var b = UIFactory.AddButton("Tab", _tabs, label, 20, font,
                     on ? new Color(0.78f, 0.58f, 0.22f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
                 var le = b.gameObject.AddComponent<LayoutElement>();

@@ -23,6 +23,8 @@ namespace SubcultureRPG.Meta
         StarShard = 10,       // 별의 조각 (풀 초월 캐릭터 중복 → 교환소에서 뽑기권)  영웅
         StaminaSmall = 11,    // 소형 행동력 물약 (행동력 +60)  희귀
         StaminaLarge = 12,    // 행동력 물약 (행동력 +120)      영웅
+        Select5 = 13,         // 태생 5★ 캐릭터 선택권           영웅 — 신규 출석 3일째
+        Select6 = 14,         // 태생 6★ 캐릭터 선택권(픽업 제외) 전설 — 신규 출석 7일째
 
         PhysicalAsc1 = 101, PhysicalAsc2 = 102, PhysicalAsc3 = 103,
         FireAsc1 = 111, FireAsc2 = 112, FireAsc3 = 113,
@@ -88,6 +90,8 @@ namespace SubcultureRPG.Meta
                 MaterialType.StarShard => "별의 조각",
                 MaterialType.StaminaSmall => "소형 행동력 물약",
                 MaterialType.StaminaLarge => "행동력 물약",
+                MaterialType.Select5 => "태생 5★ 캐릭터 선택권",
+                MaterialType.Select6 => "태생 6★ 캐릭터 선택권",
                 _ => t.ToString(),
             };
         }
@@ -101,7 +105,7 @@ namespace SubcultureRPG.Meta
                 MaterialType.ExpSmall or MaterialType.SkillBook => 3,
                 MaterialType.ExpPotion or MaterialType.SkillBookBlue or MaterialType.EquipOre => 4,
                 MaterialType.StaminaSmall => 4,
-                MaterialType.ExpLarge or MaterialType.SkillBookPurple or MaterialType.StarShard or MaterialType.StaminaLarge => 5,
+                MaterialType.ExpLarge or MaterialType.SkillBookPurple or MaterialType.StarShard or MaterialType.StaminaLarge or MaterialType.Select5 => 5,
                 _ => 6,   // 경험치 결정 · 전설의 비전서
             };
         }
@@ -114,7 +118,7 @@ namespace SubcultureRPG.Meta
             if (IsAscension(t)) return Category.Ascension;
             if (ExpValue(t) > 0) return Category.Exp;
             if (t == MaterialType.EquipOre) return Category.Equipment;
-            if (t == MaterialType.StarShard || StaminaValue(t) > 0) return Category.Etc;
+            if (t == MaterialType.StarShard || StaminaValue(t) > 0 || IsSelector(t)) return Category.Etc;
             return Category.Skill;
         }
 
@@ -134,11 +138,18 @@ namespace SubcultureRPG.Meta
             {
                 MaterialType.SkillBook, MaterialType.SkillBookBlue, MaterialType.SkillBookPurple, MaterialType.SkillLegend,
                 MaterialType.EquipOre, MaterialType.StarShard, MaterialType.StaminaSmall, MaterialType.StaminaLarge,
+                MaterialType.Select5, MaterialType.Select6,
             };
             foreach (var e in Traits.AllElements)
                 for (int tier = 1; tier <= AscensionTiers; tier++) list.Add(Ascension(e, tier));
             return list;
         }
+
+        /// <summary>캐릭터 선택권인지.</summary>
+        public static bool IsSelector(MaterialType t) => t == MaterialType.Select5 || t == MaterialType.Select6;
+
+        /// <summary>선택권으로 고를 수 있는 태생 성급(선택권이 아니면 0).</summary>
+        public static int SelectorRarity(MaterialType t) => t == MaterialType.Select5 ? 5 : t == MaterialType.Select6 ? 6 : 0;
 
         /// <summary>행동력 물약이 주는 행동력(그 외는 0).</summary>
         public static int StaminaValue(MaterialType t) => t switch
@@ -214,6 +225,8 @@ namespace SubcultureRPG.Meta
                     $"<color=#FFD36B>용도</color>\n사용하면 행동력 +{StaminaValue(t)}\n최대치(240)를 넘어 쌓을 수 있고(최대 999), 넘은 동안은 6분마다 오르는 자연 회복이 멈춥니다.\n가방에서 선택 후 '사용', 또는 스테이지 화면 행동력 옆 '+'\n\n<color=#FFD36B>획득처</color>\n" +
                     (t == MaterialType.StaminaSmall ? "상점 (일반 상점 · 매일 2개)" : "상점 (크리스탈 상점 · 매주 6개)"),
                 MaterialType.StarShard => "<color=#FFD36B>용도</color>\n상점 교환소에서 뽑기권으로 교환 (픽업 뽑기권 1장 = 조각 " + StarShards.PickupTicketPrice + "개 · 상시 뽑기권 1장 = " + StarShards.StandardTicketPrice + "개)\n\n<color=#FFD36B>획득처</color>\n이미 풀 초월(6★ +6)한 캐릭터를 다시 뽑으면 자동 변환\n태생 6★ " + StarShards.PerCopy(6) + "개 · 5★ " + StarShards.PerCopy(5) + "개 · 4★ " + StarShards.PerCopy(4) + "개 · 3★ " + StarShards.PerCopy(3) + "개",
+                MaterialType.Select5 => "<color=#FFD36B>용도</color>\n태생 5★ 캐릭터 1명을 골라 영입합니다. 이미 가진 캐릭터를 고르면 합성 · 초월에 쓰는 중복이 됩니다.\n가방에서 선택 후 '사용'\n\n<color=#FFD36B>획득처</color>\n신규 지휘관 출석 3일째",
+                MaterialType.Select6 => "<color=#FFD36B>용도</color>\n태생 6★ 캐릭터 1명을 골라 영입합니다(지금 픽업 중인 캐릭터는 제외). 이미 가진 캐릭터를 고르면 초월에 쓰는 중복이 됩니다.\n가방에서 선택 후 '사용'\n\n<color=#FFD36B>획득처</color>\n신규 지휘관 출석 7일째",
                 MaterialType.EquipOre => "<color=#FFD36B>용도</color>\n장비 강화 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n특수 던전 · 장비 던전\n장비 분해 · 상점 (일반 상점)",
                 _ => "",
             };

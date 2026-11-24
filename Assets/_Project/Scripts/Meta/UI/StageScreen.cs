@@ -39,6 +39,8 @@ namespace SubcultureRPG.Meta.UI
         private System.Action _onBack;
 
         private int _chapter = 1;
+        private Button _starRewardBtn;
+        private NotifyBadge _starRewardBadge;
         private StageData _selected;
         private readonly Dictionary<StageData, Image> _nodeHL = new();
 
@@ -287,6 +289,12 @@ namespace SubcultureRPG.Meta.UI
                 _chapterTitle.text = $"{diff}챕터 {_chapter}  ·  {database.ChapterName(_chapter)}    <size=70%><color=#FFD36B>★</color> {chStars} / {chMax}</size>";
             }
 
+            if (_starRewardBtn != null)
+            {
+                _starRewardBtn.gameObject.SetActive(!_dungeonMode);
+                _starRewardBadge.Set(!_dungeonMode && ChapterStarRewards.ClaimableIn(database, progress, _difficulty, _chapter) > 0);
+            }
+
             RebuildTabs(chapters);
             RebuildNodes();
             if (_dungeonMode)
@@ -366,6 +374,8 @@ namespace SubcultureRPG.Meta.UI
                     le.preferredWidth = 58; le.preferredHeight = 40;
                     b.interactable = open;
                     b.onClick.AddListener(() => { _chapter = c; _selected = null; Refresh(); });
+                    if (ChapterStarRewards.ClaimableIn(database, progress, _difficulty, ch) > 0)
+                        NotifyBadge.Attach(b, font, 6, 6, 20).Set(true);   // 받을 별 보상이 있는 챕터
                 }
 
             var dungeons = database.Dungeons();
@@ -685,6 +695,14 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(chrt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
             chrt.sizeDelta = new Vector2(1000, 44); chrt.anchoredPosition = new Vector2(-380, -200);
 
+            // 챕터 별 보상(별 12 · 15 · 18개) — 받을 것이 있으면 빨간 느낌표
+            _starRewardBtn = UIFactory.AddButton("StarReward", _root.transform, "별 보상", 20, font, new Color(0.8f, 0.58f, 0.22f, 0.95f), Color.white);
+            var srrt = (RectTransform)_starRewardBtn.transform;
+            UIFactory.Anchor(srrt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(1, 1));
+            srrt.sizeDelta = new Vector2(150, 44); srrt.anchoredPosition = new Vector2(120, -198);
+            _starRewardBtn.onClick.AddListener(() => ChapterRewardWindow.Open(database, progress, _difficulty, _chapter, font, Refresh));
+            _starRewardBadge = NotifyBadge.Attach(_starRewardBtn, font, 8, 8, 28);
+
             // 스테이지 노드(3열)
             // 노드 목록은 스크롤(던전 단계가 많아도 아래로 넘치지 않음)
             var nodesView = UIFactory.NewRect("NodesView", _root.transform);
@@ -732,6 +750,7 @@ namespace SubcultureRPG.Meta.UI
             _detScroll = UIFactory.MakeVerticalScroll(bodyView, _detBody.rectTransform);
 
             _sortieBtn = UIFactory.AddButton("Sortie", panel.transform, "", 28, font, new Color(0.85f, 0.45f, 0.25f, 0.95f), Color.white);
+            TutorialTargets.Set("stage.sortie", _sortieBtn);
             var srt = (RectTransform)_sortieBtn.transform;
             UIFactory.Anchor(srt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
             srt.sizeDelta = new Vector2(420, 76); srt.anchoredPosition = new Vector2(0, 30);

@@ -111,7 +111,7 @@ namespace SubcultureRPG.Meta.UI
             _detName.text = Materials.RichName(_selected);
             _detCount.text = $"{Grades.Tag(g)}   보유  {Count(_selected):N0}";
             _detDesc.text = Materials.Description(_selected);
-            if (_useBtn != null) _useBtn.gameObject.SetActive(Materials.StaminaValue(_selected) > 0);
+            if (_useBtn != null) _useBtn.gameObject.SetActive(Materials.StaminaValue(_selected) > 0 || (Materials.IsSelector(_selected) && Count(_selected) > 0));
         }
 
         private Button _useBtn;
@@ -249,7 +249,11 @@ namespace SubcultureRPG.Meta.UI
             // 사용(행동력 물약만)
             _useBtn = UIFactory.AddButton("Use", panel.transform, "사용", 26, font, new Color(0.25f, 0.6f, 0.45f, 0.95f), Color.white);
             Place((RectTransform)_useBtn.transform, new Vector2(0.5f, 0), new Vector2(300, 64), new Vector2(0, 30), new Vector2(0.5f, 0));
-            _useBtn.onClick.AddListener(() => StaminaDialog.Open(font, _selected));
+            _useBtn.onClick.AddListener(() =>
+            {
+                if (Materials.IsSelector(_selected)) CharacterSelector.Open(_selected, font);   // 캐릭터 선택권
+                else StaminaDialog.Open(font, _selected);
+            });
             _useBtn.gameObject.SetActive(false);
 
             _backBtn = UIFactory.AddButton("BackBtn", root, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
