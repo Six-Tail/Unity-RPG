@@ -36,6 +36,9 @@ namespace SubcultureRPG.Battle
         public int maxToughness;
         public int toughness;
         public bool isBroken;
+
+        /// <summary>이번 전투 누적 기록(준/받은 피해·회복 등).</summary>
+        public readonly BattleRecord record = new();
         public readonly List<StatusEffect> effects = new();
 
         // 장비 등 추가 능력(StatBonus)
@@ -163,7 +166,7 @@ namespace SubcultureRPG.Battle
         public int BuffCount { get { int n = 0; foreach (var e in effects) if (e.IsBuff) n++; return n; } }
         public int DebuffCount { get { int n = 0; foreach (var e in effects) if (e.IsDebuff) n++; return n; } }
 
-        public void ApplyEffect(StatusType type, float magnitude, int duration)
+        public void ApplyEffect(StatusType type, float magnitude, int duration, BattleUnit source = null)
         {
             if (type == StatusType.None || duration <= 0) return;
             var existing = effects.Find(e => e.type == type);
@@ -171,17 +174,30 @@ namespace SubcultureRPG.Battle
             {
                 existing.magnitude = Mathf.Max(existing.magnitude, magnitude);
                 existing.remaining = Mathf.Max(existing.remaining, duration);
+                if (source != null) existing.source = source;
             }
-            else effects.Add(new StatusEffect(type, magnitude, duration));
+            else effects.Add(new StatusEffect(type, magnitude, duration) { source = source });
         }
 
         /// <summary>턴 시작 처리: 도트 피해 + 효과 턴 감소/만료. 반환: 받은 도트 총량.</summary>
         public int TickTurnStart()
         {
             int dot = 0;
+            bool wasAlive = IsAlive;
+            BattleUnit lastSource = null;
             foreach (var e in effects)
-                if (e.type == StatusType.Dot) dot += Mathf.Max(0, Mathf.RoundToInt(e.magnitude));
-            if (dot > 0) TakeDamage(dot);
+            {
+                if (e.type != StatusType.Dot) continue;
+                int d = Mathf.Max(0, Mathf.RoundToInt(e.magnitude));
+                dot += d;
+                if (e.source != null) { e.source.record.dealt += d; lastSource = e.source; }
+            }
+            if (dot > 0)
+            {
+                TakeDamage(dot);
+                record.taken += dot;
+                if (wasAlive && !IsAlive && lastSource != null) lastSource.record.kills++;
+            }
 
             for (int i = effects.Count - 1; i >= 0; i--)
             {

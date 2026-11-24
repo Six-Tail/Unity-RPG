@@ -139,6 +139,7 @@ namespace SubcultureRPG.Battle
             };
 
             bool heal = skill.IsHeal && skill.TargetsAllies;
+            actor.record.actions++;
 
             foreach (var target in targets)
             {
@@ -149,6 +150,8 @@ namespace SubcultureRPG.Battle
                 {
                     int amount = Mathf.Max(1, Mathf.RoundToInt(actor.EffectiveAtk * skill.heal * (1f + actor.healBonus)));
                     target.Heal(amount);
+                    actor.record.healed += amount;
+                    target.record.healReceived += amount;
                     th.healed = amount;
                 }
                 else if (!skill.TargetsAllies)
@@ -160,17 +163,24 @@ namespace SubcultureRPG.Battle
                         if (!target.IsAlive) break;
                         var hit = DamageCalculator.Compute(actor, target, skill, _roll(), _cfg);
                         target.TakeDamage(hit.damage);
+                        actor.record.dealt += hit.damage;
+                        target.record.taken += hit.damage;
+                        if (hit.crit) actor.record.crits++;
                         target.GainEnergy(_cfg.energyOnHit);
                         total += hit.damage;
                         anyCrit |= hit.crit;
                         anyWeak |= hit.weakness;
 
-                        // 약점 → 내구도 감소 → 브레이크
-                        int breakAmount = Mathf.RoundToInt(skill.breakDamage * (1f + actor.breakEffect));   // 브레이크 효율
-                        if (hit.weakness && target.ReduceToughness(breakAmount))
+                        // 모든 공격이 브레이크 게이지를 깎고, 약점 속성이면 훨씬 많이 깎음 → 0이 되면 브레이크
+                        float breakRate = hit.weakness ? _cfg.breakRateWeak : _cfg.breakRateNormal;
+                        int breakAmount = Mathf.RoundToInt(skill.breakDamage * (1f + actor.breakEffect) * Mathf.Max(0f, breakRate));   // 브레이크 효율
+                        if (target.ReduceToughness(breakAmount))
                         {
                             int bonus = Mathf.Max(1, Mathf.RoundToInt(hit.damage * Mathf.Max(0f, _cfg.breakBonus) * (1f + actor.breakEffect)));
                             target.TakeDamage(bonus);
+                            actor.record.dealt += bonus;
+                            target.record.taken += bonus;
+                            actor.record.breaks++;
                             total += bonus;
                             target.actionValue += _cfg.breakActionDelay; // 다음 행동 지연
                             th.broke = true;
@@ -180,6 +190,7 @@ namespace SubcultureRPG.Battle
                     th.anyCrit = anyCrit;
                     th.weakness = anyWeak;
                     th.defeated = !target.IsAlive;
+                    if (th.defeated) actor.record.kills++;
                 }
 
                 // 상태효과 부여(디버프는 적 대상, 버프는 아군 대상)
@@ -192,7 +203,7 @@ namespace SubcultureRPG.Battle
                     float mag = skill.applyEffect == StatusType.Dot
                         ? actor.EffectiveAtk * skill.effectMagnitude
                         : skill.effectMagnitude;
-                    target.ApplyEffect(skill.applyEffect, mag, skill.effectDuration);
+                    target.ApplyEffect(skill.applyEffect, mag, skill.effectDuration, actor);
                     th.appliedEffect = skill.applyEffect;
                 }
 

@@ -28,6 +28,10 @@ const STYLE = {
   equipment:
     'game equipment icon, single object centered, stylized silver-white fantasy gear, simple clean silhouette, soft rim light, ' +
     '%BG%, square composition',
+  // 전투 버프·디버프 아이콘: 32px 로 작게 쓰이므로 굵고 단순하게
+  status:
+    'flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, ' +
+    'minimal detail, readable at tiny size, %BG%, square composition',
   background:
     'anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, ' +
     '16:9 wide composition',
@@ -211,7 +215,21 @@ const BANNERS = [
 
 // 아이콘·적 배경: OpenAI 모델은 투명 배경을 지원하므로 투명으로(칸 색과 어긋나는 네모가 안 생김),
 // 로컬 Flux 는 투명을 못 그리므로 게임 칸과 비슷한 어두운 단색 배경으로.
-const BG_DARK = { enemies: 'simple dark misty background', items: 'plain very dark navy background', equipment: 'plain very dark navy background' };
+const BG_DARK = {
+  enemies: 'simple dark misty background', items: 'plain very dark navy background', equipment: 'plain very dark navy background',
+  status: 'plain very dark navy background',
+};
+
+// 전투 상태 아이콘 [키(StatusType 이름 · Break), 표시 이름, 묘사] — 게임은 Status/{키}.png 로 찾음(없으면 색 + 글자 아이콘).
+// 기호만 그립니다 — 바탕 칸(어두운 색 + 버프/디버프 색 테두리)은 게임이 그리므로 배경은 투명(또는 어두운 단색).
+const STATUS = [
+  ['AtkUp', '공격력 증가', 'a white sword pointing upward with a bright green upward arrow beside it'],
+  ['AtkDown', '공격력 감소', 'a white sword with a bright red downward arrow beside it'],
+  ['DefUp', '방어력 증가', 'a white shield with a bright green upward arrow beside it'],
+  ['DefDown', '방어력 감소', 'a white shield with a bright red downward arrow beside it'],
+  ['Dot', '지속 피해', 'a bright purple poison droplet with a small white skull inside'],
+  ['Break', '브레이크', 'a white shield shattered into pieces with jagged cracks and small amber sparks'],
+];
 const BG_CLEAR = 'isolated on a fully transparent background, no backdrop, no ground shadow';
 
 function withBackground(e, text) {
@@ -263,6 +281,13 @@ function build() {
       negative: NEGATIVE,
     }, `${look}. ${STYLE.equipment}`));
 
+  for (const [key, name, look] of STATUS)
+    list.push(withBackground({
+      group: 'status', key, label: `상태 아이콘 — ${name}`,
+      out: `Status/${key}.png`, aspect: '1:1', resolution: '1K', width: 128, height: 128, format: 'png',
+      negative: NEGATIVE,
+    }, `${look}. ${STYLE.status}`));
+
   for (const [key, name, look] of BACKGROUNDS)
     list.push({
       group: 'backgrounds', key, label: name,
@@ -285,4 +310,4 @@ function build() {
   return list;
 }
 
-module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'backgrounds', 'banners'] };
+module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'status', 'backgrounds', 'banners'] };

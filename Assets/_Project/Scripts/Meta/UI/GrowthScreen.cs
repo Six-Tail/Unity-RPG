@@ -406,15 +406,29 @@ namespace SubcultureRPG.Meta.UI
 
         // ---------------- 미리보기 유닛(능력치·스킬) ----------------
 
-        private struct SkillInfo { public string name; public float power, heal; public int hits; public TargetType target; public StatusType effect; public float effectMag; public int effectTurns; }
+        private struct SkillInfo
+        {
+            public string name;
+            public SkillCategory category;
+            public Element element;
+            public TargetType target;
+            public float power, heal;
+            public int hits, breakDamage, energyGain;
+            public StatusType effect;
+            public float effectMag, effectChance;
+            public int effectTurns;
+        }
 
-        /// <summary>현재 육성 상태(레벨·스킬·성급·초월·장비) 그대로의 전투 유닛 미리보기.</summary>
-        private (BattleUnit unit, SkillInfo[] skills) Preview(CharacterData c)
+        /// <summary>
+        /// 현재 육성 상태(레벨·스킬·성급·초월·장비) 그대로의 전투 유닛 미리보기.
+        /// skillLevels를 주면 스킬 레벨만 그 값으로 가정(다음 레벨 수치 비교용).
+        /// </summary>
+        private (BattleUnit unit, SkillInfo[] skills) Preview(CharacterData c, int[] skillLevels = null)
         {
             var o = roster.GetOwned(c);
             System.Func<CharacterData, BattleUnitData> lookup = null;
             if (database != null) lookup = database.GetUnit;
-            var data = RuntimeUnits.FromCharacter(c, o.level, lookup, o.skillLevel, roster.StarOf(c), roster.TranscendOf(c), roster.SkillLevels(c));
+            var data = RuntimeUnits.FromCharacter(c, o.level, lookup, o.skillLevel, roster.StarOf(c), roster.TranscendOf(c), skillLevels ?? roster.SkillLevels(c));
             bool authored = lookup != null && lookup(c) == data;
             if (authored) data = Instantiate(data);
             if (equipment != null) data.bonus = equipment.BonusFor(c);
@@ -427,8 +441,10 @@ namespace SubcultureRPG.Meta.UI
                 int i = sk.category == SkillCategory.Basic ? 0 : sk.category == SkillCategory.Skill ? 1 : 2;
                 infos[i] = new SkillInfo
                 {
-                    name = sk.skillName, power = sk.power, heal = sk.heal, hits = sk.hits, target = sk.target,
-                    effect = sk.applyEffect, effectMag = sk.effectMagnitude, effectTurns = sk.effectDuration,
+                    name = sk.skillName, category = sk.category, element = sk.element, target = sk.target,
+                    power = sk.power, heal = sk.heal, hits = Mathf.Max(1, sk.hits),
+                    breakDamage = sk.breakDamage, energyGain = sk.energyGain,
+                    effect = sk.applyEffect, effectMag = sk.effectMagnitude, effectChance = sk.effectChance, effectTurns = sk.effectDuration,
                 };
             }
 
@@ -722,8 +738,11 @@ namespace SubcultureRPG.Meta.UI
 
         // ---------------- 스킬 탭 ----------------
 
-        private readonly TextMeshProUGUI[] _skName = new TextMeshProUGUI[3], _skEffect = new TextMeshProUGUI[3], _skCost = new TextMeshProUGUI[3], _skBtnLbl = new TextMeshProUGUI[3];
-        private readonly Button[] _skBtn = new Button[3];
+        private readonly Button[] _skSelBtn = new Button[3];
+        private readonly TextMeshProUGUI[] _skSelLbl = new TextMeshProUGUI[3];
+        private TextMeshProUGUI _skTitle, _skDesc, _skStats, _skTable, _skCostText, _skUpLbl;
+        private Button _skUpBtn;
+        private int _skillSel;
 
         private static string EffectName(StatusType t) => t switch
         {
@@ -738,49 +757,145 @@ namespace SubcultureRPG.Meta.UI
             TargetType.SingleAlly => "아군 1명", TargetType.Self => "자신", _ => "적 1명",
         };
 
-        /// <summary>스킬 효과(레벨 배율 mulNow → mulNext 비교).</summary>
-        private static string Effect(SkillInfo s, float mulNow, float mulNext, bool max)
+        private static string Pct(float v) => $"{v * 100f:0.#}%";
+
+        /// <summary>스킬 설명 문장(현재 수치 기준).</summary>
+        private static string Sentence(SkillInfo s)
         {
-            string Pair(float now) => max ? $"<b>{now * 100f:0}%</b>" : $"<b>{now * 100f:0}%</b> → <color=#7CFF9A>{now / mulNow * mulNext * 100f:0}%</color>";
+            string el = $"<color={Traits.Hex(s.element)}>{Traits.Name(s.element)}</color>";
             var parts = new List<string>();
-            if (s.heal > 0f) parts.Add($"{TargetName(s.target)} 회복 ATK {Pair(s.heal)}");
-            if (s.power > 0f) parts.Add($"{TargetName(s.target)} 피해 ATK {Pair(s.power)}" + (s.hits > 1 ? $" ×{s.hits}" : ""));
+            if (s.heal > 0f && (s.target == TargetType.SingleAlly || s.target == TargetType.AllAllies || s.target == TargetType.Self))
+                parts.Add($"{TargetName(s.target)}의 체력을 공격력의 <b>{Pct(s.heal)}</b>만큼 회복합니다.");
+            if (s.power > 0f)
+                parts.Add($"{TargetName(s.target)}에게 공격력의 <b>{Pct(s.power)}</b>" + (s.hits > 1 ? $" × {s.hits}회" : "") + $"만큼 {el} 피해를 줍니다.");
             if (s.effect != StatusType.None)
             {
-                string mag = s.effect == StatusType.Dot ? $"ATK {s.effectMag * 100f:0}%" : (max ? $"{s.effectMag * 100f:0}%" : $"{s.effectMag * 100f:0}% → <color=#7CFF9A>{s.effectMag / mulNow * mulNext * 100f:0}%</color>");
-                parts.Add($"{EffectName(s.effect)} {mag} ({s.effectTurns}턴)");
+                string chance = s.effectChance < 0.999f ? $"{Pct(s.effectChance)} 확률로 " : "";
+                string who = s.power > 0f || s.heal > 0f ? "대상" : TargetName(s.target);
+                parts.Add(s.effect == StatusType.Dot
+                    ? $"{chance}{who}에게 {s.effectTurns}턴 동안 매 턴 공격력의 <b>{Pct(s.effectMag)}</b> 지속 피해를 줍니다."
+                    : $"{chance}{who}의 {EffectName(s.effect).Replace(" 증가", "을 <b>" + Pct(s.effectMag) + "</b> 올립니다").Replace(" 감소", "을 <b>" + Pct(s.effectMag) + "</b> 낮춥니다")} ({s.effectTurns}턴).");
             }
-            return string.Join("\n", parts);
+            if (parts.Count == 0) parts.Add("효과 없음");
+            return string.Join(" ", parts);
+        }
+
+        /// <summary>'현재 → 다음' (다음 레벨에서 달라질 때만 화살표).</summary>
+        private static string Pair(float now, float next, bool max) =>
+            max || Mathf.Abs(next - now) < 0.0005f ? $"<b>{Pct(now)}</b>" : $"<b>{Pct(now)}</b> → <color=#7CFF9A>{Pct(next)}</color>";
+
+        private void SelectSkill(int i)
+        {
+            _skillSel = Mathf.Clamp(i, 0, 2);
+            Refresh();
         }
 
         private void RefreshSkillTab()
         {
             var levels = roster.SkillLevels(_selected);
-            var (_, infos) = Preview(_selected);
+            var (unit, cur) = Preview(_selected);
+
+            // 비교용: 스킬마다 다음 레벨(최대면 이전 레벨)로 가정한 미리보기 → 레벨당 변화량
+            var altLevels = new int[3];
+            var dir = new int[3];
             for (int i = 0; i < 3; i++)
             {
-                var slot = (SkillSlot)i;
-                int lv = levels[i];
-                bool max = lv >= Leveling.MaxSkillLevel;
-                float mulNow = 1f + 0.1f * (lv - 1), mulNext = 1f + 0.1f * lv;
-                _skName[i].text = $"<color=#9AA3B5>{Leveling.SkillSlotName(slot)}</color>\n<b>{infos[i].name}</b>\n" +
-                                  $"<color=#FFD36B>Lv. {lv}</color> / {Leveling.MaxSkillLevel}";
-                _skEffect[i].text = Effect(infos[i], mulNow, mulNext, max);
-                if (max)
-                {
-                    _skCost[i].text = "<color=#FFD36B>최대 레벨</color>";
-                    _skBtnLbl[i].text = "MAX";
-                    _skBtn[i].interactable = false;
-                    continue;
-                }
-                var c = Leveling.SkillUpgrade(lv);
-                var sb = new StringBuilder(Need(c.book, c.books));
-                if (c.legend > 0) sb.Append("\n").Append(Need(MaterialType.SkillLegend, c.legend));
-                sb.Append("\n").Append(GoldTag(c.gold));
-                _skCost[i].text = sb.ToString();
-                _skBtnLbl[i].text = $"Lv.{lv + 1}";
-                _skBtn[i].interactable = Mat(c.book) >= c.books && Mat(MaterialType.SkillLegend) >= c.legend && Gold >= c.gold;
+                dir[i] = levels[i] < Leveling.MaxSkillLevel ? +1 : -1;
+                altLevels[i] = Mathf.Clamp(levels[i] + dir[i], 1, Leveling.MaxSkillLevel);
             }
+            var (_, alt) = Preview(_selected, altLevels);
+
+            // 왼쪽: 스킬 3개 선택
+            for (int i = 0; i < 3; i++)
+            {
+                bool on = i == _skillSel;
+                _skSelBtn[i].GetComponent<Image>().color = on ? new Color(0.5f, 0.35f, 0.75f, 0.98f) : new Color(1, 1, 1, 0.1f);
+                bool canUp = levels[i] < Leveling.MaxSkillLevel && CanAffordSkill(levels[i]);
+                _skSelLbl[i].text = $"<size=70%><color=#C9B8FF>{Leveling.SkillSlotName((SkillSlot)i)}</color></size>\n<b>{cur[i].name}</b>\n" +
+                                    $"<size=80%><color=#FFD36B>Lv. {levels[i]}</color> / {Leveling.MaxSkillLevel}" +
+                                    (canUp ? "  <color=#7CFF9A>레벨업 가능</color>" : "") + "</size>";
+            }
+
+            // 오른쪽: 선택한 스킬 상세
+            int k = _skillSel;
+            var s = cur[k];
+            int lv = levels[k];
+            bool max = lv >= Leveling.MaxSkillLevel;
+            // 레벨당 변화량(선형) — 다음 레벨 값 = 현재 + step
+            float stepPower = (alt[k].power - s.power) * dir[k];
+            float stepHeal = (alt[k].heal - s.heal) * dir[k];
+            float stepMag = (alt[k].effectMag - s.effectMag) * dir[k];
+
+            string elHex = Traits.Hex(s.element);
+            _skTitle.text = $"<size=62%><color=#C9B8FF>{Leveling.SkillSlotName((SkillSlot)k)}</color></size>  {s.name}  " +
+                            $"<size=62%><color=#FFD36B>Lv. {lv}</color> / {Leveling.MaxSkillLevel}   <color={elHex}>{Traits.Name(s.element)}</color> · {TargetName(s.target)}</size>";
+            _skDesc.text = Sentence(s);
+
+            var sb = new StringBuilder();
+            if (s.power > 0f)
+            {
+                sb.Append($"<color=#9AA3B5>피해 계수</color>   공격력 × {Pair(s.power, s.power + stepPower, max)}" + (s.hits > 1 ? $"  × {s.hits}회" : ""));
+                int est = Mathf.RoundToInt(unit.atk * s.power * s.hits * (1f + unit.allDmg + unit.ElementDmg(s.element)));
+                sb.Append($"\n<color=#9AA3B5>예상 피해</color>   약 <b>{est:N0}</b>  <size=82%><color=#9AA3B5>(현재 공격력 {unit.atk:N0} · 속성 피해 포함 · 적 방어·치명타 적용 전)</color></size>\n");
+            }
+            if (s.heal > 0f)
+            {
+                sb.Append($"<color=#9AA3B5>회복 계수</color>   공격력 × {Pair(s.heal, s.heal + stepHeal, max)}");
+                int est = Mathf.RoundToInt(unit.atk * s.heal * (1f + unit.healBonus));
+                sb.Append($"\n<color=#9AA3B5>예상 회복</color>   약 <b>{est:N0}</b>  <size=82%><color=#9AA3B5>(현재 공격력 {unit.atk:N0} · 치유량 보너스 포함)</color></size>\n");
+            }
+            if (s.effect != StatusType.None)
+            {
+                string chance = s.effectChance < 0.999f ? $"  · 확률 {Pct(s.effectChance)}" : "";
+                string unitLabel = s.effect == StatusType.Dot ? "공격력 × " : "";
+                sb.Append($"<color=#9AA3B5>부여 효과</color>   {EffectName(s.effect)} {unitLabel}{Pair(s.effectMag, s.effectMag + stepMag, max)}  · {s.effectTurns}턴{chance}\n");
+            }
+            if (s.breakDamage > 0) sb.Append($"<color=#9AA3B5>브레이크</color>   브레이크 게이지 -{s.breakDamage} (약점 속성일 때 · 약점이 아니면 약 1/3)\n");
+            string energy = s.category == SkillCategory.Ultimate ? "에너지 가득 필요 · 사용 시 전부 소모" : $"사용 시 에너지 +{s.energyGain}";
+            string sp = s.category == SkillCategory.Ultimate ? "SP 변화 없음" : s.category == SkillCategory.Skill ? "SP -1" : "SP +1";
+            sb.Append($"<color=#9AA3B5>에너지 · SP</color>   {energy}  ·  {sp}");
+            _skStats.text = sb.ToString();
+
+            // 레벨별 계수 표(주 수치 = 피해 > 회복 > 부여 효과)
+            float baseVal, step; string label;
+            if (s.power > 0f) { baseVal = s.power; step = stepPower; label = "레벨별 피해 계수"; }
+            else if (s.heal > 0f) { baseVal = s.heal; step = stepHeal; label = "레벨별 회복 계수"; }
+            else { baseVal = s.effectMag; step = stepMag; label = "레벨별 효과 수치"; }
+            var tb = new StringBuilder($"<color=#9AA3B5>{label}</color>\n");
+            for (int L = 1; L <= Leveling.MaxSkillLevel; L++)
+            {
+                float v = baseVal + (L - lv) * step;
+                string cell = $"<size=70%><color=#9AA3B5>Lv{L}</color></size> {v * 100f:0}";
+                tb.Append(L == lv ? $"<color=#FFD36B><b>{cell}</b></color>" : L == lv + 1 ? $"<color=#7CFF9A>{cell}</color>" : cell);
+                if (L < Leveling.MaxSkillLevel) tb.Append("   ");
+            }
+            if (Mathf.Abs(step) < 0.0005f) tb.Append("  <size=80%><color=#9AA3B5>(레벨로 변하지 않음)</color></size>");
+            _skTable.text = tb.ToString();
+
+            // 비용 · 버튼
+            if (max)
+            {
+                _skCostText.text = "<color=#FFD36B>최대 레벨</color>";
+                _skUpLbl.text = "MAX";
+                _skUpBtn.interactable = false;
+            }
+            else
+            {
+                var c = Leveling.SkillUpgrade(lv);
+                var cb = new StringBuilder("<color=#9AA3B5>필요</color>   ").Append(Need(c.book, c.books));
+                if (c.legend > 0) cb.Append("   ").Append(Need(MaterialType.SkillLegend, c.legend));
+                cb.Append("   ").Append(GoldTag(c.gold));
+                _skCostText.text = cb.ToString();
+                _skUpLbl.text = $"레벨업  →  Lv.{lv + 1}";
+                _skUpBtn.interactable = CanAffordSkill(lv);
+            }
+        }
+
+        private bool CanAffordSkill(int lv)
+        {
+            if (lv >= Leveling.MaxSkillLevel) return false;
+            var c = Leveling.SkillUpgrade(lv);
+            return Mat(c.book) >= c.books && Mat(MaterialType.SkillLegend) >= c.legend && Gold >= c.gold;
         }
 
         private void SkillUp(SkillSlot slot)
@@ -1091,21 +1206,40 @@ namespace SubcultureRPG.Meta.UI
 
         private void BuildSkillPage(Transform page)
         {
+            // 왼쪽: 스킬 3개 선택
             for (int i = 0; i < 3; i++)
             {
-                var slot = (SkillSlot)i;
-                float y = -i * 162;
-                var bg = UIFactory.AddImage("Row", page, new Color(1, 1, 1, 0.05f));
-                TopLeft(bg.rectTransform, 0, y, 960, 150);
-                _skName[i] = Txt(page, "", 19, FontStyles.Normal, TextAlignmentOptions.TopLeft, 20, y - 12, 250, 130);
-                _skName[i].lineSpacing = 4f;
-                _skEffect[i] = Txt(page, "", 18, FontStyles.Normal, TextAlignmentOptions.TopLeft, 280, y - 14, 380, 126);
-                _skEffect[i].enableAutoSizing = true; _skEffect[i].fontSizeMin = 12; _skEffect[i].fontSizeMax = 18;
-                _skCost[i] = Txt(page, "", 16, FontStyles.Normal, TextAlignmentOptions.TopLeft, 670, y - 10, 280, 80);
-                _skCost[i].lineSpacing = 2f;
-                _skBtn[i] = Btn(page, "", new Color(0.5f, 0.35f, 0.75f, 0.95f), 670, y - 92, 270, 50, () => SkillUp(slot));
-                _skBtnLbl[i] = _skBtn[i].GetComponentInChildren<TextMeshProUGUI>();
+                int idx = i;
+                _skSelBtn[i] = Btn(page, "", new Color(1, 1, 1, 0.1f), 0, -i * 126, 262, 116, () => SelectSkill(idx));
+                _skSelLbl[i] = _skSelBtn[i].GetComponentInChildren<TextMeshProUGUI>();
+                _skSelLbl[i].alignment = TextAlignmentOptions.Left;
+                _skSelLbl[i].lineSpacing = 4f;
+                _skSelLbl[i].margin = new Vector4(10, 0, 4, 0);
+                _skSelLbl[i].fontSizeMax = 21;
             }
+            var hint = Txt(page, "<color=#9AA3B5>스킬을 눌러 상세 확인</color>", 15, FontStyles.Normal, TextAlignmentOptions.Top, 0, -384, 262, 24);
+            hint.raycastTarget = false;
+
+            // 오른쪽: 상세
+            var bg = UIFactory.AddImage("SkillDetail", page, new Color(0, 0, 0, 0.28f), ProceduralSprites.Rounded);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false; bg.pixelsPerUnitMultiplier = 2f;
+            TopLeft(bg.rectTransform, 276, 0, 684, 488);
+            var d = bg.transform;
+            _skTitle = Txt(d, "", 28, FontStyles.Bold, TextAlignmentOptions.TopLeft, 20, -12, 644, 40);
+            _skTitle.enableAutoSizing = true; _skTitle.fontSizeMin = 16; _skTitle.fontSizeMax = 28;
+            _skDesc = Txt(d, "", 18, FontStyles.Normal, TextAlignmentOptions.TopLeft, 20, -58, 644, 62);
+            _skDesc.enableAutoSizing = true; _skDesc.fontSizeMin = 13; _skDesc.fontSizeMax = 18;
+            _skDesc.lineSpacing = 4f;
+            _skStats = Txt(d, "", 17, FontStyles.Normal, TextAlignmentOptions.TopLeft, 20, -128, 644, 168);
+            _skStats.enableAutoSizing = true; _skStats.fontSizeMin = 12; _skStats.fontSizeMax = 17;
+            _skStats.lineSpacing = 8f;
+            _skTable = Txt(d, "", 17, FontStyles.Normal, TextAlignmentOptions.TopLeft, 20, -304, 644, 62);
+            _skTable.enableAutoSizing = true; _skTable.fontSizeMin = 11; _skTable.fontSizeMax = 17;
+            _skTable.lineSpacing = 6f;
+            _skCostText = Txt(d, "", 17, FontStyles.Normal, TextAlignmentOptions.TopLeft, 20, -378, 644, 28);
+            _skCostText.enableAutoSizing = true; _skCostText.fontSizeMin = 12; _skCostText.fontSizeMax = 17;
+            _skUpBtn = Btn(d, "", new Color(0.5f, 0.35f, 0.75f, 0.98f), 192, -416, 300, 60, () => SkillUp((SkillSlot)_skillSel));
+            _skUpLbl = _skUpBtn.GetComponentInChildren<TextMeshProUGUI>();
         }
 
         private void BuildTranscendPage(Transform page)

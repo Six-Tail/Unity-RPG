@@ -9,6 +9,7 @@ namespace SubcultureRPG.Battle
         public StatusType type;
         public float magnitude;
         public int remaining;   // 남은 턴
+        public BattleUnit source;   // 효과를 건 유닛(지속 피해 기록용, 없을 수 있음)
 
         public bool IsBuff => type == StatusType.AtkUp || type == StatusType.DefUp;
         public bool IsDebuff => type == StatusType.AtkDown || type == StatusType.DefDown || type == StatusType.Dot;

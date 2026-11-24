@@ -29,6 +29,30 @@ namespace SubcultureRPG.UI
         /// <summary>고리(도넛).</summary>
         public static Sprite Ring => _ring != null ? _ring : (_ring = MakeCircle(64, 0.62f));
 
+        private static Sprite _triangle;
+
+        /// <summary>위쪽을 가리키는 삼각형(버프 ↑ 표시. 아래쪽은 180도 돌려서 사용).</summary>
+        public static Sprite Triangle => _triangle != null ? _triangle : (_triangle = MakeTriangle(32));
+
+        private static Sprite MakeTriangle(int size)
+        {
+            var tex = NewTex(size, size);
+            var px = new Color[size * size];
+            float cx = size / 2f, bottom = size * 0.16f, top = size * 0.86f, half = size * 0.40f;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float fy = y + 0.5f, fx = x + 0.5f;
+                    float t = Mathf.InverseLerp(bottom, top, fy);          // 0 = 밑변, 1 = 꼭짓점
+                    float w = half * (1f - t);
+                    float edge = Mathf.Min(w - Mathf.Abs(fx - cx), Mathf.Min(fy - bottom, top - fy));
+                    px[y * size + x] = new Color(1, 1, 1, Mathf.Clamp01(edge + 0.5f));
+                }
+            tex.SetPixels(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
         private static Texture2D NewTex(int w, int h)
         {
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, false)

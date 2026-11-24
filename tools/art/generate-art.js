@@ -12,7 +12,7 @@
 // 옵션
 //   --studio <폴더>     이미지 스튜디오 폴더(이미지 처리용 sharp 를 여기서 불러옴). 환경변수 AI_IMAGE_STUDIO_DIR 로도 지정
 //   --server <주소>     스튜디오 서버 주소 (기본 http://127.0.0.1:3000)
-//   --only <종류,...>   characters,enemies,items,equipment,backgrounds,banners 중 고르기
+//   --only <종류,...>   characters,enemies,items,equipment,status,backgrounds,banners 중 고르기
 //   --key <키,...>      특정 항목만 (예: --key c_seraphine,home)
 //   --force             이미 있는 파일도 다시 생성
 //   --limit <N>         이번 실행에서 최대 N장
@@ -108,7 +108,7 @@ function writePrompts() {
   L.push('로컬 Flux 모델에서는 붙이지 마세요 — 그 말 때문에 오히려 글자가 그려집니다. (일괄 생성 스크립트는 모델에 맞춰 자동 처리)', '');
   const title = {
     characters: '캐릭터 일러스트 (3:4)', enemies: '적 일러스트 (1:1)', items: '재료 아이콘 (1:1)',
-    equipment: '장비 부위 아이콘 (1:1)', backgrounds: '화면 배경 (16:9)', banners: '가챠 배너 그림 (16:9)',
+    equipment: '장비 부위 아이콘 (1:1)', status: '전투 상태 아이콘 (1:1)', backgrounds: '화면 배경 (16:9)', banners: '가챠 배너 그림 (16:9)',
   };
   for (const g of GROUPS) {
     const list = entries.filter((e) => e.group === g);

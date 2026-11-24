@@ -22,7 +22,7 @@
 
 - **행동 순서**: 각 유닛의 다음 차례 간격 = `baseActionValue / SPD`. SPD가 높을수록 자주 행동(HSR식). 가장 행동치가 낮은 유닛이 먼저 행동.
 - **피해**: `유효ATK × power × (1 - 유효DEF/(유효DEF+K)) × (치명 시 1+critDmg)`, 최소 1. `K`는 `BattleConfig.defConstant`. 유효ATK/DEF는 버프/디버프 반영.
-- **속성 / 약점 / 브레이크**: 스킬엔 속성, 적엔 약점 속성 + 내구도가 있습니다. 약점으로 때리면 추가 피해(`weaknessMultiplier`) + 내구도 감소 → 0이 되면 **브레이크**(추가 피해 + 다음 행동 지연 + 브레이크 동안 받는 피해 증가 `breakVulnerability`).
+- **속성 / 약점 / 브레이크**: 스킬엔 속성, 적엔 약점 속성 + 내구도가 있습니다. 약점으로 때리면 추가 피해(`weaknessMultiplier`). **모든 공격이 브레이크 게이지(내구도)를 깎고**, 약점 속성이면 훨씬 많이 깎습니다(스킬 `breakDamage` × `breakRateWeak` 1.0 / 약점 아님 × `breakRateNormal` 0.35) → 0이 되면 **브레이크**(추가 피해 + 다음 행동 지연 + 브레이크 동안 받는 피해 증가 `breakVulnerability`).
 - **버프 / 디버프 / 도트**: 스킬이 ATK/DEF 증감·지속 피해(도트)를 부여. 매 턴 시작에 도트가 들어오고 지속시간이 줄어듭니다.
 - **힐**: 아군 대상 스킬의 `heal`(시전자 ATK 배율)로 회복.
 - **에너지/필살기**: 기본·스킬 사용 시 에너지 획득, 피격 시에도 획득. 에너지가 가득 차면 필살기 사용 가능(사용 시 0으로 소모).
@@ -45,6 +45,7 @@ void OnEnable()
 {
     battle.OnPlayerInputNeeded += ShowSkillUI;   // 내 차례 → 스킬/대상 UI 표시
     battle.OnActionResolved   += PlayHitFx;      // 피해 연출
+    battle.OnBattleFinishing  += PlayFinish;     // 승패 직후 마무리 연출(FinishDelay 실시간 초만큼 결과를 늦춤)
     battle.OnBattleEnd        += ShowResult;     // 승/패 화면
 }
 

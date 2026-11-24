@@ -48,8 +48,20 @@ namespace SubcultureRPG.Battle
         public event Action<BattleUnit> OnTurnBegin;          // 이 유닛의 차례 시작
         public event Action<BattleUnit> OnPlayerInputNeeded;  // 플레이어 입력 대기
         public event Action<ActionResult> OnActionResolved;   // 행동 처리됨
+        /// <summary>행동 직전(행동자, 스킬, 지정 대상). 연출이 필요하면 구독자가 PresentationDelay(실시간 초)를 설정.</summary>
+        public event Action<BattleUnit, BattleSkill, BattleUnit> OnActionStarting;
+
+        /// <summary>OnActionStarting 구독자가 요청한 연출 시간(실시간 초, 배속 반영은 요청 쪽에서). 한 번 쓰고 0으로 돌아감.</summary>
+        public float PresentationDelay { get; set; }
         public event Action<BattleUnit, int> OnStatusTick;    // 턴 시작 도트 피해(유닛, 피해량)
         public event Action<Team> OnBattleEnd;                // 승리 팀
+
+        /// <summary>
+        /// 승패가 정해진 직후, 결과(OnBattleEnd) 전. 마지막 타격 연출이 끝까지 보이도록
+        /// 구독자가 FinishDelay(실시간 초)를 설정하면 그만큼 기다린 뒤 OnBattleEnd를 보냄.
+        /// </summary>
+        public event Action<Team> OnBattleFinishing;
+        public float FinishDelay { get; set; }
 
         private Coroutine _loop;
         private bool _inputSubmitted;
@@ -114,6 +126,7 @@ namespace SubcultureRPG.Battle
 
                     // 입력 대기 중 자동 전투를 켰으면 AI가 대신 선택
                     var (skill, target) = _inputSubmitted ? (_inputSkill, _inputTarget) : Engine.PickAutoAction(actor);
+                    yield return Present(actor, skill, target);
                     var result = Engine.ResolveAction(actor, skill, target);
                     OnActionResolved?.Invoke(result);
                 }
@@ -122,6 +135,7 @@ namespace SubcultureRPG.Battle
                     // 적 → 적 AI / 아군 자동 전투 → 아군 AI
                     yield return Wait(enemyTurnDelay);
                     var (skill, target) = actor.team == Team.Ally ? Engine.PickAutoAction(actor) : Engine.PickAction(actor);
+                    yield return Present(actor, skill, target);
                     var result = Engine.ResolveAction(actor, skill, target);
                     OnActionResolved?.Invoke(result);
                 }
@@ -132,8 +146,28 @@ namespace SubcultureRPG.Battle
 
             CurrentActor = null;
             WaitingForInput = false;
+            if (Engine.Winner.HasValue)
+            {
+                var winner = Engine.Winner.Value;
+                FinishDelay = 0f;
+                OnBattleFinishing?.Invoke(winner);
+                float d = FinishDelay;
+                FinishDelay = 0f;
+                for (float t = 0f; t < d; t += Time.unscaledDeltaTime) yield return null;
+                _loop = null;
+                OnBattleEnd?.Invoke(winner);
+            }
             _loop = null;
-            if (Engine.Winner.HasValue) OnBattleEnd?.Invoke(Engine.Winner.Value);
+        }
+
+        /// <summary>행동 직전 연출(돌진·필살기 컷인 등)이 끝날 때까지 대기. 실시간 기준.</summary>
+        private IEnumerator Present(BattleUnit actor, BattleSkill skill, BattleUnit target)
+        {
+            PresentationDelay = 0f;
+            OnActionStarting?.Invoke(actor, skill ?? actor.BasicSkill, target);
+            float d = PresentationDelay;
+            PresentationDelay = 0f;
+            for (float t = 0f; t < d; t += Time.unscaledDeltaTime) yield return null;
         }
 
         /// <summary>배속 적용 대기(Time.timeScale 일시정지도 존중).</summary>

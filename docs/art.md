@@ -19,6 +19,7 @@
 | `Backgrounds/` | `{키}.jpg` — 아래 표 | 1920×1080 (16:9) | 각 화면 배경 |
 | `Banners/` | `{픽업 캐릭터 id}.jpg` · `standard.jpg` | 1920×1080 | 가챠 화면 배경(배너별) |
 | `Motion/` | `{캐릭터 id}.mp4` | 832×1088 · 6초 반복 | 6성 일러스트 자리의 움직이는 일러스트 — [live2d.md](live2d.md) |
+| `Status/` | `AtkUp` `AtkDown` `DefUp` `DefDown` `Dot` `Break` `.png` | 128×128 | 전투 버프·디버프 아이콘 — 기호만 그리고 배경은 투명(게임이 어두운 칸 + 효과 색 테두리를 그림). 없으면 색 + 글자 아이콘 |
 
 - 캐릭터 id는 `CharacterData.id`입니다([characters.md](characters.md)). 에셋 인스펙터에서 `portrait`·`thumbnail`을 직접 연결하면 그쪽이 우선합니다.
 - 확장자는 png·jpg 아무거나 됩니다(이름만 맞으면 됨). 배경은 용량 때문에 jpg를 권장합니다.
@@ -60,7 +61,7 @@ node tools/art/generate-art.js --studio "<스튜디오 폴더>" --model "local:.
 |---|---|
 | `--studio <폴더>` | 스튜디오 폴더(이미지 크기 조정에 그 폴더의 `sharp`를 씀). 환경변수 `AI_IMAGE_STUDIO_DIR`로도 지정 |
 | `--model <모델>` | 실행하는 동안만 그 모델로 바꾸고 **끝나면 원래 모델로 되돌림**. 생략하면 스튜디오에 설정된 모델 |
-| `--only <종류,…>` | `characters` `enemies` `items` `equipment` `backgrounds` `banners` |
+| `--only <종류,…>` | `characters` `enemies` `items` `equipment` `status` `backgrounds` `banners` |
 | `--key <키,…>` | 특정 항목만 |
 | `--force` | 이미 있는 파일도 다시 생성 (기본은 없는 것만) |
 | `--limit <N>` · `--quality <low\|medium\|high>` | 장수 제한 · 품질 |

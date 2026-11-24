@@ -40,6 +40,9 @@ namespace SubcultureRPG.Characters
             _ => e.ToString(),
         };
 
+        /// <summary>속성 아이콘에 들어갈 한 글자(이름 첫 글자).</summary>
+        public static string Glyph(Element e) => Name(e).Substring(0, 1);
+
         public static string Name(Role r) => r switch
         {
             Role.Dealer => "딜러",

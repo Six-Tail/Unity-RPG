@@ -31,6 +31,10 @@ namespace SubcultureRPG.Battle
         [Header("속성 / 브레이크")]
         [Tooltip("약점 적중 피해 배율.")]
         public float weaknessMultiplier = 1.5f;
+        [Tooltip("약점 속성 공격이 브레이크 게이지를 깎는 비율(스킬 breakDamage 기준).")]
+        public float breakRateWeak = 1f;
+        [Tooltip("약점이 아닌 공격이 브레이크 게이지를 깎는 비율. 약점보다 훨씬 작게.")]
+        public float breakRateNormal = 0.35f;
         [Tooltip("브레이크 상태 대상이 받는 추가 피해 배율(취약).")]
         public float breakVulnerability = 1.25f;
         [Tooltip("브레이크 순간 추가 피해 배율(그 타격 기준).")]

@@ -651,6 +651,56 @@ a pendant necklace with a gem. game equipment icon, single object centered, styl
 a ring with a gem. game equipment icon, single object centered, stylized silver-white fantasy gear, simple clean silhouette, soft rim light, plain very dark navy background, square composition
 ```
 
+## 전투 상태 아이콘 (1:1) — 6장
+
+### 상태 아이콘 — 공격력 증가
+
+- 파일: `Status/AtkUp.png` · 128×128 · 화면비 1:1
+
+```
+a white sword pointing upward with a bright green upward arrow beside it. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 공격력 감소
+
+- 파일: `Status/AtkDown.png` · 128×128 · 화면비 1:1
+
+```
+a white sword with a bright red downward arrow beside it. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 방어력 증가
+
+- 파일: `Status/DefUp.png` · 128×128 · 화면비 1:1
+
+```
+a white shield with a bright green upward arrow beside it. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 방어력 감소
+
+- 파일: `Status/DefDown.png` · 128×128 · 화면비 1:1
+
+```
+a white shield with a bright red downward arrow beside it. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 지속 피해
+
+- 파일: `Status/Dot.png` · 128×128 · 화면비 1:1
+
+```
+a bright purple poison droplet with a small white skull inside. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
+### 상태 아이콘 — 브레이크
+
+- 파일: `Status/Break.png` · 128×128 · 화면비 1:1
+
+```
+a white shield shattered into pieces with jagged cracks and small amber sparks. flat vector game status effect icon, one bold simple white symbol centered, very thick clean shapes, high contrast, minimal detail, readable at tiny size, plain very dark navy background, square composition
+```
+
 ## 화면 배경 (16:9) — 30장
 
 ### 홈

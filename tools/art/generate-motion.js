@@ -117,7 +117,11 @@ async function generateOne(args, ffmpeg, e) {
     execFileSync(ffmpeg, [
       '-hide_banner', '-loglevel', 'error', '-y', '-i', raw,
       '-filter_complex', '[0:v]split[a][b];[b]reverse,trim=start_frame=1[r];[a][r]concat=n=2:v=1:a=0,format=yuv420p[v]',
-      '-map', '[v]', '-c:v', 'libx264', '-crf', '20', '-preset', 'slow', '-movflags', '+faststart', '-an', dst,
+      // -bf 0: B프레임 없음 → 첫 프레임 시각이 0 이고 타임스탬프가 순서대로(Unity 임포트 경고 방지)
+      // 색 정보(bt709)를 명시 → Windows Media Foundation 의 'Color primaries unknown' 경고 방지
+      '-map', '[v]', '-c:v', 'libx264', '-crf', '20', '-preset', 'slow', '-bf', '0',
+      '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709',
+      '-movflags', '+faststart', '-an', dst,
     ]);
   } finally {
     fs.rmSync(raw, { force: true });
