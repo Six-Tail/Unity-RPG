@@ -255,9 +255,9 @@ namespace SubcultureRPG.Battle.UI
             if (_unit.character != null)
             {
                 string key = !string.IsNullOrEmpty(_unit.character.id) ? _unit.character.id : _unit.character.name;
-                var full = GameArt.Load("Figures/" + key);
+                var full = GameArt.Outfitted("Figures/", key);   // 입고 있는 의상(개화 등) → 기본
                 if (full != null) return full;
-                var cut = GameArt.Load("Cutouts/" + key);
+                var cut = GameArt.Outfitted("Cutouts/", key);
                 if (cut != null) { fadeBottom = true; return cut; }
                 return GameArt.Portrait(_unit.character) ?? GameArt.Thumb(_unit.character);
             }

@@ -70,6 +70,16 @@ namespace SubcultureRPG.Meta.UI
             if (wallet != null) wallet.OnChanged += Refresh;
             if (inventory != null) inventory.OnChanged += Refresh;
             if (roster != null) roster.OnRosterChanged += Refresh;
+            CharacterOutfits.Changed += OnOutfitChanged;
+        }
+
+        /// <summary>대표 캐릭터의 의상이 바뀌면 그림 · 영상을 다시 띄움.</summary>
+        private void OnOutfitChanged(CharacterData c)
+        {
+            if (c != _shown) return;
+            _shown = null;
+            RefreshAssistant();
+            RefreshProfileBadge();
         }
 
         private void OnDisable()
@@ -77,6 +87,7 @@ namespace SubcultureRPG.Meta.UI
             if (wallet != null) wallet.OnChanged -= Refresh;
             if (inventory != null) inventory.OnChanged -= Refresh;
             if (roster != null) roster.OnRosterChanged -= Refresh;
+            CharacterOutfits.Changed -= OnOutfitChanged;
         }
 
         private void Start()

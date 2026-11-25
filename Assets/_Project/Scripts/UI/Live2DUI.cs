@@ -61,6 +61,7 @@ namespace SubcultureRPG.UI
 
             if (Live2DStage.Has(c))
             {
+                SwayIllustration.Remove(host as Image);
                 var stage = Live2DStage.Instance;
                 raw = Ensure(host);
                 MotionVideoStage.ReleaseUser(raw);
@@ -70,13 +71,21 @@ namespace SubcultureRPG.UI
             }
             else if (MotionVideoStage.Has(c))
             {
+                SwayIllustration.Remove(host as Image);
                 var stage = MotionVideoStage.Instance;
                 raw = Ensure(host);
                 Live2DStage.ReleaseUser(raw);
                 tex = stage.Show(c, raw, GameArt.Portrait(c));
                 aspect = stage.Aspect;
             }
-            else { Hide(host); return false; }
+            else
+            {
+                // 모델 · 영상이 없으면: 셰이더 흔들림 재료가 있는 그림은 정지 그림 자리에서 흔듦(Sway/{일러스트 이름})
+                Hide(host);
+                string key = !string.IsNullOrEmpty(c.id) ? c.id : c.name;
+                if (host is Image img) SwayIllustration.Apply(img, key + CharacterOutfits.SuffixOf(key));
+                return false;
+            }
 
             if (tex == null) { Hide(host); return false; }
 

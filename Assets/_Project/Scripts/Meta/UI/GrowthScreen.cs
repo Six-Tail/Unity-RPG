@@ -78,7 +78,10 @@ namespace SubcultureRPG.Meta.UI
             if (inventory != null) inventory.OnChanged += Refresh;
             if (wallet != null) wallet.OnChanged += Refresh;
             if (equipment != null) equipment.OnChanged += OnDataChanged;
+            CharacterOutfits.Changed += OnOutfitChanged;
         }
+
+        private void OnOutfitChanged(CharacterData c) => OnDataChanged();
 
         private void OnDisable()
         {
@@ -86,6 +89,7 @@ namespace SubcultureRPG.Meta.UI
             if (inventory != null) inventory.OnChanged -= Refresh;
             if (wallet != null) wallet.OnChanged -= Refresh;
             if (equipment != null) equipment.OnChanged -= OnDataChanged;
+            CharacterOutfits.Changed -= OnOutfitChanged;
         }
 
         private void Start()
@@ -192,9 +196,11 @@ namespace SubcultureRPG.Meta.UI
             var name = UIFactory.AddText("Name", inner.transform, c.displayName, 13, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Bottom(name.rectTransform, 22, 22);
 
-            string lvText = o.ascension > 0 ? $"Lv.{o.level} <color=#FFD36B>돌파{o.ascension}</color>" : $"Lv.{o.level}";
-            var lv = UIFactory.AddText("Lv", inner.transform, lvText, 13, font, new Color(1f, 0.85f, 0.4f), TextAlignmentOptions.Center, FontStyles.Bold);
+            // 레벨만 표기(돌파 단계는 상세의 '돌파' 탭에서). Lv.100(각성 최대)은 6초월 별 색이 흐르는 애니메이션
+            bool maxed = o.level >= Leveling.AwakenedMaxLevel;
+            var lv = UIFactory.AddText("Lv", inner.transform, $"Lv.{o.level}", maxed ? 14 : 13, font, new Color(1f, 0.85f, 0.4f), TextAlignmentOptions.Center, FontStyles.Bold);
             Bottom(lv.rectTransform, 20, 2);
+            if (maxed) lv.gameObject.AddComponent<RainbowText>();
 
             var traits = UIFactory.AddText("Traits", inner.transform,
                 $"<color={Traits.Hex(c.element)}>{Traits.Name(c.element)}</color>·{Traits.Name(c.role)}",
@@ -672,6 +678,11 @@ namespace SubcultureRPG.Meta.UI
             var after = roster.GetOwned(target);
             int lv = after != null ? after.level : before;
             Toast(lv > before ? $"레벨업! Lv.{before} → Lv.{lv}  (금화 -{pv.gold:N0})" : $"경험치 +{pv.usedExp:N0}  (금화 -{pv.gold:N0})");
+            if (!CharacterKits.HiddenActive(before) && CharacterKits.HiddenActive(lv))
+            {
+                // Lv.100 도달: 숨겨진 특성 개화 연출(개화 일러스트로 갈아입힘 — 옷장에서 되돌릴 수 있음)
+                BloomCeremony.Play(target, font);
+            }
         }
 
         private void RefreshLevelTab(OwnedCharacter o)
@@ -734,6 +745,7 @@ namespace SubcultureRPG.Meta.UI
                 {
                     _eqSlotFrame[i].color = new Color(1, 1, 1, 0.1f);
                     _eqSlotText[i].text = $"<color=#9AA3B5>{EquipStats.SlotName(slot)}</color>\n<color=#6B7280>비어 있음</color>";
+                    RainbowText.Apply(_eqSlotText[i], false);
                 }
                 else
                 {
@@ -741,6 +753,7 @@ namespace SubcultureRPG.Meta.UI
                     _eqSlotFrame[i].color = new Color(col.r, col.g, col.b, 0.85f);
                     _eqSlotText[i].text = $"<color=#9AA3B5>{EquipStats.SlotName(slot)}</color>  {EquipSets.Rich(it.set)} <size=75%>{EquipStats.Stars(it.Rarity, it.transcend)}</size>" +
                                           $"  <color=#FFD36B>+{it.level}</color>\n{EquipStats.Format(it.main, it.MainValue)}";
+                    RainbowText.Apply(_eqSlotText[i], it.HasShine, starsOnly: true);   // 6★ 풀 초월(+6): 별에 흐르는 무지개
                 }
             }
             var sb = new StringBuilder("<color=#FFD36B><b>세트 효과</b></color>   ");
@@ -904,6 +917,14 @@ namespace SubcultureRPG.Meta.UI
                 if (on) sb.Append($"<color={StarText.Rainbow[a.unlock - 1]}>+{a.unlock}</color> <b>{a.name}</b> — {a.Desc}");
                 else sb.Append($"<color=#6B7280>+{a.unlock} {a.name} — {a.Desc.Replace("<b>", "").Replace("</b>", "")}</color>");
             }
+            // 숨겨진 특성: Lv.100에 개화. 그 전에는 이름 · 효과를 감춤
+            var hidden = CharacterKits.Hidden(_selected);
+            int lvNow = roster.LevelOf(_selected);
+            sb.Append("\n<color=#9AA3B5>숨겨진 특성</color>  ");
+            if (CharacterKits.HiddenActive(lvNow))
+                sb.Append($"<color={StarText.Rainbow[5]}>Lv.{CharacterKits.HiddenLevel}</color> <color={StarText.Rainbow[2]}><b>{hidden.name}</b></color> — {hidden.Desc}");
+            else
+                sb.Append($"<color=#6B7280>Lv.{CharacterKits.HiddenLevel} ??? — Lv.{CharacterKits.HiddenLevel}에 도달하면 개화합니다 (지금 Lv.{lvNow})</color>");
             _skStats.text = sb.ToString();
             _skTable.text = "<color=#9AA3B5>패시브는 레벨이 없고 항상 적용됩니다. 초월 +1 · +3 · +6에서 패시브가 강화되고, +2 · +4 · +5에서는 기본 공격 · 스킬 · 궁극기 레벨이 재료 없이 +3 됩니다.</color>";
             _skCostText.text = "";
@@ -1298,6 +1319,11 @@ namespace SubcultureRPG.Meta.UI
             _hName = Txt(p, "", 34, FontStyles.Bold, TextAlignmentOptions.TopLeft, 40, -22, 960, 46);
             _hLine = Txt(p, "", 22, FontStyles.Normal, TextAlignmentOptions.TopLeft, 40, -72, 960, 32);
 
+            // 옷장: 의상(기본 · 개화 · 추후 스킨) 고르기
+            var wardrobe = UIFactory.AddButton("Wardrobe", p, "옷장", 22, font, new Color(0.62f, 0.42f, 0.75f, 0.96f), Color.white);
+            TopLeft((RectTransform)wardrobe.transform, 860, -20, 140, 50);
+            wardrobe.onClick.AddListener(() => { if (_selected != null) WardrobeWindow.Open(_selected, font); });
+
             var statsBg = UIFactory.AddImage("StatsBg", p, new Color(0, 0, 0, 0.25f));
             TopLeft(statsBg.rectTransform, 40, -112, 960, 196);
             _statsL = Txt(p, "", 19, FontStyles.Normal, TextAlignmentOptions.TopLeft, 60, -122, 440, 180);
@@ -1426,7 +1452,7 @@ namespace SubcultureRPG.Meta.UI
             _skDesc.enableAutoSizing = true; _skDesc.fontSizeMin = 13; _skDesc.fontSizeMax = 18;
             _skDesc.lineSpacing = 4f;
             _skStats = Txt(d, "", 17, FontStyles.Normal, TextAlignmentOptions.TopLeft, 20, -128, 644, 168);
-            _skStats.enableAutoSizing = true; _skStats.fontSizeMin = 12; _skStats.fontSizeMax = 17;
+            _skStats.enableAutoSizing = true; _skStats.fontSizeMin = 11; _skStats.fontSizeMax = 17;
             _skStats.lineSpacing = 8f;
             _skTable = Txt(d, "", 17, FontStyles.Normal, TextAlignmentOptions.TopLeft, 20, -304, 644, 62);
             _skTable.enableAutoSizing = true; _skTable.fontSizeMin = 11; _skTable.fontSizeMax = 17;

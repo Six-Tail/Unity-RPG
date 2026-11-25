@@ -303,6 +303,8 @@ namespace SubcultureRPG.Meta
                         {
                             // 목걸이 속성 피해 5종 → '속성 피해(착용자 속성)' 1종으로 통합(수치 그대로)
                             if (it.slot == EquipSlot.Neck && it.main >= EquipStat.PhysicalDmg && it.main <= EquipStat.WindDmg) it.main = EquipStat.ElementDmg;
+                            // 초월 상한이 성급별(3★ +3 · 4★ +4 · 5★ +5)로 바뀌기 전 세이브: 넘친 단계는 상한으로 맞춤
+                            if (it.transcend > it.MaxTranscend) it.transcend = it.MaxTranscend;
                             _items.Add(it);
                         }
             }

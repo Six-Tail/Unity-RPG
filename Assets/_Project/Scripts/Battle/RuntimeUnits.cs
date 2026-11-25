@@ -72,7 +72,7 @@ namespace SubcultureRPG.Battle
             float Mul(int i) => 1f + 0.1f * Mathf.Max(0, (skillLevels != null && skillLevels.Length > i ? skillLevels[i] : skillLevel) - 1);
             // 캐릭터별 구성: 기본 공격 · 스킬 · 궁극기 + 패시브(기본 + 해금된 초월 고유 능력)
             var kit = CharacterKits.Get(c);
-            var passives = CharacterKits.ActivePassives(c, transcend);
+            var passives = CharacterKits.ActivePassives(c, transcend, u.level);   // Lv.100이면 숨겨진 특성까지
             int Extra(PassiveEffect e)
             {
                 float n = 0f;

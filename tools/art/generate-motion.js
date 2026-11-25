@@ -16,10 +16,13 @@
 //   --server <주소>    스튜디오 서버 주소 (기본 http://127.0.0.1:3000)
 //   --key <id,...>     특정 캐릭터만 (6성이 아니어도 됨)
 //   --all              6성뿐 아니라 일러스트가 있는 모든 캐릭터
+//   --bloom            개화 일러스트(Characters/{id}_bloom.png)로 개화 의상용 영상(Motion/{id}_bloom.mp4)을 만듦
 //   --force            이미 있는 영상도 다시 생성
 //   --seconds <1~5>    원본 영상 길이(기본 3 → 반복 영상은 그 두 배)
 //   --quality <값>     low | medium | high (기본 high — 손·얼굴이 덜 뭉개짐)
 //   --motion "<문장>"  움직임 프롬프트를 직접 지정
+//   --engine <값>      live2d (기본 — 스튜디오의 'Live2D 대기 동작' 모드: 호흡 · 깜빡임 · 머리카락 흔들림, 카메라 고정)
+//                      | wan (예전 방식 — 일반 영상 생성 후 이 스크립트가 되감기로 이어 붙임)
 //   --list             목록만 출력
 
 const fs = require('fs');
@@ -31,6 +34,13 @@ const REPO = path.resolve(__dirname, '..', '..');
 const ART_ROOT = path.join(REPO, 'Assets', '_Project', 'Resources', 'Art');
 
 // 손이 뭉개지거나 눈 색이 바뀌는 문제가 있어, 손·얼굴은 고정하고 머리카락·옷·이펙트만 움직이게 지시합니다.
+// live2d 모드: 스튜디오가 대기 동작(호흡 · 깜빡임 · 흔들림)과 카메라 고정을 이미 지시하므로, 덧붙일 말만.
+// (처음 시험에서 '모양 유지'만 덧붙였더니 거의 움직이지 않아서, 흔들릴 부분을 크게 · 계속 움직이라고 지시)
+const LIVE2D_MOTION =
+  'the long hair flows and waves continuously in a steady magical wind, loose strands and ribbons flutter, ' +
+  'the cape, sleeves and skirt hem ripple and flutter, glowing particles, sparks and petals swirl and drift around the character, ' +
+  'wings and halo shimmer and pulse with light, the chest rises and falls with each breath, the character blinks once';
+
 const DEFAULT_MOTION =
   'very subtle idle animation, only the hair and the hem of the clothes sway softly in a gentle breeze, ' +
   'small magical effects and particles flicker and drift, the face stays the same with eyes open and the same eye color, ' +
@@ -38,7 +48,7 @@ const DEFAULT_MOTION =
   'the camera is completely static, the character stays in the same pose and position';
 
 function parseArgs(argv) {
-  const a = { key: null, all: false, force: false, seconds: 3, quality: 'high', list: false, motion: DEFAULT_MOTION };
+  const a = { key: null, all: false, force: false, seconds: 3, quality: 'high', list: false, motion: null, engine: 'live2d' };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     const next = () => { if (i + 1 >= argv.length) fail(`${k} 뒤에 값이 필요합니다.`); return argv[++i]; };
@@ -46,15 +56,19 @@ function parseArgs(argv) {
     else if (k === '--server') a.server = next();
     else if (k === '--key') a.key = next().split(',').map((s) => s.trim()).filter(Boolean);
     else if (k === '--all') a.all = true;
+    else if (k === '--bloom') a.bloom = true;
     else if (k === '--force') a.force = true;
     else if (k === '--seconds') a.seconds = Math.min(5, Math.max(1, parseInt(next(), 10) || 3));
     else if (k === '--quality') a.quality = next();
     else if (k === '--motion') a.motion = next();
+    else if (k === '--engine') a.engine = next();
     else if (k === '--list') a.list = true;
     else if (k === '--help' || k === '-h') { printHelp(); process.exit(0); }
     else fail(`알 수 없는 옵션: ${k}  (--help)`);
   }
   if (!['low', 'medium', 'high'].includes(a.quality)) fail('--quality 는 low | medium | high 중 하나입니다.');
+  if (!['live2d', 'wan'].includes(a.engine)) fail('--engine 은 live2d | wan 중 하나입니다.');
+  if (a.motion == null) a.motion = a.engine === 'live2d' ? LIVE2D_MOTION : DEFAULT_MOTION;
   a.studio = a.studio || process.env.AI_IMAGE_STUDIO_DIR || null;
   a.server = (a.server || process.env.AI_IMAGE_STUDIO_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
   return a;
@@ -69,11 +83,12 @@ function printHelp() {
 function fail(msg) { console.error('오류: ' + msg); process.exit(1); }
 
 const portraitOf = (e) => path.join(ART_ROOT, ...e.out.split('/'));
-const motionOf = (e) => path.join(ART_ROOT, 'Motion', e.key + '.mp4');
+// 영상 이름 = 일러스트 파일 이름(개화 일러스트 c_x_bloom.png → Motion/c_x_bloom.mp4 — CharacterOutfits 의 접미사와 같음)
+const motionOf = (e) => path.join(ART_ROOT, 'Motion', path.basename(e.out, path.extname(e.out)) + '.mp4');
 
 function select(args) {
-  let list = entries.filter((e) => e.group === 'characters');
-  if (args.key) list = list.filter((e) => args.key.includes(e.key));
+  let list = entries.filter((e) => e.group === (args.bloom ? 'bloom' : 'characters'));
+  if (args.key) list = list.filter((e) => args.key.includes(e.key) || args.key.includes(e.charId));
   else if (!args.all) list = list.filter((e) => e.star === 6);
   return list;
 }
@@ -93,9 +108,11 @@ async function api(server, method, route, body) {
 }
 
 async function generateOne(args, ffmpeg, e) {
+  const live2d = args.engine === 'live2d';
   const form = new FormData();
-  form.append('engine', 'wan');
-  form.append('scenePrompt', `2D anime illustration, ${e.look}, cel shaded, clean line art, same art style as the start image`);
+  form.append('engine', args.engine);
+  // live2d: 스튜디오 화면과 같이 장면 설명 없이 움직임만(장면 설명이 앞에 오면 움직임 지시가 약해짐)
+  if (!live2d) form.append('scenePrompt', `2D anime illustration, ${e.look}, cel shaded, clean line art, same art style as the start image`);
   form.append('motionPrompt', args.motion);
   form.append('aspect', '3:4');
   form.append('resolution', '1K');
@@ -113,10 +130,14 @@ async function generateOne(args, ffmpeg, e) {
   const raw = dst.replace(/\.mp4$/, '.raw.tmp.mp4');
   fs.writeFileSync(raw, Buffer.from(await res.arrayBuffer()));
   try {
-    // 앞으로 재생 + 되감기(첫 프레임 중복 제외) → 끝과 처음이 이어지는 반복 영상
+    // wan: 앞으로 재생 + 되감기(첫 프레임 중복 제외) → 끝과 처음이 이어지는 반복 영상
+    // live2d: 스튜디오가 이미 왕복(pingpong)으로 이어 붙여 주므로 다시 인코딩만
+    const filter = live2d
+      ? '[0:v]format=yuv420p[v]'
+      : '[0:v]split[a][b];[b]reverse,trim=start_frame=1[r];[a][r]concat=n=2:v=1:a=0,format=yuv420p[v]';
     execFileSync(ffmpeg, [
       '-hide_banner', '-loglevel', 'error', '-y', '-i', raw,
-      '-filter_complex', '[0:v]split[a][b];[b]reverse,trim=start_frame=1[r];[a][r]concat=n=2:v=1:a=0,format=yuv420p[v]',
+      '-filter_complex', filter,
       // -bf 0: B프레임 없음 → 첫 프레임 시각이 0 이고 타임스탬프가 순서대로(Unity 임포트 경고 방지)
       // 색 정보(bt709)를 명시 → Windows Media Foundation 의 'Color primaries unknown' 경고 방지
       '-map', '[v]', '-c:v', 'libx264', '-crf', '20', '-preset', 'slow', '-bf', '0',
@@ -154,12 +175,13 @@ async function main() {
   const config = await api(args.server, 'GET', '/api/config');
   if (config.localVideo !== 'wan') fail('스튜디오에 로컬 영상 모델(Wan 2.2)이 없습니다. ComfyUI 와 모델 파일을 확인하세요.');
 
-  console.log(`만들 영상: ${todo.length}개  (Wan 2.2 로컬 · 무료, 원본 ${args.seconds}초 · 품질 ${args.quality}, 한 개에 3분쯤)`);
+  const mode = args.engine === 'live2d' ? 'Live2D 대기 동작' : '일반 영상';
+  console.log(`만들 영상: ${todo.length}개  (Wan 2.2 로컬 · 무료 · ${mode}, 원본 ${args.seconds}초 · 품질 ${args.quality}, 한 개에 3분쯤)`);
   const failed = [];
   for (let i = 0; i < todo.length; i++) {
     const e = todo[i];
     const t0 = Date.now();
-    process.stdout.write(`[${i + 1}/${todo.length}] Motion/${e.key}.mp4  ${e.label} … `);
+    process.stdout.write(`[${i + 1}/${todo.length}] Motion/${path.basename(motionOf(e))}  ${e.label} … `);
     try {
       await generateOne(args, ffmpeg, e);
       console.log(`완료 (${((Date.now() - t0) / 1000).toFixed(0)}초)`);

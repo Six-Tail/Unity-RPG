@@ -54,9 +54,23 @@ namespace SubcultureRPG
         private static string KeyOf(CharacterData c) => !string.IsNullOrEmpty(c.id) ? c.id : c.name;
 
         /// <summary>캐릭터 일러스트: 에셋에 직접 연결한 portrait → Characters/{id} → thumbnail.</summary>
+        /// <summary>입고 있는 의상의 그림(folder/{id}{접미사}) → 없으면 기본 의상 그림(folder/{id}).</summary>
+        public static Sprite Outfitted(string folder, string key)
+        {
+            if (string.IsNullOrEmpty(key)) return null;
+            string sfx = CharacterOutfits.SuffixOf(key);
+            if (sfx != "")
+            {
+                var o = Load(folder + key + sfx);
+                if (o != null) return o;
+            }
+            return Load(folder + key);
+        }
+
         public static Sprite Portrait(CharacterData c)
         {
             if (c == null) return null;
+            if (CharacterOutfits.SuffixOf(c) != "") { var o = Load("Characters/" + KeyOf(c) + CharacterOutfits.SuffixOf(c)); if (o != null) return o; }
             if (c.portrait != null) return c.portrait;
             var s = Load("Characters/" + KeyOf(c));
             if (s != null) return s;
@@ -65,7 +79,19 @@ namespace SubcultureRPG
         }
 
         /// <summary>배경 없는 캐릭터 일러스트(Cutouts/{id}). 없으면 null.</summary>
-        public static Sprite Cutout(CharacterData c) => c == null ? null : Load("Cutouts/" + KeyOf(c));
+        public static Sprite Cutout(CharacterData c)
+        {
+            if (c == null) return null;
+            string key = KeyOf(c), sfx = CharacterOutfits.SuffixOf(key);
+            if (sfx != "")
+            {
+                var o = Load("Cutouts/" + key + sfx);
+                if (o != null) return o;
+                // 그 의상의 배경 없는 그림은 없고 일러스트만 있으면 null → 부르는 쪽이 의상 일러스트를 씀(기본 의상 그림이 나오지 않게)
+                if (Load("Characters/" + key + sfx) != null) return null;
+            }
+            return Load("Cutouts/" + key);
+        }
 
         /// <summary>
         /// 배경 위에 세울 인물 그림: "Characters/…" 경로면 배경 없는 버전(Cutouts/…)을 먼저 찾고, 없으면 그 경로 그대로.
@@ -76,8 +102,10 @@ namespace SubcultureRPG
             const string prefix = "Characters/";
             if (!string.IsNullOrEmpty(path) && path.StartsWith(prefix))
             {
-                var s = Load("Cutouts/" + path.Substring(prefix.Length));
+                string key = path.Substring(prefix.Length);
+                var s = Outfitted("Cutouts/", key);
                 if (s != null) return s;
+                return Outfitted(prefix, key);
             }
             return Load(path);
         }
@@ -86,6 +114,7 @@ namespace SubcultureRPG
         public static Sprite Thumb(CharacterData c)
         {
             if (c == null) return null;
+            if (CharacterOutfits.SuffixOf(c) != "") { var o = Load("Thumbs/" + KeyOf(c) + CharacterOutfits.SuffixOf(c)); if (o != null) return o; }
             if (c.thumbnail != null) return c.thumbnail;
             var s = Load("Thumbs/" + KeyOf(c));
             return s != null ? s : Portrait(c);

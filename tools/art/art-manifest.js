@@ -67,6 +67,21 @@ const ELEMENT = {
   wind: { name: '바람', mood: 'emerald green and white color mood, swirling leaves', color: 'emerald green' },
 };
 
+// 개화(Lv.100) 일러스트: 속성별 모티프 · 성급별 화려함
+const BLOOM = {
+  physical: 'gleaming silver and gold filigree armor pieces, a flowing white mantle, moonlit white camellia petals',
+  fire: 'blazing phoenix-feather ornaments, a mantle of living crimson and gold flames, glowing ember petals and fire lilies',
+  ice: 'a crystalline ice-flower crown, shimmering frost lace and pale blue ribbons, snow-white crystal blossoms and frost petals',
+  lightning: 'regal violet and gold trim with glowing lightning sigils, crackling arcs of electricity, luminous violet wisteria petals',
+  wind: 'an emerald feathered cape and flowing translucent veils, swirling gusts of wind, white and green blossom petals and leaves',
+};
+const BLOOM_RARITY = {
+  6: 'divine legendary splash art, wings or halo made of pure light, overwhelming radiant magical effects',
+  5: 'epic awakened splash art, large glowing magical crest behind the character, strong magical effects',
+  4: 'awakened character art, glowing magical circle, clear magical effects',
+  3: 'awakened character art, gentle glowing light, modest magical effects',
+};
+
 // ---------------------------------------------------------------- 캐릭터 25명
 // [id, 이름, 성급, 속성, 역할, 외형]
 const CHARACTERS = [
@@ -445,6 +460,22 @@ function build() {
     });
   }
 
+  // 개화 일러스트(Lv.100 숨겨진 특성 개화 · 의상 'bloom') — 기본 일러스트를 참고 이미지로 넣어 같은 인물로 그림.
+  // Characters/{id}_bloom.png + Thumbs/{id}_bloom.png (CharacterOutfits 의 접미사 '_bloom')
+  for (const [id, name, star, el, role, look] of CHARACTERS) {
+    list.push({
+      group: 'bloom', key: `bloom_${id}`, label: `${name} — 개화 일러스트 (${star}★ ${ELEMENT[el].name} ${role})`, name, star, look, charId: id,
+      out: `Characters/${id}_bloom.png`, aspect: '3:4', resolution: '1K', width: 768, height: 1024, format: 'png',
+      thumb: `Thumbs/${id}_bloom.png`, ref: `Characters/${id}.png`,
+      prompt: `the same character as in the reference image (same face, same hair style and hair color, same eye color, same weapon), ` +
+              `${LOOK_KIND(look)}, ${look.split(',').slice(0, 3).join(',')}, ` +
+              `in an awakened "full bloom" form: a more ornate and majestic evolved version of the same outfit with ${BLOOM[el]}, ` +
+              `a radiant glowing aura around the body, softly glowing eyes, countless flower petals and light particles swirling around, ` +
+              `dynamic confident pose, ${BLOOM_RARITY[star]}, ${ELEMENT[el].mood}. ${STYLE.character}`,
+      negative: NEGATIVE,
+    });
+  }
+
   for (const [name, look] of ENEMIES)
     list.push(withBackground({
       group: 'enemies', key: name, label: name,
@@ -542,4 +573,4 @@ function build() {
   return list;
 }
 
-module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'events', 'backgrounds', 'banners'] };
+module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'bloom', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'events', 'backgrounds', 'banners'] };

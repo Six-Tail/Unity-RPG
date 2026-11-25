@@ -119,6 +119,7 @@ namespace SubcultureRPG.Meta.UI
                 {
                     card.frame.color = new Color(1, 1, 1, 0.12f);
                     card.set.text = "<color=#6B7280>비어 있음</color>";
+                    RainbowText.Apply(card.set, false);
                     card.main.text = "";
                     card.level.text = "";
                 }
@@ -127,6 +128,7 @@ namespace SubcultureRPG.Meta.UI
                     var col = EquipSets.Get(it.set)?.color ?? Color.white;
                     card.frame.color = new Color(col.r, col.g, col.b, 0.9f);
                     card.set.text = $"{EquipSets.Rich(it.set)}  <size=75%>{EquipStats.Stars(it.Rarity, it.transcend)}</size>";
+                    RainbowText.Apply(card.set, it.HasShine, starsOnly: true);   // 풀 초월: 별에 흐르는 무지개
                     card.main.text = EquipStats.Format(it.main, it.MainValue);
                     card.level.text = $"+{it.level}";
                 }
@@ -350,6 +352,7 @@ namespace SubcultureRPG.Meta.UI
 
             var setT = Text(inner.transform, $"{EquipSets.Rich(it.set)} <size=70%>{EquipStats.Stars(it.Rarity, it.transcend)}</size>", 16, FontStyles.Bold, TextAlignmentOptions.TopLeft, 96, -8, 120, 24);
             setT.enableAutoSizing = true; setT.fontSizeMin = 11; setT.fontSizeMax = 16;
+            RainbowText.Apply(setT, it.HasShine, starsOnly: true);
             Text(inner.transform, $"+{it.level}", 20, FontStyles.Bold, TextAlignmentOptions.TopRight, -8, -6, 50, 26, right: true);
             var mainT = Text(inner.transform, EquipStats.Format(it.main, it.MainValue), 15, FontStyles.Normal, TextAlignmentOptions.TopLeft, 96, -36, 158, 22);
             mainT.enableAutoSizing = true; mainT.fontSizeMin = 11; mainT.fontSizeMax = 15;
@@ -383,6 +386,7 @@ namespace SubcultureRPG.Meta.UI
                 _detIcon.enabled = _detIcon.sprite != null;
             }
             _detSet.text = $"{EquipSets.Rich(it.set)}  <size=75%>{EquipStats.Stars(it.Rarity, it.transcend)}</size>";
+            RainbowText.Apply(_detSet, it.HasShine, starsOnly: true);
             _detLevel.text = $"{EquipStats.GradeTag(it.Rarity)}  ·  {EquipStats.SlotName(it.slot)}  ·  <color=#FFD36B>+{it.level}</color> / {it.MaxLevel}" +
                              $"  <size=80%><color=#9AA3B5>태생 {it.initialSubs}옵션</color></size>";
             _detMain.text = $"{EquipStats.Name(it.main).Replace("%", "")}  <color=#FFFFFF>{EquipStats.ValueText(it.main, it.MainValue)}</color>";
@@ -431,7 +435,7 @@ namespace SubcultureRPG.Meta.UI
             _mileLbl.text = it.IsMaxed ? "최대" : $"+{target}까지 강화";
             // 초월
             int fodder = _equip.TranscendFodder(it).Count;
-            if (it.transcend >= EquipStats.MaxTranscend) { _transLbl.text = "초월 완료"; _transBtn.interactable = false; }
+            if (it.IsFullyTranscended) { _transLbl.text = "초월 완료"; _transBtn.interactable = false; }
             else if (!it.IsMaxed) { _transLbl.text = $"초월 <size=70%>(+{it.MaxLevel} 강화 후)</size>"; _transBtn.interactable = false; }
             else
             {

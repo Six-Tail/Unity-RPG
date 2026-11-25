@@ -87,6 +87,7 @@ namespace SubcultureRPG.EditorTools
         {
             if (relative.StartsWith("Backgrounds/") || relative.StartsWith("Banners/")) return 2048;
             if (relative.StartsWith("Characters/") || relative.StartsWith("Cutouts/") || relative.StartsWith("Figures/")) return 1024;
+            if (relative.StartsWith("Sway/")) return 1024;              // 움직이는 일러스트 재료(지도 · 눈 감은 그림) — 일러스트와 같은 크기
             if (relative.StartsWith("Enemies/")) return 512;
             if (relative.StartsWith("Fx/")) return 512;                 // 스킬 이펙트 텍스처(크게 늘려 써서 256이면 뭉개짐)
             if (relative.StartsWith("Title/keyart")) return 2048;       // 타이틀 키 아트(화면 전체)

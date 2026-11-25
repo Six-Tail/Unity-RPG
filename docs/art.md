@@ -14,6 +14,7 @@
 | `Characters/` | `{캐릭터 id}.png` (예: `c_seraphine.png`) | 768×1024 (3:4) | 홈·가챠 픽업 미리보기, 가챠 결과·6성 연출 |
 | `Cutouts/` | `{캐릭터 id}.png` | 768×1024 (투명 배경) | **배경 없는 일러스트** — 스토리 대화의 인물, 홈 화면의 대표 캐릭터(움직이는 일러스트가 없는 캐릭터만). 없으면 `Characters/` 일러스트 사용 — 아래 [배경 없는 일러스트](#배경-없는-일러스트-cutouts) |
 | `UI/` | `button_base.png` · `button_frame.png` | 208×128 (9-slice) | **모든 버튼**의 판(색을 입혀 씀) · 금테 — 아래 [버튼 그림](#버튼-그림-ui) |
+| `Characters/` · `Thumbs/` | `{캐릭터 id}_bloom.png` | 768×1024 · 256×256 | **개화 일러스트**(Lv.100 · 의상 `개화`) — `--only bloom`, [outfits.md](outfits.md) |
 | `Thumbs/` | `{캐릭터 id}.png` | 256×256 | 육성·편성 목록, 전투 유닛 칸, 가챠 결과 카드 (없으면 일러스트 사용) |
 | `Enemies/` | `{적 이름}.png` (예: `그림자병.png`) | 512×512 | 전투 유닛 칸 |
 | `Items/` | `{MaterialType 이름}.png` (예: `ExpSmall.png`, `FireAsc2.png`) · 금화는 `Gold.png` | 256×256 | 가방 칸, 상점 상품 칸 |

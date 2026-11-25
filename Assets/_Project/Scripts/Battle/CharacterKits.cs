@@ -97,7 +97,7 @@ namespace SubcultureRPG.Battle
     /// · 태생 성급이 높을수록 패시브가 특별하고 초월 강화 폭이 큼
     ///   6★: 전용 메커니즘 + 초월마다 패시브 강화 · 5★: +3 · +6에서 강화 · 4★ / 3★: +6에서만 소폭 강화, 나머지는 작은 능력치
     /// </summary>
-    public static class CharacterKits
+    public static partial class CharacterKits
     {
         private static Dictionary<string, CharacterKit> _kits;
         private static readonly Dictionary<Role, CharacterKit> _defaults = new();

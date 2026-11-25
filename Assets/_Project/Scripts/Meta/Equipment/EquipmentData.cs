@@ -60,7 +60,12 @@ namespace SubcultureRPG.Meta
 
         /// <summary>보조 옵션 실제 수치(초월 보정 포함).</summary>
         public float SubValue(EquipSub s) => s.value * EquipStats.TranscendSubMul(transcend) * EquipStats.FlatScale(s.stat);
-        public bool CanTranscendMore => IsMaxed && transcend < EquipStats.MaxTranscend;
+        /// <summary>이 장비의 초월 최대 단계 = 성급(3★ +3 · 4★ +4 · 5★ +5 · 6★ +6).</summary>
+        public int MaxTranscend => EquipStats.MaxTranscendOf(Rarity);
+        public bool IsFullyTranscended => transcend >= MaxTranscend;
+        /// <summary>별에 흐르는 무지개 효과: 6★ 장비를 +6까지 풀 초월했을 때만.</summary>
+        public bool HasShine => Rarity >= EquipStats.MaxRarity && IsFullyTranscended;
+        public bool CanTranscendMore => IsMaxed && transcend < MaxTranscend;
     }
 
     /// <summary>옵션 이름·표시·수치 규칙.</summary>
@@ -81,7 +86,11 @@ namespace SubcultureRPG.Meta
 
         // ---------------- 장비 초월 ----------------
 
-        public const int MaxTranscend = 5;
+        /// <summary>초월 단계의 전체 상한(6★ 장비). 성급별 상한은 MaxTranscendOf.</summary>
+        public const int MaxTranscend = 6;
+
+        /// <summary>성급별 초월 최대 단계 = 성급(3★ +3 · 4★ +4 · 5★ +5 · 6★ +6) — 다 초월하면 별이 모두 무지개.</summary>
+        public static int MaxTranscendOf(int rarity) => Mathf.Clamp(rarity, MinRarity, MaxRarity);
 
         /// <summary>초월 단계별 보정: 주옵션 +6%/단계, 보조 옵션 +4%/단계.</summary>
         public static float TranscendMainMul(int t) => 1f + 0.06f * Mathf.Clamp(t, 0, MaxTranscend);

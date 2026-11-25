@@ -56,12 +56,16 @@ namespace SubcultureRPG.Meta.UI
         {
             if (codex != null) codex.OnChanged += MarkDirty;
             PlayerBond.Instance.OnChanged += OnBondChanged;
+            CharacterOutfits.Changed += OnOutfitChanged;
         }
+
+        private void OnOutfitChanged(CharacterData c) => MarkDirty();
 
         private void OnDisable()
         {
             if (codex != null) codex.OnChanged -= MarkDirty;
             if (FindAnyObjectByType<PlayerBond>() is PlayerBond b) b.OnChanged -= OnBondChanged;
+            CharacterOutfits.Changed -= OnOutfitChanged;
         }
 
         private void OnBondChanged() { if (_selected != null && _bondBtn != null) RefreshDetail(); }

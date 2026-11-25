@@ -46,6 +46,19 @@ namespace SubcultureRPG.Characters
         {
             if (c == null) return null;
             string key = !string.IsNullOrEmpty(c.id) ? c.id : c.name;
+            string sfx = CharacterOutfits.SuffixOf(key);
+            if (sfx != "")
+            {
+                var o = Load(key + sfx);   // 입고 있는 의상(개화 등)의 영상
+                if (o != null) return o;
+                // 그 의상 영상이 없는데 의상 일러스트가 있으면, 기본 의상 영상 대신 정지 그림(옷이 다르게 보이지 않게)
+                if (Resources.Load<Sprite>("Art/Characters/" + key + sfx) != null) return null;
+            }
+            return Load(key);
+        }
+
+        private static VideoClip Load(string key)
+        {
             if (Cache.TryGetValue(key, out var cached)) return cached;
             var clip = Resources.Load<VideoClip>(ResourceFolder + key);
             Cache[key] = clip;
@@ -82,11 +95,12 @@ namespace SubcultureRPG.Characters
             var clip = ClipOf(c);
             if (clip == null) return null;
 
-            if (_current != c || _player == null || !_player.isPlaying)
+            bool changed = _current != c || (_player != null && _player.clip != clip);   // 같은 캐릭터라도 의상을 바꾸면 영상이 다름
+            if (changed || _player == null || !_player.isPlaying)
             {
                 EnsurePlayer();
                 EnsureTexture((int)clip.width, (int)clip.height);
-                if (_current != c)
+                if (changed)
                 {
                     DisplaceUsers(user);
                     _users.Clear();
