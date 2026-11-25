@@ -17,7 +17,7 @@
 //   --key <이름,...>  특정 소리만
 //   --force           이미 있는 파일도 다시 제작(기본은 없는 것만)
 //   --retrim          저장해 둔 원본(docs/art-preview/audio/sfx/{이름}_raw.mp3)으로 다듬기만 다시
-//   --quality <값>    low | medium | high (기본 medium)
+//   --quality <값>    low | medium | high (기본 medium — 소리마다 quality 를 정해 두면 그것을 씀)
 //   --list            목록만 출력
 //
 // 결과는 매번 달라집니다. 마음에 안 드는 소리는 --key <이름> --force 로 그것만 다시 만드세요.
@@ -44,13 +44,8 @@ const SOUNDS = [
   { key: 'error', gen: 1, keep: 0.4, peak: 0.6, prompt: 'short low error buzz, negative UI beep, game interface sound effect' },
   { key: 'gachasummon', gen: 3, keep: 2.2, peak: 0.85, prompt: 'magical summoning whoosh, rising shimmering energy build up, fantasy game sound effect' },
   { key: 'gacharare', gen: 4, keep: 3.4, peak: 0.9, prompt: 'epic legendary reveal, bright heavenly choir chord with sparkling chimes and a deep impact, fantasy game sound effect' },
-  { key: 'hit', gen: 1, keep: 0.45, peak: 0.85, attack: 0.05, prompt: 'sword slash hit impact, short punchy combat sound effect' },
-  { key: 'crit', gen: 2, keep: 0.7, peak: 0.9, attack: 0.05, prompt: 'heavy critical hit impact with a sharp metallic ring, powerful combat sound effect' },
-  { key: 'heal', gen: 2, keep: 1.2, peak: 0.7, prompt: 'gentle healing magic spell, soft shimmering chimes rising, fantasy game sound effect' },
-  { key: 'skill', gen: 2, keep: 0.7, peak: 0.75, prompt: 'magic spell cast whoosh, quick energy swoosh, fantasy game sound effect' },
-  { key: 'ultimate', gen: 3, keep: 2.4, peak: 0.92, prompt: 'massive ultimate attack, energy charge up then a huge explosion boom, anime game sound effect' },
-  { key: 'break', gen: 2, keep: 0.9, peak: 0.85, attack: 0.04, prompt: 'glass shattering, magic shield break crash, game sound effect' },
-  { key: 'defeated', gen: 2, keep: 0.9, peak: 0.75, prompt: 'enemy defeated, heavy body thud with a dark dissolving whoosh, game sound effect' },
+  // 전투 소리(hit · crit · heal · skill · ultimate · break · defeated 와 변형 _2 · _3)는 AI로 만들면 뭉개지고 싸구려 같아서
+  // 실제 녹음(Kenney CC0 팩)을 겹쳐 만듭니다 → tools/audio/build-sfx-kenney.js (2026-11-25)
   { key: 'victory', gen: 4, keep: 3.6, peak: 0.9, prompt: 'short triumphant victory fanfare, bright brass and orchestra, RPG battle win jingle' },
   { key: 'defeat', gen: 4, keep: 3.2, peak: 0.75, prompt: 'short sad defeat jingle, slow descending minor melody, game over sound' },
 ];
@@ -83,7 +78,7 @@ const rawOf = (s) => path.join(RAW, s.key + '_raw.mp3');
 async function requestSfx(s) {
   const res = await fetch(args.server + '/api/audio', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ kind: 'sfx', prompt: s.prompt, seconds: s.gen, quality: args.quality }),
+    body: JSON.stringify({ kind: 'sfx', prompt: s.prompt, seconds: s.gen, quality: s.quality || args.quality }),
   });
   const text = await res.text();
   let json = null; try { json = JSON.parse(text); } catch { /* 본문이 JSON 이 아님 */ }
@@ -154,7 +149,7 @@ function trim(ffmpeg, s) {
 
 (async () => {
   let list = SOUNDS;
-  if (args.key) list = list.filter((s) => args.key.includes(s.key));
+  if (args.key) list = list.filter((s) => args.key.includes(s.key) || args.key.includes(s.key.replace(/_\d+$/, '')));
   if (list.length === 0) fail('조건에 맞는 소리가 없습니다.');
   if (args.list) {
     for (const s of list) console.log(`  ${fs.existsSync(rawOf(s)) ? 'AI 원본 있음' : 'AI 원본 없음'}  ${s.key.padEnd(12)} 최대 ${s.keep}초  ${s.prompt}`);

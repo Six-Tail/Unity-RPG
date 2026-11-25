@@ -259,7 +259,7 @@ namespace SubcultureRPG.Meta
             }
 
             Current = screen;
-            SoundManager.Bgm(BgmOf(screen));
+            SoundManager.Bgm(BgmOf(screen, _modeReturn));
             if (home != null) home.Show(screen == HubScreen.Home);
             if (stage != null) stage.Show(screen == HubScreen.Stage);
             if (gacha != null) gacha.Show(screen == HubScreen.Gacha);
@@ -281,13 +281,21 @@ namespace SubcultureRPG.Meta
 
         public void GoHome() => Go(HubScreen.Home);
 
-        /// <summary>화면별 배경음 키(Resources/Audio/BGM/{키}). 없는 키는 menu → home 으로 대체.</summary>
-        private static string BgmOf(HubScreen s) => s switch
+        /// <summary>
+        /// 화면별 배경음 키(Resources/Audio/BGM/{키}). 없는 키는 menu → home 으로 대체.
+        /// 전투는 어디서 들어왔는지(mode)에 따라: 주간 보스 · 무한의 탑 = boss, 결투장 = arena, 그 밖 = battle.
+        /// </summary>
+        private static string BgmOf(HubScreen s, HubScreen? mode) => s switch
         {
             HubScreen.Home => "home",
             HubScreen.Stage or HubScreen.Dungeon => "stage",
             HubScreen.Gacha => "gacha",
-            HubScreen.Battle => "battle",
+            HubScreen.Battle => mode switch
+            {
+                HubScreen.Raid or HubScreen.Tower => "boss",
+                HubScreen.Arena => "arena",
+                _ => "battle",
+            },
             HubScreen.Arena or HubScreen.Raid or HubScreen.Tower => "arena",
             HubScreen.Event => "event",
             _ => "menu",

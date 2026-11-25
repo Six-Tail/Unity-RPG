@@ -40,10 +40,15 @@ const TRACKS = [
     tags: 'adventurous world map theme, orchestral strings, french horns, light marching snare, hopeful, heroic journey, bright' },
   { key: 'gacha', label: '가챠', seconds: 100, bpm: 100, keyscale: 'A major',
     tags: 'magical sparkling summon theme, celesta, harp glissando, soft choir pads, shimmering bells, wonder, anticipation, mystical' },
-  { key: 'battle', label: '전투', seconds: 110, bpm: 160, keyscale: 'E minor',
-    tags: 'fast energetic battle theme, driving drums, electric guitar riffs, orchestral strings, brass hits, intense, heroic, exciting' },
-  { key: 'arena', label: '결투장 · 주간 보스', seconds: 110, bpm: 140, keyscale: 'D minor',
-    tags: 'tense competitive arena theme, epic hybrid orchestra, pounding taiko drums, staccato strings, powerful brass, dramatic, rivalry' },
+  { key: 'battle', label: '전투(스테이지 · 던전 · 이벤트)', seconds: 110, bpm: 168, keyscale: 'E minor',
+    tags: 'epic anime gacha RPG battle theme, soaring heroic string melody, powerful brass fanfare, fast symphonic rock drums and bass, ' +
+      'electric guitar power chords, piano runs, determined, thrilling, cinematic orchestral' },
+  { key: 'boss', label: '보스전(주간 보스 · 무한의 탑)', seconds: 120, bpm: 150, keyscale: 'C minor',
+    tags: 'epic dark final boss battle theme, cosmic apocalyptic, massive symphonic orchestra with dark latin choir chants, ' +
+      'pounding taiko and timpani, aggressive staccato strings, pipe organ, menacing low brass, intense, overwhelming, cinematic' },
+  { key: 'arena', label: '결투장(전투 · 화면)', seconds: 110, bpm: 146, keyscale: 'D minor',
+    tags: 'competitive anime PvP arena battle theme, hybrid orchestral electronic, energetic synth arpeggios, punchy drums, ' +
+      'heroic brass, fast strings, confident, tense rivalry, stylish' },
   { key: 'event', label: '기간 한정 이벤트(축제)', seconds: 100, bpm: 126, keyscale: 'G major',
     tags: 'festive fantasy festival music, lively folk dance, fiddle, accordion, tambourine, hand claps, joyful celebration, playful' },
 ];

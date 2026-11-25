@@ -547,7 +547,7 @@ namespace SubcultureRPG.Meta.UI
             foreach (var e in weak) parts.Add($"<color={Traits.Hex(e)}><b>{Traits.Name(e)}</b></color>");
             _weak.text = $"이번 주 약점  {string.Join("  ·  ", parts)}   <size=80%><color=#9AA3B5>Lv.{WorldRaid.BossLevel()}</color></size>";
             var t = WorldRaid.UntilWeekReset;
-            _left.text = $"교체까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  제한 시간 {WorldRaid.TimeLimit / 60f:0}분 · {WorldRaid.EnrageEvery:0}초마다 보스 공격력 +{WorldRaid.EnrageAtk * 100f:0}%";
+            _left.text = $"교체까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  제한 시간 {WorldRaid.TimeLimit / 60f:0}분 · {WorldRaid.EnrageEvery:0}초마다 격노(공격력 +{WorldRaid.EnrageAtk * 100f:0}% · 즉시 '사건의 지평선' — 최대 체력 비례 피해)";
             _summary.text = $"<color=#9AA3B5>오늘 남은 도전</color>   <color={(r.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}><b>{r.AttemptsLeft}</b></color> / {WorldRaid.AttemptsPerDay}{(WorldRaid.FreeAttempts ? "  <color=#FFD36B>(최대 육성 테스트 중 · 소모 안 함)</color>" : "")}\n" +
                             $"<color=#9AA3B5>이번 주 누적 점수</color>   <color=#FFD36B><b>{r.TotalDamage:N0}</b></color>\n" +
                             $"<color=#9AA3B5>최고 기록(1회)</color>   {r.BestDamage:N0}";

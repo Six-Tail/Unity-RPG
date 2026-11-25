@@ -69,7 +69,9 @@ namespace SubcultureRPG.Battle
         public float ElementDmg(Element e) => (int)e >= 0 && (int)e < elementDmg.Length ? elementDmg[(int)e] : 0f;
 
         public bool IsAlive => currentHP > 0;
-        public string Name => source != null ? source.DisplayName : "???";
+        // 이름은 전투 시작 때 저장 — 전투가 끝나면 정리되는 임시 유닛 데이터(주간 보스 등)도 전투 기록 창에서 이름 · 그림이 나오게
+        private readonly string _name;
+        public string Name => !string.IsNullOrEmpty(_name) ? _name : source != null ? source.DisplayName : "???";
         public float HPRatio => maxHP > 0 ? (float)currentHP / maxHP : 0f;
         public float EnergyRatio => maxEnergy > 0 ? (float)energy / maxEnergy : 0f;
         public bool UltimateReady => energy >= maxEnergy;
@@ -78,6 +80,7 @@ namespace SubcultureRPG.Battle
         {
             source = data;
             character = data.character;
+            _name = data.DisplayName;
             this.team = team;
             level = Mathf.Max(1, data.level);
 
@@ -159,9 +162,11 @@ namespace SubcultureRPG.Battle
             actionValue = cfg.baseActionValue / spd;
         }
 
+        /// <summary>피해를 받음. 돌려주는 값 = 실제로 깎인 체력(남은 체력을 넘은 피해는 뺌).</summary>
         public int TakeDamage(int amount)
         {
             amount = Mathf.Max(0, amount);
+            int real = Mathf.Min(amount, Mathf.Max(0, currentHP));
             bool lethal = currentHP > 0 && currentHP - amount <= 0;
             currentHP = Mathf.Max(0, currentHP - amount);
             if (lethal && surviveDef != null && !surviveUsed)
@@ -173,7 +178,7 @@ namespace SubcultureRPG.Battle
                 Heal(Mathf.RoundToInt(maxHP * surviveDef.v));
                 _surviveHealed = Mathf.Max(1, currentHP - before);
             }
-            return amount;
+            return real;
         }
 
         /// <summary>방금 버티기가 발동했으면 true(회복량 반환). 한 번 읽으면 초기화.</summary>
@@ -189,7 +194,13 @@ namespace SubcultureRPG.Battle
             for (int i = 0; i < passiveUses.Length; i++) passiveUses[i] = 0;
         }
 
-        public void Heal(int amount) => currentHP = Mathf.Min(maxHP, currentHP + Mathf.Max(0, amount));
+        /// <summary>회복. 돌려주는 값 = 실제로 채워진 체력(가득 찬 체력을 넘은 양은 뺌).</summary>
+        public int Heal(int amount)
+        {
+            int before = currentHP;
+            currentHP = Mathf.Min(maxHP, currentHP + Mathf.Max(0, amount));
+            return currentHP - before;
+        }
 
         public void GainEnergy(int amount) => energy = Mathf.Clamp(energy + amount, 0, maxEnergy);
 
@@ -287,14 +298,20 @@ namespace SubcultureRPG.Battle
             foreach (var e in effects)
             {
                 if (e.type != StatusType.Dot) continue;
-                int d = Mathf.Max(0, Mathf.RoundToInt(e.magnitude));
-                dot += d;
-                if (e.source != null) { e.source.record.dealt += d; lastSource = e.source; }
+                dot += Mathf.Max(0, Mathf.RoundToInt(e.magnitude));
+                if (e.source != null) lastSource = e.source;
             }
             if (dot > 0)
             {
-                TakeDamage(dot);
-                record.taken += dot;
+                int real = TakeDamage(dot);
+                record.taken += real;
+                // 실제로 깎인 양을 도트를 건 유닛들에게 비율대로 나눔
+                foreach (var e in effects)
+                {
+                    if (e.type != StatusType.Dot || e.source == null) continue;
+                    int d = Mathf.Max(0, Mathf.RoundToInt(e.magnitude));
+                    e.source.record.dealt += (long)d * real / dot;
+                }
                 if (wasAlive && !IsAlive && lastSource != null) lastSource.record.kills++;
             }
 
@@ -306,9 +323,9 @@ namespace SubcultureRPG.Battle
                 {
                     if (e.type != StatusType.Regen) continue;
                     int h = Mathf.Max(0, Mathf.RoundToInt(e.magnitude));
-                    Heal(h);
-                    if (e.source != null) e.source.record.healed += h;
-                    record.healReceived += h;
+                    int got = Heal(h);
+                    if (e.source != null) e.source.record.healed += got;
+                    record.healReceived += got;
                     regen += h;
                 }
                 if (currentHP == before && regen > 0 && before >= maxHP) regen = 0;   // 이미 가득이면 표시 안 함

@@ -42,6 +42,8 @@ namespace SubcultureRPG.Battle
         public float splash = 0f;
         [Tooltip("흡혈: 준 피해의 이 비율만큼 시전자 회복.")]
         public float lifesteal = 0f;
+        [Tooltip("대상 최대 체력 비례 추가 피해(0.05 = 5%) — 방어 무시, 받는 피해 감소는 적용, 타격 수로 나눔. 주간 보스처럼 상대 육성도와 상관없이 위협이 필요한 적용.")]
+        public float maxHpDamage = 0f;
         [Tooltip("아군 대상 스킬: 대상의 행동 게이지를 이 비율만큼 당김(0.5 = 절반).")]
         [Range(0f, 1f)] public float advance = 0f;
         [Tooltip("아군 대상 스킬: 대상의 디버프를 모두 해제.")]

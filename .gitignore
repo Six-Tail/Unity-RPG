@@ -69,3 +69,7 @@ desktop.ini
 /Assets/csc.rsp.meta
 /Assets/mcs.rsp
 /Assets/mcs.rsp.meta
+
+# 효과음 라보(soundeffect-lab.info) 소리 — 재배포 금지라 저장소에 넣지 않음. 각 PC에서 node tools/audio/fetch-sfx-lab.js 로 받음
+/Assets/_Project/Resources/Audio/SFX/Lab/
+/Assets/_Project/Resources/Audio/SFX/Lab.meta

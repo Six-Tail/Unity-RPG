@@ -218,19 +218,21 @@ namespace SubcultureRPG.Battle
             return target.ApplyEffect(p.status, mag, p.turns, owner);
         }
 
+        /// <summary>회복 적용 + 기록(실제로 채워진 양) + 표시용 항목(계산된 양).</summary>
         private ActionResult.TargetHit HealEntry(BattleUnit source, BattleUnit target, int amount, string label)
         {
-            source.record.healed += amount;
-            target.record.healReceived += amount;
+            int got = target.Heal(amount);
+            source.record.healed += got;
+            target.record.healReceived += got;
             return new ActionResult.TargetHit { target = target, healed = amount, extra = true, label = label, source = source };
         }
 
         /// <summary>피해 적용 + 기록 + 버티기 처리.</summary>
         private void Damage(BattleUnit source, BattleUnit target, int amount)
         {
-            target.TakeDamage(amount);
-            if (source != null) source.record.dealt += amount;
-            target.record.taken += amount;
+            int real = target.TakeDamage(amount);   // 실제로 깎인 체력(남은 체력을 넘은 피해는 빼고 기록)
+            if (source != null) source.record.dealt += real;
+            target.record.taken += real;
             if (target.ConsumeSurvived(out int healed))
             {
                 _extras.Add(new ActionResult.TargetHit { target = target, healed = healed, extra = true, label = target.surviveDef.name, source = target });
@@ -267,7 +269,6 @@ namespace SubcultureRPG.Battle
                 {
                     if (owner.currentHP >= owner.maxHP) return false;
                     int amt = Mathf.Max(1, Mathf.RoundToInt(owner.maxHP * p.v));
-                    owner.Heal(amt);
                     _extras.Add(HealEntry(owner, owner, amt, p.name));
                     return true;
                 }
@@ -277,7 +278,6 @@ namespace SubcultureRPG.Battle
                     var t = LowestHPRatio(Teammates(owner));
                     if (t == null || t.currentHP >= t.maxHP) return false;
                     int amt = Mathf.Max(1, Mathf.RoundToInt(owner.EffectiveAtk * p.v * (1f + owner.healBonus)));
-                    t.Heal(amt);
                     _extras.Add(HealEntry(owner, t, amt, p.name));
                     return true;
                 }
@@ -289,7 +289,6 @@ namespace SubcultureRPG.Battle
                     foreach (var u in Teammates(owner))
                     {
                         if (!u.IsAlive || u.currentHP >= u.maxHP) continue;
-                        u.Heal(amt);
                         _extras.Add(HealEntry(owner, u, amt, p.name));
                         any = true;
                     }
@@ -408,9 +407,9 @@ namespace SubcultureRPG.Battle
                     if (target == null || !target.IsAlive) continue;
                     var th = Get(target);
                     int amount = Mathf.Max(1, Mathf.RoundToInt(actor.EffectiveAtk * skill.heal * (1f + actor.healBonus)));
-                    target.Heal(amount);
-                    actor.record.healed += amount;
-                    target.record.healReceived += amount;
+                    int got = target.Heal(amount);
+                    actor.record.healed += got;
+                    target.record.healReceived += got;
                     th.healed = amount;
                     acc[target] = th;
                 }
@@ -514,7 +513,6 @@ namespace SubcultureRPG.Battle
                 if (attack && skill.lifesteal > 0f && dealt > 0)
                 {
                     int amt = Mathf.Max(1, Mathf.RoundToInt(dealt * skill.lifesteal));
-                    actor.Heal(amt);
                     _extras.Add(HealEntry(actor, actor, amt, "흡혈"));
                 }
 
@@ -579,6 +577,12 @@ namespace SubcultureRPG.Battle
         private void Strike(BattleUnit actor, BattleUnit target, BattleSkill skill, float mul, ref ActionResult.TargetHit th)
         {
             var hit = DamageCalculator.Compute(actor, target, skill, _roll(), _cfg, mul);
+            if (skill.maxHpDamage > 0f)
+            {
+                // 최대 체력 비례 추가 피해(방어 무시 · 받는 피해 감소 적용)
+                float pct = skill.maxHpDamage * mul / Mathf.Max(1, skill.hits);
+                hit.damage += Mathf.RoundToInt(target.maxHP * pct * (1f - Mathf.Clamp(target.dmgTakenDown, 0f, 0.8f)));
+            }
             Damage(actor, target, hit.damage);
             if (hit.crit) actor.record.crits++;
             th.hitDamages.Add(hit.damage);
