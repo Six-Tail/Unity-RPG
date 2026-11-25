@@ -528,9 +528,12 @@ namespace SubcultureRPG.Meta.UI
 
         private void RefreshHeader(OwnedCharacter o)
         {
-            int cap = Leveling.LevelCap(o.ascension);
+            int cap = roster.LevelCapOf(_selected);
             _hName.text = $"{_selected.displayName}  <size=60%><color={Traits.Hex(_selected.element)}>{Traits.Name(_selected.element)}</color> · {Traits.Name(_selected.role)}</size>";
-            string exp = o.level >= cap ? (o.ascension >= Leveling.MaxAscension ? "MAX" : "상한 — 돌파 필요") : $"EXP {o.exp:N0} / {Leveling.ExpForNext(o.level):N0}";
+            string exp = o.level >= cap
+                ? (cap >= Leveling.AwakenedMaxLevel ? "<color=#FFB3D9>MAX</color>"
+                    : o.ascension >= Leveling.MaxAscension ? "MAX  <color=#C9A0FF>(풀 초월 시 Lv.100)</color>" : "상한 — 돌파 필요")
+                : $"EXP {o.exp:N0} / {Leveling.ExpForNext(o.level):N0}";
             var (u, _) = Preview(_selected);
             int power = CombatPower.Of(u, WithBonus(_selected, roster.SkillLevels(_selected)));
             _hLinePrefix = $"<color=#FFD36B>Lv. {o.level}</color> / {cap}" + (o.ascension > 0 ? $"   <color=#FFD36B>돌파 {o.ascension}</color>" : "");
@@ -593,8 +596,8 @@ namespace SubcultureRPG.Meta.UI
             return (int)System.Math.Min(int.MaxValue, n);
         }
 
-        private static Leveling.LevelPreview PreviewFor(OwnedCharacter o, int addExp) =>
-            Leveling.Preview(o.level, o.exp, Leveling.LevelCap(o.ascension), addExp);
+        private Leveling.LevelPreview PreviewFor(OwnedCharacter o, int addExp) =>
+            Leveling.Preview(o.level, o.exp, roster.LevelCapOf(_selected), addExp);
 
         private OwnedCharacter Sel => _selected != null && roster != null ? roster.GetOwned(_selected) : null;
 
@@ -618,7 +621,7 @@ namespace SubcultureRPG.Meta.UI
             if (o == null) return;
             var mats = Materials.ExpMaterials;
             ResetLevelSelection();
-            int remaining = Leveling.ExpToCap(o.level, o.exp, Leveling.LevelCap(o.ascension));
+            int remaining = Leveling.ExpToCap(o.level, o.exp, roster.LevelCapOf(_selected));
             for (int i = mats.Length - 1; i >= 0; i--)
             {
                 int v = Materials.ExpValue(mats[i]);
@@ -675,14 +678,16 @@ namespace SubcultureRPG.Meta.UI
         {
             var mats = Materials.ExpMaterials;
             for (int i = 0; i < mats.Length; i++) _lvSel[i] = Mathf.Clamp(_lvSel[i], 0, Mat(mats[i]));
-            int cap = Leveling.LevelCap(o.ascension);
+            int cap = roster.LevelCapOf(_selected);
             bool atCap = o.level >= cap;
             int add = SelectedExp();
             var pv = PreviewFor(o, add);
 
             if (atCap)
-                _lvPreview.text = o.ascension >= Leveling.MaxAscension
-                    ? "<color=#FFD36B>최대 레벨</color>"
+                _lvPreview.text = cap >= Leveling.AwakenedMaxLevel
+                    ? "<color=#FFB3D9>최대 레벨 Lv.100</color>"
+                    : o.ascension >= Leveling.MaxAscension
+                    ? "<color=#FFD36B>최대 레벨</color>\n<size=70%><color=#C9A0FF>풀 초월(6★ +6)하면 상한이 Lv.100으로 열립니다</color></size>"
                     : $"<color=#FFD36B>레벨 상한 Lv.{cap}</color>\n<size=70%><color=#9AA3B5>'돌파' 탭에서 돌파하면 상한이 올라갑니다</color></size>";
             else
             {
@@ -713,6 +718,7 @@ namespace SubcultureRPG.Meta.UI
 
         private readonly TextMeshProUGUI[] _eqSlotText = new TextMeshProUGUI[6];
         private readonly Image[] _eqSlotFrame = new Image[6];
+        private readonly Image[] _eqSlotIcon = new Image[6];
         private TextMeshProUGUI _eqSets;
 
         private void RefreshEquipTab()
@@ -721,6 +727,9 @@ namespace SubcultureRPG.Meta.UI
             {
                 var slot = EquipStats.AllSlots[i];
                 var it = equipment != null ? equipment.EquippedIn(_selected, slot) : null;
+                _eqSlotIcon[i].sprite = it != null ? GameArt.EquipIcon(it.set, slot) : GameArt.EquipSlotIcon(slot);
+                _eqSlotIcon[i].enabled = _eqSlotIcon[i].sprite != null;
+                _eqSlotIcon[i].color = it != null ? Color.white : new Color(1, 1, 1, 0.3f);
                 if (it == null)
                 {
                     _eqSlotFrame[i].color = new Color(1, 1, 1, 0.1f);
@@ -1121,9 +1130,12 @@ namespace SubcultureRPG.Meta.UI
         private static string TranscendRewardLine(CharacterKit kit, int t)
         {
             KitAbility a = t == 1 ? kit.t1 : t == 3 ? kit.t3 : t == 6 ? kit.t6 : null;
-            if (a != null) return $"<b>{a.name}</b> — {a.Desc}";
+            if (a != null)
+                return $"<b>{a.name}</b> — {a.Desc}" +
+                       (t == Transcendence.MaxTranscend ? $"\n      <b>레벨 상한 Lv.{Leveling.MaxLevel} → {Leveling.AwakenedMaxLevel}</b> (돌파 3단계 완료 후)" : "");
             int slot = t == 2 ? 0 : t == 4 ? 1 : 2;
-            return $"<b>{Leveling.SkillSlotName((SkillSlot)slot)} 레벨 +{Transcendence.SkillLevelStep}</b> (재료 없이 바로 적용 · 최대 Lv. {Leveling.MaxSkillLevelAbsolute})";
+            string line = $"<b>{Leveling.SkillSlotName((SkillSlot)slot)} 레벨 +{Transcendence.SkillLevelStep}</b> (재료 없이 바로 적용 · 최대 Lv. {Leveling.MaxSkillLevelAbsolute})";
+            return line;
         }
 
         private void MergeOrTranscend()
@@ -1211,6 +1223,24 @@ namespace SubcultureRPG.Meta.UI
                 if (roster == null) return;
                 if (_selected != null && _inDetail) roster.GrantTestDuplicates(_selected, 6);
                 else Toast("캐릭터를 선택한 상태에서 누르세요");
+            });
+            // 밸런스 테스트용 최대 육성(임시) — 적용 전 세이브를 백업해 두고, 다시 누르면 원래대로
+            bool testing = TestMaxData.HasBackup;
+            var maxBtn = UIFactory.AddButton("MaxTest", root, testing ? "원래 세이브로 되돌리기(테스트)" : "전체 최대 육성(테스트)", 18, font,
+                testing ? new Color(0.75f, 0.35f, 0.35f, 0.9f) : new Color(1, 1, 1, 0.14f), Color.white);
+            Place((RectTransform)maxBtn.transform, new Vector2(0, 0), new Vector2(300, 48), new Vector2(662, 30), new Vector2(0, 0));
+            maxBtn.onClick.AddListener(() =>
+            {
+                if (TestMaxData.HasBackup)
+                    Popups.Show("원래 세이브로 되돌리기",
+                        $"최대 육성을 적용하기 전({TestMaxData.BackupTime:MM-dd HH:mm})의 세이브로 되돌리고 게임을 다시 불러옵니다.\n그 뒤에 얻은 진행은 사라집니다.",
+                        "되돌리기", () => TestMaxData.Restore(), "취소");
+                else
+                    Popups.Show("전체 최대 육성(테스트)",
+                        "모든 캐릭터를 6★ +6 · Lv.100 · 스킬 최대 · 호감도 최대로 만들고, 역할에 맞는 최고 장비(6★ +20 · 초월 +5)를 끼웁니다.\n\n" +
+                        "<color=#FFD36B>지금 세이브는 이 PC에 백업</color>되고, 이 버튼(되돌리기)으로 언제든 원래대로 돌아옵니다.\n" +
+                        "<size=85%><color=#9AA3B5>로그인 중이면 최대 육성 상태도 서버에 저장되고, 되돌리면 원래 세이브가 다시 올라갑니다.</color></size>",
+                        "적용", () => TestMaxData.Apply(), "취소");
             });
 
             _equipPanel = EquipmentPanel.Create(root, font, equipment, inventory, wallet,
@@ -1349,7 +1379,12 @@ namespace SubcultureRPG.Meta.UI
                 var inner = UIFactory.AddImage("Inner", frame.transform, new Color(0.08f, 0.09f, 0.12f, 0.95f));
                 UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
                 _eqSlotFrame[i] = frame;
-                _eqSlotText[i] = Txt(inner.transform, "", 18, FontStyles.Normal, TextAlignmentOptions.TopLeft, 14, -10, 446, 76);
+                // 세트 그림(왼쪽) — 장착한 장비의 세트 · 부위 그림
+                _eqSlotIcon[i] = UIFactory.AddImage("Icon", inner.transform, Color.white);
+                _eqSlotIcon[i].preserveAspect = true;
+                UIFactory.Anchor(_eqSlotIcon[i].rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                _eqSlotIcon[i].rectTransform.sizeDelta = new Vector2(76, 76); _eqSlotIcon[i].rectTransform.anchoredPosition = new Vector2(6, 0);
+                _eqSlotText[i] = Txt(inner.transform, "", 18, FontStyles.Normal, TextAlignmentOptions.TopLeft, 90, -10, 370, 76);
                 _eqSlotText[i].lineSpacing = 6f;
             }
             _eqSets = Txt(page, "", 17, FontStyles.Normal, TextAlignmentOptions.TopLeft, 0, -326, 960, 70);
@@ -1460,7 +1495,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (FindAnyObjectByType<EventSystem>() != null) return;
             var es = new GameObject("EventSystem", typeof(EventSystem));
-            es.AddComponent<StandaloneInputModule>();
+            SubcultureRPG.UI.UIInput.AddModule(es);
         }
     }
 }

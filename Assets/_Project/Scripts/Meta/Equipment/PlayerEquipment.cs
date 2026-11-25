@@ -229,10 +229,50 @@ namespace SubcultureRPG.Meta
         {
             if (it == null || it.locked || it.IsEquipped) return 0;
             int ore = EquipRules.DismantleOre(it);
+            int essence = EquipRules.DismantleEssence(it);
             _items.Remove(it);
-            if (inventory != null) inventory.Add(MaterialType.EquipOre, ore);
+            if (inventory != null) { inventory.Add(MaterialType.EquipOre, ore); inventory.Add(MaterialType.EquipEssence, essence); }
+            LastDismantleEssence = essence;
             Changed();
             return ore;
+        }
+
+        /// <summary>방금 분해로 얻은 장비 정수(화면 안내용).</summary>
+        public int LastDismantleEssence { get; private set; }
+
+        // ---------------- 선택 제작 · 재련 ----------------
+
+        public int Essence => inventory != null ? inventory.Count(MaterialType.EquipEssence) : 0;
+        public int RefineStones => inventory != null ? inventory.Count(MaterialType.RefineStone) : 0;
+
+        /// <summary>선택 제작. 실패 사유(성공이면 null) · 만든 장비.</summary>
+        public string Craft(string set, EquipSlot? slot, EquipStat? main, out EquipmentItem made)
+        {
+            made = null;
+            if (main.HasValue && !slot.HasValue) return "주옵션을 고르려면 부위도 골라야 합니다";
+            int n = (string.IsNullOrEmpty(set) ? 0 : 1) + (slot.HasValue ? 1 : 0) + (main.HasValue ? 1 : 0);
+            int essence = EquipRules.CraftEssence[n], gold = EquipRules.CraftGold[n];
+            if (Essence < essence) return $"장비 정수가 부족합니다 (필요 {essence})";
+            if (Gold < gold) return $"금화가 부족합니다 (필요 {gold:N0})";
+            if (wallet != null && !wallet.SpendGold(gold)) return "금화가 부족합니다";
+            inventory.Spend(MaterialType.EquipEssence, essence);
+            made = Add(EquipRules.Craft(set, slot, main, _rng), notify: false);
+            Changed();
+            return null;
+        }
+
+        /// <summary>주옵션 재련. 실패 사유(성공이면 null).</summary>
+        public string Refine(EquipmentItem it)
+        {
+            if (it == null) return "장비를 고르세요";
+            if (!EquipRules.CanRefineSlot(it.slot)) return "머리 · 손 장비는 주옵션이 하나뿐이라 재련할 수 없습니다";
+            if (RefineStones < EquipRules.RefineStones) return "재련석이 부족합니다";
+            if (Gold < EquipRules.RefineGold) return $"금화가 부족합니다 (필요 {EquipRules.RefineGold:N0})";
+            if (wallet != null && !wallet.SpendGold(EquipRules.RefineGold)) return "금화가 부족합니다";
+            inventory.Spend(MaterialType.RefineStone, EquipRules.RefineStones);
+            EquipRules.Refine(it, _rng);
+            Changed();
+            return null;
         }
 
         // ---------------- 저장 ----------------
@@ -246,20 +286,25 @@ namespace SubcultureRPG.Meta
         private void Save()
         {
             var data = new SaveData { items = _items };
-            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(data));
-            PlayerPrefs.Save();
+            SaveStore.SetString(saveKey, JsonUtility.ToJson(data));
+            SaveStore.Save();
         }
 
         private void Load()
         {
             _items.Clear();
-            if (!PlayerPrefs.HasKey(saveKey)) return;
+            if (!SaveStore.HasKey(saveKey)) return;
             try
             {
-                var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
+                var data = JsonUtility.FromJson<SaveData>(SaveStore.GetString(saveKey));
                 if (data?.items != null)
                     foreach (var it in data.items)
-                        if (it != null && EquipSets.Get(it.set) != null) _items.Add(it);
+                        if (it != null && EquipSets.Get(it.set) != null)
+                        {
+                            // 목걸이 속성 피해 5종 → '속성 피해(착용자 속성)' 1종으로 통합(수치 그대로)
+                            if (it.slot == EquipSlot.Neck && it.main >= EquipStat.PhysicalDmg && it.main <= EquipStat.WindDmg) it.main = EquipStat.ElementDmg;
+                            _items.Add(it);
+                        }
             }
             catch { }
         }

@@ -215,7 +215,7 @@ namespace SubcultureRPG.Meta.UI
         {
             var owned = OwnedCharacters();
             if (owned.Count == 0) return null;
-            string id = PlayerPrefs.GetString(AssistantKey, "");
+            string id = SaveStore.GetString(AssistantKey, "");
             foreach (var c in owned)
                 if (!string.IsNullOrEmpty(id) && (c.id == id || c.name == id)) return c;
             return owned[0];
@@ -348,8 +348,8 @@ namespace SubcultureRPG.Meta.UI
             btn.targetGraphic = cell;
             btn.onClick.AddListener(() =>
             {
-                PlayerPrefs.SetString(AssistantKey, !string.IsNullOrEmpty(c.id) ? c.id : c.name);
-                PlayerPrefs.Save();
+                SaveStore.SetString(AssistantKey, !string.IsNullOrEmpty(c.id) ? c.id : c.name);
+                SaveStore.Save();
                 _picker.SetActive(false);
                 _shown = null;
                 RefreshAssistant();
@@ -540,6 +540,14 @@ namespace SubcultureRPG.Meta.UI
             var friendBtn = Tile(root, "", new Color(0.62f, 0.38f, 0.52f, 0.95f), new Vector2(rx, -262), new Vector2(tw, 112), 34, () => Nav(HubScreen.Friends));
             _friendLabel = friendBtn.GetComponentInChildren<TextMeshProUGUI>();
             TileIcon(friendBtn, "Items/FriendIcon");
+            var dispatchBtn = Tile(root, "", new Color(0.3f, 0.5f, 0.45f, 0.95f), new Vector2(lx, -388), new Vector2(tw, 112), 34, () => Nav(HubScreen.Dispatch));
+            _dispatchLabel = dispatchBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _dispatchTile = dispatchBtn;
+            TileIcon(dispatchBtn, "Items/DispatchIcon");
+            var towerBtn = Tile(root, "", new Color(0.55f, 0.42f, 0.25f, 0.95f), new Vector2(rx, -388), new Vector2(tw, 112), 34, () => Nav(HubScreen.Tower));
+            _towerLabel = towerBtn.GetComponentInChildren<TextMeshProUGUI>();
+            _towerTile = towerBtn;
+            TileIcon(towerBtn, "Items/TowerIcon");
 
             // 상점 · 가방: 재화 알약 왼쪽 아이콘
             IconButton(root, "Items/UiShop", "상점", new Vector2(-50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14 - 78, -30), () => Nav(HubScreen.Shop));
@@ -560,6 +568,9 @@ namespace SubcultureRPG.Meta.UI
             _raidBadge = NotifyBadge.Attach(raidBtn, font);
             _guildBadge = NotifyBadge.Attach(guildBtn, font);
             _friendBadge = NotifyBadge.Attach(friendBtn, font);
+            _dispatchBadge = NotifyBadge.Attach(dispatchBtn, font);
+            PlayerDispatch.Instance.OnChanged += RefreshModeTiles;
+            PlayerTower.Instance.OnChanged += RefreshModeTiles;
 
             // 튜토리얼이 가리킬 곳
             TutorialTargets.Set("home.stage", stage);
@@ -630,7 +641,22 @@ namespace SubcultureRPG.Meta.UI
         }
 
         private NotifyBadge _profileBadge, _stageBadge, _missionBadge, _raidBadge, _guildBadge, _friendBadge, _mailBadge, _attendBadge, _passBadge;
-        private Button _stageTile, _arenaTile, _raidTile;
+        private Button _stageTile, _arenaTile, _raidTile, _dispatchTile, _towerTile;
+        private TextMeshProUGUI _dispatchLabel, _towerLabel;
+        private NotifyBadge _dispatchBadge;
+        private float _dispatchTick;
+        private int _dispatchDone = -1;
+
+        private void Update()
+        {
+            // 파견은 시간이 지나면 끝나므로 홈에 있는 동안 가끔 확인(끝나면 느낌표)
+            if (_root == null || !_root.activeSelf) return;
+            _dispatchTick -= Time.unscaledDeltaTime;
+            if (_dispatchTick > 0f) return;
+            _dispatchTick = 5f;
+            int done = PlayerDispatch.Instance.DoneCount;
+            if (done != _dispatchDone) { _dispatchDone = done; RefreshModeTiles(); }
+        }
         private Color _arenaColor, _raidColor;
         private StageScreen _stageScreen;
         private StageProgress _stageProgress;
@@ -695,6 +721,24 @@ namespace SubcultureRPG.Meta.UI
                 var so = PlayerSocial.Instance;
                 _friendLabel.text = $"친구\n<size=55%>{so.Friends.Count}/{PlayerSocial.MaxFriends}명</size>";
             }
+            if (_dispatchLabel != null)
+            {
+                bool open = cleared >= FeatureGate.DispatchChapter;
+                TileLocked(_dispatchTile, !open, new Color(0.3f, 0.5f, 0.45f, 0.95f));
+                var dp = PlayerDispatch.Instance;
+                int done = dp.DoneCount;
+                _dispatchLabel.text = !open ? $"파견\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.DispatchChapter)}</color></size>"
+                    : done > 0 ? $"파견\n<size=55%><color=#7CFF9A>완료 {done}팀 · 받기</color></size>"
+                    : $"파견\n<size=55%>진행 {dp.Actives.Count}/{PlayerDispatch.MaxActive}팀</size>";
+                if (_dispatchBadge != null) _dispatchBadge.Set(open && done > 0);
+            }
+            if (_towerLabel != null)
+            {
+                bool open = cleared >= FeatureGate.TowerChapter;
+                TileLocked(_towerTile, !open, new Color(0.55f, 0.42f, 0.25f, 0.95f));
+                _towerLabel.text = !open ? $"무한의 탑\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.TowerChapter)}</color></size>"
+                    : $"무한의 탑\n<size=55%>최고 {PlayerTower.Instance.Cleared}층</size>";
+            }
             RefreshEventBanner();
             RefreshBadges();
         }
@@ -734,7 +778,7 @@ namespace SubcultureRPG.Meta.UI
             ish.effectColor = new Color(0, 0, 0, 0.55f); ish.effectDistance = new Vector2(0, -2);
             var t = UIFactory.AddText("Label", rt, label, 16, font, Color.white, TextAlignmentOptions.Bottom, FontStyles.Bold);
             UIFactory.Stretch(t.rectTransform, -6, -2, -6, 0);
-            t.outlineWidth = 0.22f; t.outlineColor = new Color32(10, 12, 20, 230);
+            SubcultureRPG.UI.TextOutline.Apply(t, 0.22f, new Color32(10, 12, 20, 230));
             return rt;
         }
 
@@ -796,7 +840,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (FindAnyObjectByType<EventSystem>() != null) return;
             var es = new GameObject("EventSystem", typeof(EventSystem));
-            es.AddComponent<StandaloneInputModule>();
+            SubcultureRPG.UI.UIInput.AddModule(es);
         }
     }
 }

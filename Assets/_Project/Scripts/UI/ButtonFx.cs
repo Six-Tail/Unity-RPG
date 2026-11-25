@@ -54,7 +54,20 @@ namespace SubcultureRPG.UI
         {
             _hover = _down = false;
             _cur = 1f;
-            transform.localScale = Vector3.one;
+            ApplyScale(1f);
+        }
+
+        // 크기는 기준점(pivot)을 중심으로 바뀌므로, 왼쪽 위 기준 버튼은 오른쪽 아래로 커져 보임.
+        // 커진 만큼 위치를 반대로 옮겨 언제나 버튼 가운데를 중심으로 커지고 줄어들게 함.
+        private Vector2 _shift;
+
+        private void ApplyScale(float s)
+        {
+            transform.localScale = new Vector3(s, s, 1f);
+            if (transform is not RectTransform rt) return;
+            Vector2 want = -(s - 1f) * Vector2.Scale(new Vector2(0.5f, 0.5f) - rt.pivot, rt.rect.size);
+            rt.anchoredPosition += want - _shift;
+            _shift = want;
         }
 
         public void OnPointerEnter(PointerEventData e) => _hover = true;
@@ -67,9 +80,13 @@ namespace SubcultureRPG.UI
             SyncFrame();
             bool active = _sel == null || _sel.IsInteractable();
             float target = !active ? 1f : _down ? 0.95f : _hover ? 1.04f : 1f;
-            if (Mathf.Abs(_cur - target) < 0.0005f) return;
+            if (Mathf.Abs(_cur - target) < 0.0005f)
+            {
+                if (_cur != target) { _cur = target; ApplyScale(_cur); }   // 끝에서 정확히 1로(위치 보정도 0으로)
+                return;
+            }
             _cur = Mathf.Lerp(_cur, target, 1f - Mathf.Exp(-20f * Time.unscaledDeltaTime));
-            transform.localScale = new Vector3(_cur, _cur, 1f);
+            ApplyScale(_cur);
         }
     }
 }

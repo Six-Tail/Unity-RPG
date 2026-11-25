@@ -183,14 +183,21 @@ namespace SubcultureRPG.Meta
             return o != null ? o.skillLevel : 1;
         }
 
+        /// <summary>지금 레벨 상한(돌파 단계 · 풀 초월이면 100).</summary>
+        public int LevelCapOf(CharacterData c)
+        {
+            var o = GetOwned(c);
+            return o == null ? Leveling.LevelCap(0) : Leveling.LevelCap(o.ascension, IsMaxed(c));
+        }
+
         /// <summary>경험치 추가 + 레벨업(돌파 단계의 레벨 상한까지).</summary>
         public void AddExp(CharacterData c, int amount)
         {
             var o = GetOwned(c);
             if (o == null || amount <= 0) return;
 
-            int cap = Leveling.LevelCap(o.ascension);
-            if (o.level >= cap) return; // 상한 도달 → 돌파 필요
+            int cap = LevelCapOf(c);
+            if (o.level >= cap) return; // 상한 도달 → 돌파 필요(또는 풀 초월)
 
             o.exp += amount;
             while (o.level < cap && o.exp >= Leveling.ExpForNext(o.level))
@@ -353,6 +360,23 @@ namespace SubcultureRPG.Meta
             OnRosterChanged?.Invoke();
         }
 
+        /// <summary>테스트용: 캐릭터를 최대 육성(없으면 보유) — 6★ +6 · 돌파 3 · Lv.100 · 스킬 전부 10. 저장은 호출자가 notify로.</summary>
+        public void TestMaxOut(CharacterData c, bool notify = true)
+        {
+            var key = KeyOf(c);
+            if (string.IsNullOrEmpty(key)) return;
+            var o = _owned.Find(x => x.id == key);
+            if (o == null) { o = new OwnedCharacter { id = key, count = 1 }; _owned.Add(o); }
+            o.star = Transcendence.MaxStar;
+            o.transcend = Transcendence.MaxTranscend;
+            o.ascension = Leveling.MaxAscension;
+            o.level = Leveling.AwakenedMaxLevel;
+            o.exp = 0;
+            o.skills = new List<int> { Leveling.MaxSkillLevel, Leveling.MaxSkillLevel, Leveling.MaxSkillLevel };
+            o.skillLevel = Leveling.MaxSkillLevel;
+            if (notify) { Save(); OnRosterChanged?.Invoke(); }
+        }
+
         [ContextMenu("테스트: 보유 캐릭터 전원 중복 +6")]
         private void DebugAddDuplicates() => GrantTestDuplicates(null, 6);
 
@@ -363,17 +387,17 @@ namespace SubcultureRPG.Meta
 
         public void Save()
         {
-            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(new SaveData { owned = _owned }));
-            PlayerPrefs.Save();
+            SaveStore.SetString(saveKey, JsonUtility.ToJson(new SaveData { owned = _owned }));
+            SaveStore.Save();
         }
 
         public void Load()
         {
             _owned.Clear();
-            if (!PlayerPrefs.HasKey(saveKey)) return;
+            if (!SaveStore.HasKey(saveKey)) return;
             try
             {
-                var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
+                var data = JsonUtility.FromJson<SaveData>(SaveStore.GetString(saveKey));
                 if (data != null && data.owned != null) _owned.AddRange(data.owned);
             }
             catch { }

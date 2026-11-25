@@ -34,7 +34,61 @@ namespace SubcultureRPG.Battle.UI
         {
             if (_bgArt != null) _bgArt.Set(paths);
         }
-        private RectTransform _stage, _enemyRow, _allyRow, _turnStrip, _skillBar;
+        private RectTransform _stage, _enemyRow, _allyRow, _turnStrip, _skillBar, _field;
+        private Image _fieldDim;
+        private RectTransform _glowLayer;
+        private PartyBar _party;
+        private TextMeshProUGUI _skillDesc;
+        private RectTransform _skillDescRT;
+
+        // ---------------- 카메라(필드 확대 · 흔들림) ----------------
+        private float _camScale = 1f;
+        private Vector2 _camFocus, _shakeOffset;
+        private Coroutine _camAnim;
+
+        private void LateUpdate()
+        {
+            if (_stage == null) return;
+            _stage.localScale = new Vector3(_camScale, _camScale, 1f);
+            _stage.anchoredPosition = -_camFocus * (_camScale - 1f) + _shakeOffset;
+        }
+
+        /// <summary>카메라: focus(필드 좌표)를 중심으로 scale까지 확대 → hold → 원래대로. dim = 필드 어둡게(0이면 그대로).</summary>
+        private void CameraPunch(Vector2 focus, float scale, float inDur, float hold, float outDur, float dim)
+        {
+            if (_stage == null || !isActiveAndEnabled) return;
+            if (_camAnim != null) StopCoroutine(_camAnim);
+            _camAnim = StartCoroutine(CameraRoutine(focus, scale, inDur, hold, outDur, dim));
+        }
+
+        private System.Collections.IEnumerator CameraRoutine(Vector2 focus, float scale, float inDur, float hold, float outDur, float dim)
+        {
+            float s0 = _camScale; var f0 = _camFocus; float d0 = _fieldDim != null ? _fieldDim.color.a : 0f;
+            for (float t = 0; t < inDur; t += Time.unscaledDeltaTime)
+            {
+                float e = 1f - Mathf.Pow(1f - t / inDur, 3f);
+                _camScale = Mathf.Lerp(s0, scale, e); _camFocus = Vector2.Lerp(f0, focus, e);
+                if (_fieldDim != null) _fieldDim.color = new Color(0, 0, 0, Mathf.Lerp(d0, dim, e));
+                yield return null;
+            }
+            _camScale = scale; _camFocus = focus;
+            for (float t = 0; t < hold; t += Time.unscaledDeltaTime) yield return null;
+            for (float t = 0; t < outDur; t += Time.unscaledDeltaTime)
+            {
+                float e = Mathf.SmoothStep(0, 1, t / outDur);
+                _camScale = Mathf.Lerp(scale, 1f, e);
+                if (_fieldDim != null) _fieldDim.color = new Color(0, 0, 0, Mathf.Lerp(dim, 0f, e));
+                yield return null;
+            }
+            _camScale = 1f; _camFocus = Vector2.zero;
+            if (_fieldDim != null) _fieldDim.color = new Color(0, 0, 0, 0);
+            _camAnim = null;
+        }
+
+        private Vector2 FieldPos(UnitPanel p) => _fx != null && p != null ? _fx.ToLocal((RectTransform)p.transform) : Vector2.zero;
+
+        /// <summary>강한 타격: 모든 유닛이 아주 잠깐 멈춤(손맛).</summary>
+        private static void HitStop(float sec) => UnitPanel.HitStopUntil = Mathf.Max(UnitPanel.HitStopUntil, Time.unscaledTime + sec);
         private RectTransform _popupLayer;   // 피해 숫자(이펙트 위)
         private SkillFx _fx;                 // 스킬 이펙트(유닛 줄 위)
         private Coroutine _shakeAnim;
@@ -87,6 +141,21 @@ namespace SubcultureRPG.Battle.UI
         private string _speedLockHint = "";          // 다음(잠긴) 배속 해금 조건
         private int _speedIndex;
         private Coroutine _hintRoutine;
+
+        private void Update()
+        {
+            if (_skillDescRT != null && _skillDescRT.gameObject.activeSelf && (_skillBarGO == null || !_skillBarGO.activeSelf) && !_selecting)
+                _skillDescRT.gameObject.SetActive(false);
+        }
+
+        private void ShowSkillDesc(BattleSkill skill)
+        {
+            if (_skillDescRT == null) return;
+            if (skill == null) { if (!_selecting) _skillDescRT.gameObject.SetActive(false); return; }
+            string kind = skill.IsUltimate ? "궁극기" : skill.category == SkillCategory.Skill ? "스킬" : "기본 공격";
+            _skillDesc.text = $"<color=#FFE7A3><size=85%>{kind}</size></color>  <b>{skill.skillName}</b>   <size=80%><color=#BFD8FF>{SkillText.Cost(skill)}</color></size>\n<size=88%>{SkillText.Describe(skill)}</size>";
+            _skillDescRT.gameObject.SetActive(true);
+        }
 
         private void Awake()
         {
@@ -289,7 +358,7 @@ namespace SubcultureRPG.Battle.UI
         private void LoadBattleSettings()
         {
             int savedAuto = 0, savedSpeed = 0;
-            try { savedAuto = PlayerPrefs.GetInt(AutoKey, 0); savedSpeed = PlayerPrefs.GetInt(SpeedKey, 0); } catch { }
+            try { savedAuto = SaveStore.GetInt(AutoKey, 0); savedSpeed = SaveStore.GetInt(SpeedKey, 0); } catch { }
             _speedIndex = Mathf.Clamp(savedSpeed, 0, Speeds.Length - 1);
             if (controller != null) controller.AutoBattle = savedAuto != 0;
             RefreshAutoButton();
@@ -300,8 +369,8 @@ namespace SubcultureRPG.Battle.UI
         {
             if (controller == null) return;
             controller.AutoBattle = !controller.AutoBattle;
-            PlayerPrefs.SetInt(AutoKey, controller.AutoBattle ? 1 : 0);
-            PlayerPrefs.Save();
+            SaveStore.SetInt(AutoKey, controller.AutoBattle ? 1 : 0);
+            SaveStore.Save();
         }
 
         private void CycleSpeed()
@@ -319,8 +388,8 @@ namespace SubcultureRPG.Battle.UI
                 next = 0;
             }
             _speedIndex = next;
-            PlayerPrefs.SetInt(SpeedKey, _speedIndex);
-            PlayerPrefs.Save();
+            SaveStore.SetInt(SpeedKey, _speedIndex);
+            SaveStore.Save();
             ApplySpeed();
         }
 
@@ -528,6 +597,7 @@ namespace SubcultureRPG.Battle.UI
             foreach (var p in _panels.Values) p.SetCurrent(false);
             ClearWeakHints();
             if (_panels.TryGetValue(unit, out var panel)) panel.SetCurrent(true);
+            if (_party != null) _party.SetCurrent(unit);
             RefreshTurnStrip();
             RefreshSkillPoints();
         }
@@ -548,26 +618,46 @@ namespace SubcultureRPG.Battle.UI
         {
             if (_canvas == null || !_canvas.gameObject.activeInHierarchy) return;
             float speed = Mathf.Max(1f, controller.Speed);
-            if (_panels.TryGetValue(actor, out var p))
-                p.PlayLunge(actor.team == Team.Ally ? new Vector2(0, 34) : new Vector2(0, -34), 0.28f / speed);
+            _panels.TryGetValue(actor, out var p);
+            UnitPanel tp = null;
+            if (target != null) _panels.TryGetValue(target, out tp);
+            bool offensive = skill == null || !skill.TargetsAllies;
+            // 한 명을 노리는 공격이면 대상 앞까지 돌진(광역 · 지원은 제자리에서 한 발)
+            bool dash = offensive && tp != null && tp != p && (skill == null || skill.target == TargetType.SingleEnemy || skill.target == TargetType.Blast);
+            float outDur = 0.17f / speed, hold = 0.26f / speed, back = 0.24f / speed;
 
             if (skill != null && skill.IsUltimate && actor.team == Team.Ally)
             {
                 float dur = 1.4f / Mathf.Sqrt(speed);   // 배속이어도 읽을 수 있게 덜 줄임
                 StartCoroutine(UltimateCutIn(actor, skill, dur));
+                if (p != null)
+                {
+                    // 컷인이 끝날 즈음 돌진(또는 한 발) — 타격과 맞물리게
+                    StartCoroutine(After(dur - outDur, () =>
+                    {
+                        if (dash) DashTo(p, tp, outDur, hold * 1.6f, back);
+                        else p.PlayLunge(new Vector2(40, 0), (outDur + back) * 1.2f);
+                    }));
+                }
                 controller.PresentationDelay = dur + 0.05f;
             }
             else
             {
                 bool isSkill = skill != null && skill.category == SkillCategory.Skill;
                 if (isSkill && p != null) ShowSkillBanner(p, actor, skill, 0.9f / speed);
-                float delay = (isSkill ? 0.45f : 0.2f) / speed;
+                float charge = isSkill ? 0.36f / speed : 0f;
                 if (isSkill && p != null && _fx != null)
                 {
                     _fx.Speed = 1f;
-                    _fx.Charge(skill.element, _fx.ToLocal((RectTransform)p.transform), 0.8f, delay);
+                    _fx.Charge(skill.element, _fx.ToLocal((RectTransform)p.transform), 0.8f, charge + outDur, dash ? charge : charge + outDur);
+                    CameraPunch(Vector2.Lerp(FieldPos(p), tp != null ? FieldPos(tp) : FieldPos(p), 0.35f), 1.05f, 0.18f / speed, charge, 0.3f / speed, 0.15f);
                 }
-                controller.PresentationDelay = delay;
+                if (p != null)
+                {
+                    if (dash) StartCoroutine(After(charge, () => DashTo(p, tp, outDur, hold, back)));
+                    else StartCoroutine(After(charge, () => p.PlayLunge(new Vector2(30, 0), (outDur + back) * 1.1f)));
+                }
+                controller.PresentationDelay = charge + outDur + 0.02f;
             }
         }
 
@@ -602,6 +692,24 @@ namespace SubcultureRPG.Battle.UI
             bool anyDamage = false;
             foreach (var h in result.hits) anyDamage |= !h.extra && h.totalDamage > 0;
             if (ult && anyDamage && _fx != null) _fx.ScreenFlash(Traits.ColorOf(elem), 0.35f / sq, 0.35f);
+
+            // 카메라: 궁극기는 맞는 쪽으로 확대하며 필드를 어둡게, 치명 · 브레이크는 살짝 당김 + 히트스톱
+            {
+                Vector2 focus = Vector2.zero; int nf = 0; bool crit = false, broke = false;
+                foreach (var h in result.hits)
+                {
+                    if (h.extra || !_panels.TryGetValue(h.target, out var hp)) continue;
+                    if (h.totalDamage > 0) { focus += FieldPos(hp); nf++; }
+                    crit |= h.anyCrit; broke |= h.broke;
+                }
+                if (nf > 0)
+                {
+                    focus /= nf;
+                    if (ult) { CameraPunch(focus, 1.13f, 0.1f / sq, 0.45f / sq, 0.4f / sq, 0.45f); HitStop(0.09f); }
+                    else if (crit || broke) { CameraPunch(focus, 1.04f, 0.06f / sq, 0.08f / sq, 0.25f / sq, 0f); HitStop(0.06f); }
+                    else if (cat == SkillCategory.Skill) HitStop(0.04f);
+                }
+            }
 
             int i = 0;
             foreach (var h in result.hits)
@@ -872,7 +980,8 @@ namespace SubcultureRPG.Battle.UI
             grt.sizeDelta = new Vector2(1300, 420); grt.anchoredPosition = new Vector2(0, 60);
             _finishGlow.gameObject.SetActive(false);
 
-            _finishText = UIFactory.AddText("FinishText", root, "", 130, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold | FontStyles.Italic);
+            var df = GameFonts.Display(font);   // FINISH! · TIME UP (한글 '전멸...'은 게임 폰트로 폴백)
+            _finishText = UIFactory.AddText("FinishText", root, "", 130, df, Color.white, TextAlignmentOptions.Center, df == font ? FontStyles.Bold | FontStyles.Italic : FontStyles.Italic);
             var rt = _finishText.rectTransform;
             UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             rt.sizeDelta = new Vector2(1200, 220); rt.anchoredPosition = new Vector2(0, 60);
@@ -921,6 +1030,7 @@ namespace SubcultureRPG.Battle.UI
 
             _pendingSkill = skill;
             _selecting = true;
+            ShowSkillDesc(skill);
             SetTargetableUnits(pool);
             SetInstruction(ally ? "아군 대상을 선택하세요" : "대상을 선택하세요");
         }
@@ -969,26 +1079,60 @@ namespace SubcultureRPG.Battle.UI
             }
 
             _turnStrip = MakeRow("TurnStrip", rootT, new Vector2(0.5f, 1), new Vector2(0, -46), 8);
-            _stage = UIFactory.NewRect("Stage", rootT);   // 화면 흔들림은 이 안(유닛 줄)만
+            _stage = UIFactory.NewRect("Stage", rootT);   // 카메라(확대 · 흔들림)는 이 안(필드)만
             UIFactory.Stretch(_stage);
-            _enemyRow = MakeRow("EnemyRow", _stage, new Vector2(0.5f, 1), new Vector2(0, -176), 18);
-            _allyRow = MakeRow("AllyRow", _stage, new Vector2(0.5f, 0.5f), new Vector2(0, -40), 18);
+            // 필드 어둡게(궁극기 등) — 유닛 뒤, 배경 위
+            _fieldDim = UIFactory.AddImage("FieldDim", _stage, new Color(0, 0, 0, 0));
+            UIFactory.Stretch(_fieldDim.rectTransform, -400, -400, -400, -400);
+            // 바닥 안개(아래쪽을 어둡게 — 발밑 · 파티 바가 배경에서 떠 보이게)
+            var mist = UIFactory.AddImage("GroundMist", _stage, new Color(0.03f, 0.02f, 0.07f, 0.85f), ProceduralSprites.Glow);
+            mist.preserveAspect = false;
+            UIFactory.Anchor(mist.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0.5f));
+            mist.rectTransform.sizeDelta = new Vector2(3400, 520); mist.rectTransform.anchoredPosition = new Vector2(0, -60);
+            _glowLayer = UIFactory.NewRect("GlowLayer", _stage);   // 유닛 역광(모든 유닛 뒤)
+            UIFactory.Stretch(_glowLayer);
+            _field = UIFactory.NewRect("Field", _stage);
+            UIFactory.Stretch(_field);
+            _enemyRow = _field; _allyRow = _field;
             _fx = SkillFx.Create(_stage);
             _popupLayer = UIFactory.NewRect("Popups", _stage);
             UIFactory.Stretch(_popupLayer);
 
             _instruction = UIFactory.AddText("Instruction", rootT, "", 26, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             var irt = _instruction.rectTransform;
-            UIFactory.Anchor(irt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            irt.sizeDelta = new Vector2(900, 40); irt.anchoredPosition = new Vector2(0, 210);
+            UIFactory.Anchor(irt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            irt.sizeDelta = new Vector2(900, 40); irt.anchoredPosition = new Vector2(0, -128);   // 행동 순서 줄 아래
+            SubcultureRPG.UI.TextOutline.Apply(_instruction, 0.2f, new Color32(5, 5, 12, 255));
             _instruction.gameObject.SetActive(false);
 
-            _spText = UIFactory.AddText("SkillPoints", rootT, "", 22, font, new Color(0.55f, 0.85f, 1f), TextAlignmentOptions.Center, FontStyles.Bold);
+            _spText = UIFactory.AddText("SkillPoints", rootT, "", 22, font, new Color(0.55f, 0.85f, 1f), TextAlignmentOptions.Right, FontStyles.Bold);
             var sprt = _spText.rectTransform;
-            UIFactory.Anchor(sprt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            sprt.sizeDelta = new Vector2(600, 32); sprt.anchoredPosition = new Vector2(0, 162);
+            UIFactory.Anchor(sprt, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            sprt.sizeDelta = new Vector2(600, 32); sprt.anchoredPosition = new Vector2(-40, 214);   // 행동 버튼 위
+            _spText.richText = true;
+            SubcultureRPG.UI.TextOutline.Apply(_spText, 0.2f, new Color32(5, 5, 12, 255));
 
-            _skillBar = MakeRow("SkillBar", rootT, new Vector2(0.5f, 0), new Vector2(0, 90), 12);
+            // 행동 버튼(오른쪽 아래, 원형): 기본 공격 · 스킬 · 궁극기
+            _skillBar = UIFactory.NewRect("SkillBar", rootT);
+            UIFactory.Anchor(_skillBar, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            _skillBar.sizeDelta = new Vector2(640, 200); _skillBar.anchoredPosition = new Vector2(-28, 10);
+            var sbl = _skillBar.gameObject.AddComponent<HorizontalLayoutGroup>();
+            sbl.spacing = 16; sbl.childAlignment = TextAnchor.LowerRight;
+            sbl.childControlWidth = true; sbl.childControlHeight = true;
+            sbl.childForceExpandWidth = false; sbl.childForceExpandHeight = false;
+            // 버튼에 손을 올리면(또는 대상 고르는 중) 기술 설명
+            var desc = UIFactory.AddImage("SkillDesc", rootT, new Color(0.05f, 0.06f, 0.1f, 0.92f), ProceduralSprites.Rounded);
+            desc.type = Image.Type.Sliced; desc.preserveAspect = false;
+            _skillDescRT = desc.rectTransform;
+            UIFactory.Anchor(_skillDescRT, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            _skillDescRT.sizeDelta = new Vector2(600, 116); _skillDescRT.anchoredPosition = new Vector2(-28, 252);
+            _skillDesc = UIFactory.AddText("T", _skillDescRT, "", 19, font, Color.white, TextAlignmentOptions.TopLeft);
+            _skillDesc.richText = true; _skillDesc.lineSpacing = 4f;
+            _skillDesc.enableAutoSizing = true; _skillDesc.fontSizeMin = 13; _skillDesc.fontSizeMax = 19;
+            UIFactory.Stretch(_skillDesc.rectTransform, 16, 10, 16, 10);
+            _skillDescRT.gameObject.SetActive(false);
+
+            _party = PartyBar.Create(rootT, font, OnPanelClicked);
             _skillBarGO = _skillBar.gameObject;
             _skillBarGO.SetActive(false);
 
@@ -1016,7 +1160,7 @@ namespace SubcultureRPG.Battle.UI
             _roundText.richText = true;
             UIFactory.Anchor(_roundText.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(1, 0.5f));
             _roundText.rectTransform.sizeDelta = new Vector2(240, 50); _roundText.rectTransform.anchoredPosition = new Vector2(-270, -46);
-            _roundText.outlineWidth = 0.15f; _roundText.outlineColor = new Color32(10, 10, 20, 255);
+            SubcultureRPG.UI.TextOutline.Apply(_roundText, 0.15f, new Color32(10, 10, 20, 255));
             BuildResultOverlay(rootT);
         }
 
@@ -1118,19 +1262,100 @@ namespace SubcultureRPG.Battle.UI
             _resultGO.SetActive(false);
         }
 
+        // 필드 자리(발 위치, 화면 가운데 기준). 앞줄이 아래(y가 작음) — 아래일수록 크게 · 앞에 그림
+        private static readonly Vector2[] AllySlots = { new(-300, -300), new(-650, -300), new(-475, -165), new(-810, -175), new(-150, -170) };   // 앞줄 둘 · 그 사이 뒷줄
+        private static readonly Vector2[] EnemySlots = { new(300, -300), new(640, -300), new(470, -165), new(800, -170), new(160, -170), new(630, -110) };   // 앞줄 둘 · 그 사이 뒷줄, 16:9에서 오른쪽 끝(960) 안쪽
+        /// <summary>보스가 있을 때 일반 적 자리(보스 양옆 — 보스 뒤에 가려지지 않게).</summary>
+        private static readonly Vector2[] BossSideSlots = { new(300, -305), new(810, -310), new(240, -150), new(820, -160), new(420, -110) };
+        private const float AllyHeight = 430f, EnemyHeight = 320f, BossHeight = 480f;
+
+        private static float DepthScale(float y) => Mathf.Lerp(1f, 0.82f, Mathf.InverseLerp(-300f, -115f, y));
+
         private void BuildPanels(BattleEngine engine)
         {
-            ClearRow(_enemyRow); ClearRow(_allyRow); _panels.Clear();
+            ClearRow(_field); _panels.Clear();
+            if (_glowLayer != null) ClearRow(_glowLayer);
+            _camScale = 1f; _camFocus = Vector2.zero; _shakeOffset = Vector2.zero;
+            if (_fieldDim != null) _fieldDim.color = new Color(0, 0, 0, 0);
+
+            // 보스: 적이 1명이거나, 체력이 나머지 적의 1.8배 이상인 적
+            BattleUnit boss = null;
+            if (engine.enemies.Count == 1) boss = engine.enemies[0];
+            else
+            {
+                BattleUnit top = null; int second = 0;
+                foreach (var u in engine.enemies)
+                {
+                    if (top == null || u.maxHP > top.maxHP) { if (top != null) second = Mathf.Max(second, top.maxHP); top = u; }
+                    else second = Mathf.Max(second, u.maxHP);
+                }
+                if (top != null && top.maxHP >= second * 1.8f) boss = top;
+            }
+
+            int ei = 0;
             foreach (var u in engine.enemies)
             {
-                var p = UnitPanel.Create(_enemyRow, font, OnPanelClicked, OnStatusClicked);
+                var p = UnitPanel.Create(_field, font, OnPanelClicked, OnStatusClicked);
                 p.Bind(u); _panels[u] = p;
+                var rt = (RectTransform)p.transform;
+                Vector2 pos;
+                float h;
+                if (u == boss)
+                {
+                    pos = engine.enemies.Count == 1 ? new Vector2(540, -290) : new Vector2(590, -250);
+                    h = BossHeight;
+                }
+                else
+                {
+                    int slot = ei++;
+                    var slots = boss != null ? BossSideSlots : EnemySlots;   // 보스가 있으면 일반 적은 보스 양옆
+                    pos = slots[Mathf.Min(slot, slots.Length - 1)];
+                    h = EnemyHeight * DepthScale(pos.y);
+                }
+                rt.anchoredPosition = pos;
+                p.SetFigure(h, u == boss);
             }
-            foreach (var u in engine.allies)
+            for (int i = 0; i < engine.allies.Count; i++)
             {
-                var p = UnitPanel.Create(_allyRow, font, OnPanelClicked, OnStatusClicked);
+                var u = engine.allies[i];
+                var p = UnitPanel.Create(_field, font, OnPanelClicked, OnStatusClicked);
                 p.Bind(u); _panels[u] = p;
+                var rt = (RectTransform)p.transform;
+                var pos = AllySlots[Mathf.Min(i, AllySlots.Length - 1)];
+                rt.anchoredPosition = pos;
+                p.SetFigure(AllyHeight * DepthScale(pos.y), false);
             }
+            SortField();
+            foreach (var p in _panels.Values) p.MoveGlowTo(_glowLayer);
+            if (_party != null) _party.Bind(engine.allies);
+        }
+
+        /// <summary>그리는 순서: 뒤(위쪽)에서 앞(아래쪽)으로.</summary>
+        private void SortField()
+        {
+            if (_field == null) return;
+            var list = new List<RectTransform>();
+            foreach (RectTransform c in _field) list.Add(c);
+            list.Sort((a, b) => b.anchoredPosition.y.CompareTo(a.anchoredPosition.y));
+            for (int i = 0; i < list.Count; i++) list[i].SetSiblingIndex(i);
+        }
+
+        /// <summary>
+        /// actor가 target 앞까지 돌진했다 돌아옴(필드 좌표). stop = 대상 앞에서 멈추는 거리.
+        /// 돌진하는 동안은 맨 앞에 그리고, 끝나면 원래 순서로.
+        /// </summary>
+        private void DashTo(UnitPanel actor, UnitPanel target, float outDur, float hold, float backDur)
+        {
+            if (actor == null || target == null || actor == target) return;
+            var a = ((RectTransform)actor.transform).anchoredPosition;
+            var b = ((RectTransform)target.transform).anchoredPosition;
+            float stop = ((RectTransform)actor.transform).rect.width * 0.35f + ((RectTransform)target.transform).rect.width * 0.4f + 30f;
+            var d = b - a;
+            float dist = Mathf.Abs(d.x);
+            var delta = new Vector2(Mathf.Sign(d.x) * Mathf.Max(0f, dist - stop), d.y * 0.85f);
+            actor.transform.SetAsLastSibling();
+            actor.PlayDash(delta, outDur, hold, backDur);
+            StartCoroutine(After(outDur + hold + backDur + 0.02f, SortField));
         }
 
         private void BuildSkillButtons(BattleUnit unit)
@@ -1139,21 +1364,39 @@ namespace SubcultureRPG.Battle.UI
             foreach (var skill in unit.skills)
             {
                 var skillRef = skill;
-                Color bg = skill.IsUltimate ? new Color(0.8f, 0.6f, 0.2f, 0.95f)
-                    : skill.category == SkillCategory.Skill ? new Color(0.45f, 0.3f, 0.75f, 0.95f)
-                    : new Color(1f, 1f, 1f, 0.14f);
-                string kind = skill.IsUltimate ? "궁극기" : skill.category == SkillCategory.Skill ? "스킬" : "기본 공격";
-                string label = $"<size=60%><color=#FFE7A3>{kind}</color></size>  {skill.skillName}\n" +
-                               $"<size=58%>{SkillText.Describe(skill)}</size>\n<size=56%><color=#BFD8FF>{SkillText.Cost(skill)}</color></size>";
+                bool ult = skill.IsUltimate, sk = skill.category == SkillCategory.Skill;
+                bool can = controller.Engine.CanUse(unit, skill);
+                float d = ult ? 176f : sk ? 148f : 128f;
+                Color accent = ult ? new Color(1f, 0.72f, 0.25f) : sk ? Traits.ColorOf(skill.element) : new Color(0.62f, 0.7f, 0.85f);
+                string kind = ult ? "궁극기" : sk ? "스킬" : "기본";
 
-                var btn = UIFactory.AddButton("Skill", _skillBar, label, 21, font, bg, Color.white);
-                var le = btn.gameObject.AddComponent<LayoutElement>();
-                le.preferredWidth = 270; le.preferredHeight = 92;
-                var lbl = btn.GetComponentInChildren<TextMeshProUGUI>();
-                lbl.richText = true; lbl.lineSpacing = -6f;
-                lbl.enableAutoSizing = true; lbl.fontSizeMin = 12; lbl.fontSizeMax = 21;
-                btn.interactable = controller.Engine.CanUse(unit, skill);
+                var holder = UIFactory.NewRect("Skill", _skillBar);
+                var le = holder.gameObject.AddComponent<LayoutElement>();
+                le.preferredWidth = d; le.preferredHeight = d;
+                var glow = UIFactory.AddImage("Glow", holder, new Color(accent.r, accent.g, accent.b, can ? (ult ? 0.55f : 0.3f) : 0f), ProceduralSprites.Glow);
+                glow.preserveAspect = false;
+                UIFactory.Stretch(glow.rectTransform, -30, -30, -30, -30);
+                var face = UIFactory.AddImage("Face", holder, new Color(0.06f, 0.07f, 0.11f, 0.96f), ProceduralSprites.Circle, raycast: true);
+                UIFactory.Stretch(face.rectTransform);
+                var ring = UIFactory.AddImage("Ring", holder, can ? accent : new Color(0.35f, 0.37f, 0.42f), ProceduralSprites.Ring);
+                UIFactory.Stretch(ring.rectTransform);
+                var inner = UIFactory.AddImage("Inner", holder, new Color(accent.r, accent.g, accent.b, can ? 0.16f : 0.04f), ProceduralSprites.Circle);
+                UIFactory.Stretch(inner.rectTransform, d * 0.17f, d * 0.17f, d * 0.17f, d * 0.17f);
+                var t = UIFactory.AddText("Label", holder,
+                    $"<size=62%><color=#{ColorUtility.ToHtmlStringRGB(accent)}>{kind}</color></size>\n{skill.skillName}\n<size=55%><color=#BFD8FF>{SkillText.Cost(skill)}</color></size>",
+                    ult ? 24 : 20, font, can ? Color.white : new Color(0.55f, 0.57f, 0.62f), TextAlignmentOptions.Center, FontStyles.Bold);
+                t.richText = true; t.lineSpacing = -10f;
+                t.enableAutoSizing = true; t.fontSizeMin = 11; t.fontSizeMax = ult ? 24 : 20;
+                UIFactory.Stretch(t.rectTransform, d * 0.16f, d * 0.2f, d * 0.16f, d * 0.2f);
+
+                var btn = face.gameObject.AddComponent<Button>();
+                btn.targetGraphic = face;
+                btn.interactable = can;
                 btn.onClick.AddListener(() => OnSkillChosen(skillRef));
+                face.gameObject.AddComponent<ButtonFx>();
+                var hover = face.gameObject.AddComponent<SkillHover>();
+                hover.onEnter = () => ShowSkillDesc(skillRef);
+                hover.onExit = () => ShowSkillDesc(null);
             }
         }
 
@@ -1209,8 +1452,9 @@ namespace SubcultureRPG.Battle.UI
                 g.preserveAspect = false;
                 UIFactory.Stretch(g.rectTransform, 20, 10, 20, 10);
             }
-            var t = UIFactory.AddText("T", root, text, size > 0f ? size : (big ? 44 : 32), font, color,
-                TextAlignmentOptions.Center, FontStyles.Bold);
+            var pf = GameFonts.For(text, font);   // 숫자 = Russo One, 영어(BREAK! 등) = Cinzel Black, 한글 = 게임 폰트
+            var t = UIFactory.AddText("T", root, text, size > 0f ? size : (big ? 44 : 32), pf, color,
+                TextAlignmentOptions.Center, pf == font ? FontStyles.Bold : FontStyles.Normal);
             UIFactory.Stretch(t.rectTransform);
             t.richText = true; t.lineSpacing = -18f;
             t.alpha = 0f;
@@ -1259,10 +1503,10 @@ namespace SubcultureRPG.Battle.UI
             for (float t = 0; t < dur; t += Time.unscaledDeltaTime)
             {
                 float k = 1f - t / dur;
-                _stage.anchoredPosition = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * amp * k;
+                _shakeOffset = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * amp * k;
                 yield return null;
             }
-            _stage.anchoredPosition = Vector2.zero;
+            _shakeOffset = Vector2.zero;
             _shakeAnim = null;
         }
 
@@ -1297,7 +1541,7 @@ namespace SubcultureRPG.Battle.UI
             var rt = band.rectTransform;
             UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             rt.sizeDelta = new Vector2(230, 40);
-            rt.anchoredPosition = new Vector2(0, actor.team == Team.Ally ? 76 : -76);
+            rt.anchoredPosition = new Vector2(0, ((RectTransform)panel.transform).rect.height * 0.5f + 92f);   // 머리 위 정보 판보다 위
             var t = UIFactory.AddText("T", band.transform, skill.skillName, 20, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             UIFactory.Stretch(t.rectTransform);
             StartCoroutine(BannerRoutine(band, t, Mathf.Max(0.35f, dur)));
@@ -1333,9 +1577,13 @@ namespace SubcultureRPG.Battle.UI
             _cutName.text = skill.skillName;
             _cutUser.text = actor.Name;
 
-            var sprite = c != null ? GameArt.Portrait(c) : null;
+            // 배경 없는 상반신(Cutouts)이 있으면 그것을 크게(사각 카드처럼 보이지 않게). 없으면 움직이는 일러스트 → 초상
+            Sprite cutout = null;
+            if (c != null) cutout = GameArt.Load("Cutouts/" + (!string.IsNullOrEmpty(c.id) ? c.id : c.name));
+            var sprite = cutout != null ? cutout : (c != null ? GameArt.Portrait(c) : null);
             _cutArt.sprite = sprite;
-            bool live = c != null && Live2DUI.Show(_cutArt, c);
+            _cutArtRT.sizeDelta = cutout != null ? new Vector2(900, 1200) : new Vector2(620, 820);
+            bool live = cutout == null && c != null && Live2DUI.Show(_cutArt, c);
             _cutArt.enabled = !live && sprite != null;
             _cutArt.color = Color.white;
 
@@ -1492,7 +1740,10 @@ namespace SubcultureRPG.Battle.UI
         private void RefreshSkillPoints()
         {
             if (controller == null || controller.Engine == null) { _spText.text = ""; return; }
-            _spText.text = $"스킬 포인트  {controller.Engine.AllySkillPoints} / {controller.Engine.MaxSkillPoints}";
+            int sp = controller.Engine.AllySkillPoints, max = controller.Engine.MaxSkillPoints;
+            var dots = new System.Text.StringBuilder();
+            for (int i = 0; i < max; i++) dots.Append(i < sp ? "<color=#8FD8FF>●</color> " : "<color=#3A4356>●</color> ");
+            _spText.text = $"<size=80%>스킬 포인트</size>  {dots}";
         }
 
         private static string Short(string name)
@@ -1515,7 +1766,7 @@ namespace SubcultureRPG.Battle.UI
         {
             if (FindAnyObjectByType<EventSystem>() != null) return;
             var es = new GameObject("EventSystem", typeof(EventSystem));
-            es.AddComponent<StandaloneInputModule>();
+            SubcultureRPG.UI.UIInput.AddModule(es);
         }
     }
 }

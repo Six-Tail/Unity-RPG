@@ -28,6 +28,7 @@ namespace SubcultureRPG.Battle
         [Tooltip("효과 명중: 적에게 거는 효과 확률 증가.")] public float effectHit;
         [Tooltip("효과 저항: 받는 해로운 효과 확률 감소.")] public float effectRes;
         [Tooltip("전투 시작 에너지.")] public int startEnergy;
+        [Tooltip("착용자 속성 피해 증가(목걸이 '속성 피해' — 장착한 캐릭터의 속성에 적용).")] public float wearerElementDmg;
 
         public float ElementDmg(Element e)
         {
@@ -51,6 +52,7 @@ namespace SubcultureRPG.Battle
             penetration += o.penetration; allDmg += o.allDmg;
             breakEffect += o.breakEffect; energyRegen += o.energyRegen; healBonus += o.healBonus;
             effectHit += o.effectHit; effectRes += o.effectRes; startEnergy += o.startEnergy;
+            wearerElementDmg += o.wearerElementDmg;
             for (int i = 0; i < 5; i++) AddElementDmg((Element)i, o.ElementDmg((Element)i));
         }
 

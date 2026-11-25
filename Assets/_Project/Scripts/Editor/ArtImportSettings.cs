@@ -86,8 +86,9 @@ namespace SubcultureRPG.EditorTools
         private static int MaxSizeFor(string relative)
         {
             if (relative.StartsWith("Backgrounds/") || relative.StartsWith("Banners/")) return 2048;
-            if (relative.StartsWith("Characters/") || relative.StartsWith("Cutouts/")) return 1024;
+            if (relative.StartsWith("Characters/") || relative.StartsWith("Cutouts/") || relative.StartsWith("Figures/")) return 1024;
             if (relative.StartsWith("Enemies/")) return 512;
+            if (relative.StartsWith("Fx/")) return 512;                 // 스킬 이펙트 텍스처(크게 늘려 써서 256이면 뭉개짐)
             if (relative.StartsWith("Title/keyart")) return 2048;       // 타이틀 키 아트(화면 전체)
             if (relative.StartsWith("Events/") && relative.Contains("_bg")) return 2048;     // 이벤트 배경
             if (relative.StartsWith("Events/") && relative.Contains("_host")) return 1024;   // 이벤트 진행 캐릭터 일러스트

@@ -252,7 +252,7 @@ namespace SubcultureRPG.Meta.UI
             if (FindAnyObjectByType<EventSystem>() == null)
             {
                 var es = new GameObject("EventSystem", typeof(EventSystem));
-                es.AddComponent<StandaloneInputModule>();
+                SubcultureRPG.UI.UIInput.AddModule(es);
             }
 
             // 화면 전체 = 다음으로 넘기는 버튼

@@ -12,6 +12,15 @@ namespace SubcultureRPG
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureListener()
         {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;   // 클라우드 세이브를 받아 씬을 다시 열 때도
+            Ensure();
+        }
+
+        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, UnityEngine.SceneManagement.LoadSceneMode m) => Ensure();
+
+        private static void Ensure()
+        {
             if (Object.FindAnyObjectByType<AudioListener>() != null) return;
             var cam = Camera.main;
             var host = cam != null ? cam.gameObject : new GameObject("AudioListener");

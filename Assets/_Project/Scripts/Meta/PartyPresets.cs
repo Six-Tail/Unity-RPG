@@ -25,9 +25,9 @@ namespace SubcultureRPG.Meta
             {
                 if (_d != null) return _d;
                 _d = new SaveData();
-                if (PlayerPrefs.HasKey(SaveKey))
+                if (SaveStore.HasKey(SaveKey))
                 {
-                    try { _d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey)) ?? new SaveData(); }
+                    try { _d = JsonUtility.FromJson<SaveData>(SaveStore.GetString(SaveKey)) ?? new SaveData(); }
                     catch { _d = new SaveData(); }
                 }
                 _d.slots ??= new List<Slot>();
@@ -39,8 +39,8 @@ namespace SubcultureRPG.Meta
 
         private static void Save()
         {
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(D));
-            PlayerPrefs.Save();
+            SaveStore.SetString(SaveKey, JsonUtility.ToJson(D));
+            SaveStore.Save();
         }
 
         private static List<string> Ids(IEnumerable<CharacterData> party)

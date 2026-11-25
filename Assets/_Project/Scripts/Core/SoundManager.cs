@@ -54,21 +54,21 @@ namespace SubcultureRPG
 
         public static float BgmVolume
         {
-            get => PlayerPrefs.GetFloat(BgmKey, 0.6f);
-            set { PlayerPrefs.SetFloat(BgmKey, Mathf.Clamp01(value)); PlayerPrefs.Save(); if (_instance != null) _instance.ApplyBgmVolume(); }
+            get => SaveStore.GetFloat(BgmKey, 0.6f);
+            set { SaveStore.SetFloat(BgmKey, Mathf.Clamp01(value)); SaveStore.Save(); if (_instance != null) _instance.ApplyBgmVolume(); }
         }
 
         public static float SfxVolume
         {
-            get => PlayerPrefs.GetFloat(SfxKey, 0.8f);
-            set { PlayerPrefs.SetFloat(SfxKey, Mathf.Clamp01(value)); PlayerPrefs.Save(); }
+            get => SaveStore.GetFloat(SfxKey, 0.8f);
+            set { SaveStore.SetFloat(SfxKey, Mathf.Clamp01(value)); SaveStore.Save(); }
         }
 
         /// <summary>전체 음소거.</summary>
         public static bool Muted
         {
-            get => PlayerPrefs.GetInt(MuteKey, 0) == 1;
-            set { PlayerPrefs.SetInt(MuteKey, value ? 1 : 0); PlayerPrefs.Save(); if (_instance != null) _instance.ApplyBgmVolume(); }
+            get => SaveStore.GetInt(MuteKey, 0) == 1;
+            set { SaveStore.SetInt(MuteKey, value ? 1 : 0); SaveStore.Save(); if (_instance != null) _instance.ApplyBgmVolume(); }
         }
 
         // ---------------- 재생 ----------------

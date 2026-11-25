@@ -92,17 +92,17 @@ namespace SubcultureRPG.Meta
         {
             var data = new SaveData();
             data.records.AddRange(_records.Values);
-            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(data));
-            PlayerPrefs.Save();
+            SaveStore.SetString(saveKey, JsonUtility.ToJson(data));
+            SaveStore.Save();
         }
 
         public void Load()
         {
             _records.Clear();
-            if (!PlayerPrefs.HasKey(saveKey)) return;
+            if (!SaveStore.HasKey(saveKey)) return;
             try
             {
-                var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
+                var data = JsonUtility.FromJson<SaveData>(SaveStore.GetString(saveKey));
                 if (data?.records != null)
                     foreach (var r in data.records)
                         if (r != null && !string.IsNullOrEmpty(r.id)) _records[r.id] = r;

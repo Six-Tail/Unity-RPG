@@ -62,7 +62,7 @@ namespace SubcultureRPG.Meta.UI
             if (FindAnyObjectByType<EventSystem>() == null)
             {
                 var es = new GameObject("EventSystem", typeof(EventSystem));
-                es.AddComponent<StandaloneInputModule>();
+                SubcultureRPG.UI.UIInput.AddModule(es);
             }
 
             var dim = UIFactory.AddImage("Dim", canvas.transform, new Color(0, 0, 0, 0.72f), null, raycast: true);

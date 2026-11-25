@@ -156,8 +156,12 @@ const ITEMS = [
   ['UiAttendance', '출석부 아이콘', 'a wall calendar page with a big golden star stamp on it and a red ribbon bookmark, blue header band'],
   ['Select5', '태생 5성 캐릭터 선택권', 'an ornate purple and silver ticket card with five small silver stars across the top and a glowing violet silhouette of a heroine in the center'],
   ['Select6', '태생 6성 캐릭터 선택권', 'a luxurious golden ticket card with six small golden stars across the top, a radiant rainbow-gold silhouette of a heroine in the center, sparkling gems on the corners'],
+  ['DispatchIcon', '파견 아이콘', 'a rolled parchment map with a red route line and a small golden compass on top, a tiny traveler backpack beside it'],
+  ['TowerIcon', '무한의 탑 아이콘', 'a tall slender mystical stone tower spiraling up into the clouds with glowing blue windows and a bright star at its tip'],
   ['GuildIcon', '길드 아이콘', 'a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, hanging from a golden pole'],
   ['FriendIcon', '친구 아이콘', 'two cute round chibi commander figures side by side, one blue and one pink, with a small glowing heart between them'],
+  ['EquipEssence', '장비 정수', 'a glowing violet crystal flask filled with swirling purple liquid essence and tiny floating gear and armor fragments inside'],
+  ['RefineStone', '재련석', 'a rare faceted rainbow prismatic gemstone set in an ornate golden anvil-shaped mount, radiant sparkles'],
   ['SweepTicket', '소탕권', 'a sleek silver and teal ticket card with a stylized swift sword-slash emblem and small wind streaks, a tiny golden star in the corner'],
   // 호감도 선물(Materials.Gifts)
   ['GiftSmall', '들꽃 꽃다발 (호감도 선물)', 'a small bouquet of pastel wildflowers wrapped in cream paper and tied with a pink satin ribbon'],
@@ -192,6 +196,28 @@ const EQUIP_SLOTS = [
   ['slot_ring', '반지', 'a ring with a gem'],
 ];
 
+// ---------------------------------------------------------------- 장비 세트별 그림(세트 10종 × 부위 6종) → Equipment/{세트 id}_{부위}.png
+const EQUIP_SET_LOOKS = [
+  ['assault', '맹공의 문장', 'crimson red and black steel with aggressive sharp spiked edges and a roaring lion crest emblem'],
+  ['guardian', '수호의 서약', 'polished steel blue and white heavy rounded plates with a gold-trimmed shield crest emblem'],
+  ['ember', '화염의 낙인', 'blackened iron with glowing orange molten cracks and curling flame motifs'],
+  ['frost', '서리의 결정', 'pale icy blue crystal and silver with snowflake motifs and a faint frost mist'],
+  ['thunder', '뇌명의 인장', 'dark violet metal with golden lightning bolt engravings and small electric sparks'],
+  ['gale', '질풍의 깃털', 'emerald green and white with elegant feather motifs and flowing ribbons'],
+  ['steel', '강철의 의지', 'rugged gunmetal grey steel with bronze rivets and an anvil emblem'],
+  ['breaker', '파쇄의 망치', 'rough bronze and burnt orange metal with hammer emblems and cracked stone accents'],
+  ['spring', '생명의 샘', 'soft green and gold with leaf and flower vine motifs and small glowing water droplet gems'],
+  ['swift', '신속의 바람', 'light cyan and silver sleek streamlined design with small wing motifs'],
+];
+const EQUIP_SET_SLOTS = [
+  ['head', '머리', 'a helmet or ornate circlet'],
+  ['hands', '손', 'a pair of gauntlets'],
+  ['body', '몸', 'a chest armor'],
+  ['feet', '발', 'a pair of boots'],
+  ['neck', '목걸이', 'a pendant necklace'],
+  ['ring', '반지', 'a ring'],
+];
+
 // ---------------------------------------------------------------- 배경
 const BACKGROUNDS = [
   // 챕터 1 스토리 장면(대화 화면 배경)
@@ -217,6 +243,8 @@ const BACKGROUNDS = [
   ['story_ch15_boss', '스토리 15장 — 종말의 제단', 'a black altar floating above an endless void, giant broken chains of light, shattered stone platforms, a solar eclipse with a burning corona in the sky'],
   ['story_ch15_end', '스토리 15장 — 여명', 'a wide fantasy continent seen from a high cliff at sunrise, fragments of broken chains dissolving into golden light in the sky, calm sea on the horizon, hopeful'],
   ['arena', '결투장', 'a grand fantasy colosseum arena at sunset, circular stone stands with colorful banners, a sand floor with a glowing golden emblem in the center, dramatic sky'],
+  ['dispatch', '파견', 'an adventurers guild expedition office interior, a huge wall map with pinned routes, a quest notice board full of request papers, travel packs and lanterns, morning light through tall windows'],
+  ['tower', '무한의 탑', 'looking up at an endless colossal mystical tower of floating stone rings rising into a starry twilight sky, glowing blue runes, clouds swirling around its middle floors, epic scale'],
   ['guild', '길드', 'the interior of a warm fantasy guild hall, long wooden tables, a big stone fireplace, blue banners with a golden anchor crest hanging from wooden beams, a quest board, cozy lantern light'],
   ['friends', '친구', 'a cozy seaside harbor plaza at dusk with string lights, small cafe tables, paper lanterns, ships anchored in the bay, a friendly gathering place, warm and inviting'],
   ['raid', '주간 보스', 'a vast cosmic battlefield on a floating stone platform under a starry void, a giant swirling black hole in the sky devouring stars, purple and gold light'],
@@ -445,6 +473,15 @@ function build() {
       out: `Equipment/${key}.png`, aspect: '1:1', resolution: '1K', width: 256, height: 256, format: 'png',
       negative: NEGATIVE,
     }, `${look}. ${STYLE.equipment}`));
+
+  for (const [set, setName, theme] of EQUIP_SET_LOOKS)
+    for (const [slot, slotName, piece] of EQUIP_SET_SLOTS)
+      list.push(withBackground({
+        group: 'equipment', key: `${set}_${slot}`, label: `장비 — ${setName} ${slotName}`,
+        out: `Equipment/${set}_${slot}.png`, aspect: '1:1', resolution: '1K', width: 256, height: 256, format: 'png',
+        negative: NEGATIVE,
+      }, `${piece}, part of a matching fantasy equipment set: ${theme}. ` +
+         'game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, %BG%, square composition'));
 
   for (const [key, name, look] of STATUS)
     list.push(withBackground({

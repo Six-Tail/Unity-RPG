@@ -133,6 +133,8 @@ namespace SubcultureRPG.Battle
             effectHit = b.effectHit;
             effectRes = Mathf.Clamp01(b.effectRes);
             for (int i = 0; i < elementDmg.Length; i++) elementDmg[i] = b.ElementDmg((Element)i);
+            // 목걸이 '속성 피해'는 이 유닛의 속성에 더함
+            if ((int)data.element >= 0 && (int)data.element < elementDmg.Length) elementDmg[(int)data.element] += b.wearerElementDmg;
 
             maxEnergy = Mathf.Max(1, cfg.maxEnergy);
             energy = Mathf.Clamp(data.startEnergy + b.startEnergy, 0, maxEnergy);

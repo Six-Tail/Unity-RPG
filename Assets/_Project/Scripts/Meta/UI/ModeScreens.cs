@@ -126,6 +126,7 @@ namespace SubcultureRPG.Meta.UI
             field.caretColor = Color.white;
             field.customCaretColor = true;
             field.selectionColor = new Color(0.4f, 0.6f, 1f, 0.5f);
+            InputFocusFx.Attach(field);   // 입력 중 표시(밝은 칸 · 금빛 밑줄 · 굵은 커서)
             return field;
         }
 
@@ -145,7 +146,7 @@ namespace SubcultureRPG.Meta.UI
             if (FindAnyObjectByType<EventSystem>() == null)
             {
                 var es = new GameObject("EventSystem", typeof(EventSystem));
-                es.AddComponent<StandaloneInputModule>();
+                SubcultureRPG.UI.UIInput.AddModule(es);
             }
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.05f, 0.05f, 0.08f, 1f), null, raycast: true).gameObject;
@@ -474,7 +475,7 @@ namespace SubcultureRPG.Meta.UI
         public event System.Action OnChallenge;
 
         private TextMeshProUGUI _summary, _weak, _left;
-        private RectTransform _rewards;
+        private RectTransform _rewards, _featured;
 
         private void Awake()
         {
@@ -514,11 +515,20 @@ namespace SubcultureRPG.Meta.UI
                 OnChallenge?.Invoke();
             });
 
+            // 이번 주 보너스 캐릭터
+            var fp = Panel(_frame, new Color(0.12f, 0.08f, 0.18f, 0.9f));
+            Top(fp.rectTransform, 420, -330, 860, 168, new Vector2(0.5f, 1));
+            var ft = Text(fp.transform, $"<b>이번 주 보너스 캐릭터</b>   <size=80%><color=#7CFF9A>파티에 1명당 점수 +{WorldRaid.FeaturedBonus * 100f:0}%  (최대 {WorldRaid.FeaturedMax}명, +{WorldRaid.FeaturedBonus * WorldRaid.FeaturedMax * 100f:0}%)</color></size>",
+                22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(ft.rectTransform, 24, -10, 820, 34);
+            _featured = UIFactory.NewRect("Featured", fp.transform);
+            Place(_featured, 24, -48, 820, 112);
+
             // 누적 보상
-            var title = Text(_frame, "<b>이번 주 누적 피해 보상</b>  <size=75%><color=#9AA3B5>월요일 05:00 초기화</color></size>", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Top(title.rectTransform, 420, -336, 860, 40, new Vector2(0.5f, 1));
+            var title = Text(_frame, "<b>이번 주 누적 점수 보상</b>  <size=75%><color=#9AA3B5>월요일 05:00 초기화  ·  점수 = 준 피해 × 보너스</color></size>", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Top(title.rectTransform, 420, -510, 860, 40, new Vector2(0.5f, 1));
             var view = UIFactory.NewRect("RewardView", _frame);
-            Top(view, 420, -384, 860, 600, new Vector2(0.5f, 1));
+            Top(view, 420, -556, 860, 430, new Vector2(0.5f, 1));
             _rewards = UIFactory.NewRect("Rewards", view);
             var vl = _rewards.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 8; vl.padding = new RectOffset(4, 4, 4, 4);
@@ -537,10 +547,24 @@ namespace SubcultureRPG.Meta.UI
             foreach (var e in weak) parts.Add($"<color={Traits.Hex(e)}><b>{Traits.Name(e)}</b></color>");
             _weak.text = $"이번 주 약점  {string.Join("  ·  ", parts)}   <size=80%><color=#9AA3B5>Lv.{WorldRaid.BossLevel()}</color></size>";
             var t = WorldRaid.UntilWeekReset;
-            _left.text = $"교체까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  제한 시간 {WorldRaid.TimeLimit:0}초 · {WorldRaid.EnrageEvery:0}초마다 보스 공격력 +{WorldRaid.EnrageAtk * 100f:0}%";
-            _summary.text = $"<color=#9AA3B5>오늘 남은 도전</color>   <color={(r.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}><b>{r.AttemptsLeft}</b></color> / {WorldRaid.AttemptsPerDay}\n" +
-                            $"<color=#9AA3B5>이번 주 누적 피해</color>   <color=#FFD36B><b>{r.TotalDamage:N0}</b></color>\n" +
+            _left.text = $"교체까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  제한 시간 {WorldRaid.TimeLimit / 60f:0}분 · {WorldRaid.EnrageEvery:0}초마다 보스 공격력 +{WorldRaid.EnrageAtk * 100f:0}%";
+            _summary.text = $"<color=#9AA3B5>오늘 남은 도전</color>   <color={(r.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}><b>{r.AttemptsLeft}</b></color> / {WorldRaid.AttemptsPerDay}{(WorldRaid.FreeAttempts ? "  <color=#FFD36B>(최대 육성 테스트 중 · 소모 안 함)</color>" : "")}\n" +
+                            $"<color=#9AA3B5>이번 주 누적 점수</color>   <color=#FFD36B><b>{r.TotalDamage:N0}</b></color>\n" +
                             $"<color=#9AA3B5>최고 기록(1회)</color>   {r.BestDamage:N0}";
+
+            Clear(_featured);
+            var roster = FindAnyObjectByType<PlayerRoster>();
+            float fx = 0;
+            foreach (var c in WorldRaid.Featured)
+            {
+                bool owned = roster != null && roster.IsOwned(c);
+                var cell = Thumb(_featured, c, fx, 0, 86, roster != null && owned ? roster.StarOf(c) : (int)c.rarity);
+                if (!owned) cell.color = new Color(0.4f, 0.4f, 0.45f, 0.9f);
+                var nm = Text(_featured, $"<b>{c.displayName}</b>\n<size=80%><color={Traits.Hex(c.element)}>{Traits.Name(c.element)}</color> · {(owned ? "<color=#7CFF9A>보유</color>" : "<color=#9AA3B5>미보유</color>")}</size>",
+                    17, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+                Place(nm.rectTransform, fx + 92, -16, 112, 60);
+                fx += 208;
+            }
 
             Clear(_rewards);
             for (int i = 0; i < WorldRaid.Milestones.Count; i++) RewardRow(i);
@@ -553,7 +577,7 @@ namespace SubcultureRPG.Meta.UI
             bool claimed = r.IsClaimed(i), can = r.CanClaim(i);
             var row = Panel(_rewards, claimed ? new Color(1, 1, 1, 0.04f) : can ? new Color(0.3f, 0.55f, 0.4f, 0.4f) : new Color(1, 1, 1, 0.07f));
             row.gameObject.AddComponent<LayoutElement>().preferredHeight = 74;
-            var label = Text(row.transform, $"<color=#FFD36B><b>{m.damage:N0}</b></color>  <size=80%><color=#9AA3B5>피해</color></size>   {m.label}", 22,
+            var label = Text(row.transform, $"<color=#FFD36B><b>{m.damage:N0}</b></color>  <size=80%><color=#9AA3B5>점수</color></size>   {m.label}", 22,
                 claimed ? new Color(0.55f, 0.58f, 0.64f) : Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             UIFactory.Stretch(label.rectTransform, 20, 26, 200, 6);
             // 진행 막대

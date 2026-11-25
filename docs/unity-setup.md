@@ -87,3 +87,9 @@ cp -rn "$SRC/Assets/." "$DST/Assets/"
 ## 화면 비율
 
 모든 화면의 `CanvasScaler`는 1920×1080 기준 **Expand** 모드입니다. 어떤 창 크기·비율에서도 1920×1080 설계 영역이 전부 보이고, 남는 쪽(가로로 긴 화면은 좌우, 세로로 긴 화면은 위아래)은 여백이 됩니다. 좌우 끝에 붙던 화면(가방 · 상점 · 도감)은 `UIFactory.Frame`으로 가운데 1920 폭에 모았고, 목록은 `UIFactory.MakeVerticalScroll`로 스크롤됩니다(육성 목록 · 스테이지 노드 · 스테이지 상세 본문 포함).
+
+## 입력 시스템
+
+- **Input System 패키지 전용**(Player 설정 `Active Input Handling` = Input System Package (New)). 옛 Input Manager는 쓰지 않습니다.
+- UI 클릭 · 터치는 화면마다 EventSystem을 코드로 만들 때 [UIInput.cs](../Assets/_Project/Scripts/UI/UIInput.cs)가 `InputSystemUIInputModule` + 기본 UI 조작(`AssignDefaultActions`)을 붙입니다. 새 화면을 만들 때도 `UIInput.AddModule(es)` 또는 `UIInput.Ensure()`를 쓰세요.
+- 코드에서 `UnityEngine.Input`(Input.GetKey 등)을 쓰면 오류가 나므로, 키 입력이 필요하면 `UnityEngine.InputSystem`(Keyboard.current 등)을 쓰세요.

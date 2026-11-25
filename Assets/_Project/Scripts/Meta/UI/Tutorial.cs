@@ -43,11 +43,20 @@ namespace SubcultureRPG.Meta.UI
         public const int Done = 100;
         private const string StepKey = "tutorial.step";
 
-        private static bool Flag(string k) => PlayerPrefs.GetInt("tutorial.flag." + k, 0) == 1;
-        private static void SetFlag(string k) { PlayerPrefs.SetInt("tutorial.flag." + k, 1); PlayerPrefs.Save(); }
+        private static bool Flag(string k) => SaveStore.GetInt("tutorial.flag." + k, 0) == 1;
+        private static void SetFlag(string k) { SaveStore.SetInt("tutorial.flag." + k, 1); SaveStore.Save(); }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;   // 클라우드 세이브를 받아 씬을 다시 열 때도
+            Spawn();
+        }
+
+        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, UnityEngine.SceneManagement.LoadSceneMode m) => Spawn();
+
+        private static void Spawn()
         {
             if (FindAnyObjectByType<ScreenNavigator>() == null || FindAnyObjectByType<Tutorial>() != null) return;
             new GameObject("Tutorial").AddComponent<Tutorial>();
@@ -76,7 +85,7 @@ namespace SubcultureRPG.Meta.UI
             _inventory = FindAnyObjectByType<PlayerInventory>();
             _wallet = FindAnyObjectByType<PlayerWallet>();
             _battle = FindAnyObjectByType<SubcultureRPG.Battle.BattleController>();
-            _step = PlayerPrefs.GetInt(StepKey, 0);
+            _step = SaveStore.GetInt(StepKey, 0);
             MissionEvents.OnProgress += HandleMission;
             BuildGuide();
         }
@@ -95,8 +104,8 @@ namespace SubcultureRPG.Meta.UI
         private void SetStep(int step)
         {
             _step = step;
-            PlayerPrefs.SetInt(StepKey, step);
-            PlayerPrefs.Save();
+            SaveStore.SetInt(StepKey, step);
+            SaveStore.Save();
         }
 
         private StageDatabase Db => _stageScreen != null ? _stageScreen.Database : null;
@@ -328,6 +337,18 @@ namespace SubcultureRPG.Meta.UI
                     body = "<color=#FFD36B>주간 보스</color>가 열렸습니다.\n\n제한 시간 동안 보스에게 준 피해를 한 주 동안 쌓아 단계별 보상을 받습니다. 약점 속성은 매주 바뀝니다.\n하루 3번 도전할 수 있습니다.",
                     go = () => _nav.Go(HubScreen.Raid),
                 },
+                new()
+                {
+                    flag = "unlock.dispatch", open = ch >= FeatureGate.DispatchChapter, title = "파견 개방", icon = "Items/DispatchIcon",
+                    body = "<color=#FFD36B>파견</color>이 열렸습니다.\n\n의뢰 게시판에서 의뢰를 골라 캐릭터를 보내 두면, 접속하지 않은 동안에도 재료를 모아 옵니다.\n추천 속성 · 역할을 맞추면 보상 +50%. 동시에 4팀까지 보낼 수 있습니다.",
+                    go = () => _nav.Go(HubScreen.Dispatch),
+                },
+                new()
+                {
+                    flag = "unlock.tower", open = ch >= FeatureGate.TowerChapter, title = "무한의 탑 개방", icon = "Items/TowerIcon",
+                    body = "<color=#FFD36B>무한의 탑</color>이 열렸습니다.\n\n1층부터 끝없이 올라가는 도전입니다. 행동력 없이 몇 번이든 도전할 수 있고, 층마다 첫 클리어 보상을 받습니다.\n10층마다 보스가 기다립니다.",
+                    go = () => _nav.Go(HubScreen.Tower),
+                },
             };
             if (db != null && _progress != null)
                 foreach (var d in new[] { StageDifficulty.Hard, StageDifficulty.Hell })
@@ -364,6 +385,16 @@ namespace SubcultureRPG.Meta.UI
             [HubScreen.Guild] = ("길드", "길드에 가입하거나 직접 만들 수 있습니다.\n\n날마다 <color=#FFD36B>출석</color>과 <color=#FFD36B>기부</color>로 금화 · 크리스탈을 받고 길드 레벨을 올리세요.", "Items/GuildIcon"),
             [HubScreen.Friends] = ("친구", "추천 지휘관이나 UID 검색으로 친구를 추가하세요.\n\n친구마다 하루 한 번 <color=#FFD36B>인사</color>를 보내면 행동력과 금화를 받습니다.", "Items/FriendIcon"),
         };
+
+        /// <summary>세이브 키 전체(옛 세이브를 클라우드로 옮길 때 빠지지 않게).</summary>
+        public static IEnumerable<string> SaveKeys()
+        {
+            yield return StepKey;
+            foreach (var f in new[] { "battle", "levelIntro", "unlock.dungeon", "unlock.equip", "unlock.asc", "unlock.arena", "unlock.raid", "unlock.dispatch", "unlock.tower" })
+                yield return "tutorial.flag." + f;
+            foreach (StageDifficulty d in System.Enum.GetValues(typeof(StageDifficulty))) yield return "tutorial.flag.unlock.diff" + (int)d;
+            foreach (var k in Tips.Keys) yield return "tutorial.flag.tip." + k;
+        }
 
         private void ShowTip(HubScreen screen)
         {
@@ -515,15 +546,15 @@ namespace SubcultureRPG.Meta.UI
         private void TestRestart()
         {
             SetStep(0);
-            foreach (var k in new[] { "battle", "levelIntro" }) PlayerPrefs.DeleteKey("tutorial.flag." + k);
+            foreach (var k in new[] { "battle", "levelIntro" }) SaveStore.DeleteKey("tutorial.flag." + k);
             _grew = false;
         }
 
         [ContextMenu("테스트: 기능 개방 · 화면 설명 다시 보기")]
         private void TestResetNotices()
         {
-            foreach (var u in Unlocks()) PlayerPrefs.DeleteKey("tutorial.flag." + u.flag);
-            foreach (var kv in Tips) PlayerPrefs.DeleteKey("tutorial.flag.tip." + kv.Key);
+            foreach (var u in Unlocks()) SaveStore.DeleteKey("tutorial.flag." + u.flag);
+            foreach (var kv in Tips) SaveStore.DeleteKey("tutorial.flag.tip." + kv.Key);
             _first = true;
         }
     }

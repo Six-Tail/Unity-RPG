@@ -681,7 +681,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (FindAnyObjectByType<EventSystem>() != null) return;
             var es = new GameObject("EventSystem", typeof(EventSystem));
-            es.AddComponent<StandaloneInputModule>();
+            SubcultureRPG.UI.UIInput.AddModule(es);
         }
     }
 }

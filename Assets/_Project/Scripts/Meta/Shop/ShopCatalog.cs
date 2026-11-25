@@ -138,6 +138,7 @@ namespace SubcultureRPG.Meta.Shop
                 Crystal("cry_exp_crystal", MaterialType.ExpCrystal, 3, 120, 3),
                 Crystal("cry_gift3", MaterialType.GiftLarge, 1, 60, 5),
                 Crystal("cry_sweep", MaterialType.SweepTicket, 20, 40, 3),
+                Crystal("cry_refine", MaterialType.RefineStone, 1, 500, 1),   // 재련석(주 1개)
                 Crystal("cry_book3", MaterialType.SkillBookPurple, 3, 150, 3),
                 Crystal("cry_legend", MaterialType.SkillLegend, 1, 300, 2),
                 Crystal("cry_stamina", MaterialType.StaminaLarge, 1, 60, 6),

@@ -45,6 +45,15 @@ namespace SubcultureRPG.Meta.UI
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
         {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;   // 클라우드 세이브를 받아 씬을 다시 열 때도
+            Spawn();
+        }
+
+        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, UnityEngine.SceneManagement.LoadSceneMode m) => Spawn();
+
+        private static void Spawn()
+        {
             if (FindAnyObjectByType<ScreenNavigator>() == null) return;   // 테스트용 단독 씬에서는 안 띄움
             if (FindAnyObjectByType<TitleScreen>() != null) return;
             new GameObject("TitleScreen").AddComponent<TitleScreen>();
@@ -62,9 +71,11 @@ namespace SubcultureRPG.Meta.UI
 
         private IEnumerator Run()
         {
+            bool quick = SubcultureRPG.Meta.Cloud.CloudAccount.Synced;   // 서버 세이브를 받아 다시 불러온 직후
             // 1) 검은 화면: 로고 + 이름
             _logoGroup.alpha = 0f; _artGroup.alpha = 0f; _loadGroup.alpha = 0f; _startGroup.alpha = 0f;
             yield return null;
+            if (!quick) {
             for (float t = 0; t < 0.7f; t += Time.unscaledDeltaTime)
             {
                 float k = t / 0.7f, e = 1f - Mathf.Pow(1f - k, 3f);
@@ -97,6 +108,14 @@ namespace SubcultureRPG.Meta.UI
             _artGroup.alpha = 1f; _loadGroup.alpha = 1f;
             lrt.anchoredPosition = to; lrt.localScale = Vector3.one * 0.6f;
             _glow.color = new Color(1, 1, 1, 0);
+            }
+            else
+            {
+                _artGroup.alpha = 1f; _loadGroup.alpha = 1f; _logoGroup.alpha = 1f;
+                var qrt = _logoGroup.GetComponent<RectTransform>();
+                qrt.anchoredPosition = new Vector2(0, -130); qrt.localScale = Vector3.one * 0.6f;
+                _glow.color = new Color(1, 1, 1, 0);
+            }
 
             yield return LoadResources();
 
@@ -111,12 +130,18 @@ namespace SubcultureRPG.Meta.UI
             }
             _loadGroup.alpha = 0f; _startGroup.alpha = 1f;
             _tapped = false;
-            while (!_tapped)
+            while (!_tapped && !quick)
             {
                 _tap.alpha = 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 3.2f);
                 _tap.rectTransform.localScale = Vector3.one * (1f + 0.02f * Mathf.Sin(Time.unscaledTime * 3.2f));
                 yield return null;
             }
+
+            // 계정: 로그인 → 서버 세이브 맞추기. 서버 세이브로 바뀌면 게임을 다시 불러옴(이 타이틀도 새로 뜸)
+            _startGroup.alpha = 0f;
+            bool reload = false;
+            yield return SubcultureRPG.Meta.Cloud.CloudLogin.Run(_font, () => PlayerProfile.Instance.HasName, () => reload = true);
+            if (reload) { SaveStore.ReloadGame(); yield break; }
 
             // 처음 시작이면 지휘관 이름부터 정함
             if (!PlayerProfile.Instance.HasName)
@@ -231,7 +256,7 @@ namespace SubcultureRPG.Meta.UI
             if (FindAnyObjectByType<EventSystem>() == null)
             {
                 var es = new GameObject("EventSystem", typeof(EventSystem));
-                es.AddComponent<StandaloneInputModule>();
+                SubcultureRPG.UI.UIInput.AddModule(es);
             }
 
             // 검은 바탕 = 화면 전체 누르기
@@ -313,7 +338,7 @@ namespace SubcultureRPG.Meta.UI
             start.sizeDelta = new Vector2(1400, 200); start.anchoredPosition = new Vector2(0, 50);
             _startGroup = start.gameObject.AddComponent<CanvasGroup>();
             _startGroup.blocksRaycasts = false;
-            _tap = UIFactory.AddText("Tap", start, "TAP TO START", 38, _font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            _tap = UIFactory.AddText("Tap", start, "TAP TO START", 38, GameFonts.Display(_font), Color.white, TextAlignmentOptions.Center, FontStyles.Normal);
             _tap.characterSpacing = 16f;
             Center(_tap.rectTransform, 0, 36, 1200, 72);
             _tap.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.8f);

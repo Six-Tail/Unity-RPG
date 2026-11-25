@@ -542,7 +542,7 @@ namespace SubcultureRPG.Meta.UI
             string sub = asc ? $"{Materials.Name(s.DungeonMaterial)}  <size=80%>· {Materials.TierTargetLevel(s.dungeonTier)} 돌파</size>"
                 : s.kind == StageKind.GoldDungeon ? $"금화 {s.gold:N0}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>"
                 : s.kind == StageKind.EquipmentDungeon ? $"최대 {EquipStats.Stars(s.MaxEquipRarity)}  <size=80%>· Lv.{s.recommendedLevel}</size>"
-                : s.kind == StageKind.ExpDungeon ? $"EXP {ExpTotal(s):N0}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>"
+                : s.kind == StageKind.ExpDungeon ? $"캐릭터 EXP +{s.characterExp:N0}  <size=78%><color=#9AA3B5>· 재료 {ExpTotal(s):N0} · 권장 Lv.{s.recommendedLevel}</color></size>"
                 : $"교본 ×{BookCount(s)}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>";
             var mat = UIFactory.AddText("Mat", inner, sub,
                 17, font, unlocked ? new Color(0.85f, 0.88f, 0.95f) : new Color(0.45f, 0.45f, 0.5f), TextAlignmentOptions.Center);
@@ -666,7 +666,7 @@ namespace SubcultureRPG.Meta.UI
             if (s.rewards != null)
                 foreach (var m in s.rewards)
                     if (m != null && m.count > 0) parts.Add($"{Materials.RichName(m.type)} ×{m.count}");
-            if (s.characterExp > 0) parts.Add($"캐릭터 경험치 +{s.characterExp}");
+            if (s.characterExp > 0) parts.Add($"캐릭터 경험치 +{s.characterExp:N0} <size=85%><color=#9AA3B5>(출전 캐릭터마다)</color></size>");
             if (s.equipmentDrops > 0) parts.Insert(0, $"<color=#7FE3D6>장비 ×{s.equipmentDrops}</color>");
             if (parts.Count > 0) sb.Append("  매 클리어  ").Append(string.Join(" · ", parts)).Append('\n');
 
@@ -871,7 +871,7 @@ namespace SubcultureRPG.Meta.UI
         {
             if (FindAnyObjectByType<EventSystem>() != null) return;
             var es = new GameObject("EventSystem", typeof(EventSystem));
-            es.AddComponent<StandaloneInputModule>();
+            SubcultureRPG.UI.UIInput.AddModule(es);
         }
     }
 }

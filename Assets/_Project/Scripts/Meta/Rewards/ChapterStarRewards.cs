@@ -27,11 +27,11 @@ namespace SubcultureRPG.Meta
             {
                 if (_claimed != null) return _claimed;
                 _claimed = new HashSet<string>();
-                if (PlayerPrefs.HasKey(SaveKey))
+                if (SaveStore.HasKey(SaveKey))
                 {
                     try
                     {
-                        var d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey));
+                        var d = JsonUtility.FromJson<SaveData>(SaveStore.GetString(SaveKey));
                         if (d?.claimed != null) foreach (var k in d.claimed) _claimed.Add(k);
                     }
                     catch { }
@@ -44,8 +44,8 @@ namespace SubcultureRPG.Meta
         {
             var d = new SaveData();
             d.claimed.AddRange(Claimed);
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(d));
-            PlayerPrefs.Save();
+            SaveStore.SetString(SaveKey, JsonUtility.ToJson(d));
+            SaveStore.Save();
         }
 
         private static string Key(StageDifficulty d, int chapter, int tier) => $"{(int)d}_{chapter}_{tier}";
@@ -113,7 +113,7 @@ namespace SubcultureRPG.Meta
     /// </summary>
     public static class FeatureGate
     {
-        public const int ArenaChapter = 3, RaidChapter = 3, EventChapter = 2;
+        public const int ArenaChapter = 3, RaidChapter = 3, EventChapter = 2, DispatchChapter = 1, TowerChapter = 2;
 
         /// <summary>쉬움 난이도에서 1장부터 이어서 클리어한 마지막 장(없으면 0).</summary>
         public static int ClearedChapters()
@@ -134,6 +134,8 @@ namespace SubcultureRPG.Meta
         public static bool ArenaOpen => ClearedChapters() >= ArenaChapter;
         public static bool RaidOpen => ClearedChapters() >= RaidChapter;
         public static bool EventOpen => ClearedChapters() >= EventChapter;
+        public static bool DispatchOpen => ClearedChapters() >= DispatchChapter;
+        public static bool TowerOpen => ClearedChapters() >= TowerChapter;
         public static string LockText(int chapter) => $"{chapter}장 클리어 시 개방";
     }
 }

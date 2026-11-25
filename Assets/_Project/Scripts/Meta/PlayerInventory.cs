@@ -48,17 +48,17 @@ namespace SubcultureRPG.Meta
         {
             var data = new SaveData();
             foreach (var kv in _items) data.items.Add(new Entry { type = kv.Key, count = kv.Value });
-            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(data));
-            PlayerPrefs.Save();
+            SaveStore.SetString(saveKey, JsonUtility.ToJson(data));
+            SaveStore.Save();
         }
 
         private void Load()
         {
             _items.Clear();
-            if (!PlayerPrefs.HasKey(saveKey)) return;
+            if (!SaveStore.HasKey(saveKey)) return;
             try
             {
-                var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
+                var data = JsonUtility.FromJson<SaveData>(SaveStore.GetString(saveKey));
                 if (data != null && data.items != null)
                     foreach (var e in data.items)
                         if (Enum.IsDefined(typeof(MaterialType), e.type)) _items[e.type] = e.count;   // 삭제된 재료(구 돌파석 등)는 버림
@@ -81,6 +81,8 @@ namespace SubcultureRPG.Meta
             _items[MaterialType.StaminaSmall] = Count(MaterialType.StaminaSmall) + 5;
             _items[MaterialType.StaminaLarge] = Count(MaterialType.StaminaLarge) + 3;
             _items[MaterialType.SweepTicket] = Count(MaterialType.SweepTicket) + 30;
+            _items[MaterialType.EquipEssence] = Count(MaterialType.EquipEssence) + 300;   // 장비 선택 제작
+            _items[MaterialType.RefineStone] = Count(MaterialType.RefineStone) + 5;      // 주옵션 재련
             foreach (var g in Materials.Gifts) _items[g] = Count(g) + 5;   // 호감도 선물
             // 속성별 돌파 재료(40/60/80 돌파 각 1회분 정도)
             for (int e = 0; e <= (int)Element.Wind; e++)

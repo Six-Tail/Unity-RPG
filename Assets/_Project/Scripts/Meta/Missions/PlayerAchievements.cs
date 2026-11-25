@@ -107,8 +107,8 @@ namespace SubcultureRPG.Meta.Missions
         {
             if (_loaded) return;
             _loaded = true;
-            if (!PlayerPrefs.HasKey(SaveKey)) return;
-            try { _d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey)) ?? new SaveData(); }
+            if (!SaveStore.HasKey(SaveKey)) return;
+            try { _d = JsonUtility.FromJson<SaveData>(SaveStore.GetString(SaveKey)) ?? new SaveData(); }
             catch { _d = new SaveData(); }
             _d.counters ??= new List<Counter>();
             _d.claims ??= new List<Claim>();
@@ -116,8 +116,8 @@ namespace SubcultureRPG.Meta.Missions
 
         private void Save()
         {
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(_d));
-            PlayerPrefs.Save();
+            SaveStore.SetString(SaveKey, JsonUtility.ToJson(_d));
+            SaveStore.Save();
         }
 
         private void Changed() { Save(); OnChanged?.Invoke(); }

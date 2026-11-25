@@ -40,8 +40,8 @@ namespace SubcultureRPG.Meta
         /// <summary>고른 보상 배수(1~3, 기억된 값).</summary>
         public static int Multiplier
         {
-            get => Mathf.Clamp(PlayerPrefs.GetInt(MultKey, 1), 1, MaxMultiplier);
-            set { PlayerPrefs.SetInt(MultKey, Mathf.Clamp(value, 1, MaxMultiplier)); PlayerPrefs.Save(); }
+            get => Mathf.Clamp(SaveStore.GetInt(MultKey, 1), 1, MaxMultiplier);
+            set { SaveStore.SetInt(MultKey, Mathf.Clamp(value, 1, MaxMultiplier)); SaveStore.Save(); }
         }
 
         /// <summary>고른 반복 입장 횟수(0 = 끔, -1 = 행동력 소진까지).</summary>
@@ -49,10 +49,10 @@ namespace SubcultureRPG.Meta
         {
             get
             {
-                int v = PlayerPrefs.GetInt(RepeatKey, 0);
+                int v = SaveStore.GetInt(RepeatKey, 0);
                 return System.Array.IndexOf(RepeatOptions, v) >= 0 ? v : 0;
             }
-            set { PlayerPrefs.SetInt(RepeatKey, value); PlayerPrefs.Save(); }
+            set { SaveStore.SetInt(RepeatKey, value); SaveStore.Save(); }
         }
 
         /// <summary>이 스테이지에 실제로 적용되는 배수(자격이 없으면 1).</summary>

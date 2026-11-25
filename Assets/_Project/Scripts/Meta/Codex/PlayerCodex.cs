@@ -177,17 +177,17 @@ namespace SubcultureRPG.Meta.Codex
         {
             var data = new SaveData();
             data.claimed.AddRange(_claimed);
-            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(data));
-            PlayerPrefs.Save();
+            SaveStore.SetString(saveKey, JsonUtility.ToJson(data));
+            SaveStore.Save();
         }
 
         private void Load()
         {
             _claimed.Clear();
-            if (!PlayerPrefs.HasKey(saveKey)) return;
+            if (!SaveStore.HasKey(saveKey)) return;
             try
             {
-                var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
+                var data = JsonUtility.FromJson<SaveData>(SaveStore.GetString(saveKey));
                 if (data?.claimed != null) foreach (int c in data.claimed) _claimed.Add(c);
             }
             catch { }

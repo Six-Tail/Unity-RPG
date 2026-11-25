@@ -23,6 +23,8 @@ namespace SubcultureRPG.Meta
     public static class Leveling
     {
         public const int MaxLevel = 80;
+        /// <summary>풀 초월(6★ +6) 캐릭터의 레벨 상한(돌파 3단계 뒤 80 → 100).</summary>
+        public const int AwakenedMaxLevel = 100;
         public const int MaxAscension = 3;   // 돌파 0~3 → 레벨 상한 20/40/60/80
         public const int MaxSkillLevel = 10;   // 재료로 올릴 수 있는 최대
         /// <summary>초월 보너스까지 더한 최대 레벨(10 + 3).</summary>
@@ -64,13 +66,19 @@ namespace SubcultureRPG.Meta
             return c;
         }
 
-        /// <summary>돌파 단계별 레벨 상한.</summary>
-        public static int LevelCap(int ascension) =>
-            Mathf.Min(MaxLevel, 20 + 20 * Mathf.Clamp(ascension, 0, MaxAscension));
+        /// <summary>돌파 단계별 레벨 상한. awakened(풀 초월)이고 돌파를 모두 마쳤으면 100.</summary>
+        public static int LevelCap(int ascension, bool awakened = false)
+        {
+            int cap = Mathf.Min(MaxLevel, 20 + 20 * Mathf.Clamp(ascension, 0, MaxAscension));
+            return awakened && ascension >= MaxAscension ? AwakenedMaxLevel : cap;
+        }
 
-        /// <summary>level → level+1 에 필요한 경험치.</summary>
+        /// <summary>
+        /// level → level+1 에 필요한 경험치. Lv.80부터(풀 초월 전용 구간)는 레벨당 1.5배.
+        /// 누적: Lv.80까지 약 31.6만 · 80 → 100 약 26.7만
+        /// </summary>
         public static int ExpForNext(int level) =>
-            level >= MaxLevel ? int.MaxValue : 100 * Mathf.Max(1, level);
+            level >= AwakenedMaxLevel ? int.MaxValue : (level >= MaxLevel ? 150 : 100) * Mathf.Max(1, level);
 
         // 돌파 비용(속성별 돌파 재료 + 금화)은 Economy 참고.
 

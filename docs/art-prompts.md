@@ -407,7 +407,7 @@ a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with brig
 the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns. fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, anime game art style, clean line art, soft cel shading, simple dark misty background, square composition
 ```
 
-## 재료 아이콘 (1:1) — 48장
+## 재료 아이콘 (1:1) — 53장
 
 ### 소형 경험치 물약
 
@@ -569,6 +569,14 @@ a festive golden coin engraved with a firework star, small colorful ribbons and 
 a cream-colored sealed envelope with a red wax seal stamped with a golden star, a small golden wing on each side. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
+### 설정 아이콘
+
+- 파일: `Items/UiSettings.png` · 256×256 · 화면비 1:1
+
+```
+a polished silver and gold gear cog icon with a small glowing blue gem in the center, clean and simple. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
 ### 시즌 패스 아이콘
 
 - 파일: `Items/UiPass.png` · 256×256 · 화면비 1:1
@@ -601,6 +609,22 @@ an ornate purple and silver ticket card with five small silver stars across the 
 a luxurious golden ticket card with six small golden stars across the top, a radiant rainbow-gold silhouette of a heroine in the center, sparkling gems on the corners. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
+### 파견 아이콘
+
+- 파일: `Items/DispatchIcon.png` · 256×256 · 화면비 1:1
+
+```
+a rolled parchment map with a red route line and a small golden compass on top, a tiny traveler backpack beside it. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 무한의 탑 아이콘
+
+- 파일: `Items/TowerIcon.png` · 256×256 · 화면비 1:1
+
+```
+a tall slender mystical stone tower spiraling up into the clouds with glowing blue windows and a bright star at its tip. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
 ### 길드 아이콘
 
 - 파일: `Items/GuildIcon.png` · 256×256 · 화면비 1:1
@@ -615,6 +639,22 @@ a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, h
 
 ```
 two cute round chibi commander figures side by side, one blue and one pink, with a small glowing heart between them. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 정수
+
+- 파일: `Items/EquipEssence.png` · 256×256 · 화면비 1:1
+
+```
+a glowing violet crystal flask filled with swirling purple liquid essence and tiny floating gear and armor fragments inside. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
+```
+
+### 재련석
+
+- 파일: `Items/RefineStone.png` · 256×256 · 화면비 1:1
+
+```
+a rare faceted rainbow prismatic gemstone set in an ornate golden anvil-shaped mount, radiant sparkles. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
 ### 소탕권
@@ -793,7 +833,7 @@ a polished faceted crystal of emerald green wind, swirling breeze inside, emeral
 a brilliant glowing orb core inside an ornate metal ring of emerald green wind, swirling breeze inside, emerald green glow. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
-## 장비 부위 아이콘 (1:1) — 6장
+## 장비 부위 아이콘 (1:1) — 66장
 
 ### 장비 부위 — 머리
 
@@ -841,6 +881,486 @@ a pendant necklace with a gem. game equipment icon, single object centered, styl
 
 ```
 a ring with a gem. game equipment icon, single object centered, stylized silver-white fantasy gear, simple clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 맹공의 문장 머리
+
+- 파일: `Equipment/assault_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: crimson red and black steel with aggressive sharp spiked edges and a roaring lion crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 맹공의 문장 손
+
+- 파일: `Equipment/assault_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: crimson red and black steel with aggressive sharp spiked edges and a roaring lion crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 맹공의 문장 몸
+
+- 파일: `Equipment/assault_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: crimson red and black steel with aggressive sharp spiked edges and a roaring lion crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 맹공의 문장 발
+
+- 파일: `Equipment/assault_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: crimson red and black steel with aggressive sharp spiked edges and a roaring lion crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 맹공의 문장 목걸이
+
+- 파일: `Equipment/assault_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: crimson red and black steel with aggressive sharp spiked edges and a roaring lion crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 맹공의 문장 반지
+
+- 파일: `Equipment/assault_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: crimson red and black steel with aggressive sharp spiked edges and a roaring lion crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 수호의 서약 머리
+
+- 파일: `Equipment/guardian_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: polished steel blue and white heavy rounded plates with a gold-trimmed shield crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 수호의 서약 손
+
+- 파일: `Equipment/guardian_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: polished steel blue and white heavy rounded plates with a gold-trimmed shield crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 수호의 서약 몸
+
+- 파일: `Equipment/guardian_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: polished steel blue and white heavy rounded plates with a gold-trimmed shield crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 수호의 서약 발
+
+- 파일: `Equipment/guardian_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: polished steel blue and white heavy rounded plates with a gold-trimmed shield crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 수호의 서약 목걸이
+
+- 파일: `Equipment/guardian_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: polished steel blue and white heavy rounded plates with a gold-trimmed shield crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 수호의 서약 반지
+
+- 파일: `Equipment/guardian_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: polished steel blue and white heavy rounded plates with a gold-trimmed shield crest emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 화염의 낙인 머리
+
+- 파일: `Equipment/ember_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: blackened iron with glowing orange molten cracks and curling flame motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 화염의 낙인 손
+
+- 파일: `Equipment/ember_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: blackened iron with glowing orange molten cracks and curling flame motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 화염의 낙인 몸
+
+- 파일: `Equipment/ember_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: blackened iron with glowing orange molten cracks and curling flame motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 화염의 낙인 발
+
+- 파일: `Equipment/ember_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: blackened iron with glowing orange molten cracks and curling flame motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 화염의 낙인 목걸이
+
+- 파일: `Equipment/ember_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: blackened iron with glowing orange molten cracks and curling flame motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 화염의 낙인 반지
+
+- 파일: `Equipment/ember_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: blackened iron with glowing orange molten cracks and curling flame motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 서리의 결정 머리
+
+- 파일: `Equipment/frost_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: pale icy blue crystal and silver with snowflake motifs and a faint frost mist. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 서리의 결정 손
+
+- 파일: `Equipment/frost_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: pale icy blue crystal and silver with snowflake motifs and a faint frost mist. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 서리의 결정 몸
+
+- 파일: `Equipment/frost_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: pale icy blue crystal and silver with snowflake motifs and a faint frost mist. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 서리의 결정 발
+
+- 파일: `Equipment/frost_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: pale icy blue crystal and silver with snowflake motifs and a faint frost mist. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 서리의 결정 목걸이
+
+- 파일: `Equipment/frost_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: pale icy blue crystal and silver with snowflake motifs and a faint frost mist. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 서리의 결정 반지
+
+- 파일: `Equipment/frost_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: pale icy blue crystal and silver with snowflake motifs and a faint frost mist. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 뇌명의 인장 머리
+
+- 파일: `Equipment/thunder_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: dark violet metal with golden lightning bolt engravings and small electric sparks. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 뇌명의 인장 손
+
+- 파일: `Equipment/thunder_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: dark violet metal with golden lightning bolt engravings and small electric sparks. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 뇌명의 인장 몸
+
+- 파일: `Equipment/thunder_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: dark violet metal with golden lightning bolt engravings and small electric sparks. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 뇌명의 인장 발
+
+- 파일: `Equipment/thunder_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: dark violet metal with golden lightning bolt engravings and small electric sparks. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 뇌명의 인장 목걸이
+
+- 파일: `Equipment/thunder_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: dark violet metal with golden lightning bolt engravings and small electric sparks. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 뇌명의 인장 반지
+
+- 파일: `Equipment/thunder_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: dark violet metal with golden lightning bolt engravings and small electric sparks. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 질풍의 깃털 머리
+
+- 파일: `Equipment/gale_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: emerald green and white with elegant feather motifs and flowing ribbons. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 질풍의 깃털 손
+
+- 파일: `Equipment/gale_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: emerald green and white with elegant feather motifs and flowing ribbons. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 질풍의 깃털 몸
+
+- 파일: `Equipment/gale_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: emerald green and white with elegant feather motifs and flowing ribbons. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 질풍의 깃털 발
+
+- 파일: `Equipment/gale_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: emerald green and white with elegant feather motifs and flowing ribbons. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 질풍의 깃털 목걸이
+
+- 파일: `Equipment/gale_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: emerald green and white with elegant feather motifs and flowing ribbons. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 질풍의 깃털 반지
+
+- 파일: `Equipment/gale_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: emerald green and white with elegant feather motifs and flowing ribbons. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 강철의 의지 머리
+
+- 파일: `Equipment/steel_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: rugged gunmetal grey steel with bronze rivets and an anvil emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 강철의 의지 손
+
+- 파일: `Equipment/steel_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: rugged gunmetal grey steel with bronze rivets and an anvil emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 강철의 의지 몸
+
+- 파일: `Equipment/steel_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: rugged gunmetal grey steel with bronze rivets and an anvil emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 강철의 의지 발
+
+- 파일: `Equipment/steel_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: rugged gunmetal grey steel with bronze rivets and an anvil emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 강철의 의지 목걸이
+
+- 파일: `Equipment/steel_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: rugged gunmetal grey steel with bronze rivets and an anvil emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 강철의 의지 반지
+
+- 파일: `Equipment/steel_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: rugged gunmetal grey steel with bronze rivets and an anvil emblem. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 파쇄의 망치 머리
+
+- 파일: `Equipment/breaker_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: rough bronze and burnt orange metal with hammer emblems and cracked stone accents. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 파쇄의 망치 손
+
+- 파일: `Equipment/breaker_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: rough bronze and burnt orange metal with hammer emblems and cracked stone accents. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 파쇄의 망치 몸
+
+- 파일: `Equipment/breaker_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: rough bronze and burnt orange metal with hammer emblems and cracked stone accents. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 파쇄의 망치 발
+
+- 파일: `Equipment/breaker_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: rough bronze and burnt orange metal with hammer emblems and cracked stone accents. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 파쇄의 망치 목걸이
+
+- 파일: `Equipment/breaker_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: rough bronze and burnt orange metal with hammer emblems and cracked stone accents. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 파쇄의 망치 반지
+
+- 파일: `Equipment/breaker_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: rough bronze and burnt orange metal with hammer emblems and cracked stone accents. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 생명의 샘 머리
+
+- 파일: `Equipment/spring_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: soft green and gold with leaf and flower vine motifs and small glowing water droplet gems. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 생명의 샘 손
+
+- 파일: `Equipment/spring_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: soft green and gold with leaf and flower vine motifs and small glowing water droplet gems. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 생명의 샘 몸
+
+- 파일: `Equipment/spring_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: soft green and gold with leaf and flower vine motifs and small glowing water droplet gems. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 생명의 샘 발
+
+- 파일: `Equipment/spring_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: soft green and gold with leaf and flower vine motifs and small glowing water droplet gems. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 생명의 샘 목걸이
+
+- 파일: `Equipment/spring_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: soft green and gold with leaf and flower vine motifs and small glowing water droplet gems. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 생명의 샘 반지
+
+- 파일: `Equipment/spring_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: soft green and gold with leaf and flower vine motifs and small glowing water droplet gems. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 신속의 바람 머리
+
+- 파일: `Equipment/swift_head.png` · 256×256 · 화면비 1:1
+
+```
+a helmet or ornate circlet, part of a matching fantasy equipment set: light cyan and silver sleek streamlined design with small wing motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 신속의 바람 손
+
+- 파일: `Equipment/swift_hands.png` · 256×256 · 화면비 1:1
+
+```
+a pair of gauntlets, part of a matching fantasy equipment set: light cyan and silver sleek streamlined design with small wing motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 신속의 바람 몸
+
+- 파일: `Equipment/swift_body.png` · 256×256 · 화면비 1:1
+
+```
+a chest armor, part of a matching fantasy equipment set: light cyan and silver sleek streamlined design with small wing motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 신속의 바람 발
+
+- 파일: `Equipment/swift_feet.png` · 256×256 · 화면비 1:1
+
+```
+a pair of boots, part of a matching fantasy equipment set: light cyan and silver sleek streamlined design with small wing motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 신속의 바람 목걸이
+
+- 파일: `Equipment/swift_neck.png` · 256×256 · 화면비 1:1
+
+```
+a pendant necklace, part of a matching fantasy equipment set: light cyan and silver sleek streamlined design with small wing motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
+```
+
+### 장비 — 신속의 바람 반지
+
+- 파일: `Equipment/swift_ring.png` · 256×256 · 화면비 1:1
+
+```
+a ring, part of a matching fantasy equipment set: light cyan and silver sleek streamlined design with small wing motifs. game equipment icon, single object centered, stylized glossy 2D RPG inventory icon, detailed but clean silhouette, soft rim light, plain very dark navy background, square composition
 ```
 
 ## 전투 상태 아이콘 (1:1) — 17장
@@ -1235,7 +1755,7 @@ the same character as in the reference image (same face, same hair style and hai
 a festival emblem badge: a bright violet lightning bolt crossing a golden goblet inside a round gold ring. game item icon, single object centered, stylized glossy 2D RPG inventory icon, clean shapes, soft rim light, plain very dark navy background, square composition
 ```
 
-## 화면 배경 (16:9) — 55장
+## 화면 배경 (16:9) — 57장
 
 ### 스토리 1장 — 숲의 입구
 
@@ -1403,6 +1923,22 @@ a wide fantasy continent seen from a high cliff at sunrise, fragments of broken 
 
 ```
 a grand fantasy colosseum arena at sunset, circular stone stands with colorful banners, a sand floor with a glowing golden emblem in the center, dramatic sky. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 파견
+
+- 파일: `Backgrounds/dispatch.jpg` · 1920×1080 · 화면비 16:9
+
+```
+an adventurers guild expedition office interior, a huge wall map with pinned routes, a quest notice board full of request papers, travel packs and lanterns, morning light through tall windows. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
+```
+
+### 무한의 탑
+
+- 파일: `Backgrounds/tower.jpg` · 1920×1080 · 화면비 16:9
+
+```
+looking up at an endless colossal mystical tower of floating stone rings rising into a starry twilight sky, glowing blue runes, clouds swirling around its middle floors, epic scale. anime game background art, wide scenic environment, empty uninhabited scenery, painterly, detailed, cinematic lighting, 16:9 wide composition
 ```
 
 ### 길드

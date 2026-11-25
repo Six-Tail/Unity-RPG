@@ -222,14 +222,14 @@ namespace SubcultureRPG.Meta
         private void Save()
         {
             if (!_loaded) return;   // 불러오기 전 값(기본값)으로 세이브를 덮어쓰지 않음
-            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(new SaveData
+            SaveStore.SetString(saveKey, JsonUtility.ToJson(new SaveData
             {
                 crystals = Crystals, init = true,
                 gold = Gold, goldInit = true,
                 pickupTickets = PickupTickets, standardTickets = StandardTickets, ticketInit = true,
                 stamina = _stamina, staminaAnchor = _staminaAnchor, staminaInit = true,
             }));
-            PlayerPrefs.Save();
+            SaveStore.Save();
         }
 
         private void Load()
@@ -241,10 +241,10 @@ namespace SubcultureRPG.Meta
             StandardTickets = startingStandardTickets;
             _stamina = startingStamina;
             _staminaAnchor = Now;
-            if (!PlayerPrefs.HasKey(saveKey)) { PlayerPrefs.SetInt("wallet.restore.v1", 1); return; }   // 새 세이브는 복구 대상 아님
+            if (!SaveStore.HasKey(saveKey)) { SaveStore.SetInt("wallet.restore.v1", 1); return; }   // 새 세이브는 복구 대상 아님
             try
             {
-                var d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
+                var d = JsonUtility.FromJson<SaveData>(SaveStore.GetString(saveKey));
                 if (d == null) return;
                 if (d.init) Crystals = d.crystals;
                 if (d.goldInit) Gold = d.gold;   // 금화 도입 전 세이브 → 시작 금화 지급
@@ -270,8 +270,8 @@ namespace SubcultureRPG.Meta
         private void RestoreOnce()
         {
             const string key = "wallet.restore.v1";
-            if (PlayerPrefs.GetInt(key, 0) == 1) return;
-            PlayerPrefs.SetInt(key, 1);
+            if (SaveStore.GetInt(key, 0) == 1) return;
+            SaveStore.SetInt(key, 1);
             _crystals = Math.Max(_crystals, 24860);
             _gold = Math.Max(_gold, 14009);
             _pickup = Math.Max(_pickup, 10);

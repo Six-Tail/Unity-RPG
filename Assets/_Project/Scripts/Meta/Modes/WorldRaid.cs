@@ -21,7 +21,11 @@ namespace SubcultureRPG.Meta
         public const string BossName = "별을 삼키는 자";
         public const int AttemptsPerDay = 3;
         /// <summary>제한 시간(초) · 격노 간격(초) · 격노 1단계당 공격력 증가.</summary>
-        public const float TimeLimit = 180f, EnrageEvery = 30f, EnrageAtk = 0.25f;
+        public const float TimeLimit = 300f, EnrageEvery = 30f, EnrageAtk = 0.25f;
+
+        /// <summary>이번 주 보너스 캐릭터 수 · 파티에서 인정하는 최대 인원 · 1명당 점수 보너스.</summary>
+        public const int FeaturedCount = 4, FeaturedMax = 2;
+        public const float FeaturedBonus = 0.30f;
         private const string SaveKey = "raid";
 
         /// <summary>주차별 약점(돌아가며).</summary>
@@ -41,13 +45,13 @@ namespace SubcultureRPG.Meta
 
         public static readonly List<Milestone> Milestones = new()
         {
-            new() { damage = 300_000, label = "금화 20,000", grant = (w, i) => w?.AddGold(20000) },
-            new() { damage = 900_000, label = "대형 경험치 물약 ×5", grant = (w, i) => i?.Add(MaterialType.ExpLarge, 5) },
-            new() { damage = 2_400_000, label = "크리스탈 100", grant = (w, i) => w?.Add(100) },
-            new() { damage = 6_000_000, label = "상급 스킬 교본 ×3", grant = (w, i) => i?.Add(MaterialType.SkillBookPurple, 3) },
-            new() { damage = 15_000_000, label = "크리스탈 200 · 행동력 물약 ×2", grant = (w, i) => { w?.Add(200); i?.Add(MaterialType.StaminaLarge, 2); } },
-            new() { damage = 36_000_000, label = "전설의 비전서 ×1", grant = (w, i) => i?.Add(MaterialType.SkillLegend, 1) },
-            new() { damage = 90_000_000, label = "픽업 뽑기권 ×1 · 크리스탈 300", grant = (w, i) => { w?.AddTickets(SubcultureRPG.Gacha.GachaBannerType.Pickup, 1); w?.Add(300); } },
+            new() { damage = 600_000, label = "금화 20,000", grant = (w, i) => w?.AddGold(20000) },
+            new() { damage = 1_800_000, label = "대형 경험치 물약 ×5", grant = (w, i) => i?.Add(MaterialType.ExpLarge, 5) },
+            new() { damage = 4_800_000, label = "크리스탈 100", grant = (w, i) => w?.Add(100) },
+            new() { damage = 12_000_000, label = "상급 스킬 교본 ×3", grant = (w, i) => i?.Add(MaterialType.SkillBookPurple, 3) },
+            new() { damage = 30_000_000, label = "크리스탈 200 · 행동력 물약 ×2", grant = (w, i) => { w?.Add(200); i?.Add(MaterialType.StaminaLarge, 2); } },
+            new() { damage = 72_000_000, label = "전설의 비전서 ×1", grant = (w, i) => i?.Add(MaterialType.SkillLegend, 1) },
+            new() { damage = 180_000_000, label = "픽업 뽑기권 ×1 · 크리스탈 300 · 재련석 ×1", grant = (w, i) => { w?.AddTickets(SubcultureRPG.Gacha.GachaBannerType.Pickup, 1); w?.Add(300); i?.Add(MaterialType.RefineStone, 1); } },
         };
 
         [Serializable]
@@ -85,9 +89,9 @@ namespace SubcultureRPG.Meta
             if (!_loaded)
             {
                 _loaded = true;
-                if (PlayerPrefs.HasKey(SaveKey))
+                if (SaveStore.HasKey(SaveKey))
                 {
-                    try { _d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey)) ?? new SaveData(); }
+                    try { _d = JsonUtility.FromJson<SaveData>(SaveStore.GetString(SaveKey)) ?? new SaveData(); }
                     catch { _d = new SaveData(); }
                 }
             }
@@ -102,15 +106,18 @@ namespace SubcultureRPG.Meta
 
         private void Save()
         {
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(_d));
-            PlayerPrefs.Save();
+            SaveStore.SetString(SaveKey, JsonUtility.ToJson(_d));
+            SaveStore.Save();
         }
 
         private void Changed() { Save(); OnChanged?.Invoke(); }
 
         public long TotalDamage { get { EnsureLoaded(); return _d.total; } }
         public long BestDamage { get { EnsureLoaded(); return _d.best; } }
-        public int AttemptsLeft { get { EnsureLoaded(); return Mathf.Max(0, AttemptsPerDay - _d.used); } }
+        public int AttemptsLeft { get { EnsureLoaded(); return FreeAttempts ? AttemptsPerDay : Mathf.Max(0, AttemptsPerDay - _d.used); } }
+
+        /// <summary>최대 육성 테스트 중(TestMaxData 백업이 있음)에는 도전 횟수를 쓰지 않음.</summary>
+        public static bool FreeAttempts => TestMaxData.HasBackup;
         public bool IsClaimed(int i) => (_d.claimed & (1 << i)) != 0;
         public bool CanClaim(int i) => !IsClaimed(i) && TotalDamage >= Milestones[i].damage;
         public int ClaimableCount { get { int n = 0; for (int i = 0; i < Milestones.Count; i++) if (CanClaim(i)) n++; return n; } }
@@ -125,6 +132,53 @@ namespace SubcultureRPG.Meta
                 return WeakRotation[((week % WeakRotation.Length) + WeakRotation.Length) % WeakRotation.Length];
             }
         }
+
+        /// <summary>
+        /// 이번 주 보너스 캐릭터(주마다 바뀜, 모두가 같은 목록). 태생 6★만 몰리지 않도록 6★ 2명 + 그 외 2명을 고름.
+        /// 파티에 넣으면 1명당 점수(기록 피해) +30%, 최대 2명(+60%).
+        /// </summary>
+        public static List<CharacterData> Featured
+        {
+            get
+            {
+                var list = new List<CharacterData>();
+                var roster = FindAnyObjectByType<PlayerRoster>();
+                var db = roster != null ? roster.Database : null;
+                if (db == null) return list;
+                var six = new List<CharacterData>();
+                var rest = new List<CharacterData>();
+                foreach (var c in db.Characters)
+                    if (c != null) (c.rarity == Rarity.R6 ? six : rest).Add(c);
+                var start = DateTime.ParseExact(PlayerShop.PeriodKey(ShopReset.Weekly, DateTime.Now).Substring(1), "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
+                var rng = new System.Random((int)((start - new DateTime(2024, 1, 1)).TotalDays / 7) * 7919 + 17);
+                void Pick(List<CharacterData> from, int n)
+                {
+                    for (int i = 0; i < n && from.Count > 0; i++)
+                    {
+                        int k = rng.Next(from.Count);
+                        list.Add(from[k]);
+                        from.RemoveAt(k);
+                    }
+                }
+                Pick(six, FeaturedCount / 2);
+                Pick(rest, FeaturedCount - list.Count);
+                if (list.Count < FeaturedCount) Pick(six, FeaturedCount - list.Count);
+                return list;
+            }
+        }
+
+        /// <summary>파티의 보너스 캐릭터 수(최대 2명).</summary>
+        public static int FeaturedIn(IList<CharacterData> party)
+        {
+            if (party == null) return 0;
+            var f = Featured;
+            int n = 0;
+            foreach (var c in party) if (c != null && f.Contains(c)) n++;
+            return Mathf.Min(FeaturedMax, n);
+        }
+
+        /// <summary>파티의 점수 보너스(0 ~ 0.6).</summary>
+        public static float PartyBonus(IList<CharacterData> party) => FeaturedIn(party) * FeaturedBonus;
 
         public static TimeSpan UntilWeekReset => PlayerShop.UntilReset(ShopReset.Weekly, DateTime.Now) ?? TimeSpan.Zero;
 
@@ -200,9 +254,12 @@ namespace SubcultureRPG.Meta
             if (launcher == null) return false;
             Refund();
             if (AttemptsLeft <= 0) { _hud?.ShowResultToast("오늘 도전 횟수를 모두 썼습니다 (매일 05:00 충전)"); return false; }
-            _d.used++;
-            _paid = true;
-            Changed();
+            if (!FreeAttempts)
+            {
+                _d.used++;
+                _paid = true;
+                Changed();
+            }
 
             Hook();
             CleanupBoss();
@@ -308,7 +365,7 @@ namespace SubcultureRPG.Meta
                 bg.type = UnityEngine.UI.Image.Type.Sliced; bg.preserveAspect = false;
                 SubcultureRPG.UI.UIFactory.Anchor(bg.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
                 bg.rectTransform.sizeDelta = new Vector2(330, 132); bg.rectTransform.anchoredPosition = new Vector2(30, -90);
-                _timerText = SubcultureRPG.UI.UIFactory.AddText("Time", bg.transform, "", 44, font, Color.white,
+                _timerText = SubcultureRPG.UI.UIFactory.AddText("Time", bg.transform, "", 44, SubcultureRPG.UI.GameFonts.Number(font), Color.white,
                     TMPro.TextAlignmentOptions.Left, TMPro.FontStyles.Normal);
                 _timerText.richText = true;
                 _timerText.lineSpacing = -8f;
@@ -319,12 +376,11 @@ namespace SubcultureRPG.Meta
                 tb.type = UnityEngine.UI.Image.Type.Sliced; tb.preserveAspect = false;
                 SubcultureRPG.UI.UIFactory.Anchor(tb.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
                 tb.rectTransform.sizeDelta = new Vector2(400, 110); tb.rectTransform.anchoredPosition = new Vector2(-36, 150);
-                _totalText = SubcultureRPG.UI.UIFactory.AddText("Total", tb.transform, "", 46, font, new Color(0.88f, 0.75f, 1f),
+                _totalText = SubcultureRPG.UI.UIFactory.AddText("Total", tb.transform, "", 46, SubcultureRPG.UI.GameFonts.Number(font), new Color(0.88f, 0.75f, 1f),
                     TMPro.TextAlignmentOptions.Right, TMPro.FontStyles.Normal);
                 _totalText.richText = true;
                 _totalText.lineSpacing = -6f;
-                _totalText.outlineWidth = 0.12f;
-                _totalText.outlineColor = new Color32(20, 8, 30, 255);
+                SubcultureRPG.UI.TextOutline.Apply(_totalText, 0.12f, new Color32(20, 8, 30, 255));
                 SubcultureRPG.UI.UIFactory.Stretch(_totalText.rectTransform, 12, 8, 22, 8);
             }
             if (_timerRoot != null) _timerRoot.SetActive(on);
@@ -339,6 +395,9 @@ namespace SubcultureRPG.Meta
             long dmg = 0;
             var eng = _controller != null ? _controller.Engine : null;
             if (eng != null && eng.enemies.Count > 0) dmg = eng.enemies[0].record.taken;
+            long raw = dmg;
+            float bonus = PartyBonus(_party);
+            dmg = (long)Math.Round(raw * (1.0 + bonus));   // 보너스 캐릭터 → 점수(기록 피해) 증가
             long before = _d.total;
             _d.total += dmg;
             bool newBest = dmg > _d.best;
@@ -349,7 +408,8 @@ namespace SubcultureRPG.Meta
             for (int i = 0; i < Milestones.Count; i++)
                 if (before < Milestones[i].damage && _d.total >= Milestones[i].damage) opened++;
             string detail = $"<size=110%>주간 보스 — {BossName}</size>\n" +
-                            $"<color=#FFD36B>이번 피해</color>  <b>{dmg:N0}</b>" + (newBest ? "  <color=#7CFF9A>최고 기록!</color>" : "") + "\n" +
+                            $"<color=#FFD36B>이번 점수</color>  <b>{dmg:N0}</b>" + (newBest ? "  <color=#7CFF9A>최고 기록!</color>" : "") + "\n" +
+                            (bonus > 0f ? $"<size=85%><color=#9AA3B5>준 피해 {raw:N0}</color>  <color=#7CFF9A>보너스 캐릭터 {FeaturedIn(_party)}명 +{bonus * 100f:0}%</color></size>\n" : "") +
                             $"<color=#9AA3B5>이번 주 누적</color>  {_d.total:N0}" +
                             (opened > 0 ? $"\n<color=#7CFF9A>누적 보상 {opened}단계 달성 — 주간 보스 화면에서 받으세요</color>" : "") +
                             $"\n<size=80%><color=#9AA3B5>오늘 남은 도전 {AttemptsLeft} / {AttemptsPerDay}  ·  버틴 시간 {Mathf.CeilToInt(TimeLimit - Mathf.Max(0f, _timeLeft))}초 / {TimeLimit:0}초  ·  격노 {_enrage}단계</color></size>";

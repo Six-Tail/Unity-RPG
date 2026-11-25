@@ -194,17 +194,17 @@ namespace SubcultureRPG.Meta.Missions
         {
             var data = new SaveData();
             foreach (var kv in _entries) data.items.Add(kv.Value);
-            PlayerPrefs.SetString(saveKey, JsonUtility.ToJson(data));
-            PlayerPrefs.Save();
+            SaveStore.SetString(saveKey, JsonUtility.ToJson(data));
+            SaveStore.Save();
         }
 
         private void Load()
         {
             _entries.Clear();
-            if (!PlayerPrefs.HasKey(saveKey)) return;
+            if (!SaveStore.HasKey(saveKey)) return;
             try
             {
-                var data = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(saveKey));
+                var data = JsonUtility.FromJson<SaveData>(SaveStore.GetString(saveKey));
                 if (data?.items == null) return;
                 foreach (var e in data.items)
                     if (e != null && !string.IsNullOrEmpty(e.id) && MissionCatalog.Find(e.id) != null) _entries[e.id] = e;   // 삭제된 임무는 버림

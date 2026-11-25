@@ -7,12 +7,13 @@ using SubcultureRPG.UI;
 namespace SubcultureRPG.Battle.UI
 {
     /// <summary>
-    /// 전투 스킬 이펙트(이미지 에셋 없이 코드로 만든 파티클). 전투 화면의 유닛 줄 위 레이어에 그립니다.
-    /// - 기본 공격: 속성 색 베기 2줄 + 불꽃
-    /// - 스킬: 속성별 연출(화염 불길 · 얼음 파편 · 번개 낙뢰 · 바람 소용돌이 · 물리 충격파)
-    /// - 궁극기: 빛기둥 + 큰 속성 연출 + 충격파 2겹 + 화면 번쩍임
-    /// - 다단 히트 추가 타격, 시전 모으기, 회복, 버프/디버프/지속 피해 부여
-    /// 모든 시간은 실시간(Time.unscaledDeltaTime) × Speed.
+    /// 전투 스킬 이펙트: 움직임(날아가기 · 커지기 · 회전 · 사라지기)은 코드, 모양은 생성한 이펙트 텍스처(Resources/Art/Fx).
+    /// 텍스처는 흰색 + 투명도라 속성 색을 곱해 한 장을 모든 속성에 씀. 텍스처가 없으면 예전 코드 도형(ProceduralSprites)으로 그림.
+    /// - 기본 공격: 초승달 검기 2줄 + 타격 섬광 + 반짝이
+    /// - 스킬: 속성별 연출(화염 불길 · 얼음 파편 · 낙뢰 · 바람 칼날 소용돌이 · 물리 연속 베기)
+    /// - 궁극기: 바닥 마법진(눕혀서 회전하며 펼쳐짐) + 빛기둥 + 큰 속성 연출 + 충격파 2겹 + 떠오르는 룬
+    /// - 다단 히트 추가 타격, 시전 모으기(발밑 작은 마법진), 회복, 버프/디버프/지속 피해 부여
+    /// 텍스처 생성: tools/art/generate-fx.js. 모든 시간은 실시간(Time.unscaledDeltaTime) × Speed.
     /// </summary>
     public class SkillFx : MonoBehaviour
     {
@@ -28,11 +29,15 @@ namespace SubcultureRPG.Battle.UI
             public bool alignToVel;
             public Color c0, c1;
             public float fadeIn = 0.12f;
+            public float fadeOutFrom = 0f;   // 0이면 처음부터 색이 c1으로 바뀌며 옅어짐, 0.6이면 60%까지는 c0 유지
             public bool flicker;
             // 궤도(소용돌이·모으기)
             public bool orbit;
             public Vector2 center;
             public float radius, radiusVel, angle, angVel;
+            // 바닥에 눕힌 모양(마법진): 세로를 이 비율로 납작하게. 회전은 납작해지기 전에 적용
+            public float squash;
+            public RectTransform holder;
         }
 
         private readonly List<P> _live = new();
@@ -64,17 +69,33 @@ namespace SubcultureRPG.Battle.UI
             _live.Clear();
         }
 
+        // ================= 텍스처 =================
+
+        private static readonly Dictionary<string, Sprite> Tex = new();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics() => Tex.Clear();
+
+        /// <summary>Fx/{key} 텍스처, 없으면 fallback(코드 도형).</summary>
+        private static Sprite T(string key, Sprite fallback)
+        {
+            if (!Tex.TryGetValue(key, out var sp)) Tex[key] = sp = GameArt.Load("Fx/" + key);
+            return sp != null ? sp : fallback;
+        }
+
+        private static bool Has(string key) => T(key, null) != null;
+
         // ================= 연출 레시피 =================
 
-        /// <summary>기본 공격: 비스듬한 베기 2줄 + 작은 번쩍임 + 불꽃.</summary>
+        /// <summary>기본 공격: 초승달 검기 2줄 + 타격 섬광 + 불꽃.</summary>
         public void Basic(Element e, Vector2 pos, float s, float delay)
         {
             Color c = Main(e), hot = Hot(e);
-            float a = Random.Range(25f, 45f);
-            Slash(pos, hot, a, 240 * s, 30 * s, 0.24f, delay);
-            Slash(pos, c, a - 75f, 200 * s, 24 * s, 0.24f, delay + 0.07f);
-            Flash(pos, hot, 150 * s, 0.2f, delay + 0.03f);
-            Sparks(pos, hot, 7, 420 * s, 16 * s, 0.32f, delay + 0.03f);
+            float a = Random.Range(-20f, 20f);
+            Arc(pos, hot, a, 300 * s, 0.3f, delay, 1);
+            Arc(pos, c, a + 150f, 250 * s, 0.3f, delay + 0.08f, -1);
+            Hit(pos, hot, 190 * s, 0.24f, delay + 0.04f);
+            Sparks(pos, hot, 7, 420 * s, 20 * s, 0.32f, delay + 0.03f);
         }
 
         /// <summary>스킬: 속성별 연출.</summary>
@@ -90,22 +111,50 @@ namespace SubcultureRPG.Battle.UI
             }
         }
 
-        /// <summary>궁극기: 빛기둥 + 큰 속성 연출 + 충격파 2겹 + 금빛 불꽃.</summary>
+        /// <summary>궁극기: 바닥 마법진 + 빛기둥 + 큰 속성 연출 + 충격파 2겹 + 떠오르는 룬 + 금빛 불꽃.</summary>
         public void Ultimate(Element e, Vector2 pos, float s, float delay)
         {
             Color c = Main(e), hot = Hot(e);
-            var pillar = Add(ProceduralSprites.Beam, pos + new Vector2(0, 120 * s), 0.65f, delay);
-            pillar.size0 = new Vector2(50 * s, 700 * s); pillar.size1 = new Vector2(230 * s, 900 * s);
-            pillar.c0 = Color.white; pillar.c1 = WithA(hot, 0f); pillar.fadeIn = 0.12f;
+            var feet = pos + new Vector2(0, -120 * s);
+
+            // 바닥 마법진: 눕혀서 회전하며 펼쳐졌다가 사라짐
+            if (Has("magic_circle"))
+            {
+                var mc = Add(T("magic_circle", null), feet, 1.1f, delay);
+                mc.squash = 0.34f; mc.rotVel = 70f;
+                mc.size0 = Vector2.one * 160 * s; mc.size1 = Vector2.one * 560 * s;
+                mc.c0 = WithA(hot, 1f); mc.c1 = WithA(c, 0f); mc.fadeIn = 0.15f; mc.fadeOutFrom = 0.55f;
+                var mc2 = Add(T("magic_circle", null), feet, 0.9f, delay + 0.1f);
+                mc2.squash = 0.34f; mc2.rotVel = -110f; mc2.rot = 20f;
+                mc2.size0 = Vector2.one * 80 * s; mc2.size1 = Vector2.one * 330 * s;
+                mc2.c0 = WithA(Color.white, 0.8f); mc2.c1 = WithA(hot, 0f); mc2.fadeIn = 0.2f; mc2.fadeOutFrom = 0.5f;
+            }
+
+            // 빛기둥
+            var pillar = Add(T("light_pillar", ProceduralSprites.Beam), pos + new Vector2(0, 120 * s), 0.7f, delay);
+            bool pillarTex = Has("light_pillar");   // 텍스처는 가운데 좁은 띠라 넓게 깔아야 같은 굵기
+            pillar.size0 = new Vector2((pillarTex ? 300 : 90) * s, 760 * s); pillar.size1 = new Vector2((pillarTex ? 900 : 300) * s, 940 * s);
+            pillar.c0 = Color.white; pillar.c1 = WithA(hot, 0f); pillar.fadeIn = 0.1f;
             var core = Add(ProceduralSprites.Beam, pos + new Vector2(0, 120 * s), 0.5f, delay);
-            core.size0 = new Vector2(20 * s, 700 * s); core.size1 = new Vector2(80 * s, 900 * s);
+            core.size0 = new Vector2(20 * s, 700 * s); core.size1 = new Vector2(70 * s, 900 * s);
             core.c0 = Color.white; core.c1 = WithA(Color.white, 0f);
 
             Skill(e, pos, s * 1.45f, delay + 0.08f);
-            Ring(pos, hot, 40 * s, 460 * s, 0.5f, delay + 0.1f);
-            Ring(pos, c, 20 * s, 360 * s, 0.6f, delay + 0.26f);
-            Sparks(pos, new Color(1f, 0.88f, 0.45f), 16, 640 * s, 22 * s, 0.6f, delay + 0.1f);
-            Sparks(pos, hot, 12, 480 * s, 18 * s, 0.5f, delay + 0.18f);
+            Ring(pos, hot, 60 * s, 520 * s, 0.55f, delay + 0.1f);
+            Ring(pos, c, 30 * s, 400 * s, 0.65f, delay + 0.26f);
+            Sparks(pos, new Color(1f, 0.88f, 0.45f), 16, 640 * s, 26 * s, 0.6f, delay + 0.1f);
+            Sparks(pos, hot, 12, 480 * s, 22 * s, 0.5f, delay + 0.18f);
+
+            // 떠오르는 룬
+            if (Has("rune_glyph"))
+                for (int i = 0; i < 6; i++)
+                {
+                    var r = Add(T("rune_glyph", null), feet + new Vector2(Random.Range(-200f, 200f) * s, Random.Range(-20f, 30f) * s),
+                        Random.Range(0.8f, 1.1f), delay + 0.15f + i * 0.05f);
+                    r.vel = new Vector2(0, Random.Range(120f, 200f) * s);
+                    r.size0 = Vector2.one * 40 * s; r.size1 = Vector2.one * 70 * s;
+                    r.c0 = WithA(hot, 0.95f); r.c1 = WithA(c, 0f); r.fadeIn = 0.25f; r.rotVel = Random.Range(-40f, 40f);
+                }
         }
 
         /// <summary>화면 전체 번쩍임(궁극기).</summary>
@@ -116,56 +165,69 @@ namespace SubcultureRPG.Battle.UI
             p.c0 = WithA(c, alpha); p.c1 = WithA(c, 0f); p.fadeIn = 0.05f;
         }
 
-        /// <summary>다단 히트의 추가 타격(작은 베기/충격 + 불꽃).</summary>
+        /// <summary>다단 히트의 추가 타격(작은 베기/충격 + 섬광 + 불꽃).</summary>
         public void Impact(Element e, SkillCategory cat, Vector2 pos, float s, float delay)
         {
             Color hot = Hot(e);
             Vector2 j = Random.insideUnitCircle * 26f * s;
             if (cat == SkillCategory.Basic || e == Element.Physical)
-                Slash(pos + j, hot, Random.Range(-70f, 70f), 190 * s, 22 * s, 0.2f, delay);
+                Slash(pos + j, hot, Random.Range(-70f, 70f), 220 * s, 22 * s, 0.2f, delay);
             else
-                Ring(pos + j, hot, 20 * s, 150 * s, 0.25f, delay);
-            Flash(pos + j, hot, 120 * s, 0.16f, delay);
-            Sparks(pos + j, hot, 5, 360 * s, 14 * s, 0.28f, delay);
+                Ring(pos + j, hot, 30 * s, 190 * s, 0.25f, delay);
+            Hit(pos + j, hot, 150 * s, 0.18f, delay);
+            Sparks(pos + j, hot, 5, 360 * s, 16 * s, 0.28f, delay);
         }
 
-        /// <summary>시전 모으기: 속성 색 빛 알갱이가 시전자 쪽으로 빨려 들며 가운데가 밝아짐.</summary>
-        public void Charge(Element e, Vector2 pos, float s, float dur)
+        /// <summary>
+        /// 시전 모으기: 발밑 작은 마법진 + 빛 알갱이가 시전자 쪽으로 빨려 들며 가운데가 밝아짐.
+        /// circleDur = 마법진이 떠 있는 시간(시전자가 돌진하기 전까지만 — 돌진 뒤 빈자리에 남지 않게). 음수면 dur.
+        /// </summary>
+        public void Charge(Element e, Vector2 pos, float s, float dur, float circleDur = -1f)
         {
             if (dur <= 0.05f) return;
             Color hot = Hot(e);
+            if (circleDur < 0f) circleDur = dur;
+            if (Has("magic_circle") && circleDur > 0.1f)
+            {
+                var mc = Add(T("magic_circle", null), pos + new Vector2(0, -120 * s), circleDur + 0.12f, 0f);
+                mc.squash = 0.34f; mc.rotVel = 90f;
+                mc.size0 = Vector2.one * 120 * s; mc.size1 = Vector2.one * 300 * s;
+                mc.c0 = WithA(hot, 0.9f); mc.c1 = WithA(hot, 0f); mc.fadeIn = 0.35f; mc.fadeOutFrom = 0.75f;
+            }
             for (int i = 0; i < 14; i++)
             {
-                var p = Add(ProceduralSprites.Star, pos, dur, Random.Range(0f, dur * 0.25f));
+                var p = Add(T("spark_star", ProceduralSprites.Star), pos, dur, Random.Range(0f, dur * 0.25f));
                 p.orbit = true; p.center = pos;
                 p.radius = Random.Range(120f, 170f) * s; p.radiusVel = -p.radius / (dur * 0.9f);
                 p.angle = Random.Range(0f, Mathf.PI * 2f); p.angVel = Random.Range(3f, 5f);
-                p.size0 = Vector2.one * 20 * s; p.size1 = Vector2.one * 8 * s;
+                p.size0 = Vector2.one * 30 * s; p.size1 = Vector2.one * 12 * s;
                 p.c0 = hot; p.c1 = WithA(Color.white, 0.6f); p.fadeIn = 0.3f;
             }
-            var g = Add(ProceduralSprites.Glow, pos, dur, 0f);
-            g.size0 = Vector2.one * 30 * s; g.size1 = Vector2.one * 190 * s;
+            var g = Add(ProceduralSprites.Glow, pos, dur, 0f);   // 부드러운 빛(glow_orb 텍스처는 속이 보여 '공'처럼 보임)
+            g.size0 = Vector2.one * 30 * s; g.size1 = Vector2.one * 200 * s;
             g.c0 = WithA(hot, 0.2f); g.c1 = WithA(hot, 0.9f); g.fadeIn = 0.85f;
         }
 
-        /// <summary>회복: 초록 빛 + 위로 떠오르는 반짝임.</summary>
+        /// <summary>회복: 초록 빛 + 위로 떠오르는 회복 십자 · 반짝임.</summary>
         public void Heal(Vector2 pos, float delay)
         {
             var green = new Color(0.45f, 1f, 0.6f);
             Flash(pos, green, 220, 0.35f, delay);
-            Ring(pos, green, 30, 200, 0.4f, delay);
-            for (int i = 0; i < 12; i++)
+            Ring(pos, green, 40, 240, 0.45f, delay);
+            for (int i = 0; i < 10; i++)
             {
-                var p = Add(ProceduralSprites.Star, pos + new Vector2(Random.Range(-85f, 85f), Random.Range(-45f, 15f)),
-                    Random.Range(0.7f, 1f), delay + Random.Range(0f, 0.25f));
+                bool cross = i % 2 == 0 && Has("heal_cross");
+                var p = Add(cross ? T("heal_cross", null) : T("spark_star", ProceduralSprites.Star),
+                    pos + new Vector2(Random.Range(-85f, 85f), Random.Range(-45f, 15f)), Random.Range(0.7f, 1f), delay + Random.Range(0f, 0.25f));
                 p.vel = new Vector2(Random.Range(-15f, 15f), Random.Range(70f, 150f));
-                p.size0 = Vector2.one * Random.Range(16f, 26f); p.size1 = Vector2.one * 6f;
+                float sz = cross ? Random.Range(34f, 48f) : Random.Range(20f, 30f);
+                p.size0 = Vector2.one * sz; p.size1 = Vector2.one * sz * 0.4f;
                 p.c0 = Color.white; p.c1 = WithA(green, 0f); p.fadeIn = 0.25f;
-                p.rotVel = Random.Range(-90f, 90f);
+                if (!cross) p.rotVel = Random.Range(-90f, 90f);
             }
         }
 
-        /// <summary>효과 부여: 버프 = 청록 화살표 상승 · 디버프 = 붉은 화살표 하강 · 지속 피해 = 보라 거품.</summary>
+        /// <summary>효과 부여: 버프 = 청록 화살표 상승 · 디버프 = 붉은 화살표 하강 · 지속 피해 = 보라 연기 · 거품.</summary>
         public void Status(StatusType type, Vector2 pos, float delay)
         {
             if (type == StatusType.None) return;
@@ -176,11 +238,13 @@ namespace SubcultureRPG.Battle.UI
             {
                 for (int i = 0; i < 9; i++)
                 {
-                    var p = Add(ProceduralSprites.Ring, pos + new Vector2(Random.Range(-70f, 70f), Random.Range(-35f, 5f)),
-                        Random.Range(0.6f, 0.9f), delay + Random.Range(0f, 0.3f));
+                    bool smoke = i < 4 && Has("smoke_puff");
+                    var p = Add(smoke ? T("smoke_puff", null) : ProceduralSprites.Ring,
+                        pos + new Vector2(Random.Range(-70f, 70f), Random.Range(-35f, 5f)), Random.Range(0.6f, 0.9f), delay + Random.Range(0f, 0.3f));
                     p.vel = new Vector2(Random.Range(-20f, 20f), Random.Range(50f, 110f));
-                    p.size0 = Vector2.one * Random.Range(10f, 22f); p.size1 = p.size0 * 1.4f;
-                    p.c0 = light; p.c1 = WithA(c, 0f); p.fadeIn = 0.2f;
+                    p.size0 = Vector2.one * (smoke ? Random.Range(60f, 90f) : Random.Range(10f, 22f)); p.size1 = p.size0 * 1.4f;
+                    p.c0 = smoke ? WithA(c, 0.7f) : light; p.c1 = WithA(c, 0f); p.fadeIn = 0.2f;
+                    if (smoke) p.rotVel = Random.Range(-40f, 40f);
                 }
                 return;
             }
@@ -201,40 +265,59 @@ namespace SubcultureRPG.Battle.UI
         private void Fire(Vector2 pos, float s, float delay)
         {
             var yellow = new Color(1f, 0.9f, 0.45f);
+            var orange = new Color(1f, 0.55f, 0.2f);
             var red = new Color(1f, 0.25f, 0.1f);
-            Flash(pos, new Color(1f, 0.55f, 0.2f), 300 * s, 0.4f, delay);
-            Ring(pos, new Color(1f, 0.6f, 0.25f), 40 * s, 260 * s, 0.4f, delay);
-            for (int i = 0; i < 18; i++)
+            Flash(pos, orange, 300 * s, 0.4f, delay);
+            if (Has("fire_burst"))
             {
-                var p = Add(ProceduralSprites.Glow, pos + Random.insideUnitCircle * 55f * s, Random.Range(0.5f, 0.85f), delay + Random.Range(0f, 0.15f));
+                var b = Add(T("fire_burst", null), pos, 0.45f, delay);
+                b.size0 = Vector2.one * 120 * s; b.size1 = Vector2.one * 380 * s; b.rotVel = Random.Range(-60f, 60f);
+                b.c0 = WithA(yellow, 1f); b.c1 = WithA(red, 0f); b.fadeIn = 0.06f; b.fadeOutFrom = 0.3f;
+            }
+            else Ring(pos, new Color(1f, 0.6f, 0.25f), 40 * s, 260 * s, 0.4f, delay);
+
+            bool tex = Has("flame");
+            for (int i = 0; i < (tex ? 11 : 18); i++)
+            {
+                var p = Add(T("flame", ProceduralSprites.Glow), pos + Random.insideUnitCircle * 60f * s, Random.Range(0.5f, 0.85f), delay + Random.Range(0f, 0.15f));
                 p.vel = new Vector2(Random.Range(-50f, 50f), Random.Range(110f, 240f)) * s;
                 p.gravity = new Vector2(0, 90f * s);
-                float sz = Random.Range(45f, 80f) * s;
-                p.size0 = Vector2.one * sz; p.size1 = Vector2.one * sz * 0.15f;
+                float sz = (tex ? Random.Range(90f, 150f) : Random.Range(45f, 80f)) * s;
+                p.size0 = tex ? new Vector2(sz * 0.8f, sz) : Vector2.one * sz;
+                p.size1 = p.size0 * 0.25f;
+                p.rot = tex ? Random.Range(-15f, 15f) : 0f;
                 p.c0 = yellow; p.c1 = WithA(red, 0f); p.fadeIn = 0.08f;
             }
-            Sparks(pos, yellow, 8, 380 * s, 16 * s, 0.45f, delay + 0.05f);
+            Sparks(pos, yellow, 8, 380 * s, 18 * s, 0.45f, delay + 0.05f);
         }
 
         private void Ice(Vector2 pos, float s, float delay)
         {
             var cyan = new Color(0.55f, 0.9f, 1f);
             Flash(pos, new Color(0.8f, 0.97f, 1f), 250 * s, 0.3f, delay);
-            Ring(pos, cyan, 40 * s, 230 * s, 0.4f, delay);
+            if (Has("ice_burst"))
+            {
+                var b = Add(T("ice_burst", null), pos, 0.5f, delay);
+                b.size0 = Vector2.one * 110 * s; b.size1 = Vector2.one * 340 * s;
+                b.c0 = WithA(Color.white, 1f); b.c1 = WithA(cyan, 0f); b.fadeIn = 0.05f; b.fadeOutFrom = 0.35f;
+            }
+            else Ring(pos, cyan, 40 * s, 230 * s, 0.4f, delay);
+
+            bool tex = Has("ice_shard");
             for (int i = 0; i < 12; i++)
             {
                 float ang = (i * 30f + Random.Range(-10f, 10f)) * Mathf.Deg2Rad;
                 var dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
-                var p = Add(ProceduralSprites.Triangle, pos + dir * 10f * s, 0.55f, delay + Random.Range(0f, 0.05f));
+                var p = Add(T("ice_shard", ProceduralSprites.Triangle), pos + dir * 10f * s, 0.55f, delay + Random.Range(0f, 0.05f));
                 p.vel = dir * Random.Range(380f, 620f) * s; p.drag = 5f;
                 p.alignToVel = true;
-                p.size0 = new Vector2(18, 48) * s; p.size1 = new Vector2(8, 22) * s;
+                p.size0 = (tex ? new Vector2(46, 110) : new Vector2(18, 48)) * s; p.size1 = p.size0 * 0.45f;
                 p.c0 = Color.white; p.c1 = WithA(cyan, 0f); p.fadeIn = 0.05f;
             }
             for (int i = 0; i < 6; i++)
             {
-                var p = Add(ProceduralSprites.Star, pos + Random.insideUnitCircle * 90f * s, 0.45f, delay + 0.1f + Random.Range(0f, 0.15f));
-                p.size0 = Vector2.one * 8 * s; p.size1 = Vector2.one * 30 * s;
+                var p = Add(T("spark_star", ProceduralSprites.Star), pos + Random.insideUnitCircle * 90f * s, 0.45f, delay + 0.1f + Random.Range(0f, 0.15f));
+                p.size0 = Vector2.one * 10 * s; p.size1 = Vector2.one * 40 * s;
                 p.c0 = Color.white; p.c1 = WithA(cyan, 0f); p.fadeIn = 0.3f; p.rotVel = 120f;
             }
         }
@@ -245,14 +328,30 @@ namespace SubcultureRPG.Battle.UI
             Bolt(pos, s, violet, delay);
             Bolt(pos, s, Color.white, delay + 0.08f);
             Flash(pos, violet, 290 * s, 0.3f, delay + 0.04f);
-            Ring(pos, violet, 30 * s, 220 * s, 0.3f, delay + 0.04f);
-            Sparks(pos, new Color(0.9f, 0.8f, 1f), 14, 620 * s, 15 * s, 0.35f, delay + 0.04f);
+            if (Has("lightning_arc"))
+            {
+                var a = Add(T("lightning_arc", null), pos, 0.35f, delay + 0.04f);
+                a.size0 = Vector2.one * 160 * s; a.size1 = Vector2.one * 300 * s; a.rot = Random.Range(0f, 360f);
+                a.c0 = WithA(Color.white, 1f); a.c1 = WithA(violet, 0f); a.fadeIn = 0.02f; a.flicker = true;
+            }
+            else Ring(pos, violet, 30 * s, 220 * s, 0.3f, delay + 0.04f);
+            Sparks(pos, new Color(0.9f, 0.8f, 1f), 14, 620 * s, 17 * s, 0.35f, delay + 0.04f);
         }
 
-        /// <summary>위에서 대상으로 떨어지는 지그재그 낙뢰(짧은 빛줄기 여러 개).</summary>
+        /// <summary>위에서 대상으로 떨어지는 낙뢰(텍스처 한 장, 없으면 지그재그 빛줄기 여러 개).</summary>
         private void Bolt(Vector2 target, float s, Color c, float delay)
         {
-            var start = target + new Vector2(Random.Range(-70f, 70f) * s, 430f * s);
+            var start = target + new Vector2(Random.Range(-70f, 70f) * s, 460f * s);
+            if (Has("lightning_bolt"))
+            {
+                Vector2 d = target - start;
+                var b = Add(T("lightning_bolt", null), (start + target) / 2f, 0.3f, delay);
+                b.rot = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg - 90f;
+                if (Random.value < 0.5f) b.rot += 180f;   // 그림 방향을 섞어 매번 다른 모양
+                b.size0 = b.size1 = new Vector2(220f * s, d.magnitude * 1.15f);
+                b.c0 = c; b.c1 = WithA(c, 0f); b.fadeIn = 0.02f; b.flicker = true;
+                return;
+            }
             const int seg = 7;
             Vector2 prev = start;
             for (int i = 1; i <= seg; i++)
@@ -273,34 +372,45 @@ namespace SubcultureRPG.Battle.UI
         {
             var green = new Color(0.55f, 1f, 0.7f);
             Flash(pos, new Color(0.75f, 1f, 0.85f), 230 * s, 0.35f, delay);
-            Ring(pos, green, 50 * s, 250 * s, 0.45f, delay);
-            for (int i = 0; i < 16; i++)
+            if (Has("wind_swirl"))
+            {
+                var w = Add(T("wind_swirl", null), pos, 0.55f, delay);
+                w.size0 = Vector2.one * 140 * s; w.size1 = Vector2.one * 340 * s; w.rotVel = 420f;
+                w.c0 = WithA(Color.white, 0.95f); w.c1 = WithA(green, 0f); w.fadeIn = 0.08f; w.fadeOutFrom = 0.4f;
+            }
+            else Ring(pos, green, 50 * s, 250 * s, 0.45f, delay);
+
+            bool tex = Has("wind_blade");
+            for (int i = 0; i < (tex ? 10 : 16); i++)
             {
                 bool inward = i % 2 == 0;
-                var p = Add(ProceduralSprites.Beam, pos, Random.Range(0.45f, 0.6f), delay + Random.Range(0f, 0.12f));
+                var p = Add(T("wind_blade", ProceduralSprites.Beam), pos, Random.Range(0.45f, 0.6f), delay + Random.Range(0f, 0.12f));
                 p.orbit = true; p.center = pos;
                 p.radius = (inward ? 150f : 30f) * s; p.radiusVel = (inward ? -170f : 260f) * s;
                 p.angle = Random.Range(0f, Mathf.PI * 2f); p.angVel = 9f;
                 p.alignToVel = true;
-                p.size0 = new Vector2(12, 70) * s; p.size1 = new Vector2(4, 34) * s;
+                p.size0 = (tex ? new Vector2(70, 110) : new Vector2(12, 70)) * s; p.size1 = p.size0 * 0.5f;
                 p.c0 = Color.white; p.c1 = WithA(green, 0f); p.fadeIn = 0.1f;
             }
-            Sparks(pos, green, 6, 300 * s, 14 * s, 0.45f, delay + 0.1f);
+            Sparks(pos, green, 6, 300 * s, 16 * s, 0.45f, delay + 0.1f);
         }
 
         private void Physical(Vector2 pos, float s, float delay)
         {
             var white = new Color(0.95f, 0.95f, 1f);
-            Ring(pos, white, 30 * s, 250 * s, 0.3f, delay);
+            var gold = new Color(1f, 0.85f, 0.55f);
+            Ring(pos, white, 40 * s, 300 * s, 0.32f, delay);
             float baseA = Random.Range(0f, 45f);
             for (int i = 0; i < 4; i++)
-                Slash(pos, i % 2 == 0 ? white : new Color(1f, 0.85f, 0.55f), baseA + i * 45f, 270 * s, 26 * s, 0.25f, delay + i * 0.035f);
-            Flash(pos, white, 210 * s, 0.25f, delay);
-            Sparks(pos, new Color(1f, 0.88f, 0.55f), 12, 520 * s, 18 * s, 0.4f, delay + 0.05f);
+                Slash(pos, i % 2 == 0 ? white : gold, baseA + i * 45f, 300 * s, 26 * s, 0.25f, delay + i * 0.035f);
+            if (Has("slash_arc")) Arc(pos, white, baseA + 90f, 340 * s, 0.32f, delay + 0.16f, 1);
+            Hit(pos, white, 230 * s, 0.26f, delay);
+            Sparks(pos, gold, 12, 520 * s, 20 * s, 0.4f, delay + 0.05f);
         }
 
         // ---------------- 기본 조각 ----------------
 
+        /// <summary>부드러운 빛 번짐(코드 도형 — 텍스처보다 부드러워 바탕 빛으로 씀).</summary>
         private void Flash(Vector2 pos, Color c, float size, float life, float delay)
         {
             var p = Add(ProceduralSprites.Glow, pos, life, delay);
@@ -308,20 +418,34 @@ namespace SubcultureRPG.Battle.UI
             p.c0 = WithA(c, 0.95f); p.c1 = WithA(c, 0f); p.fadeIn = 0.1f;
         }
 
+        /// <summary>타격 섬광: 뾰족한 별 모양이 커지며 사라짐(+ 부드러운 빛). 텍스처가 없으면 빛 번짐만.</summary>
+        private void Hit(Vector2 pos, Color c, float size, float life, float delay)
+        {
+            Flash(pos, c, size * 0.8f, life, delay);
+            if (!Has("impact_hit")) return;
+            var p = Add(T("impact_hit", null), pos, life, delay);
+            p.size0 = Vector2.one * size * 0.45f; p.size1 = Vector2.one * size * 1.1f;
+            p.rot = Random.Range(0f, 360f); p.rotVel = Random.Range(-60f, 60f);
+            p.c0 = WithA(Color.Lerp(c, Color.white, 0.5f), 1f); p.c1 = WithA(c, 0f); p.fadeIn = 0.03f; p.fadeOutFrom = 0.25f;
+        }
+
         private void Ring(Vector2 pos, Color c, float from, float to, float life, float delay)
         {
-            var p = Add(ProceduralSprites.Ring, pos, life, delay);
-            p.size0 = Vector2.one * from; p.size1 = Vector2.one * to;
+            bool tex = Has("shockwave");
+            var p = Add(T("shockwave", ProceduralSprites.Ring), pos, life, delay);
+            p.size0 = Vector2.one * from; p.size1 = Vector2.one * to * (tex ? 1.1f : 1f);
+            p.rot = tex ? Random.Range(0f, 360f) : 0f;
             p.c0 = WithA(c, 0.9f); p.c1 = WithA(c, 0f); p.fadeIn = 0.05f;
         }
 
         private void Sparks(Vector2 pos, Color c, int count, float speed, float size, float life, float delay)
         {
+            var sp = T("spark_star", ProceduralSprites.Star);
             for (int i = 0; i < count; i++)
             {
                 var dir = Random.insideUnitCircle.normalized;
                 if (dir == Vector2.zero) dir = Vector2.up;
-                var p = Add(ProceduralSprites.Star, pos, life * Random.Range(0.7f, 1f), delay);
+                var p = Add(sp, pos, life * Random.Range(0.7f, 1f), delay);
                 p.vel = dir * speed * Random.Range(0.45f, 1f); p.drag = 4f;
                 p.size0 = Vector2.one * size * Random.Range(0.8f, 1.3f); p.size1 = Vector2.one * size * 0.2f;
                 p.c0 = Color.white; p.c1 = WithA(c, 0f); p.fadeIn = 0.02f;
@@ -329,18 +453,33 @@ namespace SubcultureRPG.Battle.UI
             }
         }
 
-        /// <summary>베기: 가늘게 시작해 길어지며 베는 방향으로 살짝 미끄러지는 빛줄기(+ 흰 심).</summary>
+        /// <summary>
+        /// 초승달 검기: 텍스처(slash_arc)를 베는 방향으로 돌리며 커지게. dir = 회전 방향(1 · -1).
+        /// 텍스처가 없으면 일직선 베기로 대신.
+        /// </summary>
+        private void Arc(Vector2 pos, Color c, float angleDeg, float size, float life, float delay, int dir)
+        {
+            if (!Has("slash_arc")) { Slash(pos, c, angleDeg, size * 0.8f, size * 0.1f, life * 0.8f, delay); return; }
+            var p = Add(T("slash_arc", null), pos, life, delay);
+            p.rot = angleDeg - 25f * dir; p.rotVel = 160f * dir;
+            p.size0 = new Vector2(size * 0.7f * dir, size * 0.7f); p.size1 = new Vector2(size * 1.08f * dir, size * 1.08f);   // dir<0 이면 좌우 뒤집기
+            p.c0 = WithA(Color.Lerp(c, Color.white, 0.35f), 1f); p.c1 = WithA(c, 0f); p.fadeIn = 0.06f; p.fadeOutFrom = 0.35f;
+        }
+
+        /// <summary>일직선 베기: 가늘게 시작해 길어지며 베는 방향으로 살짝 미끄러지는 검기(+ 흰 심).</summary>
         private void Slash(Vector2 pos, Color c, float angleDeg, float length, float width, float life, float delay)
         {
             float r = (angleDeg + 90f) * Mathf.Deg2Rad;
             var dir = new Vector2(Mathf.Cos(r), Mathf.Sin(r));
-            var p = Add(ProceduralSprites.Beam, pos - dir * length * 0.12f, life, delay);
+            bool tex = Has("slash_line");
+            var p = Add(T("slash_line", ProceduralSprites.Beam), pos - dir * length * 0.12f, life, delay);
             p.rot = angleDeg; p.vel = dir * length * 1.2f; p.drag = 6f;
-            p.size0 = new Vector2(width * 0.35f, length * 0.25f); p.size1 = new Vector2(width, length);
+            float w = tex ? width * 3.2f : width;   // 텍스처는 가운데 심이 가늘어 넓게 깔아야 같은 굵기
+            p.size0 = new Vector2(w * 0.35f, length * 0.25f); p.size1 = new Vector2(w, length);
             p.c0 = WithA(c, 1f); p.c1 = WithA(c, 0f); p.fadeIn = 0.15f;
             var core = Add(ProceduralSprites.Beam, pos - dir * length * 0.12f, life * 0.8f, delay);
             core.rot = angleDeg; core.vel = p.vel; core.drag = 6f;
-            core.size0 = new Vector2(width * 0.12f, length * 0.2f); core.size1 = new Vector2(width * 0.35f, length * 0.9f);
+            core.size0 = new Vector2(width * 0.12f, length * 0.2f); core.size1 = new Vector2(width * 0.3f, length * 0.85f);
             core.c0 = Color.white; core.c1 = WithA(Color.white, 0f); core.fadeIn = 0.15f;
         }
 
@@ -370,6 +509,12 @@ namespace SubcultureRPG.Battle.UI
         private void Release(P p)
         {
             if (p.img == null) return;
+            if (p.holder != null)
+            {
+                p.img.rectTransform.SetParent(_layer, false);
+                Destroy(p.holder.gameObject);
+                p.holder = null;
+            }
             p.img.gameObject.SetActive(false);
             _pool.Push(p.img);
         }
@@ -386,7 +531,21 @@ namespace SubcultureRPG.Battle.UI
                     p.delay -= dt;
                     if (p.delay > 0f) continue;
                 }
-                if (!p.img.gameObject.activeSelf) p.img.gameObject.SetActive(true);
+                if (!p.img.gameObject.activeSelf)
+                {
+                    if (p.squash > 0f && p.holder == null)
+                    {
+                        // 납작하게 누르는 틀(바닥에 눕힌 모양): 그림은 틀 안에서 돌고, 틀이 세로를 누름
+                        p.holder = UIFactory.NewRect("Flat", _layer);
+                        UIFactory.Anchor(p.holder, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                        p.holder.sizeDelta = Vector2.zero;
+                        p.holder.localScale = new Vector3(1f, p.squash, 1f);
+                        p.holder.SetSiblingIndex(p.rt.GetSiblingIndex());
+                        p.rt.SetParent(p.holder, false);
+                        p.rt.anchoredPosition = Vector2.zero;
+                    }
+                    p.img.gameObject.SetActive(true);
+                }
 
                 p.t += dt;
                 float k = p.t / p.life;
@@ -407,10 +566,14 @@ namespace SubcultureRPG.Battle.UI
                     p.pos += p.vel * dt;
                     moveDir = p.vel;
                 }
-                p.rt.anchoredPosition = p.pos;
+                if (p.holder != null) p.holder.anchoredPosition = p.pos;
+                else p.rt.anchoredPosition = p.pos;
 
                 float ease = 1f - (1f - k) * (1f - k);
-                p.rt.sizeDelta = Vector2.Lerp(p.size0, p.size1, ease);
+                var size = Vector2.Lerp(p.size0, p.size1, ease);
+                // 음수 너비 = 좌우 뒤집기(크기는 절댓값, 뒤집기는 scale로)
+                p.rt.sizeDelta = new Vector2(Mathf.Abs(size.x), Mathf.Abs(size.y));
+                p.rt.localScale = new Vector3(size.x < 0f ? -1f : 1f, 1f, 1f);
 
                 if (p.alignToVel && moveDir.sqrMagnitude > 0.01f)
                     p.rot = Mathf.Atan2(moveDir.y, moveDir.x) * Mathf.Rad2Deg - 90f;
@@ -418,7 +581,8 @@ namespace SubcultureRPG.Battle.UI
                     p.rot += p.rotVel * dt;
                 p.rt.localEulerAngles = new Vector3(0, 0, p.rot);
 
-                var c = Color.Lerp(p.c0, p.c1, k);
+                float ck = p.fadeOutFrom > 0f ? Mathf.Clamp01((k - p.fadeOutFrom) / (1f - p.fadeOutFrom)) : k;
+                var c = Color.Lerp(p.c0, p.c1, ck);
                 float env = k < p.fadeIn ? k / p.fadeIn : 1f;
                 c.a *= env * (p.flicker ? Random.Range(0.35f, 1f) : 1f);
                 p.img.color = c;

@@ -101,6 +101,10 @@ namespace SubcultureRPG
         /// <summary>장비 부위 아이콘.</summary>
         public static Sprite EquipSlotIcon(EquipSlot slot) => Load("Equipment/slot_" + slot.ToString().ToLowerInvariant());
 
+        /// <summary>세트별 장비 그림(Equipment/{세트 id}_{부위}). 없으면 부위 아이콘.</summary>
+        public static Sprite EquipIcon(string set, EquipSlot slot) =>
+            (!string.IsNullOrEmpty(set) ? Load("Equipment/" + set + "_" + slot.ToString().ToLowerInvariant()) : null) ?? EquipSlotIcon(slot);
+
         /// <summary>화면 배경.</summary>
         public static Sprite Background(string key) => Load("Backgrounds/" + key);
 

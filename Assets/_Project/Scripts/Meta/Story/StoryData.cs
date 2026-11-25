@@ -50,21 +50,28 @@ namespace SubcultureRPG.Meta
             return _scripts.TryGetValue(key, out var sc) ? sc : null;
         }
 
-        public static bool Seen(StoryScript s) => s != null && PlayerPrefs.GetInt("story.seen." + s.id, 0) == 1;
+        public static bool Seen(StoryScript s) => s != null && SaveStore.GetInt("story.seen." + s.id, 0) == 1;
 
         public static void MarkSeen(StoryScript s)
         {
             if (s == null) return;
-            PlayerPrefs.SetInt("story.seen." + s.id, 1);
-            PlayerPrefs.Save();
+            SaveStore.SetInt("story.seen." + s.id, 1);
+            SaveStore.Save();
+        }
+
+        /// <summary>세이브 키 전체(옛 세이브를 클라우드로 옮길 때 빠지지 않게).</summary>
+        public static IEnumerable<string> SaveKeys()
+        {
+            _scripts ??= Build();
+            foreach (var k in _scripts.Keys) yield return "story.seen." + k;
         }
 
         /// <summary>테스트용: 모든 스토리를 안 본 상태로.</summary>
         public static void ResetSeen()
         {
             _scripts ??= Build();
-            foreach (var k in _scripts.Keys) PlayerPrefs.DeleteKey("story.seen." + k);
-            PlayerPrefs.Save();
+            foreach (var k in _scripts.Keys) SaveStore.DeleteKey("story.seen." + k);
+            SaveStore.Save();
         }
 
         // ---------------- 등장인물 ----------------

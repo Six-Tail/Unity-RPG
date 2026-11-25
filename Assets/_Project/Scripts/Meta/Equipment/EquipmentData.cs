@@ -22,7 +22,8 @@ namespace SubcultureRPG.Meta
     {
         HP, HPPct, Atk, AtkPct, Def, DefPct, Spd,
         CritRate, CritDmg, Penetration, BreakEffect, EnergyRegen, HealBonus, EffectHit, EffectRes,
-        PhysicalDmg, FireDmg, IceDmg, LightningDmg, WindDmg,
+        PhysicalDmg, FireDmg, IceDmg, LightningDmg, WindDmg,   // 옛 목걸이 주옵션(불러올 때 ElementDmg로 바뀜)
+        ElementDmg,   // 속성 피해(착용자 속성) — 목걸이 주옵션. 값이 저장되므로 뒤에만 추가
     }
 
     /// <summary>보조 옵션 1줄(강화 시 roll 횟수만큼 수치 상승).</summary>
@@ -128,6 +129,7 @@ namespace SubcultureRPG.Meta
             EquipStat.EffectHit => "효과 명중", EquipStat.EffectRes => "효과 저항",
             EquipStat.PhysicalDmg => "물리 피해", EquipStat.FireDmg => "화염 피해",
             EquipStat.IceDmg => "얼음 피해", EquipStat.LightningDmg => "번개 피해", EquipStat.WindDmg => "바람 피해",
+            EquipStat.ElementDmg => "속성 피해",
             _ => s.ToString(),
         };
 
@@ -156,7 +158,7 @@ namespace SubcultureRPG.Meta
             EquipSlot.Hands => new[] { EquipStat.Atk },
             EquipSlot.Body => new[] { EquipStat.HPPct, EquipStat.AtkPct, EquipStat.DefPct, EquipStat.CritRate, EquipStat.CritDmg, EquipStat.HealBonus, EquipStat.EffectHit },
             EquipSlot.Feet => new[] { EquipStat.HPPct, EquipStat.AtkPct, EquipStat.DefPct, EquipStat.Spd },
-            EquipSlot.Neck => new[] { EquipStat.HPPct, EquipStat.AtkPct, EquipStat.DefPct, EquipStat.PhysicalDmg, EquipStat.FireDmg, EquipStat.IceDmg, EquipStat.LightningDmg, EquipStat.WindDmg },
+            EquipSlot.Neck => new[] { EquipStat.HPPct, EquipStat.AtkPct, EquipStat.DefPct, EquipStat.ElementDmg },   // 속성 피해는 착용자 속성 하나로 통합
             _ => new[] { EquipStat.HPPct, EquipStat.AtkPct, EquipStat.DefPct, EquipStat.BreakEffect, EquipStat.EnergyRegen, EquipStat.Penetration },
         };
 
@@ -237,6 +239,7 @@ namespace SubcultureRPG.Meta
                 case EquipStat.IceDmg: b.AddElementDmg(Element.Ice, v); break;
                 case EquipStat.LightningDmg: b.AddElementDmg(Element.Lightning, v); break;
                 case EquipStat.WindDmg: b.AddElementDmg(Element.Wind, v); break;
+                case EquipStat.ElementDmg: b.wearerElementDmg += v; break;
             }
         }
 
@@ -252,6 +255,7 @@ namespace SubcultureRPG.Meta
             P("치명타 확률", b.critRate, true); P("치명타 피해", b.critDmg, true);
             P("방어 관통", b.penetration, true); P("피해", b.allDmg, true);
             foreach (var e in Traits.AllElements) P($"{Traits.Name(e)} 피해", b.ElementDmg(e), true);
+            P("속성 피해(착용자)", b.wearerElementDmg, true);
             P("브레이크 효율", b.breakEffect, true); P("에너지 회복", b.energyRegen, true); P("치유량", b.healBonus, true);
             P("효과 명중", b.effectHit, true); P("효과 저항", b.effectRes, true);
             if (b.startEnergy != 0) list.Add($"시작 에너지 +{b.startEnergy}");
@@ -352,6 +356,57 @@ namespace SubcultureRPG.Meta
             for (int l = 0; l < it.level; l++) spent += EnhanceOre(l);
             int baseOre = it.Rarity switch { 3 => 1, 4 => 2, 5 => 3, _ => 5 };
             return baseOre + Mathf.FloorToInt(spent * 0.6f);
+        }
+
+        /// <summary>분해 시 얻는 장비 정수(선택 제작 재료): 성급 3 · 4 · 5 · 6 = 1 · 2 · 4 · 8, 강화 4단계마다 +1.</summary>
+        public static int DismantleEssence(EquipmentItem it) =>
+            (it.Rarity switch { 3 => 1, 4 => 2, 5 => 4, _ => 8 }) + it.level / 4;
+
+        // ---------------- 선택 제작 · 재련(튜닝 지점) ----------------
+
+        /// <summary>선택 제작 비용: 고른 항목 수(0 ~ 3: 세트 · 부위 · 주옵션)에 따라 장비 정수 · 금화.</summary>
+        public static readonly int[] CraftEssence = { 30, 60, 120, 240 };
+        public static readonly int[] CraftGold = { 20000, 40000, 80000, 160000 };
+
+        /// <summary>주옵션 재련 비용: 재련석 1개 + 금화.</summary>
+        public const int RefineStones = 1, RefineGold = 30000;
+
+        /// <summary>재련할 수 있는 부위인지(머리 · 손은 주옵션이 1종이라 불가).</summary>
+        public static bool CanRefineSlot(EquipSlot s) => EquipStats.MainPool(s).Length > 1;
+
+        /// <summary>제작: set · slot · main 중 null인 것은 무작위. 6★ +0, 보조 옵션 무작위.</summary>
+        public static EquipmentItem Craft(string set, EquipSlot? slot, EquipStat? main, System.Random rng)
+        {
+            if (string.IsNullOrEmpty(set)) set = EquipSets.All[rng.Next(EquipSets.All.Length)].id;
+            var it = Generate(set, rng, EquipStats.MaxRarity, slot);
+            if (main.HasValue && System.Array.IndexOf(EquipStats.MainPool(it.slot), main.Value) >= 0 && it.main != main.Value)
+            {
+                it.main = main.Value;
+                // 주옵션과 겹치는 보조 옵션은 다른 것으로
+                it.subs.RemoveAll(x => x.stat == it.main);
+                while (it.subs.Count < it.initialSubs) { int n = it.subs.Count; AddRandomSub(it, rng); if (it.subs.Count == n) break; }
+            }
+            return it;
+        }
+
+        /// <summary>재련: 주옵션을 같은 부위의 다른 주옵션으로 무작위 변경(보조 옵션과 겹치면 그 보조 옵션을 새로 뽑음).</summary>
+        public static EquipStat Refine(EquipmentItem it, System.Random rng)
+        {
+            var pool = new List<EquipStat>(EquipStats.MainPool(it.slot));
+            pool.Remove(it.main);
+            if (pool.Count == 0) return it.main;
+            it.main = pool[rng.Next(pool.Count)];
+            int idx = it.subs.FindIndex(x => x.stat == it.main);
+            if (idx >= 0)
+            {
+                int rolls = it.subs[idx].rolls;
+                it.subs.RemoveAt(idx);
+                AddRandomSub(it, rng);
+                var added = it.subs[it.subs.Count - 1];
+                // 같은 강화 횟수만큼 새 옵션도 키움(잃는 것 없게)
+                for (int r = 1; r < rolls; r++) { added.value += EquipStats.RollSub(added.stat, rng, it.Rarity); added.rolls++; }
+            }
+            return it.main;
         }
 
         /// <summary>성급 가중치(3·4·5·6성 순)로 성급 하나 뽑기.</summary>

@@ -41,29 +41,28 @@ namespace SubcultureRPG.Battle.UI
             UIFactory.Anchor(c._label.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
             c._label.rectTransform.sizeDelta = new Vector2(400, 30); c._label.rectTransform.anchoredPosition = new Vector2(0, -4);
 
-            c._value = UIFactory.AddText("Value", rt, "0", 58, font, new Color(1f, 0.84f, 0.4f), TextAlignmentOptions.Right, FontStyles.Bold | FontStyles.Italic);
+            var nf = GameFonts.Number(font);
+            c._value = UIFactory.AddText("Value", rt, "0", 58, nf, new Color(1f, 0.84f, 0.4f), TextAlignmentOptions.Right, nf == font ? FontStyles.Bold | FontStyles.Italic : FontStyles.Italic);
             UIFactory.Anchor(c._value.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 0.5f));
             c._value.rectTransform.sizeDelta = new Vector2(420, 70); c._value.rectTransform.anchoredPosition = new Vector2(0, -66);
-            c._value.outlineWidth = 0.16f;
-            c._value.outlineColor = new Color32(30, 16, 4, 255);
+            TextOutline.Apply(c._value, 0.16f, new Color32(30, 16, 4, 255));
             return c;
         }
 
-        /// <summary>새 턴 시작: 아군이면 그 캐릭터 기준으로 새로 셈, 적이면 잠시 뒤 숨김.</summary>
+        /// <summary>마지막 피해 뒤 이만큼(초) 계속 보여 줌 — 다음 턴이 빨리 와도 숫자를 읽을 수 있게.</summary>
+        public const float HoldSeconds = 1.8f;
+
+        /// <summary>
+        /// 새 턴 시작: 아군이면 그 캐릭터 기준으로 새로 셀 준비만 함(숫자는 그 캐릭터의 첫 피해가 들어올 때 바꿈).
+        /// 턴이 바뀌어도 앞 캐릭터의 숫자를 바로 0으로 만들거나 숨기지 않고, 마지막 피해 뒤 HoldSeconds 동안 보여 준 뒤 사라짐.
+        /// </summary>
         public void BeginTurn(BattleUnit unit)
         {
-            if (unit != null && unit.team == Team.Ally)
-            {
-                _actor = unit;
-                _total = 0; _shown = 0f;
-                _hideAt = 0f;   // 피해가 들어오기 전까지는 숨김
-            }
-            else
-            {
-                _actor = null;
-                if (_hideAt < 0f) _hideAt = Time.unscaledTime + 0.8f;
-            }
+            _actor = unit != null && unit.team == Team.Ally ? unit : null;
+            _pendingReset = true;
         }
+
+        private bool _pendingReset;
 
         /// <summary>행동 결과 반영(이번 턴 캐릭터가 적에게 준 피해만).</summary>
         public void Add(BattleUnit actor, List<ActionResult.TargetHit> hits)
@@ -77,22 +76,28 @@ namespace SubcultureRPG.Battle.UI
                 add += Mathf.Max(0, h.totalDamage) + Mathf.Max(0, h.breakBonusDamage);
             }
             if (add <= 0) return;
+            if (_pendingReset)
+            {
+                // 새 캐릭터의 첫 피해: 이 순간에 새로 셈(앞 숫자 → 바로 새 숫자로 굴러감, 0이 보이지 않게 첫 피해의 절반에서 시작)
+                _pendingReset = false;
+                _total = 0;
+                _shown = add * 0.5f;
+            }
             _total += add;
-            _hideAt = -1f;   // 보이는 중
+            _hideAt = Time.unscaledTime + HoldSeconds;
             _punch = 1f;
         }
 
         public void Clear()
         {
-            _actor = null; _total = 0; _shown = 0f; _hideAt = 0f; _alpha = 0f;
+            _actor = null; _total = 0; _shown = 0f; _hideAt = 0f; _alpha = 0f; _pendingReset = false;
             if (_cg != null) _cg.alpha = 0f;
         }
 
         private void Update()
         {
             float dt = Time.unscaledDeltaTime;
-            bool visible = _hideAt < 0f || Time.unscaledTime < _hideAt;
-            if (_total <= 0) visible = false;
+            bool visible = _total > 0 && Time.unscaledTime < _hideAt;
             _alpha = Mathf.MoveTowards(_alpha, visible ? 1f : 0f, dt * (visible ? 8f : 3f));
             _cg.alpha = _alpha;
             if (_alpha <= 0f && !visible) return;

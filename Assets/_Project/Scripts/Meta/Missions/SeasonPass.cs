@@ -71,9 +71,9 @@ namespace SubcultureRPG.Meta.Missions
             if (!_loaded)
             {
                 _loaded = true;
-                if (PlayerPrefs.HasKey(SaveKey))
+                if (SaveStore.HasKey(SaveKey))
                 {
-                    try { _d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey)) ?? new SaveData(); }
+                    try { _d = JsonUtility.FromJson<SaveData>(SaveStore.GetString(SaveKey)) ?? new SaveData(); }
                     catch { _d = new SaveData(); }
                 }
             }
@@ -104,8 +104,8 @@ namespace SubcultureRPG.Meta.Missions
 
         private void Save()
         {
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(_d));
-            PlayerPrefs.Save();
+            SaveStore.SetString(SaveKey, JsonUtility.ToJson(_d));
+            SaveStore.Save();
         }
 
         private void Changed() { Save(); OnChanged?.Invoke(); }
@@ -133,35 +133,45 @@ namespace SubcultureRPG.Meta.Missions
 
         // ---------------- 보상표(튜닝 지점) ----------------
 
-        /// <summary>무료 보상: 10단계마다 크리스탈(30단계는 픽업 뽑기권), 5단계마다 상급 교본, 그 밖에는 금화 · 소탕권 · 경험치 물약 · 행동력 물약 순환.</summary>
+        /// <summary>
+        /// 무료 보상(30단계):
+        /// · 10 · 20단계 크리스탈 150, 30단계 크리스탈 200 + 픽업 뽑기권 1
+        /// · 5 · 15 · 25단계 장비 정수 30(장비 선택 제작)
+        /// · 그 밖에는 금화 · 소탕권 · 경험치 물약 · (행동력 물약 / 장비 강화석 번갈아) 순환
+        /// </summary>
         public static RewardBundle FreeReward(int lv)
         {
             var r = new RewardBundle();
-            if (lv == MaxLevel) return r.Crystals(100).Pickup(1);
-            if (lv % 10 == 0) return r.Crystals(100);
-            if (lv % 5 == 0) return r.Mat(MaterialType.SkillBookPurple, 2);
-            return (lv % 4) switch
+            if (lv == MaxLevel) return r.Crystals(200).Pickup(1);
+            if (lv % 10 == 0) return r.Crystals(150);
+            if (lv % 5 == 0) return r.Mat(MaterialType.EquipEssence, 30);
+            return (lv % 5) switch
             {
-                1 => r.Gold(15000),
+                1 => r.Gold(20000),
                 2 => r.Mat(MaterialType.SweepTicket, 5),
-                3 => r.Mat(MaterialType.ExpPotion, 5),
-                _ => r.Mat(MaterialType.StaminaSmall, 1),
+                3 => r.Mat(MaterialType.ExpPotion, 8),
+                _ => (lv / 5) % 2 == 0 ? r.Mat(MaterialType.StaminaSmall, 1) : r.Mat(MaterialType.EquipOre, 15),
             };
         }
 
-        /// <summary>프리미엄 보상: 10단계마다 픽업 뽑기권(30단계는 2장 + 크리스탈 300), 5단계마다 전설의 비전서, 그 밖에는 크리스탈 · 대형 경험치 물약 · 별빛 브로치 · 소탕권 순환.</summary>
+        /// <summary>
+        /// 프리미엄 보상(30단계):
+        /// · 10 · 20단계 픽업 뽑기권 1 + 재련석 1, 30단계 픽업 뽑기권 2 + 크리스탈 300 + 재련석 1
+        /// · 5 · 15 · 25단계 전설의 비전서 1 + 장비 정수 60
+        /// · 그 밖에는 크리스탈 60 · 대형 경험치 물약 · 호감도 선물(별빛 브로치) · (행동력 물약 / 상급 스킬 교본 번갈아) 순환
+        /// </summary>
         public static RewardBundle PremiumReward(int lv)
         {
             var r = new RewardBundle();
-            if (lv == MaxLevel) return r.Pickup(2).Crystals(300);
-            if (lv % 10 == 0) return r.Pickup(1);
-            if (lv % 5 == 0) return r.Mat(MaterialType.SkillLegend, 1).Crystals(50);
-            return (lv % 4) switch
+            if (lv == MaxLevel) return r.Pickup(2).Crystals(300).Mat(MaterialType.RefineStone, 1);
+            if (lv % 10 == 0) return r.Pickup(1).Mat(MaterialType.RefineStone, 1);
+            if (lv % 5 == 0) return r.Mat(MaterialType.SkillLegend, 1).Mat(MaterialType.EquipEssence, 60);
+            return (lv % 5) switch
             {
-                1 => r.Crystals(50),
-                2 => r.Mat(MaterialType.ExpLarge, 5),
+                1 => r.Crystals(60),
+                2 => r.Mat(MaterialType.ExpLarge, 6),
                 3 => r.Mat(MaterialType.GiftLarge, 1),
-                _ => r.Mat(MaterialType.SweepTicket, 10),
+                _ => (lv / 5) % 2 == 0 ? r.Mat(MaterialType.StaminaLarge, 1) : r.Mat(MaterialType.SkillBookPurple, 3),
             };
         }
 

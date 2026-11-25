@@ -115,18 +115,18 @@ namespace SubcultureRPG.Gacha
         {
             string key = KeyOf(b);
             // 배너 종류 도입 전 세이브(배너 에셋 이름별 키) → 픽업 천장으로 이어받기
-            if (!PlayerPrefs.HasKey(key) && b.IsPickup && PlayerPrefs.HasKey($"gacha_pity_{b.name}"))
+            if (!SaveStore.HasKey(key) && b.IsPickup && SaveStore.HasKey($"gacha_pity_{b.name}"))
                 key = $"gacha_pity_{b.name}";
-            if (!PlayerPrefs.HasKey(key)) return new GachaPityState();
-            try { return JsonUtility.FromJson<GachaPityState>(PlayerPrefs.GetString(key)) ?? new GachaPityState(); }
+            if (!SaveStore.HasKey(key)) return new GachaPityState();
+            try { return JsonUtility.FromJson<GachaPityState>(SaveStore.GetString(key)) ?? new GachaPityState(); }
             catch { return new GachaPityState(); }
         }
 
         private void Save(GachaBanner b)
         {
             if (b == null) return;
-            PlayerPrefs.SetString(KeyOf(b), JsonUtility.ToJson(StateOf(b)));
-            PlayerPrefs.Save();
+            SaveStore.SetString(KeyOf(b), JsonUtility.ToJson(StateOf(b)));
+            SaveStore.Save();
         }
 
         public void Save() => Save(_current);
@@ -144,9 +144,9 @@ namespace SubcultureRPG.Gacha
             foreach (var g in new[] { "pickup", "standard" })
             {
                 _states[g] = new GachaPityState();
-                PlayerPrefs.SetString($"gacha_pity_{g}", JsonUtility.ToJson(_states[g]));
+                SaveStore.SetString($"gacha_pity_{g}", JsonUtility.ToJson(_states[g]));
             }
-            PlayerPrefs.Save();
+            SaveStore.Save();
         }
     }
 }

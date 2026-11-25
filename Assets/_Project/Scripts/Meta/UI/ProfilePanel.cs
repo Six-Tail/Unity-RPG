@@ -153,11 +153,10 @@ namespace SubcultureRPG.Meta.UI
 
             var ctx = ProfileContext.Capture();
             int totalChars = _roster != null && _roster.Database != null ? _roster.Database.Characters.Count : 0;
-            string story = ctx.chaptersCleared >= 15 ? "15장 클리어" : ctx.chaptersCleared > 0 ? $"{ctx.chaptersCleared}장 클리어 · {ctx.chaptersCleared + 1}장 진행 중" : "1장 진행 중";
+            string story = LastClearedStage();
             _info.text = $"<color=#9AA3B5>UID</color>   {pf.Uid}\n" +
                          $"<color=#9AA3B5>스토리</color>   {story}\n" +
-                         $"<color=#9AA3B5>보유 캐릭터</color>   {ctx.owned} / {totalChars}명\n" +
-                         $"<color=#9AA3B5>지휘관 경험치</color>   스테이지 클리어 시 쓴 행동력 × {PlayerProfile.ExpPerStamina}";
+                         $"<color=#9AA3B5>보유 캐릭터</color>   {ctx.owned} / {totalChars}명";
 
             _greeting.SetTextWithoutNotify(pf.Greeting);
             var codex = FindAnyObjectByType<SubcultureRPG.Meta.Codex.PlayerCodex>();
@@ -372,7 +371,7 @@ namespace SubcultureRPG.Meta.UI
             if (FindAnyObjectByType<EventSystem>() == null)
             {
                 var es = new GameObject("EventSystem", typeof(EventSystem));
-                es.AddComponent<StandaloneInputModule>();
+                SubcultureRPG.UI.UIInput.AddModule(es);
             }
 
             _root = UIFactory.NewRect("Root", canvas.transform).gameObject;
@@ -508,6 +507,27 @@ namespace SubcultureRPG.Meta.UI
             return t;
         }
 
+        /// <summary>
+        /// 스토리 진행: 가장 높은 난이도에서, 진행 순서상 가장 마지막에 클리어한 메인 스테이지 — 예: '(쉬움) 1-6  그림자 숲의 왕'.
+        /// 아직 클리어한 스테이지가 없으면 '(쉬움) 1-1 도전 전'.
+        /// </summary>
+        private static string LastClearedStage()
+        {
+            var progress = FindAnyObjectByType<StageProgress>();
+            var screen = FindAnyObjectByType<StageScreen>();
+            var db = screen != null ? screen.Database : null;
+            if (progress == null || db == null) return "-";
+            for (int d = Difficulties.All.Length - 1; d >= 0; d--)
+            {
+                var diff = Difficulties.All[d];
+                StageData last = null;
+                foreach (var st in db.Ordered(diff)) if (progress.IsCleared(st)) last = st;
+                if (last == null) continue;
+                return $"<color={Difficulties.Hex(diff)}>({Difficulties.Name(diff)})</color> {last.chapter}-{last.number}  <size=85%><color=#9AA3B5>{last.stageName}</color></size>";
+            }
+            return $"<color={Difficulties.Hex(StageDifficulty.Easy)}>({Difficulties.Name(StageDifficulty.Easy)})</color> 1-1  <size=85%><color=#9AA3B5>도전 전</color></size>";
+        }
+
         /// <summary>입력 칸(TMP_InputField)을 코드로 구성.</summary>
         private TMP_InputField Input(Transform parent, string placeholder, int limit, float size)
         {
@@ -536,6 +556,7 @@ namespace SubcultureRPG.Meta.UI
             field.caretColor = Color.white;
             field.customCaretColor = true;
             field.selectionColor = new Color(0.4f, 0.6f, 1f, 0.5f);
+            InputFocusFx.Attach(field);   // 입력 중 표시(밝은 칸 · 금빛 밑줄 · 굵은 커서)
             return field;
         }
 

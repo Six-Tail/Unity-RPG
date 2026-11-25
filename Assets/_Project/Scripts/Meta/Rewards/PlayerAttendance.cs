@@ -52,9 +52,9 @@ namespace SubcultureRPG.Meta
             if (!_loaded)
             {
                 _loaded = true;
-                if (PlayerPrefs.HasKey(SaveKey))
+                if (SaveStore.HasKey(SaveKey))
                 {
-                    try { _d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey)) ?? new SaveData(); }
+                    try { _d = JsonUtility.FromJson<SaveData>(SaveStore.GetString(SaveKey)) ?? new SaveData(); }
                     catch { _d = new SaveData(); }
                 }
             }
@@ -64,8 +64,8 @@ namespace SubcultureRPG.Meta
 
         private void Save()
         {
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(_d));
-            PlayerPrefs.Save();
+            SaveStore.SetString(SaveKey, JsonUtility.ToJson(_d));
+            SaveStore.Save();
         }
 
         private void Changed() { Save(); OnChanged?.Invoke(); }
