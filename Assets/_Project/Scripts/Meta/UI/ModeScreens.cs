@@ -285,7 +285,7 @@ namespace SubcultureRPG.Meta.UI
             _list = UIFactory.NewRect("List", _frame);
             Top(_list, 0, -250, 1500, 700, new Vector2(0.5f, 1));
 
-            var rule = Text(_frame, $"<color=#9AA3B5>도전권은 매일 05:00에 {PlayerArena.MaxTickets}장으로 충전 · 모자라면 크리스탈로 구매(하루 {PlayerArena.BuyCosts.Length}장) · 이기면 새 상대가 나타납니다 · 상대는 AI가 조종합니다</color>",
+            var rule = Text(_frame, $"<color=#9AA3B5>도전권은 매일 05:00에 {PlayerArena.MaxTickets}장으로 충전 · 모자라면 크리스탈로 구매(하루 {PlayerArena.BuyCosts.Length}장) · 이기면 새 상대 · <color=#7CFF9A>● 플레이어</color>는 실제 지휘관의 파티(AI 조종)</color>",
                 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
             UIFactory.Anchor(rule.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
             rule.rectTransform.sizeDelta = new Vector2(1400, 30); rule.rectTransform.anchoredPosition = new Vector2(0, 70);
@@ -296,6 +296,7 @@ namespace SubcultureRPG.Meta.UI
         }
 
         private float _arenaFetchAt = -999f;
+        private bool _autoMatched;
 
         /// <summary>크리스탈로 도전권 1장 구매 확인 창.</summary>
         private void OpenBuyTicket()
@@ -327,6 +328,13 @@ namespace SubcultureRPG.Meta.UI
             var a = PlayerArena.Instance;
             var roster = FindAnyObjectByType<PlayerRoster>();
             var db = roster != null ? roster.Database : null;
+            // 서버에서 실제 플레이어를 처음 불러왔는데 상대가 모두 가상이면, 한 번 상대를 다시 뽑아 실제 플레이어를 섞음
+            if (!_autoMatched && !pub.ArenaFetching && pub.ArenaPlayers.Count > 0 && !a.HasRealOpponent)
+            {
+                _autoMatched = true;
+                a.Refresh();   // OnChanged → 다시 그림
+                return;
+            }
             var (tier, color) = PlayerArena.Tier(a.Points);
             _rank.text = $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{tier}</color>   {a.Points:N0} 점   <size=65%><color=#FFD36B>시즌 {a.MyRank}위</color>   <color=#9AA3B5>{a.Wins}승 {a.Losses}패</color></size>";
 
@@ -475,9 +483,21 @@ namespace SubcultureRPG.Meta.UI
             var leader = PlayerArena.Instance.Leader(o, db);
             var av = new ProfileAvatar(row.transform, 150);
             Place(av.Rect, 24, -30, 150, 150);
-            av.Set(leader, o.Diff == PlayerArena.Difficulty.Hard ? "f_gold" : o.Diff == PlayerArena.Difficulty.Normal ? "f_silver" : "f_bronze", "");   // 상대는 기본 의상
+            if (o.Real) av.Set(leader, string.IsNullOrEmpty(o.frameId) ? "f_silver" : o.frameId, o.avatarOutfit ?? "");   // 실제 플레이어는 그 사람의 테두리 · 의상
+            else av.Set(leader, o.Diff == PlayerArena.Difficulty.Hard ? "f_gold" : o.Diff == PlayerArena.Difficulty.Normal ? "f_silver" : "f_bronze", "");   // 가상 상대는 기본 의상
+            if (o.Real)
+            {
+                // 아바타를 누르면 그 플레이어 정보창
+                var snap = o.Snap;
+                var hit = UIFactory.AddImage("Info", row.transform, new Color(0, 0, 0, 0), null, raycast: true);
+                Place(hit.rectTransform, 24, -30, 150, 150);
+                var ib = hit.gameObject.AddComponent<Button>();
+                ib.transition = Selectable.Transition.None;
+                ib.onClick.AddListener(() => { if (snap != null) PlayerInfoWindow.Open(snap, font); });
+            }
             var (tier, tc) = PlayerArena.Tier(o.points);
-            var name = Text(row.transform, $"<b>{o.name}</b>   <size=70%><color=#{ColorUtility.ToHtmlStringRGB(dc)}>{PlayerArena.DifficultyName(o.Diff)}</color></size>", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            string realTag = o.Real ? "  <size=62%><color=#7CFF9A>● 플레이어</color></size>" : "";
+            var name = Text(row.transform, $"<b>{o.name}</b>{realTag}   <size=70%><color=#{ColorUtility.ToHtmlStringRGB(dc)}>{PlayerArena.DifficultyName(o.Diff)}</color></size>", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(name.rectTransform, 196, -24, 420, 44);
             var info = Text(row.transform, $"<color=#{ColorUtility.ToHtmlStringRGB(tc)}>{tier}</color> {o.points:N0}점   ·   평균 Lv.{o.level}" + (o.transcend > 0 ? $"   ·   초월 +{o.transcend}" : "") +
                 $"\n전투력  <color=#FFB347><b>{o.power:N0}</b></color>", 22, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.TopLeft);
@@ -486,12 +506,13 @@ namespace SubcultureRPG.Meta.UI
 
             // 팀
             float tx = 660;
-            foreach (var id in o.team)
+            for (int k = 0; k < o.team.Count; k++)
             {
-                var c = db != null ? db.GetCharacter(id) : null;
+                var c = db != null ? db.GetCharacter(o.team[k]) : null;
                 if (c == null) continue;
-                Thumb(row.transform, c, tx, -38, 112, o.transcend > 0 ? 6 : (int)c.rarity, mine: false);
-                var lv = Text(row.transform, $"Lv.{o.level}", 16, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
+                bool per = o.Real && k < o.levels.Count && k < o.stars.Count;   // 실제 플레이어는 캐릭터마다 레벨 · 성급
+                Thumb(row.transform, c, tx, -38, 112, per ? o.stars[k] : o.transcend > 0 ? 6 : (int)c.rarity, mine: false);
+                var lv = Text(row.transform, $"Lv.{(per ? o.levels[k] : o.level)}", 16, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
                 Place(lv.rectTransform, tx, -154, 112, 24);
                 tx += 124;
             }

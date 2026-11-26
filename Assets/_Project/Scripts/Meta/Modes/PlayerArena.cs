@@ -5,6 +5,7 @@ using SubcultureRPG.Characters;
 using SubcultureRPG.Battle;
 using SubcultureRPG.Battle.UI;
 using SubcultureRPG.Meta.Shop;
+using SubcultureRPG.Meta.Cloud;
 
 namespace SubcultureRPG.Meta
 {
@@ -188,6 +189,11 @@ namespace SubcultureRPG.Meta
             public int difficulty;
             public int level, transcend, skillLevel, power, points;
             public List<string> team = new();   // 캐릭터 id
+            // 실제 플레이어 상대(pid가 있으면): 그 사람의 공개 프로필(상위 5명의 육성 · 장비) 그대로 싸움
+            public string pid = "", snapJson = "", frameId = "", avatarId = "", avatarOutfit = "";
+            public List<int> levels = new(), stars = new();
+            public bool Real => !string.IsNullOrEmpty(pid);
+            public ProfileSnap Snap => Real && !string.IsNullOrEmpty(snapJson) ? PublicProfile.ParseSnap(snapJson, pid) : null;
             public Difficulty Diff => (Difficulty)difficulty;
         }
 
@@ -313,9 +319,21 @@ namespace SubcultureRPG.Meta
             foreach (var kv in mine) { if (n >= 4) break; sum += roster.LevelOf(kv.Key); n++; }
             int baseLevel = n > 0 ? sum / n : 1;
 
+            // 실제 플레이어 후보(이번 시즌 결투장 기록이 있는 사람) — 내 주력 4명 전투력 대비로 난이도 칸에 나눔
+            long myPower = 0; int m = 0;
+            foreach (var kv in mine) { if (m++ >= 4) break; myPower += kv.Value; }
+            var buckets = RealCandidates(db, myPower);
+
             var usedNames = new HashSet<string>();
             for (int i = 0; i < 3; i++)
             {
+                if (buckets[i].Count > 0)
+                {
+                    var (snap, power) = buckets[i][UnityEngine.Random.Range(0, buckets[i].Count)];
+                    _d.opponents.Add(MakeReal(snap, power, i, db));
+                    usedNames.Add(snap.name);
+                    continue;
+                }
                 var o = new Opponent { difficulty = i };
                 do { o.name = Names[UnityEngine.Random.Range(0, Names.Length)]; } while (!usedNames.Add(o.name) && usedNames.Count < Names.Length);
                 o.level = Mathf.Clamp(baseLevel + (i - 1) * 6 + UnityEngine.Random.Range(-2, 3), 1, Leveling.MaxLevel);
@@ -337,11 +355,64 @@ namespace SubcultureRPG.Meta
             if (notify) Changed(); else Save();
         }
 
+        /// <summary>
+        /// 난이도 칸(쉬움 · 보통 · 어려움)별 실제 플레이어 후보. 상대 주력 4명 전투력 ÷ 내 전투력:
+        /// 0.9 미만 = 쉬움, 0.9 ~ 1.12 = 보통, 1.12 ~ 2.0 = 어려움(2배 넘게 강하면 제외). 방금 이긴 상대는 빼고.
+        /// </summary>
+        private List<(ProfileSnap snap, long power)>[] RealCandidates(GameDatabase db, long myPower)
+        {
+            var b = new[] { new List<(ProfileSnap, long)>(), new List<(ProfileSnap, long)>(), new List<(ProfileSnap, long)>() };
+            if (!PublicProfile.Online || db == null || myPower <= 0) return b;
+            foreach (var s in PublicProfile.Instance.ArenaPlayers)
+            {
+                if (s == null || s.top == null || s.top.Count == 0 || s.pid == _lastBeaten || s.pid == CloudAccount.PlayerId) continue;
+                long p = FriendlyBattle.LineupPower(s, db);
+                if (p <= 0) continue;
+                double r = p / (double)myPower;
+                int d = r < 0.9 ? 0 : r < 1.12 ? 1 : r <= 2.0 ? 2 : -1;
+                if (d >= 0) b[d].Add((s, p));
+            }
+            return b;
+        }
+
+        private string _lastBeaten = "";
+
+        private static Opponent MakeReal(ProfileSnap s, long power, int difficulty, GameDatabase db)
+        {
+            var o = new Opponent
+            {
+                name = s.name, difficulty = difficulty, points = s.arenaPoints, power = (int)Math.Min(int.MaxValue, power),
+                pid = s.pid, snapJson = JsonUtility.ToJson(s), frameId = s.frameId ?? "", avatarId = s.avatarId ?? "", avatarOutfit = s.avatarOutfit ?? "",
+            };
+            int sum = 0;
+            var lineup = FriendlyBattle.Lineup(s, db);
+            foreach (var (cs, _) in lineup)
+            {
+                o.team.Add(cs.id); o.levels.Add(cs.level); o.stars.Add(cs.star);
+                sum += cs.level;
+                if (cs.star >= Transcendence.MaxStar) o.transcend = Mathf.Max(o.transcend, cs.transcend);
+            }
+            o.level = lineup.Count > 0 ? sum / lineup.Count : 1;
+            return o;
+        }
+
         /// <summary>상대 팀을 전투 유닛으로(적 진영).</summary>
         public List<BattleUnitData> BuildTeam(Opponent o, GameDatabase db)
         {
             var list = new List<BattleUnitData>();
             if (o == null || db == null) return list;
+            if (o.Real)
+            {
+                // 실제 플레이어: 공개 프로필의 상위 4명을 키운 그대로(레벨 · 성급 · 초월 · 스킬 · 장비 · 호감도)
+                var snap = o.Snap;
+                if (snap != null)
+                    foreach (var (cs, _) in FriendlyBattle.Lineup(snap, db))
+                    {
+                        var u = SnapStats.BuildUnit(cs, db);
+                        if (u != null) list.Add(u);
+                    }
+                return list;
+            }
             foreach (var id in o.team)
             {
                 var c = db.GetCharacter(id);
@@ -367,7 +438,15 @@ namespace SubcultureRPG.Meta
             return sum;
         }
 
-        public CharacterData Leader(Opponent o, GameDatabase db) => o != null && db != null && o.team.Count > 0 ? db.GetCharacter(o.team[0]) : null;
+        public CharacterData Leader(Opponent o, GameDatabase db)
+        {
+            if (o == null || db == null) return null;
+            if (o.Real && !string.IsNullOrEmpty(o.avatarId)) { var a = db.GetCharacter(o.avatarId); if (a != null) return a; }
+            return o.team.Count > 0 ? db.GetCharacter(o.team[0]) : null;
+        }
+
+        /// <summary>지금 상대 중 실제 플레이어가 있는가.</summary>
+        public bool HasRealOpponent { get { foreach (var o in Opponents) if (o.Real) return true; return false; } }
 
         // ---------------- 전투 ----------------
 
@@ -465,17 +544,18 @@ namespace SubcultureRPG.Meta
                 _d.points += WinPoints[d];
                 _d.wins++;
                 if (wallet != null) { wallet.Add(WinCrystals[d]); wallet.AddGold(WinGold[d]); }
-                detail = $"<size=110%>결투장 — {o.name}  <color=#{ColorUtility.ToHtmlStringRGB(DifficultyColor(o.Diff))}>{DifficultyName(o.Diff)}</color></size>\n" +
+                detail = $"<size=110%>결투장 — {o.name}{(o.Real ? "  <size=70%><color=#7CFF9A>● 플레이어</color></size>" : "")}  <color=#{ColorUtility.ToHtmlStringRGB(DifficultyColor(o.Diff))}>{DifficultyName(o.Diff)}</color></size>\n" +
                          $"<color=#7CFF9A>랭크 점수 {before:N0} → {_d.points:N0} (+{WinPoints[d]})</color>\n" +
                          $"<color=#FFD36B>획득</color>  <color=#8FE9FF>크리스탈 {WinCrystals[d]}</color>  ·  <color=#FFD36B>금화 {WinGold[d]:N0}</color>";
-                Refresh(false);   // 이기면 상대 새로
+                _lastBeaten = o.pid ?? "";
+                Refresh(false);   // 이기면 상대 새로(방금 이긴 실제 플레이어는 바로 다시 나오지 않음)
             }
             else
             {
                 _d.points = Mathf.Max(0, _d.points - LosePoints);
                 _d.losses++;
                 if (wallet != null) wallet.AddGold(LoseGold);
-                detail = $"<size=110%>결투장 — {o.name}</size>\n<color=#FF8A8A>랭크 점수 {before:N0} → {_d.points:N0} (-{LosePoints})</color>\n" +
+                detail = $"<size=110%>결투장 — {o.name}{(o.Real ? "  <size=70%><color=#7CFF9A>● 플레이어</color></size>" : "")}</size>\n<color=#FF8A8A>랭크 점수 {before:N0} → {_d.points:N0} (-{LosePoints})</color>\n" +
                          $"<color=#FFD36B>참가 보상</color>  금화 {LoseGold:N0}";
             }
             string tierAfter = Tier(_d.points).name;

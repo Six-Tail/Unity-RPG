@@ -166,7 +166,7 @@ namespace SubcultureRPG.Meta
             {
                 arena.SetBackAction(GoHome);
                 arena.OnChallenge += o => OpenModeParty(
-                    $"결투장  ·  {o.name}  <size=60%><color=#FFB347>상대 전투력 {o.power:N0}</color></size>", "도전!",
+                    $"결투장  ·  {o.name}{(o.Real ? "  <color=#7CFF9A>● 플레이어</color>" : "")}  <size=60%><color=#FFB347>상대 전투력 {o.power:N0}</color></size>", "도전!",
                     team => PlayerArena.Instance.Fight(o, team), HubScreen.Arena, "← 결투장");
             }
             if (friends != null) friends.SetBackAction(GoHome);
