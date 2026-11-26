@@ -112,7 +112,10 @@ namespace SubcultureRPG.EditorTools
             // diff=0~3(쉬움 · 보통 · 어려움 · 극악): 그 난이도의 보스 레벨 · 배율 · 격노로
             int diff = (int)Get(o, "diff", 2);
             if (o.ContainsKey("diff")) bossLevel = WorldRaid.BossLevel(diff);
-            var boss = WorldRaid.CreateBoss(bossLevel, diff);
+            // gstage=N: 길드 보스 N단계(레벨 · 난이도 · 방어는 GuildBoss가 정함)
+            int gstage = (int)Get(o, "gstage", 0);
+            if (gstage > 0) { diff = GuildBoss.DifficultyOf(gstage); bossLevel = GuildBoss.LevelOf(gstage); }
+            var boss = gstage > 0 ? GuildBoss.CreateBoss(gstage) : WorldRaid.CreateBoss(bossLevel, diff);
             float atkMul = Get(o, "atkMul", 1f);
             boss.baseStats.atk = Mathf.RoundToInt(boss.baseStats.atk * atkMul);
             boss.baseStats.atkGrowth = Mathf.RoundToInt(boss.baseStats.atkGrowth * atkMul);
@@ -179,6 +182,12 @@ namespace SubcultureRPG.EditorTools
                 var core = owned.GetRange(0, Mathf.Min(4, owned.Count));
                 if (core.Count == 0) throw new Exception("세이브에 보유 캐릭터가 없습니다.");
 
+                if (o.ContainsKey("guild"))
+                {
+                    GuildTable(sb, o, roster, eq, db, core);
+                    File.WriteAllText(Result, sb.ToString(), new UTF8Encoding(false));   // 아래 finally 뒤 저장을 건너뛰므로 여기서
+                    return;
+                }
                 sb.AppendLine($"주간 보스 시뮬레이션 — {DateTime.Now:yyyy-MM-dd HH:mm}  (씨앗 {Seeds}개 평균)");
                 sb.AppendLine("보스 조정: " + (o.Count == 0 ? "없음(현재 코드 값)" : string.Join(", ", o)));
                 sb.AppendLine($"제한 {Get(o, "time", WorldRaid.TimeLimit)}초 · 격노 {Get(o, "every", WorldRaid.EnrageEvery)}초마다 +{Get(o, "enrage", WorldRaid.EnrageAtk) * 100f:0}%");
@@ -235,6 +244,70 @@ namespace SubcultureRPG.EditorTools
             }
             File.WriteAllText(Result, sb.ToString(), new UTF8Encoding(false));
             Debug.Log("[RaidBalanceSim] " + Path.GetFullPath(Result));
+        }
+
+        /// <summary>
+        /// 길드 보스 표(요청 파일에 guild=1): 단계(1 ~ stages) × 파티(세이브 주력 · 장비 없는 Lv.40/70/100)별 한 판 피해 · 버틴 시간.
+        /// stages=7 · seeds=4 로 바꿀 수 있음.
+        /// </summary>
+        private static void GuildTable(StringBuilder sb, Dictionary<string, float> o, PlayerRoster roster, PlayerEquipment eq, GameDatabase db, List<CharacterData> core)
+        {
+            int stages = (int)Get(o, "stages", 7), seeds = (int)Get(o, "seeds", 4);
+            var parties = new List<(string name, List<Member> m)>();
+            var save = new List<Member>();
+            foreach (var c in core)
+                save.Add(new Member { c = c, level = roster.LevelOf(c), star = roster.StarOf(c), transcend = roster.TranscendOf(c),
+                    skill = roster.SkillLevelOf(c), skills = roster.EffectiveSkillLevels(c), bonus = eq != null ? eq.BonusFor(c) : null });
+            parties.Add(("풀 육성(세이브)", save));
+            foreach (int lv in new[] { 40, 70, 100 })
+            {
+                var bare = new List<Member>();
+                foreach (var c in core) bare.Add(new Member { c = c, level = lv, star = (int)c.rarity, transcend = 0, skill = Mathf.Clamp(lv / 10, 1, 10) });
+                parties.Add(($"장비 없음 Lv.{lv}", bare));
+            }
+            var perRun = new long[parties.Count, stages + 1];   // [파티, 단계] 한 판 피해
+            sb.AppendLine($"길드 보스 시뮬레이션 — {DateTime.Now:yyyy-MM-dd HH:mm}  (씨앗 {seeds}개 평균, 한 판 = 제한 {WorldRaid.TimeLimit:0}초)");
+            sb.AppendLine("파티: " + string.Join(", ", core.ConvertAll(c => c.displayName)));
+            sb.AppendLine();
+            for (int s = 1; s <= stages; s++)
+            {
+                var so = new Dictionary<string, float>(o) { ["gstage"] = s };
+                sb.AppendLine($"■ {s}단계  Lv.{GuildBoss.LevelOf(s)} · {WorldRaid.Diff(GuildBoss.DifficultyOf(s)).name} · 체력 {GuildBoss.StageHp(s):N0}");
+                for (int pi = 0; pi < parties.Count; pi++)
+                {
+                    var (name, members) = parties[pi];
+                    long dmg = 0; float time = 0f; int wipes = 0;
+                    for (int k = 0; k < seeds; k++)
+                    {
+                        var party = new List<BattleUnitData>();
+                        foreach (var m in members) party.Add(Build(m, db));
+                        var r = Simulate(party, GuildBoss.LevelOf(s), so, 1000 + k * 7919);
+                        dmg += r.dmg; time += r.time;
+                        if (r.dead >= members.Count) wipes++;
+                    }
+                    long avg = dmg / seeds;
+                    perRun[pi, s] = avg;
+                    sb.AppendLine($"   {name,-14} 한 판 {avg,16:N0}  ·  버틴 {time / seeds,3:0}초  ·  전멸 {wipes}/{seeds}  ·  이 단계 체력에 {(avg > 0 ? GuildBoss.StageHp(s) / (double)avg : 0):0.0}판");
+                }
+                sb.AppendLine();
+            }
+
+            // 일주일 진행 예상: 같은 파티 N명이 하루 2판 × 7일, 판마다 그때 단계의 한 판 피해(넘친 피해는 다음 단계로)
+            sb.AppendLine($"■ 일주일 예상(한 사람 {GuildBoss.AttemptsPerDay * 7}판)");
+            foreach (int n in new[] { 1, 4, 10 })
+                for (int pi = 0; pi < parties.Count; pi++)
+                {
+                    long total = 0;
+                    for (int run = 0; run < n * GuildBoss.AttemptsPerDay * 7; run++)
+                        total += perRun[pi, Mathf.Min(stages, GuildBoss.Current(total))];
+                    sb.AppendLine($"   {parties[pi].name} {n}명  →  {total,16:N0}  ·  {GuildBoss.Cleared(total)}단계 깸");
+                }
+            sb.AppendLine("■ 가상 길드(나 빼고 · 주말 기준 평균)");
+            foreach (var (m, lv) in new[] { (10, 3), (20, 5), (29, 9) })
+            {
+                long v = VirtualGuilds.MemberBossWeek(lv) * m;
+                sb.AppendLine($"   길드원 {m}명 · Lv.{lv}  →  {v,16:N0}  ·  {GuildBoss.Cleared(v)}단계 깸");
+            }
         }
     }
 }

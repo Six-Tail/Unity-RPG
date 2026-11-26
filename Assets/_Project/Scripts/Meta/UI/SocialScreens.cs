@@ -782,7 +782,7 @@ namespace SubcultureRPG.Meta.UI
             var info = Text(top.transform,
                 $"<color=#9AA3B5>길드 합계</color>  {total:N0}  <size=80%><color=#9AA3B5>({kind})</color></size>\n" +
                 $"<color=#9AA3B5>이번 주 내 피해</color>  {g.MyBossDamage:N0}   <color=#9AA3B5>오늘 남은 도전</color>  <color={(GuildBoss.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}>{GuildBoss.AttemptsLeft}</color> / {GuildBoss.AttemptsPerDay}\n" +
-                $"<size=80%><color=#9AA3B5>제한 {WorldRaid.TimeLimit / 60f:0}분 · 30초마다 격노 · 단계를 깨면 다음 단계(체력 ×3) · 지난주 길드 순위 보상은 월요일 우편</color></size>",
+                $"<size=80%><color=#9AA3B5>제한 {WorldRaid.TimeLimit / 60f:0}분 · 30초마다 격노 · 단계를 깨면 더 강한 다음 단계 · 지난주 길드 순위 보상은 월요일 우편</color></size>",
                 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(info.rectTransform, 270, -142, 900, 100);
             var go = UIFactory.AddButton("Go", top.transform, done ? "격파 완료" : "도전", 30, font, done || GuildBoss.AttemptsLeft <= 0 ? new Color(1, 1, 1, 0.08f) : Red, Color.white);

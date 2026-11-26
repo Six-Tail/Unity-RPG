@@ -79,8 +79,12 @@ namespace SubcultureRPG.Meta
             return rng.NextDouble();
         }
 
-        /// <summary>가상 길드원 1명이 한 주 동안 길드 보스에 주는 피해(길드 레벨이 높을수록 강함).</summary>
-        public static long MemberBossWeek(int level) => (long)(120_000_000L * (0.6 + 0.25 * level));
+        /// <summary>
+        /// 가상 길드원 1명이 한 주 동안 길드 보스에 주는 피해(길드 레벨이 높을수록 강함). 보통 플레이어 수준:
+        /// Lv.1 길드 ≈ 3,900만 · Lv.5 ≈ 7,500만 · Lv.9 ≈ 1억 1,100만(한 판 300만 ~ 800만 × 14판) — 시뮬레이션(docs/guild.md) 기준.
+        /// → 길드원 20명 Lv.5 가상 길드 ≈ 5단계(주마다 편차 3 ~ 6), 최상위(29명 · Lv.9) ≈ 6 ~ 7단계. 풀 육성 4명 실제 길드(≈ 7단계)가 위로 올라갈 수 있음.
+        /// </summary>
+        public static long MemberBossWeek(int level) => (long)(60_000_000L * (0.5 + 0.15 * level));
 
         /// <summary>가상 길드의 이번 주 길드 보스 누적 피해(지금 시점, 가상 길드원 전원 — 나 제외).</summary>
         public static long BossDamage(int seed, int members, int level, string week, float progress)

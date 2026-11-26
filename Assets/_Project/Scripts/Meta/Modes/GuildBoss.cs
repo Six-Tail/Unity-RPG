@@ -10,7 +10,7 @@ namespace SubcultureRPG.Meta
 {
     /// <summary>
     /// 길드 보스(주간 · 협동): 길드마다 보스 1마리, 길드원이 준 피해를 한 주 동안 합쳐 체력을 깎습니다.
-    /// · 단계: 체력을 다 깎으면 다음 단계(더 강하고 체력이 3배). 1단계 쉬움 Lv.30 → 2단계 보통 → 3단계 어려움 → 4단계부터 극악 Lv.100
+    /// · 단계: 체력을 다 깎으면 다음 단계(더 강하고 체력이 큼 — <see cref="StageHps"/>). 1단계 쉬움 Lv.30 → 2단계 보통 → 3단계 어려움 → 4단계부터 극악 Lv.100
     /// · 도전: 하루 2회(05:00 충전), 전투 틀(5분 · 격노)은 주간 보스와 같음(<see cref="WorldRaid.FightWorld"/>). 끝까지 싸운 전투만 횟수를 씀
     /// · 길드 합계: 실제 길드 = 길드원들이 올린 이번 주 피해의 합, 가상 길드 = 나 + 가상 길드원들이 날마다 보탠 피해
     /// · 보상: 길드가 깬 단계마다(길드원 각자 받기) + 지난주 길드 순위(월요일에 우편)
@@ -19,10 +19,20 @@ namespace SubcultureRPG.Meta
     {
         public const string BossName = "종말의 군주";
         public const int AttemptsPerDay = 2, MaxStage = 10;
-        /// <summary>1단계 체력(이후 단계마다 ×3). 튜닝 지점.</summary>
-        public const long BaseHp = 50_000_000;
+        /// <summary>
+        /// 단계별 체력(튜닝 지점). 시뮬레이션(2026-11-26, 에디터 '주간 보스 밸런스 시뮬레이션'에 guild=1) 한 판 피해:
+        /// 풀 육성(6★+6 · 장비) 1단계 2억 → 4단계 1억 → 7단계 7,700만 · 장비 없는 Lv.100 700만 → 130만 · Lv.40 108만 → 16만.
+        /// 한 사람 일주일 14판 기준(시뮬레이션 예상) → 풀 육성 1명 5단계 · 4명 7단계 · 10명 8단계(10단계는 큰 강한 길드의 목표),
+        /// 장비 없는 Lv.100 4명 2단계 · 10명 3단계 · Lv.40 4명 1단계(누구나 첫 보상은 받게).
+        /// (처음엔 5,000만 × 3배씩이었는데 7단계 한 단계에만 풀 육성 470판이 들어 벽이 됨)
+        /// </summary>
+        public static readonly long[] StageHps =
+        {
+            20_000_000, 60_000_000, 150_000_000, 350_000_000, 700_000_000,
+            1_200_000_000, 2_000_000_000, 3_200_000_000, 5_000_000_000, 8_000_000_000,
+        };
 
-        public static long StageHp(int stage) => (long)(BaseHp * Math.Pow(3, Mathf.Clamp(stage, 1, MaxStage) - 1));
+        public static long StageHp(int stage) => StageHps[Mathf.Clamp(stage, 1, MaxStage) - 1];
 
         /// <summary>stage 단계를 깨는 데 필요한 누적 피해(1 ~ stage 단계 체력 합).</summary>
         public static long ClearAt(int stage)
@@ -130,7 +140,7 @@ namespace SubcultureRPG.Meta
             int diff = DifficultyOf(stage);
             var u = WorldRaid.CreateBoss(LevelOf(stage), diff);
             u.displayName = BossName;
-            // 4단계 넘게는 단계마다 방어 +12%(체력이 ×3씩 늘어 같은 파티면 피해가 줄어 더 오래 걸림)
+            // 4단계 넘게는 단계마다 방어 +12%(같은 파티라도 단계가 오를수록 피해가 조금씩 줄어듦)
             if (stage > WorldRaid.DifficultyCount)
             {
                 float k = 1f + 0.12f * (stage - WorldRaid.DifficultyCount);
