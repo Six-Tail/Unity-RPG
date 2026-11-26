@@ -49,6 +49,8 @@ git -C "D:/Users/jhbae/Downloads/subculture-rpg" commit -m "chore: Unity가 생�
 1. 메뉴 **`SubcultureRPG > 메인 씬 생성 (홈 허브)`** → `Assets/_Project/Scenes/Main.unity` 생성(빌드 첫 씬 등록)
 2. ▶ Play → 홈에서 **스테이지 / 가챠 / 육성 / 임무 / 상점 / 가방**으로 이동 (스테이지 클리어로 금화·경험치 재료, 스테이지 화면의 특수 던전 탭에서 돌파 재료·금화·스킬 교본 획득, 상점에서 재료 구매·교환)
 
+다음 버전 작업 목록: [v1.1 체크리스트](docs/v1.1-checklist.md)
+
 시스템별 문서:
 [메인 허브](docs/main-hub.md) · [스테이지·보상](docs/stages.md) · [금화·특수 던전](docs/economy.md) · [상점](docs/shop.md) · [임무](docs/missions.md) · [도감](docs/codex.md) · [기간 한정 이벤트](docs/event.md) · [장비](docs/equipment.md) · [가챠](docs/gacha.md) · [가챠 화면](docs/gacha-screen.md) · [가챠 결과 UI](docs/gacha-ui.md) ·
 [전투](docs/battle.md) · [전투 UI](docs/battle-ui.md) · [가챠↔전투 연동](docs/gacha-battle-link.md) · [육성](docs/growth.md) · [캐릭터 특성·정렬/필터](docs/characters.md) · [합성·초월](docs/transcendence.md) · [폰트](docs/fonts.md) · [이미지 에셋](docs/art.md) · [Live2D](docs/live2d.md) · [이미지 프롬프트 목록](docs/art-prompts.md)
