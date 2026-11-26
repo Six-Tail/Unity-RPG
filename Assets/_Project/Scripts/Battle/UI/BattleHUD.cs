@@ -44,6 +44,7 @@ namespace SubcultureRPG.Battle.UI
         }
 
         private BattleCinematics _cine;
+        private SkillFx _sceneFx;   // 6★ 궁극기 장면(화면 전체)
         private AmbientParticles _ambient;
 
         /// <summary>보스 필살기 예고(붉은 화면 가장자리 맥동 + WARNING 띠) — 주간 보스 · 월드 레이드가 격노 직전에 부름.</summary>
@@ -111,7 +112,7 @@ namespace SubcultureRPG.Battle.UI
         private RectTransform _cut, _cutBand, _cutArtRT, _cutLines;
         private CanvasGroup _cutGroup;
         private Image _cutDim, _cutArt, _cutAccent;
-        private TextMeshProUGUI _cutLabel, _cutName, _cutUser;
+        private TextMeshProUGUI _cutLabel, _cutName, _cutUser, _cutQuote;
         private Image _resultGlow;
 
         // 전투 마무리(마지막 타격 → 결과 사이) + 전투 기록 창
@@ -490,6 +491,7 @@ namespace SubcultureRPG.Battle.UI
             SetInstruction("");
             ResetFinish();
             _fx?.Clear();
+            _sceneFx?.Clear();
             if (_resultToast != null) _resultToast.text = "";
 
             HideTip();
@@ -644,11 +646,24 @@ namespace SubcultureRPG.Battle.UI
             {
                 float dur = 1.4f / Mathf.Sqrt(speed);   // 배속이어도 읽을 수 있게 덜 줄임
                 StartCoroutine(UltimateCutIn(actor, skill, dur));
+                // 6★ 궁극기 장면: 컷인 뒤 화면 전체 연출(예: 바이올렛 = 달 → 3연 베기 → 달이 갈라짐) → 밝기가 돌아오는 순간 피해
+                string cid = actor.character != null ? (!string.IsNullOrEmpty(actor.character.id) ? actor.character.id : actor.character.name) : null;
+                float sceneDur = 0f;
+                if (_sceneFx != null && cid != null && SkillFx.HasScene(cid))
+                {
+                    float ss = Mathf.Sqrt(speed);
+                    _sceneFx.Speed = ss;
+                    sceneDur = SkillFx.SceneLength(cid) / ss;
+                    string sid = cid;
+                    _sceneFx.Schedule(dur * ss, () => _sceneFx.UltScene(sid));
+                }
                 if (p != null)
                 {
-                    // 카메라: 컷인이 걷힐 즈음 시전자에게 확 당겼다가 → 타격 순간 대상 쪽으로(HandleResolved)
+                    // 카메라: 컷인이 걷힐 즈음 시전자에게 확 당겼다가 → 타격 순간 대상 쪽으로(HandleResolved). 장면이 있으면 장면이 대신함
                     var caster = p;
-                    StartCoroutine(After(dur * 0.72f, () => CameraPunch(FieldPos(caster), 1.14f, 0.16f / Mathf.Sqrt(speed), 0.25f / Mathf.Sqrt(speed), 0.3f / Mathf.Sqrt(speed), 0.3f)));
+                    if (sceneDur <= 0f)
+                        StartCoroutine(After(dur * 0.72f, () => CameraPunch(FieldPos(caster), 1.14f, 0.16f / Mathf.Sqrt(speed), 0.25f / Mathf.Sqrt(speed), 0.3f / Mathf.Sqrt(speed), 0.3f)));
+                    dur += sceneDur;   // 아래 돌진 · 대기 시간이 장면 끝에 맞춰지게
                     // 컷인이 끝날 즈음 돌진(또는 한 발) — 타격과 맞물리게
                     StartCoroutine(After(dur - outDur, () =>
                     {
@@ -783,7 +798,9 @@ namespace SubcultureRPG.Battle.UI
                         else
                         {
                             var ac = result.actor != null && result.actor.team == Team.Ally ? result.actor.character : null;
-                            _fx.Ultimate(elem, pos, fxScale, delay, ac != null ? (!string.IsNullOrEmpty(ac.id) ? ac.id : ac.name) : null);
+                            string sig = ac != null ? (!string.IsNullOrEmpty(ac.id) ? ac.id : ac.name) : null;
+                            if (sig != null && SkillFx.HasScene(sig)) sig = null;   // 장면에서 이미 문양을 보여 줬으면 타격 때는 생략
+                            _fx.Ultimate(elem, pos, fxScale, delay, sig);
                         }
                     }
 
@@ -1211,6 +1228,9 @@ namespace SubcultureRPG.Battle.UI
             _autoBtn = CornerButton("Auto", rootT, new Vector2(-200, -30), out _autoBg, out _autoLabel);
             _autoBtn.onClick.AddListener(ToggleAuto);
 
+            // 6★ 궁극기 장면(화면 전체 — 필드 카메라와 상관없이) — 컷인 아래, HUD 위
+            _sceneFx = SkillFx.Create(rootT);
+            _sceneFx.Shake = (amp, dur) => ScreenShake(amp, dur);
             BuildCutIn(rootT);
             _cine = BattleCinematics.Create(rootT, font);   // 보스 필살기 예고 · 보스 컷인
             BuildTip(rootT);
@@ -1638,6 +1658,12 @@ namespace SubcultureRPG.Battle.UI
             _cutLabel.color = accent;
             _cutName.text = skill.skillName;
             _cutUser.text = actor.Name;
+            // 궁극기 대사(타자기처럼 한 글자씩)
+            string quote = c != null ? CharacterLines.Ultimate(c) : "";
+            _cutQuote.text = string.IsNullOrEmpty(quote) ? "" : $"\"{quote}\"";   // \uAC8C\uC784 \uD3F0\uD2B8\uC5D0 \uC5C6\uB294 \uAE00\uC790(\uACE1\uC120 \uB530\uC634\uD45C \uB4F1)\uB294 \uC4F0\uC9C0 \uC54A\uC74C
+            _cutQuote.maxVisibleCharacters = 0;
+            _cutQuote.ForceMeshUpdate();
+            int quoteLen = _cutQuote.textInfo.characterCount;
 
             // 배경 없는 상반신(Cutouts)이 있으면 그것을 크게(사각 카드처럼 보이지 않게). 없으면 움직이는 일러스트 → 초상
             Sprite cutout = null;
@@ -1664,6 +1690,8 @@ namespace SubcultureRPG.Battle.UI
                 _cutName.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(1100f, 320f, ease) - 30f * k, 6f);
                 _cutLabel.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(1100f, 320f, ease) - 30f * k, 82f);
                 _cutUser.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(1100f, 320f, ease) - 30f * k, -62f);
+                _cutQuote.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(1100f, 300f, ease) - 30f * k, -122f);
+                _cutQuote.maxVisibleCharacters = Mathf.CeilToInt(quoteLen * Mathf.Clamp01((k - 0.12f) / 0.5f));
                 for (int i = 0; i < lines.Count; i++)
                 {
                     var l = lines[i];
@@ -1746,6 +1774,10 @@ namespace SubcultureRPG.Battle.UI
             _cutName.enableAutoSizing = true; _cutName.fontSizeMin = 30; _cutName.fontSizeMax = 72;
             _cutUser = UIFactory.AddText("User", _cut, "", 28, font, new Color(0.82f, 0.86f, 0.95f), TextAlignmentOptions.Left, FontStyles.Bold);
             SizeLeft(_cutUser.rectTransform, 900, 40);
+            _cutQuote = UIFactory.AddText("Quote", _cut, "", 32, font, new Color(1f, 0.93f, 0.78f), TextAlignmentOptions.Left, FontStyles.Bold);
+            SizeLeft(_cutQuote.rectTransform, 1100, 48);
+            _cutQuote.enableAutoSizing = true; _cutQuote.fontSizeMin = 20; _cutQuote.fontSizeMax = 32;
+            TextOutline.Apply(_cutQuote, 0.16f, new Color32(10, 10, 20, 255));
 
             _cut.gameObject.SetActive(false);
         }

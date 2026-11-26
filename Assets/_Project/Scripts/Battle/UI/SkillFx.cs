@@ -54,6 +54,20 @@ namespace SubcultureRPG.Battle.UI
         /// </summary>
         public float Dim { get; set; } = 1f;
 
+        /// <summary>화면 흔들림 요청(세기, 시간) — 궁극기 장면에서 베기 · 착탄마다. BattleHUD가 연결.</summary>
+        public System.Action<float, float> Shake;
+
+        // 예약 이벤트(이펙트 시간 기준 — Speed를 따라감)
+        private readonly List<(float t, System.Action a)> _events = new();
+
+        /// <summary>delay(이펙트 시간) 뒤에 action 실행.</summary>
+        public void Schedule(float delay, System.Action action)
+        {
+            if (action == null) return;
+            if (delay <= 0f) { action(); return; }
+            _events.Add((delay, action));
+        }
+
         public static SkillFx Create(Transform parent)
         {
             var rt = UIFactory.NewRect("SkillFx", parent);
@@ -74,6 +88,7 @@ namespace SubcultureRPG.Battle.UI
         {
             foreach (var p in _live) Release(p);
             _live.Clear();
+            _events.Clear();
         }
 
         // ================= 텍스처 =================
@@ -179,6 +194,308 @@ namespace SubcultureRPG.Battle.UI
                     r.size0 = Vector2.one * 40 * s; r.size1 = Vector2.one * 70 * s;
                     r.c0 = WithA(hot, 0.95f); r.c1 = WithA(c, 0f); r.fadeIn = 0.25f; r.rotVel = Random.Range(-40f, 40f);
                 }
+        }
+
+        // ================= 6★ 궁극기 장면(화면 전체) =================
+        // 컷인이 끝난 뒤 화면 전체 레이어에서 재생. 돌려주는 값 = 장면 길이(이펙트 시간 — 실제 초 = 길이 / Speed).
+        // 장면 끝에 화면 밝기가 돌아오는 순간 피해가 들어가도록 BattleHUD가 그만큼 기다림.
+
+        /// <summary>캐릭터 id의 궁극기 장면이 있는가.</summary>
+        public static bool HasScene(string id) => id switch
+        {
+            "c_violet" or "c_seraphine" or "c_ciel" or "c_ark" or "c_aurora" or "c_kael" or "c_estelle" => true,
+            _ => false,
+        };
+
+        // 장면 틀: ① 암전(0.3초에 거의 완전히 검게) → ② 연출 → ③ 절정(섬광은 화면을 하얗게 덮지 않을 만큼) → ④ 밝기가 돌아옴 → 피해(BattleHUD)
+        private const float Blackout = 0.3f, BrightenAfter = 0.12f, Tail = 0.5f;
+
+        /// <summary>장면 길이(이펙트 시간) = 절정 + Tail. 각 장면의 절정(climax)과 맞아야 함.</summary>
+        public static float SceneLength(string id) => Climax(id) > 0f ? Climax(id) + Tail : 0f;
+
+        private static float Climax(string id) => id switch
+        {
+            "c_violet" => 1.4f, "c_seraphine" => 1.15f, "c_ciel" => 1.2f, "c_ark" => 1.2f,
+            "c_aurora" => 1.25f, "c_kael" => 1.15f, "c_estelle" => 1.2f, _ => 0f,
+        };
+
+        /// <summary>장면 재생. 없으면 0.</summary>
+        public float UltScene(string id)
+        {
+            float climax = Climax(id);
+            if (climax <= 0f) return 0f;
+            // 암전: 거의 완전히 검게 → 절정 직후부터 걷힘
+            var tint = id switch
+            {
+                "c_violet" => new Color(0.02f, 0.01f, 0.05f), "c_seraphine" => new Color(0.05f, 0.01f, 0f),
+                "c_ciel" => new Color(0f, 0.02f, 0.05f), "c_ark" => new Color(0.01f, 0.01f, 0.05f),
+                "c_aurora" => new Color(0f, 0.03f, 0.05f), "c_kael" => new Color(0f, 0.04f, 0.02f),
+                _ => new Color(0.05f, 0.03f, 0.01f),
+            };
+            float total = climax + Tail;
+            Darken(tint, 0.97f, 0f, total, Blackout, climax + BrightenAfter);
+            switch (id)
+            {
+                case "c_violet": SceneViolet(climax); break;
+                case "c_seraphine": SceneSeraphine(climax); break;
+                case "c_ciel": SceneCiel(climax); break;
+                case "c_ark": SceneArk(climax); break;
+                case "c_aurora": SceneAurora(climax); break;
+                case "c_kael": SceneKael(climax); break;
+                default: SceneEstelle(climax); break;
+            }
+            return total;
+        }
+
+        /// <summary>화면 전체를 color로 덮음: inDur 동안 진해지고 → outAt부터 life 끝까지 걷힘.</summary>
+        private void Darken(Color color, float alpha, float delay, float life, float inDur, float outAt)
+        {
+            var p = Add(null, Vector2.zero, life, delay);
+            p.size0 = p.size1 = _layer.rect.size + new Vector2(600, 600);
+            p.c0 = WithA(color, alpha); p.c1 = WithA(color, 0f);
+            p.fadeIn = Mathf.Clamp01(inDur / life); p.fadeOutFrom = Mathf.Clamp01(outAt / life);
+            p.alphaMul = 1f;
+        }
+
+        /// <summary>그림 하나(가운데 기준) — 장면용 짧은 도우미.</summary>
+        private P Put(string tex, Sprite fallback, Vector2 pos, float delay, float life, Vector2 size0, Vector2 size1, Color c0, Color c1, float fadeIn = 0.1f, float fadeOutFrom = 0f)
+        {
+            var p = Add(T(tex, fallback), pos, life, delay);
+            p.size0 = size0; p.size1 = size1; p.c0 = c0; p.c1 = c1; p.fadeIn = fadeIn; p.fadeOutFrom = fadeOutFrom;
+            p.alphaMul = 1f;
+            return p;
+        }
+
+        /// <summary>절정 섬광(화면을 하얗게 덮지 않게 옅게) + 흔들림.</summary>
+        private void Climax(Color c, float at, float shake)
+        {
+            Schedule(at, () => { ScreenFlash(c, 0.3f, 0.32f); Shake?.Invoke(shake, 0.32f); });
+        }
+
+        /// <summary>
+        /// 그림을 가운데에서 n조각(부채꼴)으로 갈라 각자 바깥으로 날림(Image Filled Radial360).
+        /// 조각 경계 = 각도 (90 + rotBase − k·360/n)° 의 반직선들.
+        /// </summary>
+        private void Shatter(Sprite sprite, Vector2 pos, float size, int n, float rotBase, Color c, float delay, float life, float push)
+        {
+            float step = 360f / n;
+            for (int k = 0; k < n; k++)
+            {
+                var p = Add(sprite, pos, life, delay);
+                p.img.type = Image.Type.Filled;
+                p.img.fillMethod = Image.FillMethod.Radial360;
+                p.img.fillOrigin = 2;            // 위(Top)에서 시작
+                p.img.fillClockwise = true;
+                p.img.fillAmount = 1f / n;
+                float r = rotBase - k * step;
+                p.rot = r;
+                float bis = (90f - step * 0.5f + r) * Mathf.Deg2Rad;   // 조각의 가운데 방향
+                var dir = new Vector2(Mathf.Cos(bis), Mathf.Sin(bis));
+                p.vel = dir * push; p.drag = 2.2f; p.gravity = new Vector2(0, -220f);
+                p.rotVel = (k % 2 == 0 ? 1f : -1f) * 22f;
+                p.size0 = p.size1 = Vector2.one * size;
+                p.c0 = WithA(c, 1f); p.c1 = WithA(c, 0f); p.fadeIn = 0.01f; p.fadeOutFrom = 0.4f;
+                p.alphaMul = 1f;
+            }
+        }
+
+        /// <summary>화면을 가로지르는 긴 검광(흰 심 + 색 테두리) + 흔들림. 가운데 pos를 지나는 선.</summary>
+        private void Slice(Vector2 pos, float angleDeg, float length, Color c, float delay)
+        {
+            var a = Put("slash_line", ProceduralSprites.Beam, pos, delay, 0.32f, new Vector2(40, length * 0.2f), new Vector2(130, length), WithA(c, 1f), WithA(c, 0f), 0.04f, 0.3f);
+            a.rot = angleDeg;
+            var b = Put("slash_line", ProceduralSprites.Beam, pos, delay, 0.26f, new Vector2(14, length * 0.2f), new Vector2(44, length * 0.95f), Color.white, WithA(Color.white, 0f), 0.04f, 0.3f);
+            b.rot = angleDeg;
+            Sparks(pos, Color.Lerp(c, Color.white, 0.5f), 10, 900, 22, 0.4f, delay + 0.02f);
+            Schedule(delay, () => Shake?.Invoke(9f, 0.14f));
+        }
+
+        /// <summary>가운데에서 바깥으로 뻗는 검광(반직선 방향 dirDeg) — 달을 조각내는 베기. 그은 자리는 잠깐 빛나는 금으로 남음.</summary>
+        private void SliceRay(Vector2 center, float dirDeg, float length, Color c, float delay, float hold)
+        {
+            float r = dirDeg * Mathf.Deg2Rad;
+            var dir = new Vector2(Mathf.Cos(r), Mathf.Sin(r));
+            var mid = center + dir * length * 0.45f;
+            float rot = dirDeg - 90f;   // 세로 그림을 그 방향으로
+            var a = Put("slash_line", ProceduralSprites.Beam, mid, delay, 0.3f, new Vector2(30, length * 0.3f), new Vector2(120, length), WithA(c, 1f), WithA(c, 0f), 0.04f, 0.3f);
+            a.rot = rot;
+            var core = Put("slash_line", ProceduralSprites.Beam, mid, delay, 0.24f, new Vector2(12, length * 0.3f), new Vector2(40, length * 0.95f), Color.white, WithA(Color.white, 0f), 0.04f, 0.3f);
+            core.rot = rot;
+            // 베인 금(달 위에 남는 가는 선) — 갈라질 때까지
+            var crack = Put("slash_line", ProceduralSprites.Beam, center + dir * 150f, delay + 0.05f, hold, new Vector2(10, 300), new Vector2(10, 300), WithA(Color.white, 0.95f), WithA(c, 0.95f), 0.05f);
+            crack.rot = rot;
+            Sparks(center + dir * 120f, Color.Lerp(c, Color.white, 0.5f), 10, 800, 20, 0.4f, delay + 0.02f);
+            Schedule(delay, () => Shake?.Invoke(10f, 0.14f));
+        }
+
+        /// <summary>바이올렛: 암전 → 가운데 보름달 → 칼로 세 번(Y자로) 벰 → 달이 세 조각으로 갈라져 날아감 → 밝아지며 피해.</summary>
+        private void SceneViolet(float climax)
+        {
+            var violet = new Color(0.72f, 0.5f, 1f);
+            var moonCol = new Color(0.92f, 0.9f, 1f);
+            Vector2 c = new(0, 40);
+            const float rotBase = 15f;            // Y자 기울기
+            float moonIn = Blackout + 0.05f;
+            Put("glow_orb", ProceduralSprites.Glow, c, moonIn, climax - moonIn, Vector2.one * 360, Vector2.one * 760, WithA(violet, 0.3f), WithA(violet, 0.45f), 0.35f);
+            var moon = Put("moon", ProceduralSprites.Glow, c, moonIn, climax - moonIn, Vector2.one * 380, Vector2.one * 520, WithA(moonCol, 1f), WithA(moonCol, 1f), 0.4f);
+            moon.rotVel = 3f;
+            // 세 번 베기: 조각 경계(90+rotBase, -30+rotBase, 210+rotBase)를 따라 가운데에서 바깥으로
+            float[] rays = { 90f + rotBase, 210f + rotBase, 330f + rotBase };
+            for (int i = 0; i < 3; i++)
+            {
+                float d = 0.8f + i * 0.2f;
+                SliceRay(c, rays[i], 900f, i == 1 ? Color.white : violet, d, climax - d);
+            }
+            // 갈라짐: 세 조각이 각자 바깥으로
+            Shatter(T("moon", ProceduralSprites.Glow), c, 520, 3, rotBase, moonCol, climax, 0.7f, 620f);
+            Put("impact_hit", ProceduralSprites.Glow, c, climax, 0.4f, Vector2.one * 300, Vector2.one * 1000, WithA(Color.white, 1f), WithA(violet, 0f), 0.02f, 0.2f);
+            Ring(c, violet, 120, 1500, 0.5f, climax);
+            Sparks(c, moonCol, 20, 1200, 24, 0.55f, climax);
+            Climax(new Color(0.8f, 0.75f, 1f), climax, 16f);
+        }
+
+        /// <summary>세라핀: 암전 → 불사조 문양 · 아래에서 솟는 불꽃 → 불타는 대검이 위에서 내리꽂힘 → 화염 폭발.</summary>
+        private void SceneSeraphine(float climax)
+        {
+            var fire = new Color(1f, 0.5f, 0.15f); var hot = new Color(1f, 0.9f, 0.55f);
+            Vector2 c = new(0, 20);
+            float st = Blackout + 0.05f;
+            var sig = Put("ult_c_seraphine", ProceduralSprites.Glow, c, st, climax - st, Vector2.one * 320, Vector2.one * 820, WithA(fire, 0.95f), WithA(hot, 0.6f), 0.35f);
+            sig.rotVel = 6f;
+            for (int i = 0; i < 12; i++)
+            {
+                var f = Put("flame", ProceduralSprites.Glow, new Vector2(Random.Range(-900f, 900f), -480f), st + Random.Range(0f, 0.45f), 0.9f, new Vector2(150, 200), new Vector2(40, 60), WithA(hot, 0.9f), WithA(fire, 0f), 0.1f);
+                f.vel = new Vector2(Random.Range(-20f, 20f), Random.Range(380f, 620f));
+            }
+            // 대검: 위에서 아래로 내리꽂힘(절정에 가운데 도착)
+            float drop = climax - 0.3f;
+            var sword = Put("scene_greatsword", ProceduralSprites.Beam, c + new Vector2(0, 1150), drop, 0.42f, new Vector2(1000, 1000), new Vector2(1000, 1000), WithA(hot, 1f), WithA(fire, 0.9f), 0.05f, 0.85f);
+            sword.vel = new Vector2(0, -3300f); sword.drag = 2.4f;
+            Put("fire_burst", ProceduralSprites.Glow, c, climax, 0.6f, Vector2.one * 300, Vector2.one * 1700, WithA(hot, 1f), WithA(fire, 0f), 0.03f, 0.25f);
+            Ring(c, fire, 150, 1700, 0.55f, climax);
+            Sparks(c, hot, 22, 1300, 28, 0.6f, climax);
+            Climax(new Color(1f, 0.6f, 0.25f), climax, 18f);
+        }
+
+        /// <summary>시엘: 암전 → 네 귀퉁이부터 얼어붙음 · 눈꽃 문양이 돎 → 파편이 모여듦 → 아래에서 거대한 얼음 결정이 솟구쳐 부서짐.</summary>
+        private void SceneCiel(float climax)
+        {
+            var ice = new Color(0.55f, 0.88f, 1f);
+            Vector2 c = new(0, 30);
+            float st = Blackout + 0.05f;
+            foreach (var corner in new[] { new Vector2(-900, 480), new Vector2(900, 480), new Vector2(-900, -480), new Vector2(900, -480) })
+                Put("ice_burst", ProceduralSprites.Glow, corner, st, climax - st, Vector2.one * 200, Vector2.one * 900, WithA(ice, 0.2f), WithA(Color.white, 0.75f), 0.4f);
+            var sig = Put("ult_c_ciel", ProceduralSprites.Glow, c, st + 0.05f, climax - st, Vector2.one * 300, Vector2.one * 640, WithA(ice, 0.9f), WithA(Color.white, 0.8f), 0.3f);
+            sig.rotVel = 40f;
+            for (int i = 0; i < 14; i++)
+            {
+                float ang = i * (360f / 14f) * Mathf.Deg2Rad;
+                var from = c + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * 900f;
+                var sh = Put("ice_shard", ProceduralSprites.Triangle, from, climax - 0.5f + i * 0.012f, 0.5f, new Vector2(70, 170), new Vector2(40, 100), WithA(Color.white, 1f), WithA(ice, 0.8f), 0.05f);
+                sh.vel = (c - from) * 2.1f; sh.alignToVel = true;
+            }
+            var cr = Put("scene_crystal", ProceduralSprites.Triangle, c + new Vector2(0, -700), climax - 0.12f, 0.6f, new Vector2(900, 700), new Vector2(1100, 900), WithA(Color.white, 1f), WithA(ice, 0f), 0.04f, 0.45f);
+            cr.vel = new Vector2(0, 2600f); cr.drag = 5f;
+            Put("impact_hit", ProceduralSprites.Glow, c, climax, 0.4f, Vector2.one * 300, Vector2.one * 1200, WithA(Color.white, 1f), WithA(ice, 0f), 0.02f, 0.2f);
+            Put("ice_burst", ProceduralSprites.Glow, c, climax, 0.55f, Vector2.one * 400, Vector2.one * 1400, WithA(Color.white, 1f), WithA(ice, 0f), 0.02f, 0.3f);
+            Sparks(c, ice, 22, 1300, 24, 0.55f, climax);
+            Climax(new Color(0.8f, 0.95f, 1f), climax, 14f);
+        }
+
+        /// <summary>아크: 암전 → 거대한 방패가 내려앉음 · 번개 방패 문양 → 번개가 연달아 → 마지막 거대한 낙뢰.</summary>
+        private void SceneArk(float climax)
+        {
+            var volt = new Color(0.78f, 0.6f, 1f);
+            Vector2 c = new(0, 20);
+            float st = Blackout + 0.05f;
+            var sh = Put("scene_shield", ProceduralSprites.Glow, c, st, climax - st + 0.1f, Vector2.one * 1100, Vector2.one * 620, WithA(volt, 0.95f), WithA(Color.white, 0.9f), 0.15f, 0.85f);
+            Schedule(st + 0.15f, () => Shake?.Invoke(10f, 0.2f));
+            Put("ult_c_ark", ProceduralSprites.Glow, c, st + 0.2f, climax - st - 0.2f, Vector2.one * 500, Vector2.one * 760, WithA(volt, 0.5f), WithA(volt, 0.2f), 0.3f);
+            for (int i = 0; i < 6; i++)
+            {
+                float d = st + 0.25f + i * 0.09f, x = Random.Range(-800f, 800f);
+                var b = Put("lightning_bolt", ProceduralSprites.Beam, new Vector2(x, 60), d, 0.22f, new Vector2(260, 1200), new Vector2(260, 1200), WithA(Color.white, 1f), WithA(volt, 0f), 0.02f);
+                b.flicker = true; b.rot = Random.value < 0.5f ? 0f : 180f;
+                Schedule(d, () => Shake?.Invoke(6f, 0.1f));
+            }
+            var big = Put("lightning_bolt", ProceduralSprites.Beam, c + new Vector2(0, 100), climax, 0.4f, new Vector2(520, 1500), new Vector2(620, 1500), WithA(Color.white, 1f), WithA(volt, 0f), 0.02f, 0.3f);
+            big.flicker = true;
+            Put("lightning_arc", ProceduralSprites.Glow, c, climax, 0.45f, Vector2.one * 300, Vector2.one * 1100, WithA(Color.white, 1f), WithA(volt, 0f), 0.02f, 0.2f);
+            Sparks(c, volt, 24, 1400, 22, 0.5f, climax);
+            Climax(new Color(0.9f, 0.85f, 1f), climax, 18f);
+        }
+
+        /// <summary>오로라: 암전 → 오로라 커튼이 겹겹이 흐름 → 지팡이 문양 · 별이 쏟아짐 → 부드러운 빛 폭발.</summary>
+        private void SceneAurora(float climax)
+        {
+            Color[] au = { new(0.45f, 1f, 0.9f), new(1f, 0.6f, 0.9f), new(0.7f, 0.6f, 1f) };
+            Vector2 c = new(0, 40);
+            float st = Blackout + 0.05f;
+            for (int i = 0; i < 3; i++)
+            {
+                var cur = Put("scene_aurora", ProceduralSprites.Glow, new Vector2(-200f + i * 200f, 260f - i * 90f), st + i * 0.08f, climax - st + 0.2f,
+                    new Vector2(2200, 700), new Vector2(2500, 800), WithA(au[i], 0.8f), WithA(au[(i + 1) % 3], 0f), 0.3f, 0.7f);
+                cur.vel = new Vector2(i % 2 == 0 ? 120f : -120f, 0);
+            }
+            Put("ult_c_aurora", ProceduralSprites.Glow, c, st + 0.2f, climax - st - 0.2f, Vector2.one * 300, Vector2.one * 640, WithA(au[0], 0.9f), WithA(Color.white, 0.8f), 0.3f);
+            for (int i = 0; i < 18; i++)
+            {
+                var sp = Put("spark_star", ProceduralSprites.Star, new Vector2(Random.Range(-900f, 900f), 560f), st + Random.Range(0.1f, 0.6f), 0.8f, Vector2.one * 34, Vector2.one * 12, WithA(Color.white, 1f), WithA(au[i % 3], 0f), 0.1f);
+                sp.vel = new Vector2(Random.Range(-60f, 60f), Random.Range(-700f, -1000f)); sp.rotVel = 300f;
+            }
+            Put("glow_orb", ProceduralSprites.Glow, c, climax, 0.5f, Vector2.one * 300, Vector2.one * 1400, WithA(Color.white, 0.9f), WithA(au[1], 0f), 0.03f, 0.2f);
+            Ring(c, au[0], 150, 1500, 0.55f, climax);
+            Climax(new Color(0.85f, 1f, 0.97f), climax, 8f);
+        }
+
+        /// <summary>카엘: 암전 → 바람 소용돌이 · 칼날 바람이 휘감음 → 양옆에서 곡도 두 자루가 날아와 X자로 교차 → 돌풍.</summary>
+        private void SceneKael(float climax)
+        {
+            var wind = new Color(0.55f, 1f, 0.7f);
+            Vector2 c = new(0, 30);
+            float st = Blackout + 0.05f;
+            var sw = Put("wind_swirl", ProceduralSprites.Ring, c, st, climax - st, Vector2.one * 200, Vector2.one * 1000, WithA(Color.white, 0.8f), WithA(wind, 0.6f), 0.3f);
+            sw.rotVel = 540f;
+            for (int i = 0; i < 12; i++)
+            {
+                var b = Add(T("wind_blade", ProceduralSprites.Beam), c, 0.8f, st + i * 0.03f);
+                b.orbit = true; b.center = c; b.radius = 650f; b.radiusVel = -560f; b.angle = i * 0.52f; b.angVel = 7f; b.alignToVel = true;
+                b.size0 = new Vector2(120, 200); b.size1 = new Vector2(60, 100);
+                b.c0 = WithA(Color.white, 1f); b.c1 = WithA(wind, 0f); b.fadeIn = 0.15f; b.alphaMul = 1f;
+            }
+            // 곡도 두 자루: 양옆에서 돌며 날아와 가운데에서 X자로
+            for (int side = 0; side < 2; side++)
+            {
+                float sx = side == 0 ? -1f : 1f;
+                var d = Put("scene_dagger", ProceduralSprites.Beam, c + new Vector2(sx * 1100f, 0), climax - 0.42f, 0.5f, new Vector2(640, 640), new Vector2(640, 640), WithA(Color.white, 1f), WithA(wind, 0.6f), 0.05f, 0.75f);
+                d.vel = new Vector2(-sx * 3400f, 0); d.drag = 4.2f;
+                d.rot = sx * 220f; d.rotVel = -sx * 400f;   // 돌면서 와서 ±45°쯤에 멈춤
+            }
+            Slice(c, -45f, 1500, wind, climax - 0.08f);
+            Slice(c, 45f, 1500, Color.white, climax - 0.02f);
+            Ring(c, wind, 150, 1600, 0.5f, climax);
+            Put("impact_hit", ProceduralSprites.Glow, c, climax, 0.4f, Vector2.one * 300, Vector2.one * 1100, WithA(Color.white, 1f), WithA(wind, 0f), 0.02f, 0.2f);
+            Sparks(c, wind, 24, 1300, 22, 0.5f, climax);
+            Climax(new Color(0.85f, 1f, 0.9f), climax, 14f);
+        }
+
+        /// <summary>에스텔: 암전 → 위에서 성스러운 빛줄기가 내림 → 등불 문양이 떠오르고 깃털이 내려앉음 → 포근한 빛이 퍼짐.</summary>
+        private void SceneEstelle(float climax)
+        {
+            var warm = new Color(1f, 0.75f, 0.4f); var gold = new Color(1f, 0.92f, 0.6f);
+            Vector2 c = new(0, 40);
+            float st = Blackout + 0.05f;
+            Put("scene_rays", ProceduralSprites.Glow, new Vector2(0, 160), st, climax - st + 0.25f, new Vector2(1500, 1100), new Vector2(1900, 1300), WithA(gold, 0.0f), WithA(gold, 0.9f), 0.5f, 0.85f);
+            var sig = Put("ult_c_estelle", ProceduralSprites.Glow, c + new Vector2(0, -420), st + 0.05f, climax - st, Vector2.one * 300, Vector2.one * 600, WithA(warm, 0.95f), WithA(gold, 0.8f), 0.3f);
+            sig.vel = new Vector2(0, 700f); sig.drag = 2.2f;
+            for (int i = 0; i < 16; i++)
+            {
+                var f = Put("feather_streak", ProceduralSprites.Beam, new Vector2(Random.Range(-900f, 900f), Random.Range(400f, 600f)), st + Random.Range(0.05f, 0.5f), 0.9f, new Vector2(30, 120), new Vector2(20, 80), WithA(gold, 0.9f), WithA(warm, 0f), 0.15f);
+                f.vel = new Vector2(Random.Range(-80f, 80f), Random.Range(-260f, -420f)); f.rotVel = Random.Range(-120f, 120f);
+            }
+            Put("glow_orb", ProceduralSprites.Glow, c, climax, 0.55f, Vector2.one * 300, Vector2.one * 1600, WithA(gold, 0.95f), WithA(warm, 0f), 0.04f, 0.25f);
+            Ring(c, gold, 150, 1500, 0.55f, climax);
+            Climax(new Color(1f, 0.93f, 0.75f), climax, 6f);
         }
 
         /// <summary>
@@ -585,6 +902,7 @@ namespace SubcultureRPG.Battle.UI
             Image img = _pool.Count > 0 ? _pool.Pop() : UIFactory.AddImage("Fx", _layer, Color.white);
             img.sprite = sprite;
             img.type = Image.Type.Simple;
+            img.fillAmount = 1f;
             img.preserveAspect = false;
             img.raycastTarget = false;
             var rt = img.rectTransform;
@@ -617,6 +935,13 @@ namespace SubcultureRPG.Battle.UI
         private void Update()
         {
             float dt = Time.unscaledDeltaTime * Mathf.Max(0.1f, Speed);
+            for (int e = _events.Count - 1; e >= 0; e--)
+            {
+                var ev = _events[e];
+                ev.t -= dt;
+                if (ev.t <= 0f) { _events.RemoveAt(e); ev.a?.Invoke(); }
+                else _events[e] = ev;
+            }
             for (int i = _live.Count - 1; i >= 0; i--)
             {
                 var p = _live[i];

@@ -241,6 +241,54 @@ namespace SubcultureRPG.Characters
             return list;
         }
 
+        /// <summary>궁극기 대사(컷인에 표시). 캐릭터마다 하나, 없으면 역할별 기본 대사.</summary>
+        private static readonly Dictionary<string, string> UltLines = new()
+        {
+            // 6★
+            ["c_seraphine"] = "춤춰라, 불꽃이여. 이 밤을 붉게 태워라!",
+            ["c_ciel"] = "망설임은 이미 베었어요. 남은 건 당신뿐.",
+            ["c_ark"] = "번개여, 내 방패가 되어라. 아무도 넘어오지 못한다!",
+            ["c_aurora"] = "하늘의 빛이여, 모두를 감싸 안아 주세요.",
+            ["c_kael"] = "바람 따라 가볍게~ 따라올 수 있으면 따라와 봐!",
+            ["c_violet"] = "달이 지기 전에... 끝내 주지.",
+            ["c_estelle"] = "이 등불이 꺼지지 않는 한, 누구도 쓰러지게 두지 않아요.",
+            // 5★
+            ["c_luna"] = "얼어붙은 달빛 아래, 조용히 잠들어.",
+            ["c_rio"] = "바람아, 모두의 등을 밀어 줘!",
+            ["c_selene"] = "차가운 물결이여, 상처를 씻어 내려라.",
+            ["c_haru"] = "불씨 하나면 충분해. 다 같이 타오르자!",
+            ["c_rena"] = "번개보다 빠르게, 지금이야!",
+            ["c_grey"] = "강철은 부러지지 않는다. 버텨라!",
+            // 4★
+            ["c_mina"] = "작은 불꽃이라고 얕보지 마!",
+            ["c_coco"] = "코코가 지켜 줄게! 뒤로 숨어!",
+            ["c_bella"] = "찌릿찌릿~ 힘 좀 나눠 줄게!",
+            ["c_sora"] = "얼음 벽이여, 솟아라!",
+            ["c_yuna"] = "바람의 칼날, 받아 봐!",
+            ["c_teo"] = "번쩍이는 빛으로 치료해 줄게요!",
+            // 3★
+            ["c_riri"] = "산들바람아, 다들 힘내라고 전해 줘!",
+            ["c_pin"] = "한 방이면 충분해!",
+            ["c_momo"] = "뜨거운 건 모모가 맡을게!",
+            ["c_dodo"] = "꽁꽁 얼어 버려라!",
+            ["c_ruru"] = "루루의 번개 응원, 간다~!",
+            ["c_kiki"] = "바람의 방패, 펼쳐라!",
+        };
+
+        public static string Ultimate(CharacterData c)
+        {
+            if (c == null) return "";
+            string key = !string.IsNullOrEmpty(c.id) ? c.id : c.name;
+            if (key != null && UltLines.TryGetValue(key, out var line)) return line;
+            return c.role switch
+            {
+                Role.Tank => "여기서부터는 한 걸음도 못 지나간다!",
+                Role.Healer => "조금만 더 버텨요, 지금 갈게요!",
+                Role.Support => "모두, 지금이 기회야!",
+                _ => "이걸로 끝이다!",
+            };
+        }
+
         private static readonly Dictionary<string, int> _last = new();
 
         /// <summary>무작위 대사 1개(같은 캐릭터에서 바로 전 대사는 피함).</summary>

@@ -42,6 +42,14 @@ const FX = [
   ['heal_cross', '회복 빛', 'a single soft glowing plus-shaped healing cross symbol with gentle radiant halo and tiny floating sparkles around it'],
   ['rune_glyph', '룬 문자', 'a single glowing mystical rune glyph symbol made of thin elegant lines inside a small circle, fantasy magic sigil'],
   ['feather_streak', '빛 줄기', 'a single soft elongated vertical streak of light like a comet tail, bright rounded head at the top fading into a long thin tail at the bottom'],
+  ['moon', '보름달(궁극기 장면)', 'a single large full moon disc seen straight on, soft crater and mare details, a bright glowing rim and a faint halo around it'],
+  // 6★ 궁극기 장면 전용 소품(세로로 긴 것은 위아래 방향)
+  ['scene_greatsword', '불꽃 대검(세라핀 장면)', 'a single huge ornate greatsword pointing straight down, wide heavy blade, flames streaming upward from the blade edges, seen from the front, vertical'],
+  ['scene_aurora', '오로라 커튼(오로라 장면)', 'a single long horizontal flowing aurora borealis curtain ribbon with soft vertical light streaks hanging down from a wavy top edge, spanning the whole width'],
+  ['scene_crystal', '거대한 얼음 결정(시엘 장면)', 'a single giant cluster of sharp faceted ice crystals erupting upward from the bottom, tall jagged spikes, bright edge highlights'],
+  ['scene_dagger', '곡도(카엘 장면)', 'a single slim curved dagger blade pointing straight up with a small guard and wrapped grip, a faint wind trail along the curve, vertical'],
+  ['scene_shield', '거대한 방패(아크 장면)', 'a single massive heraldic tower shield seen from the front with a lightning bolt emblem in the center, thick rim, sparks crackling on the edges'],
+  ['scene_rays', '빛줄기(에스텔 장면)', 'soft holy god rays of light radiating downward from a bright point at the top center, wide fan of light beams with floating dust motes'],
   // 6★ 궁극기 전용 문양(SkillFx.Ultimate가 캐릭터 id로 찾음: Fx/ult_{id}) — 무기 · 상징을 넣은 큰 문양
   ['ult_c_seraphine', '세라핀 궁극기 문양', 'a huge flaming greatsword thrust straight down through the center of a blazing phoenix-wing emblem, burning feathers fanning out to both sides'],
   ['ult_c_ciel', '시엘 궁극기 문양', 'two slender rapiers crossed in an X in front of a giant six-pointed snowflake crystal emblem with sharp icy facets'],
