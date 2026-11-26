@@ -1426,8 +1426,16 @@ namespace SubcultureRPG.Meta.UI
                         "<size=85%><color=#9AA3B5>로그인 중이면 최대 육성 상태도 서버에 저장되고, 되돌리면 원래 세이브가 다시 올라갑니다.</color></size>",
                         "적용", () => TestMaxData.Apply(), "취소");
             });
+            // 개화 연출 미리보기(디버그) — 선택한 캐릭터로 숨겨진 특성 개화 연출만 재생(레벨 · 의상은 그대로)
+            var bloomBtn = UIFactory.AddButton("BloomPreview", root, "개화 연출 미리보기(테스트)", 18, font, new Color(1, 1, 1, 0.14f), Color.white);
+            Place((RectTransform)bloomBtn.transform, new Vector2(0, 0), new Vector2(280, 48), new Vector2(978, 30), new Vector2(0, 0));
+            bloomBtn.onClick.AddListener(() =>
+            {
+                if (_selected != null && _inDetail) BloomCeremony.Play(_selected, font, null, preview: true);
+                else Toast("캐릭터를 선택한 상태에서 누르세요");
+            });
             // 출시 빌드에서는 테스트 버튼 없음
-            DevTools.Gate(charge.gameObject); DevTools.Gate(dup.gameObject); DevTools.Gate(maxBtn.gameObject);
+            DevTools.Gate(charge.gameObject); DevTools.Gate(dup.gameObject); DevTools.Gate(maxBtn.gameObject); DevTools.Gate(bloomBtn.gameObject);
 
             _equipPanel = EquipmentPanel.Create(root, font, equipment, inventory, wallet,
                 key => database != null ? database.GetCharacter(key)?.displayName : null);

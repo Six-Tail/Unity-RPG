@@ -10,25 +10,130 @@ using SubcultureRPG.UI;
 namespace SubcultureRPG.Meta.UI
 {
     /// <summary>
-    /// 숨겨진 특성 개화 연출(Lv.100 도달): 어두워짐 → 빛이 모여듦(빛줄기 · 입자 · 떨림) → 섬광 → 개화 일러스트로 바뀌며 등장
-    /// → '숨겨진 특성 개화' · 특성 이름(무지개) · 효과. 화면을 누르면 닫힘. 개화 일러스트가 있으면 의상을 '개화'로 갈아입힘.
+    /// 숨겨진 특성 개화 연출(Lv.100 도달) — docs/outfits.md
+    /// ① 막 내림: 위아래 검은 띠 · 성운 배경(Backgrounds/bloom)이 밝아지며 캐릭터 등장
+    /// ② 각성(2.6초): 캐릭터 뒤 · 발밑에 개화 마법진(Fx/bloom_circle)이 펼쳐지고 빛이 모여듦 — 화면이 점점 세게 떨리고
+    ///    깨어나는 대사(CharacterLines.Bloom ①)가 자막으로 한 글자씩
+    /// ③ 섬광 → 개화: 섬광(Fx/bloom_burst) · 충격파 · 빛의 꽃(Fx/bloom_flower)이 피고 꽃잎(Fx/bloom_petal)이 흩날리며 개화 일러스트로
+    /// ④ 개화: '숨겨진 특성 개화'(무지개) · 특성 이름 · 효과, 아래 대화창에 개화 대사(②)가 한 글자씩. 꽃잎이 계속 내림
+    /// 화면을 누르면: 각성 중 = 바로 개화로 · 글자가 나오는 중 = 다 보여 줌 · 다 나왔으면 닫음.
+    /// 개화 일러스트가 있으면 의상을 '개화'로 갈아입힘(미리보기면 그대로). 효과 그림은 모두 흰 빛이라 속성 색을 곱해 씀.
     /// </summary>
     public class BloomCeremony : MonoBehaviour
     {
-        public static void Play(CharacterData c, TMP_FontAsset font, System.Action onDone = null)
+        /// <param name="preview">테스트용 미리보기(육성 화면 '개화 연출 미리보기') — 의상을 바꾸지 않음</param>
+        public static void Play(CharacterData c, TMP_FontAsset font, System.Action onDone = null, bool preview = false)
         {
             if (c == null) { onDone?.Invoke(); return; }
             var go = new GameObject("BloomCeremony");
             var bc = go.AddComponent<BloomCeremony>();
+            bc._preview = preview;
             bc.StartCoroutine(bc.Run(c, font ?? OverlayWindow.DefaultFont(), onDone));
         }
 
-        private bool _tapped;
+        private bool _tapped, _preview;
+        private TMP_FontAsset _font;
+        private Color _tint;
+        private RectTransform _fx;   // 입자 놓는 곳
+        private readonly List<Particle> _parts = new();
+
+        private class Particle
+        {
+            public RectTransform rt; public Image im;
+            public Vector2 pos, vel; public float life, age, spin, size, alpha = 1f, gravity, sway;
+            public bool toCenter; public Vector2 from;
+        }
+
+        private bool Tap() { if (!_tapped) return false; _tapped = false; return true; }
+        private static float Dt => Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+
+        // ---------------- 만들기 도우미 ----------------
+
+        private Image Img(string name, Transform parent, Sprite s, Color c, Vector2 size)
+        {
+            var im = UIFactory.AddImage(name, parent, c, s);
+            im.raycastTarget = false;
+            im.rectTransform.sizeDelta = size;
+            return im;
+        }
+
+        private static Sprite Fx(string key, Sprite fallback) => GameArt.Load("Fx/" + key) ?? fallback;
+        private Color Tinted(float white, float a) { var c = Color.Lerp(_tint, Color.white, white); c.a = a; return c; }
+
+        private TextMeshProUGUI Label(Transform parent, string s, float size, Color c, FontStyles style = FontStyles.Normal, TextAlignmentOptions align = TextAlignmentOptions.Center)
+        {
+            var t = UIFactory.AddText("Text", parent, s, size, _font, c, align, style);
+            t.raycastTarget = false;
+            t.richText = true;
+            return t;
+        }
+
+        private static void Bottom(RectTransform rt, Vector2 size, Vector2 pos)
+        {
+            UIFactory.Anchor(rt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            rt.sizeDelta = size; rt.anchoredPosition = pos;
+        }
+
+        // ---------------- 입자 ----------------
+
+        private void Spawn(Sprite s, Vector2 pos, Vector2 vel, float life, float size, Color c, float spin = 0f, float gravity = 0f, float sway = 0f)
+        {
+            var im = Img("P", _fx, s, c, new Vector2(size, size));
+            im.rectTransform.anchoredPosition = pos;
+            im.rectTransform.localEulerAngles = new Vector3(0, 0, Random.value * 360f);
+            _parts.Add(new Particle { rt = im.rectTransform, im = im, pos = pos, vel = vel, life = life, size = size, spin = spin, gravity = gravity, sway = sway, alpha = c.a });
+        }
+
+        /// <summary>바깥에서 가운데로 빨려 드는 빛 입자.</summary>
+        private void SpawnInward(Sprite s, float dist, float life, float size, Color c)
+        {
+            float ang = Random.value * Mathf.PI * 2f;
+            var from = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * dist;
+            var im = Img("P", _fx, s, c, new Vector2(size, size));
+            im.rectTransform.anchoredPosition = from;
+            _parts.Add(new Particle { rt = im.rectTransform, im = im, from = from, toCenter = true, life = life, size = size, alpha = c.a });
+        }
+
+        private void TickParticles(float dt)
+        {
+            for (int i = _parts.Count - 1; i >= 0; i--)
+            {
+                var p = _parts[i];
+                p.age += dt;
+                float u = p.age / p.life;
+                if (u >= 1f || p.rt == null) { if (p.rt != null) Destroy(p.rt.gameObject); _parts.RemoveAt(i); continue; }
+                if (p.toCenter)
+                {
+                    p.rt.anchoredPosition = Vector2.Lerp(p.from, Vector2.zero, u * u);
+                    p.rt.localScale = Vector3.one * (1f - 0.6f * u);
+                    var c = p.im.color; c.a = p.alpha * Mathf.Sin(u * Mathf.PI); p.im.color = c;
+                    continue;
+                }
+                p.vel.y -= p.gravity * dt;
+                p.vel *= 1f - 1.4f * dt;   // 공기 저항
+                p.pos += p.vel * dt + new Vector2(Mathf.Sin(p.age * 3f + p.size) * p.sway * dt, 0f);
+                p.rt.anchoredPosition = p.pos;
+                p.rt.localEulerAngles += new Vector3(0, 0, p.spin * dt);
+                var col = p.im.color; col.a = p.alpha * (u < 0.15f ? u / 0.15f : 1f - Mathf.InverseLerp(0.6f, 1f, u)); p.im.color = col;
+            }
+        }
+
+        // ---------------- 연출 ----------------
 
         private IEnumerator Run(CharacterData c, TMP_FontAsset font, System.Action onDone)
         {
+            _font = font;
             string key = PlayerRoster.KeyOf(c);
-            Color tint = Traits.ColorOf(c.element);
+            _tint = Traits.ColorOf(c.element);
+            var (awakenLine, bloomLine) = CharacterLines.Bloom(c);
+            var hidden = CharacterKits.Hidden(c);
+
+            var circleS = Fx("bloom_circle", Fx("magic_circle", ProceduralSprites.Ring));
+            var flowerS = Fx("bloom_flower", ProceduralSprites.Glow);
+            var burstS = Fx("bloom_burst", Fx("scene_rays", ProceduralSprites.Glow));
+            var petalS = Fx("bloom_petal", ProceduralSprites.Star);
+            var ringS = Fx("shockwave", ProceduralSprites.Ring);
+            var sparkS = Fx("spark_star", ProceduralSprites.Star);
 
             // ---------------- 무대 ----------------
             var canvas = gameObject.AddComponent<Canvas>();
@@ -40,173 +145,316 @@ namespace SubcultureRPG.Meta.UI
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
 
-            var bg = UIFactory.AddImage("Dim", transform, new Color(0.01f, 0.01f, 0.03f, 0f), null, raycast: true);
-            UIFactory.Stretch(bg.rectTransform);
-            var tap = bg.gameObject.AddComponent<Button>();
+            var black = UIFactory.AddImage("Black", transform, new Color(0, 0, 0, 0f), null, raycast: true);
+            UIFactory.Stretch(black.rectTransform);
+            var tap = black.gameObject.AddComponent<Button>();
             tap.transition = Selectable.Transition.None;
             tap.onClick.AddListener(() => _tapped = true);
 
-            var stage = UIFactory.NewRect("Stage", transform);
-            UIFactory.Anchor(stage, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            stage.sizeDelta = Vector2.zero; stage.anchoredPosition = new Vector2(0, 40);
+            // 성운 배경 + 어둡게 덮개 + 속성 빛
+            var world = UIFactory.NewRect("World", transform);
+            UIFactory.Stretch(world);
+            var bgS = GameArt.Load("Backgrounds/bloom");
+            var bg = Img("Bg", world, bgS, new Color(1, 1, 1, 0f), new Vector2(2120, 1192));
+            bg.enabled = bgS != null;
+            var veil = Img("Veil", world, null, new Color(0.02f, 0.01f, 0.06f, 0.62f), Vector2.zero);
+            UIFactory.Stretch(veil.rectTransform);
+            var wash = Img("Wash", world, ProceduralSprites.Glow, Tinted(0.2f, 0f), new Vector2(2400, 2000));
 
-            var glow = UIFactory.AddImage("Glow", stage, new Color(tint.r, tint.g, tint.b, 0f), ProceduralSprites.Glow);
-            glow.rectTransform.sizeDelta = new Vector2(900, 900);
+            var stage = UIFactory.NewRect("Stage", world);
+            UIFactory.Anchor(stage, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            stage.sizeDelta = Vector2.zero; stage.anchoredPosition = new Vector2(0, 50);
+
+            var aura = Img("Aura", stage, ProceduralSprites.Glow, Tinted(0.1f, 0f), new Vector2(1000, 1000));
+            var backCircle = Img("CircleBack", stage, circleS, Tinted(0.35f, 0f), new Vector2(980, 980));
+            var innerCircle = Img("CircleInner", stage, circleS, Tinted(0.6f, 0f), new Vector2(560, 560));
+            var flower = Img("Flower", stage, flowerS, Tinted(0.45f, 0f), new Vector2(900, 900));
             var rays = new List<Image>();
-            for (int i = 0; i < 14; i++)
+            for (int i = 0; i < 16; i++)
             {
-                var r = UIFactory.AddImage("Ray", stage, new Color(1f, 0.95f, 0.85f, 0f), ProceduralSprites.Beam);
+                var r = Img("Ray", stage, ProceduralSprites.Beam, new Color(1f, 0.95f, 0.85f, 0f), new Vector2(60, 1000));
                 r.rectTransform.pivot = new Vector2(0.5f, 0f);
-                r.rectTransform.sizeDelta = new Vector2(70, 900);
-                r.rectTransform.localEulerAngles = new Vector3(0, 0, i * (360f / 14));
+                r.rectTransform.localEulerAngles = new Vector3(0, 0, i * (360f / 16));
                 rays.Add(r);
             }
+            // 발밑 마법진(납작하게 눕힘)
+            var floor = Img("CircleFloor", stage, circleS, Tinted(0.4f, 0f), new Vector2(820, 820));
+            floor.rectTransform.anchoredPosition = new Vector2(0, -380);
 
             var before = GameArt.Load("Characters/" + key);
             var after = GameArt.Load("Characters/" + key + "_bloom");
-            var art = UIFactory.AddImage("Art", stage, new Color(1, 1, 1, 0f), before);
+            var art = Img("Art", stage, before, new Color(1, 1, 1, 0f), new Vector2(660, 880));
             art.preserveAspect = true;
-            art.rectTransform.sizeDelta = new Vector2(600, 800);
             art.enabled = before != null;
+            var artRt = art.rectTransform;
 
-            var sparks = UIFactory.NewRect("Sparks", stage);
-            var flash = UIFactory.AddImage("Flash", transform, new Color(1, 1, 1, 0f));
-            UIFactory.Stretch(flash.rectTransform);
-            flash.raycastTarget = false;
+            _fx = UIFactory.NewRect("Fx", stage);
+            var burst = Img("Burst", stage, burstS, Tinted(0.7f, 0f), new Vector2(900, 900));
+            var ring = Img("Ring", stage, ringS, Tinted(0.5f, 0f), new Vector2(600, 600));
 
-            // ---------------- 1) 어두워지며 등장 ----------------
-            SoundManager.Duck(0.3f);
-            for (float t = 0; t < 0.5f; t += Time.unscaledDeltaTime)
+            // 영화 띠(위 · 아래)
+            var barTop = Img("BarTop", transform, null, Color.black, new Vector2(0, 130));
+            UIFactory.Anchor(barTop.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            barTop.rectTransform.sizeDelta = new Vector2(0, 130);
+            var barBot = Img("BarBot", transform, null, Color.black, new Vector2(0, 130));
+            UIFactory.Anchor(barBot.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            barBot.rectTransform.sizeDelta = new Vector2(0, 130);
+            void Bars(float k) { barTop.rectTransform.anchoredPosition = new Vector2(0, 130 * (1f - k)); barBot.rectTransform.anchoredPosition = new Vector2(0, -130 * (1f - k)); }
+            Bars(0f);
+
+            // 자막(각성 대사) — 아래 띠 위
+            var sub = Label(transform, "", 30, new Color(1f, 0.96f, 0.9f), FontStyles.Italic);
+            Bottom(sub.rectTransform, new Vector2(1500, 60), new Vector2(0, 40));
+            var subName = Label(transform, $"<color=#{ColorUtility.ToHtmlStringRGB(Color.Lerp(_tint, Color.white, 0.4f))}>{c.displayName}</color>", 22, Color.white);
+            Bottom(subName.rectTransform, new Vector2(600, 32), new Vector2(0, 92));
+            subName.alpha = 0f;
+
+            if (_preview)
             {
-                float k = t / 0.5f;
-                bg.color = new Color(0.01f, 0.01f, 0.03f, 0.94f * k);
-                art.color = new Color(1, 1, 1, k);
-                yield return null;
+                var tag = Label(transform, "<color=#FFB347>개화 연출 미리보기(테스트) — 의상은 바뀌지 않음</color>", 18, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+                UIFactory.Anchor(tag.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+                tag.rectTransform.sizeDelta = new Vector2(700, 30); tag.rectTransform.anchoredPosition = new Vector2(24, -12);
             }
 
-            // ---------------- 2) 빛이 모여듦(1.9초) ----------------
-            SoundManager.Play(Sfx.GachaSummon);
-            const float charge = 1.9f;
-            float spawn = 0f;
-            var live = new List<(RectTransform rt, Image im, Vector2 from, float born, float life)>();
-            for (float t = 0; t < charge; t += Time.unscaledDeltaTime)
+            var flash = Img("Flash", transform, null, new Color(1, 1, 1, 0f), Vector2.zero);
+            UIFactory.Stretch(flash.rectTransform);
+
+            // ---------------- ① 막 내림(0.7초) ----------------
+            SoundManager.Duck(0.25f);
+            _tapped = false;
+            bool skip = false;
+            for (float t = 0; t < 0.7f; t += Dt)
             {
-                float k = t / charge;
-                glow.color = new Color(tint.r, tint.g, tint.b, 0.25f + 0.55f * k);
-                glow.rectTransform.localScale = Vector3.one * (0.6f + 0.9f * k + 0.05f * Mathf.Sin(t * 20f));
-                stage.localEulerAngles = Vector3.zero;
+                float k = t / 0.7f, e = 1f - (1f - k) * (1f - k);
+                black.color = new Color(0, 0, 0, Mathf.Min(1f, k * 2f) * (1f - 0.0f));
+                bg.color = new Color(1, 1, 1, e);
+                bg.rectTransform.localScale = Vector3.one * (1.08f - 0.04f * e);
+                Bars(e);
+                art.color = new Color(1, 1, 1, e);
+                artRt.localScale = Vector3.one * (0.92f + 0.08f * e);
+                aura.color = Tinted(0.1f, 0.2f * e);
+                if (Tap()) { skip = true; break; }
+                yield return null;
+            }
+            black.color = new Color(0, 0, 0, 1f);   // 성운 배경 밑바탕(화면 밖 가리기)
+            bg.color = Color.white; Bars(1f); art.color = Color.white;
+
+            // ---------------- ② 각성(2.6초) ----------------
+            SoundManager.Play(Sfx.GachaSummon);
+            subName.alpha = 1f;
+            const float charge = 2.6f;
+            float spawn = 0f;
+            float typing = 0f;
+            for (float t = 0; t < charge && !skip; t += Dt)
+            {
+                float dt = Dt, k = t / charge, ease = k * k;
+                // 마법진: 뒤(커지며 돎) · 안쪽(반대로 빠르게) · 발밑(납작)
+                float open = Mathf.Clamp01(t / 0.6f), o2 = 1f - (1f - open) * (1f - open);
+                backCircle.color = Tinted(0.35f, 0.55f * o2 + 0.25f * ease);
+                backCircle.rectTransform.localScale = Vector3.one * (0.5f + 0.55f * o2 + 0.05f * Mathf.Sin(t * 6f));
+                backCircle.rectTransform.localEulerAngles = new Vector3(0, 0, t * (25f + 140f * ease));
+                innerCircle.color = Tinted(0.6f, 0.7f * o2);
+                innerCircle.rectTransform.localScale = Vector3.one * (0.4f + 0.6f * o2 - 0.25f * ease);
+                innerCircle.rectTransform.localEulerAngles = new Vector3(0, 0, -t * (60f + 260f * ease));
+                floor.color = Tinted(0.4f, 0.75f * o2);
+                floor.rectTransform.localScale = new Vector3(1f + 0.15f * ease, 0.3f, 1f) * (0.6f + 0.4f * o2);
+                floor.rectTransform.localEulerAngles = new Vector3(0, 0, t * 40f);
+                aura.color = Tinted(0.1f, 0.25f + 0.5f * ease);
+                aura.rectTransform.localScale = Vector3.one * (0.7f + 0.9f * ease + 0.06f * Mathf.Sin(t * 22f));
+                wash.color = Tinted(0.2f, 0.18f * ease);
                 for (int i = 0; i < rays.Count; i++)
                 {
-                    rays[i].color = new Color(1f, 0.95f, 0.85f, 0.35f * k);
-                    rays[i].rectTransform.localEulerAngles = new Vector3(0, 0, i * (360f / rays.Count) + t * 40f);
+                    rays[i].color = new Color(1f, 0.95f, 0.85f, 0.32f * ease);
+                    rays[i].rectTransform.localEulerAngles = new Vector3(0, 0, i * (360f / rays.Count) + t * (30f + 90f * ease));
                 }
-                // 떨림(점점 세게)
-                art.rectTransform.anchoredPosition = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * (6f * k);
-                art.color = Color.Lerp(Color.white, new Color(1f, 0.97f, 0.9f), k);
-                // 바깥에서 가운데로 빨려 드는 빛 입자
-                spawn += Time.unscaledDeltaTime * (20f + 50f * k);
+                // 캐릭터: 떠오르며 떨림, 빛을 머금음
+                artRt.anchoredPosition = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * (9f * ease) + new Vector2(0, 26f * k);
+                art.color = Color.Lerp(Color.white, Tinted(0.75f, 1f), ease * 0.6f);
+                stage.anchoredPosition = new Vector2(0, 50) + new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * (5f * ease * ease);
+                // 빨려 드는 빛 입자 + 반짝이
+                spawn += dt * (24f + 70f * ease);
                 while (spawn >= 1f)
                 {
                     spawn -= 1f;
-                    var p = UIFactory.AddImage("Spark", sparks, Color.Lerp(tint, Color.white, Random.value * 0.6f),
-                        Random.value < 0.5f ? ProceduralSprites.Star : ProceduralSprites.Circle);
-                    float sz = Random.Range(10f, 26f);
-                    p.rectTransform.sizeDelta = new Vector2(sz, sz);
-                    float ang = Random.value * Mathf.PI * 2f, dist = Random.Range(520f, 900f);
-                    var from = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * dist;
-                    p.rectTransform.anchoredPosition = from;
-                    live.Add((p.rectTransform, p, from, t, Random.Range(0.45f, 0.8f)));
+                    bool star = Random.value < 0.35f;
+                    SpawnInward(star ? sparkS : ProceduralSprites.Circle, Random.Range(560f, 980f), Random.Range(0.45f, 0.85f),
+                        star ? Random.Range(26f, 46f) : Random.Range(8f, 20f), Tinted(Random.Range(0.3f, 0.8f), 1f));
                 }
-                for (int i = live.Count - 1; i >= 0; i--)
-                {
-                    var s = live[i];
-                    float u = (t - s.born) / s.life;
-                    if (u >= 1f) { Destroy(s.rt.gameObject); live.RemoveAt(i); continue; }
-                    s.rt.anchoredPosition = Vector2.Lerp(s.from, Vector2.zero, u * u);
-                    s.im.color = new Color(s.im.color.r, s.im.color.g, s.im.color.b, Mathf.Sin(u * Mathf.PI));
-                }
+                TickParticles(dt);
+                // 자막: 한 글자씩
+                typing += dt;
+                int n = Mathf.Min(awakenLine.Length, Mathf.FloorToInt(typing / 0.045f));
+                sub.text = $"\"{awakenLine.Substring(0, n)}\"";
+                if (Tap()) { skip = true; break; }
                 yield return null;
             }
-            foreach (var s in live) if (s.rt != null) Destroy(s.rt.gameObject);
-            art.rectTransform.anchoredPosition = Vector2.zero;
+            sub.text = ""; subName.alpha = 0f;
 
-            // ---------------- 3) 섬광 → 개화 일러스트 ----------------
+            // ---------------- ③ 섬광 → 개화 ----------------
             SoundManager.Play(Sfx.GachaRare);
-            for (float t = 0; t < 0.15f; t += Time.unscaledDeltaTime) { flash.color = new Color(1, 1, 1, t / 0.15f); yield return null; }
+            for (float t = 0; t < 0.16f; t += Dt)
+            {
+                float k = t / 0.16f;
+                flash.color = new Color(1, 1, 1, k);
+                innerCircle.rectTransform.localScale = Vector3.one * Mathf.Lerp(innerCircle.rectTransform.localScale.x, 0.1f, k);
+                TickParticles(Dt);
+                yield return null;
+            }
             flash.color = Color.white;
+            foreach (var p in _parts) if (p.rt != null) Destroy(p.rt.gameObject);
+            _parts.Clear();
             if (after != null)
             {
                 art.sprite = after;
-                if (CharacterOutfits.Unlocked(c, CharacterOutfits.Find(CharacterOutfits.BloomId), Battle.CharacterKits.HiddenLevel))
+                if (!_preview && CharacterOutfits.Unlocked(c, CharacterOutfits.Find(CharacterOutfits.BloomId), CharacterKits.HiddenLevel))
                     CharacterOutfits.Set(c, CharacterOutfits.BloomId);   // 개화 의상으로 갈아입힘(옷장에서 되돌릴 수 있음)
             }
             art.color = Color.white;
-            // 꽃잎이 터져 나감
-            for (int i = 0; i < 60; i++)
+            artRt.anchoredPosition = Vector2.zero;
+            stage.anchoredPosition = new Vector2(0, 50);
+            innerCircle.color = Tinted(0.6f, 0f);
+            // 꽃잎 · 반짝이가 터져 나감
+            for (int i = 0; i < 70; i++)
             {
-                var p = UIFactory.AddImage("Petal", sparks, Color.Lerp(tint, new Color(1f, 0.85f, 0.95f), Random.value), ProceduralSprites.Star);
-                float sz = Random.Range(12f, 30f);
-                p.rectTransform.sizeDelta = new Vector2(sz, sz);
-                float ang = Random.value * Mathf.PI * 2f;
-                live.Add((p.rectTransform, p, new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * Random.Range(500f, 1000f), 0f, Random.Range(0.9f, 1.5f)));
+                float ang = Random.value * Mathf.PI * 2f, sp = Random.Range(500f, 1500f);
+                bool petal = i < 48;
+                Spawn(petal ? petalS : sparkS, Vector2.zero, new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp, Random.Range(1.4f, 2.6f),
+                    petal ? Random.Range(34f, 64f) : Random.Range(24f, 44f),
+                    petal ? Color.Lerp(Tinted(0.35f, 1f), new Color(1f, 0.86f, 0.94f, 1f), Random.value * 0.6f) : Tinted(0.8f, 1f),
+                    Random.Range(-260f, 260f), petal ? 120f : 0f, petal ? 60f : 0f);
             }
-            for (float t = 0; t < 0.45f; t += Time.unscaledDeltaTime) { flash.color = new Color(1, 1, 1, 1f - t / 0.45f); yield return null; }
-            flash.color = new Color(1, 1, 1, 0f);
 
-            // ---------------- 4) 등장 + 이름 ----------------
-            var head = UIFactory.AddText("Head", transform, "숨겨진 특성 개화", 34, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            UIFactory.Anchor(head.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            head.rectTransform.sizeDelta = new Vector2(1200, 50); head.rectTransform.anchoredPosition = new Vector2(0, 230);
-            head.characterSpacing = 12f;
+            // 섬광이 걷히며 빛의 꽃 · 충격파 · 섬광
+            for (float t = 0; t < 0.9f; t += Dt)
+            {
+                float dt = Dt, k = t / 0.9f, e = 1f - (1f - k) * (1f - k) * (1f - k);
+                flash.color = new Color(1, 1, 1, Mathf.Clamp01(1f - t / 0.5f));
+                burst.color = Tinted(0.7f, 1f - k);
+                burst.rectTransform.localScale = Vector3.one * (0.6f + 2.2f * e);
+                burst.rectTransform.localEulerAngles = new Vector3(0, 0, t * 30f);
+                ring.color = Tinted(0.5f, 0.9f * (1f - k));
+                ring.rectTransform.localScale = Vector3.one * (0.3f + 3.4f * e);
+                flower.color = Tinted(0.45f, 0.85f * Mathf.Clamp01(k * 2f));
+                flower.rectTransform.localScale = Vector3.one * (0.3f + 1.2f * e);
+                flower.rectTransform.localEulerAngles = new Vector3(0, 0, -20f + 20f * e);
+                float pop = k < 0.35f ? Mathf.Lerp(1.18f, 0.98f, k / 0.35f) : Mathf.Lerp(0.98f, 1f, (k - 0.35f) / 0.65f);
+                artRt.localScale = Vector3.one * pop;
+                stage.anchoredPosition = new Vector2(0, 50) + (k < 0.3f ? new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * (14f * (1f - k / 0.3f)) : Vector2.zero);
+                Bars(1f - e);
+                backCircle.color = Tinted(0.35f, 0.5f);
+                backCircle.rectTransform.localScale = Vector3.one * (1.1f + 0.3f * e);
+                backCircle.rectTransform.localEulerAngles += new Vector3(0, 0, 40f * dt);
+                floor.color = Tinted(0.4f, 0.6f);
+                aura.color = Tinted(0.1f, 0.6f);
+                aura.rectTransform.localScale = Vector3.one * (1.4f + 0.3f * e);
+                wash.color = Tinted(0.2f, 0.22f * (1f - k) + 0.1f);
+                TickParticles(dt);
+                yield return null;
+            }
+            flash.color = new Color(1, 1, 1, 0f);
+            burst.enabled = false; ring.enabled = false;
+            stage.anchoredPosition = new Vector2(0, 50);
+            artRt.localScale = Vector3.one;
+
+            // ---------------- ④ 개화: 제목 · 특성 · 대사 ----------------
+            SoundManager.Play(Sfx.LevelUp, 0.8f);
+            var top = UIFactory.NewRect("Top", transform);
+            UIFactory.Anchor(top, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            top.sizeDelta = new Vector2(1500, 230); top.anchoredPosition = new Vector2(0, -26);
+            var deco = Img("Deco", top, ProceduralSprites.Beam, Tinted(0.5f, 0f), new Vector2(40, 900));
+            deco.rectTransform.localEulerAngles = new Vector3(0, 0, 90);
+            deco.rectTransform.anchoredPosition = new Vector2(0, -70);
+            var head = Label(top, "숨겨진 특성 개화", 50, Color.white, FontStyles.Bold);
+            head.characterSpacing = 18f;
+            head.rectTransform.sizeDelta = new Vector2(1500, 70); head.rectTransform.anchoredPosition = new Vector2(0, -40);
             head.gameObject.AddComponent<RainbowText>();
-            var hidden = CharacterKits.Hidden(c);
-            var nameT = UIFactory.AddText("Name", transform, $"{c.displayName}  ·  <b>{hidden.name}</b>", 46, font, Color.white, TextAlignmentOptions.Center, FontStyles.Normal);
-            nameT.richText = true;
-            UIFactory.Anchor(nameT.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            nameT.rectTransform.sizeDelta = new Vector2(1400, 64); nameT.rectTransform.anchoredPosition = new Vector2(0, 162);
-            var desc = UIFactory.AddText("Desc", transform, hidden.Desc, 22, font, new Color(0.9f, 0.92f, 0.98f), TextAlignmentOptions.Center, FontStyles.Normal);
-            desc.richText = true; desc.textWrappingMode = TextWrappingModes.Normal;
-            UIFactory.Anchor(desc.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            desc.rectTransform.sizeDelta = new Vector2(1300, 90); desc.rectTransform.anchoredPosition = new Vector2(0, 66);
-            var hint = UIFactory.AddText("Hint", transform, "화면을 누르면 계속", 18, font, new Color(0.7f, 0.74f, 0.82f), TextAlignmentOptions.Center, FontStyles.Normal);
-            UIFactory.Anchor(hint.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            hint.rectTransform.sizeDelta = new Vector2(600, 30); hint.rectTransform.anchoredPosition = new Vector2(0, 24);
-            var texts = new TMP_Text[] { head, nameT, desc, hint };
+            TextOutline.Apply(head, 0.18f, new Color32(20, 10, 40, 255));
+            var trait = Label(top, $"<color=#{ColorUtility.ToHtmlStringRGB(Color.Lerp(_tint, Color.white, 0.55f))}>◆</color>  <b>{hidden.name}</b>  <color=#{ColorUtility.ToHtmlStringRGB(Color.Lerp(_tint, Color.white, 0.55f))}>◆</color>", 40, Color.white);
+            trait.rectTransform.sizeDelta = new Vector2(1500, 56); trait.rectTransform.anchoredPosition = new Vector2(0, -118);
+            TextOutline.Apply(trait, 0.2f, new Color32(20, 10, 40, 255));
+            var desc = Label(top, hidden.Desc, 22, new Color(0.92f, 0.94f, 1f));
+            desc.textWrappingMode = TextWrappingModes.Normal;
+            desc.rectTransform.sizeDelta = new Vector2(1300, 64); desc.rectTransform.anchoredPosition = new Vector2(0, -176);
+            TextOutline.Apply(desc, 0.2f, new Color32(10, 6, 24, 255));
+            var topTexts = new TMP_Text[] { head, trait, desc };
+            foreach (var tx in topTexts) tx.alpha = 0f;
+
+            // 대화창(아래)
+            var box = Img("Box", transform, ProceduralSprites.Rounded, new Color(0.05f, 0.04f, 0.1f, 0.88f), new Vector2(1380, 170));
+            box.type = Image.Type.Sliced;
+            Bottom(box.rectTransform, new Vector2(1380, 170), new Vector2(0, -200));
+            var boxLine = Img("Line", box.transform, null, Tinted(0.3f, 0.9f), new Vector2(1340, 3));
+            boxLine.rectTransform.anchoredPosition = new Vector2(0, -80);   // 아래쪽 속성 색 줄
+            var plate = Img("Plate", box.transform, ProceduralSprites.Rounded, Tinted(0.15f, 0.95f), new Vector2(300, 48));
+            plate.type = Image.Type.Sliced;
+            UIFactory.Anchor(plate.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 0.5f));
+            plate.rectTransform.anchoredPosition = new Vector2(40, 0);
+            var plateText = Label(plate.transform, $"<b>{c.displayName}</b>", 24, Color.white);
+            UIFactory.Stretch(plateText.rectTransform);
+            var line = Label(box.transform, "", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+            line.textWrappingMode = TextWrappingModes.Normal;
+            UIFactory.Stretch(line.rectTransform, 48, 18, 48, 38);   // 왼 · 아래 · 오른 · 위(이름표 아래부터)
+            var hint = Label(transform, "화면을 누르면 계속", 18, new Color(0.75f, 0.78f, 0.88f));
+            UIFactory.Anchor(hint.rectTransform, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            hint.rectTransform.sizeDelta = new Vector2(400, 28); hint.rectTransform.anchoredPosition = new Vector2(-40, 12);
+            hint.alpha = 0f;
 
             _tapped = false;
-            for (float t = 0; ; t += Time.unscaledDeltaTime)
+            float fall = 0f;
+            bool typed = false;
+            for (float t = 0; ; t += Dt)
             {
-                float k = Mathf.Clamp01(t / 0.6f);
-                // 개화 일러스트: 살짝 커졌다가 자리 잡음 + 은은하게 떠 있음
-                float pop = t < 0.35f ? Mathf.Lerp(1.12f, 1f, t / 0.35f) : 1f;
-                art.rectTransform.localScale = Vector3.one * pop;
-                art.rectTransform.anchoredPosition = new Vector2(0, 6f * Mathf.Sin(t * 1.6f));
-                glow.rectTransform.localScale = Vector3.one * (1.5f + 0.06f * Mathf.Sin(t * 2.2f));
-                glow.color = new Color(tint.r, tint.g, tint.b, 0.6f);
+                float dt = Dt;
+                // 제목 · 특성 · 효과가 차례로
+                float k1 = Mathf.Clamp01(t / 0.45f), k2 = Mathf.Clamp01((t - 0.25f) / 0.45f), k3 = Mathf.Clamp01((t - 0.5f) / 0.45f);
+                head.alpha = k1; head.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.35f, 1f, 1f - (1f - k1) * (1f - k1));
+                trait.alpha = k2; trait.rectTransform.anchoredPosition = new Vector2(0, -118 - 30f * (1f - k2));
+                desc.alpha = k3;
+                deco.color = Tinted(0.5f, 0.55f * k2);
+                deco.rectTransform.sizeDelta = new Vector2(40, 1100f * k2);
+                // 대화창이 올라오고 대사가 한 글자씩
+                float kb = Mathf.Clamp01((t - 0.55f) / 0.35f), eb = 1f - (1f - kb) * (1f - kb);
+                box.rectTransform.anchoredPosition = new Vector2(0, Mathf.Lerp(-200f, 28f, eb));
+                int n = Mathf.Clamp(Mathf.FloorToInt((t - 0.9f) / 0.04f), 0, bloomLine.Length);
+                if (typed) n = bloomLine.Length;
+                line.text = bloomLine.Substring(0, n);
+                bool done = n >= bloomLine.Length;
+                hint.alpha = done ? 0.55f + 0.45f * Mathf.Sin(t * 3f) : 0f;
+                // 캐릭터 · 꽃 · 마법진이 숨 쉬듯
+                artRt.anchoredPosition = new Vector2(0, 8f * Mathf.Sin(t * 1.5f));
+                flower.color = Tinted(0.45f, 0.7f + 0.15f * Mathf.Sin(t * 2f));
+                flower.rectTransform.localScale = Vector3.one * (1.5f + 0.05f * Mathf.Sin(t * 1.7f));
+                flower.rectTransform.localEulerAngles += new Vector3(0, 0, 6f * dt);
+                backCircle.rectTransform.localEulerAngles += new Vector3(0, 0, 12f * dt);
+                floor.rectTransform.localEulerAngles += new Vector3(0, 0, -18f * dt);
+                aura.rectTransform.localScale = Vector3.one * (1.6f + 0.08f * Mathf.Sin(t * 2.3f));
                 for (int i = 0; i < rays.Count; i++)
                 {
-                    rays[i].color = new Color(1f, 0.95f, 0.85f, 0.22f);
-                    rays[i].rectTransform.localEulerAngles = new Vector3(0, 0, i * (360f / rays.Count) + 76f + t * 12f);
+                    rays[i].color = new Color(1f, 0.95f, 0.85f, 0.16f + 0.06f * Mathf.Sin(t * 2f + i));
+                    rays[i].rectTransform.localEulerAngles = new Vector3(0, 0, i * (360f / rays.Count) + t * 10f);
                 }
-                foreach (var tx in texts) tx.alpha = k;
-                hint.alpha = k * (0.55f + 0.45f * Mathf.Sin(t * 3f));
-                for (int i = live.Count - 1; i >= 0; i--)
+                // 위에서 꽃잎이 천천히 내림
+                fall += dt * 7f;
+                while (fall >= 1f)
                 {
-                    var s = live[i];
-                    float u = t / s.life;
-                    if (u >= 1f) { Destroy(s.rt.gameObject); live.RemoveAt(i); continue; }
-                    s.rt.anchoredPosition = Vector2.Lerp(Vector2.zero, s.from, 1f - (1f - u) * (1f - u));
-                    s.rt.localEulerAngles = new Vector3(0, 0, t * 200f);
-                    s.im.color = new Color(s.im.color.r, s.im.color.g, s.im.color.b, 1f - u);
+                    fall -= 1f;
+                    Spawn(petalS, new Vector2(Random.Range(-1000f, 1000f), 620f), new Vector2(Random.Range(-40f, 40f), Random.Range(-160f, -90f)),
+                        Random.Range(5f, 8f), Random.Range(26f, 48f), Color.Lerp(Tinted(0.4f, 0.85f), new Color(1f, 0.88f, 0.95f, 0.85f), Random.value * 0.5f),
+                        Random.Range(-90f, 90f), 0f, 90f);
                 }
-                if (_tapped && t > 0.8f) break;
-                _tapped = false;
+                TickParticles(dt);
+                if (Tap())
+                {
+                    if (t < 0.9f) { t = 0.9f; }                 // 제목이 아직이면 바로 다 보이게
+                    else if (!done) typed = true;               // 대사가 나오는 중이면 다 보여 줌
+                    else break;                                 // 다 나왔으면 닫기
+                }
                 yield return null;
             }
 
-            // ---------------- 5) 닫기 ----------------
+            // ---------------- 닫기 ----------------
             var group = gameObject.AddComponent<CanvasGroup>();
-            for (float t = 0; t < 0.35f; t += Time.unscaledDeltaTime) { group.alpha = 1f - t / 0.35f; yield return null; }
+            for (float t = 0; t < 0.4f; t += Dt) { group.alpha = 1f - t / 0.4f; yield return null; }
             SoundManager.Duck(1f);
             Destroy(gameObject);
             onDone?.Invoke();

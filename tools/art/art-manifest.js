@@ -261,6 +261,7 @@ const BACKGROUNDS = [
   ['arena', '결투장', 'a grand fantasy colosseum arena at sunset, circular stone stands with colorful banners, a sand floor with a glowing golden emblem in the center, dramatic sky'],
   ['dispatch', '파견', 'an adventurers guild expedition office interior, a huge wall map with pinned routes, a quest notice board full of request papers, travel packs and lanterns, morning light through tall windows'],
   ['tower', '무한의 탑', 'looking up at an endless colossal mystical tower of floating stone rings rising into a starry twilight sky, glowing blue runes, clouds swirling around its middle floors, epic scale'],
+  ['bloom', '숨겨진 특성 개화 연출', 'a dreamy cosmic void filled with soft swirling nebula clouds in deep indigo, violet and rose, countless tiny stars and drifting glowing pollen, a faint pale light glowing at the center, calm and sacred, empty space in the middle'],
   ['guild', '길드', 'the interior of a warm fantasy guild hall, long wooden tables, a big stone fireplace, blue banners with a golden anchor crest hanging from wooden beams, a quest board, cozy lantern light'],
   ['friends', '친구', 'a cozy seaside harbor plaza at dusk with string lights, small cafe tables, paper lanterns, ships anchored in the bay, a friendly gathering place, warm and inviting'],
   ['raid', '주간 보스', 'a vast cosmic battlefield on a floating stone platform under a starry void, a giant swirling black hole in the sky devouring stars, purple and gold light'],

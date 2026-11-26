@@ -43,6 +43,11 @@ const FX = [
   ['rune_glyph', '룬 문자', 'a single glowing mystical rune glyph symbol made of thin elegant lines inside a small circle, fantasy magic sigil'],
   ['feather_streak', '빛 줄기', 'a single soft elongated vertical streak of light like a comet tail, bright rounded head at the top fading into a long thin tail at the bottom'],
   ['moon', '보름달(궁극기 장면)', 'a single large full moon disc seen straight on, soft crater and mare details, a bright glowing rim and a faint halo around it'],
+  // 숨겨진 특성 개화 연출(BloomCeremony) — 속성 색을 곱해 씀
+  ['bloom_circle', '개화 마법진', 'a single ornate floral magic circle seen flat from the front, a large blooming lotus flower pattern in the center surrounded by concentric rings of tiny runes, crescent moons and small stars, delicate thin glowing lines, perfectly round and symmetric'],
+  ['bloom_flower', '빛의 꽃', 'a single huge flower made entirely of light blooming open, many layered glowing translucent petals radiating outward from an intensely bright center, seen straight from the front, symmetric, ethereal'],
+  ['bloom_petal', '빛 꽃잎', 'a single soft flower petal made of glowing light, rounded teardrop shape with a slightly pointed tip and one fine central vein, gentle inner glow'],
+  ['bloom_burst', '개화 섬광', 'a single radial explosion of light rays bursting outward from a brilliant center, dozens of thin sharp rays of varying lengths, a few sparkles flying out, like a sunburst'],
   // 6★ 궁극기 장면 전용 소품(세로로 긴 것은 위아래 방향)
   ['scene_greatsword', '불꽃 대검(세라핀 장면)', 'a single huge ornate greatsword pointing straight down, wide heavy blade, flames streaming upward from the blade edges, seen from the front, vertical'],
   ['scene_aurora', '오로라 커튼(오로라 장면)', 'a single long horizontal flowing aurora borealis curtain ribbon with soft vertical light streaks hanging down from a wavy top edge, spanning the whole width'],
