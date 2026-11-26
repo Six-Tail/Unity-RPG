@@ -66,6 +66,13 @@ namespace SubcultureRPG.Meta
             return 900 + (int)Math.Round(Math.Pow(u, 1.7) * 2900);
         }
 
+        /// <summary>가상 길드 seed의 i번 길드원(가상 지휘관). 가입하면 같은 사람들이 길드원으로 나옴(PlayerGuild와 같은 계산).</summary>
+        public static Commander Member(int seed, int i, GameDatabase db) =>
+            Commanders.FromSeed((int)(((long)seed * 53 + (long)i * 7907 + 11) % Commanders.MaxSeed), db);
+
+        /// <summary>가상 길드원 i번의 직책(0번 길드장 · 1 ~ 2번 부길드장).</summary>
+        public static string RoleOf(int i) => i == 0 ? "길드장" : i <= 2 ? "부길드장" : "길드원";
+
         /// <summary>이번 주가 얼마나 지났는가(0 = 월요일 05:00 · 1 = 다음 월요일 05:00).</summary>
         public static float WeekProgress()
         {

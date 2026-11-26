@@ -466,6 +466,53 @@ namespace SubcultureRPG.Meta.Cloud
             _infoDirty = true;
         }
 
+        // ---------------- 다른 길드 보기 ----------------
+
+        /// <summary>
+        /// 다른 실제 길드의 길드원(길드 찾기 · 순위표에서 길드를 눌렀을 때): 길드장 + 길드장 목록에 있고 그 길드 id를 내건 플레이어.
+        /// 실패하면 error에 사유.
+        /// </summary>
+        public async Task<(List<GuildMember> members, string error)> LoadGuildMembersAsync(string gid)
+        {
+            var list = new List<GuildMember>();
+            if (!Online) return (list, "플레이어 길드의 길드원은 로그인해야 볼 수 있습니다");
+            if (string.IsNullOrEmpty(gid)) return (list, "길드를 찾을 수 없습니다");
+            try
+            {
+                var keys = await LoadKeys(gid, KInfo, PublicProfile.KProfile, KStat);
+                var info = keys != null && keys.TryGetValue(KInfo, out var j) ? ParseInfo(j) : null;
+                if (info == null) return (list, "해산했거나 찾을 수 없는 길드입니다");
+                string week = PlayerGuild.Instance.Week;
+                GuildMember Make(string pid, ProfileSnap snap, Stat st, string role)
+                {
+                    bool cur = st != null && st.w == week;
+                    var stars = cur ? Stars(st) : new int[GuildWar.Defenders];
+                    int sum = 0; foreach (int s in stars) sum += s;
+                    return new GuildMember
+                    {
+                        pid = pid, snap = snap ?? new ProfileSnap { pid = pid, name = pid == gid ? info.leaderName : "지휘관", real = true, level = 0 },
+                        role = role, contribution = cur ? st.c : 0, bossDamage = cur ? st.b : 0, warStars = sum, warDetail = stars,
+                        me = pid == CloudAccount.PlayerId,
+                    };
+                }
+                list.Add(Make(gid, keys.TryGetValue(PublicProfile.KProfile, out var lp) ? PublicProfile.ParseSnap(lp, gid) : null,
+                    keys.TryGetValue(KStat, out var ls) ? ParseStat(ls) : null, "길드장"));
+                var rows = await Query(KId, gid, FieldFilter.OpOptions.EQ, PublicProfile.KProfile, KStat);
+                foreach (var (pid, d) in rows)
+                {
+                    if (pid == gid || !info.members.Contains(pid)) continue;
+                    var snap = d.TryGetValue(PublicProfile.KProfile, out var pj) ? PublicProfile.ParseSnap(pj, pid) : null;
+                    list.Add(Make(pid, snap, d.TryGetValue(KStat, out var sj) ? ParseStat(sj) : null, "길드원"));
+                }
+                return (list, null);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[GuildLink] 길드원 불러오기 실패: {e.Message}");
+                return (list, IndexHint(e, "길드원을"));
+            }
+        }
+
         // ---------------- 검색 · 순위 ----------------
 
         /// <summary>모집 중인 실제 길드 검색(g_open == "1").</summary>

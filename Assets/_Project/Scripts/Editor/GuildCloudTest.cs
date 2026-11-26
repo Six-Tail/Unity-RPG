@@ -163,6 +163,8 @@ namespace SubcultureRPG.EditorTools
                 Check(searched, $"B 검색(g_open 인덱스)으로 A 길드 찾음 — 모집 중 플레이어 길드 {GuildLink.Instance.Found.Count}곳" + (GuildLink.Instance.Error != null ? $" / {GuildLink.Instance.Error}" : ""));
                 if (found == null) return false;
                 Check(!found.free && found.name == guildName, "승인제 · 이름 그대로");
+                var (view, viewErr) = await GuildLink.Instance.LoadGuildMembersAsync(_pidA);
+                Check(viewErr == null && view.Count == 1 && view[0].role == "길드장", $"B가 길드 찾기에서 A 길드를 눌러 본 길드원 {view.Count}명(길드장)" + (viewErr != null ? " — " + viewErr : ""));
                 string err = PlayerGuild.Instance.Join(found);
                 Check(err == null && PlayerGuild.Instance.RequestedGid == _pidA && !PlayerGuild.Instance.Joined, "B 가입 신청(아직 가입 전)" + (err != null ? " — " + err : ""));
                 await Sync("B");
@@ -202,6 +204,8 @@ namespace SubcultureRPG.EditorTools
                 Check(mB != null && mB.bossDamage == 12_345_678L && mB.contribution == PlayerGuild.AttendExp, $"B의 기록이 A에게 보임(보스 피해 {mB?.bossDamage:N0} · 기여도 {mB?.contribution})");
                 Check(gA.GuildBossTotal() >= 12_345_678L, $"길드 보스 합계 {gA.GuildBossTotal():N0}");
                 Check(gA.RealInfo != null && gA.RealInfo.exp >= PlayerGuild.AttendExp, $"길드 경험치(길드원 누적 기여도 합) {gA.RealInfo?.exp}");
+                var (view2, _) = await GuildLink.Instance.LoadGuildMembersAsync(_pidA);
+                Check(view2.Count == 2 && view2.Exists(m => m.pid == _pidB && m.bossDamage == 12_345_678L), $"순위표에서 A 길드를 눌러 본 길드원 {view2.Count}명(B의 기록 포함)");
                 bool ranked = await Retry(async () => { await GuildLink.Instance.RefreshRankAsync(); return GuildLink.Instance.Ranked.Exists(x => x.gid == _pidA); });
                 Check(ranked, $"순위표 검색(g_open ≥ \"0\")에 A 길드 — 플레이어 길드 {GuildLink.Instance.Ranked.Count}곳");
                 var (rank, total) = GuildRanking.MyRank(GuildRanking.Tab.Boss);

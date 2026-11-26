@@ -485,7 +485,7 @@ namespace SubcultureRPG.Meta
         // ---------------- 길드원 ----------------
 
         /// <summary>가상 길드원 i번(가상 길드).</summary>
-        private Commander VirtualMember(int i, GameDatabase db) => Commanders.FromSeed((_d.seed * 53 + i * 7907 + 11) % Commanders.MaxSeed, db);
+        private Commander VirtualMember(int i, GameDatabase db) => VirtualGuilds.Member(_d.seed, i, db);
 
         /// <summary>가상 길드원 한 명의 이번 주 기록(길드 보스 피해 · 길드전 별) — 길드 전체 합과 맞게 나눔.</summary>
         private (long boss, int stars, long contrib) VirtualShare(int i, int count)

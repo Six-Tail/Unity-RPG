@@ -629,6 +629,7 @@ namespace SubcultureRPG.Meta.UI
         private void GuildRow(GuildInfo gi, int myLevel, PlayerGuild g)
         {
             var row = Row(_list, gi.Real ? new Color(0.07f, 0.11f, 0.1f, 0.92f) : new Color(0.07f, 0.08f, 0.12f, 0.9f), 100);
+            OpenOnClick(row, gi);
             var icon = GameArt.Load("Items/GuildIcon");
             if (icon != null)
             {
@@ -662,6 +663,97 @@ namespace SubcultureRPG.Meta.UI
                 Toast(err ?? (gi.Real && !gi.free ? $"'{gi.name}'에 가입 신청을 보냈습니다" : $"'{gi.name}'에 가입했습니다"));
                 if (err == null && PlayerGuild.Instance.Joined) _tab = T.Members;
             }, ok);
+        }
+
+        // ---------------- 다른 길드 보기(길드원 목록) ----------------
+
+        /// <summary>줄을 누르면 그 길드의 길드원 창(줄 오른쪽 버튼은 그 버튼이 먼저 받음).</summary>
+        private void OpenOnClick(Image row, GuildInfo gi)
+        {
+            row.raycastTarget = true;
+            var b = row.gameObject.AddComponent<Button>();
+            b.transition = Selectable.Transition.None;
+            var who = gi;
+            b.onClick.AddListener(() => ShowGuild(who));
+        }
+
+        private int _viewToken;
+
+        /// <summary>길드 정보 + 길드원 목록 창. 길드원을 누르면 지휘관 정보창.</summary>
+        private void ShowGuild(GuildInfo gi)
+        {
+            var db = Db();
+            int token = ++_viewToken;
+            string tag = gi.Real ? "   <color=#7CFF9A>● 플레이어 길드</color>" : "";
+            // 추천 가상 길드는 이번 주 기록이 비어 있음 → 같은 계산으로 채움
+            long boss = gi.Real || gi.mine || gi.bossDamage > 0 ? gi.bossDamage
+                : VirtualGuilds.BossDamage(gi.seed, gi.members, gi.level, PlayerGuild.Instance.Week, VirtualGuilds.WeekProgress());
+            var p = OpenDialog($"{gi.name}   <size=65%><color=#FFD36B>Lv.{gi.level}</color>   <color=#9AA3B5>길드원 {gi.members}명</color>{tag}</size>", RowW + 80, 940);
+            var info = Text(p, $"\"{gi.intro}\"   <color=#9AA3B5>가입 조건 지휘관 Lv.{gi.minLevel} 이상" +
+                               (gi.Real ? $" · {(gi.free ? "자유 가입" : "승인 후 가입")}" : "") +
+                               $"   ·   길드전 점수 {gi.warRating:N0}   ·   이번 주 길드 보스 {GuildBoss.Cleared(boss)}단계</color>",
+                22, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(info.rectTransform, 40, -78, RowW, 34);
+
+            var view = UIFactory.NewRect("View", p);
+            Place(view, 30, -122, RowW + 20, 790);
+            var content = UIFactory.NewRect("Content", view);
+            var vl = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            vl.spacing = 8; vl.padding = new RectOffset(10, 10, 4, 4);
+            vl.childControlWidth = true; vl.childControlHeight = true; vl.childForceExpandHeight = false;
+            UIFactory.MakeVerticalScroll(view, content);
+
+            void Note(string msg)
+            {
+                var row = Row(content, new Color(0.07f, 0.08f, 0.12f, 0.75f), 90);
+                var t = Text(row.transform, msg, 22, new Color(0.7f, 0.74f, 0.82f), FontStyles.Normal, TextAlignmentOptions.Center);
+                UIFactory.Stretch(t.rectTransform, 20, 10, 20, 10);
+                t.textWrappingMode = TextWrappingModes.Normal;
+            }
+            void Stat(Image row, GuildMember m)
+            {
+                if (m == null) return;
+                RightNote(row, $"<size=65%><color=#9AA3B5>이번 주 기여도</color></size>\n<b>{m.contribution:N0}</b>" +
+                               $"\n<size=60%><color=#C9A0FF>보스 {Short(m.bossDamage)}</color>  <color=#FFD36B>★{m.warStars}</color></size>", 300);
+            }
+            string RoleTag(string role) => $"<color={(role == "길드장" ? "#FFD36B" : role == "부길드장" ? "#9AD4FF" : "#9AA3B5")}>{role}</color>";
+
+            if (gi.mine)
+            {
+                // 우리 길드: 길드원 탭과 같은 목록
+                foreach (var m in PlayerGuild.Instance.MemberList(db))
+                {
+                    var row = m.me ? CommanderRow(content, null, RoleTag(m.role)) : m.Real ? SnapRow(content, m.snap, RoleTag(m.role), "", 120) : CommanderRow(content, m.commander, RoleTag(m.role));
+                    Stat(row, m);
+                }
+                return;
+            }
+            if (!gi.Real)
+            {
+                // 가상 길드: 번호로 늘 같은 길드원(가입하면 그대로 내 길드원이 됨)
+                for (int i = 0; i < gi.members; i++)
+                    CommanderRow(content, VirtualGuilds.Member(gi.seed, i, db), RoleTag(VirtualGuilds.RoleOf(i)));
+                return;
+            }
+
+            // 실제 길드: 서버에서 불러옴
+            Note("길드원을 불러오는 중...");
+            LoadReal(gi, content, token, RoleTag, Stat, Note);
+        }
+
+        private async void LoadReal(GuildInfo gi, RectTransform content, int token, System.Func<string, string> roleTag,
+            System.Action<Image, GuildMember> stat, System.Action<string> note)
+        {
+            var (members, err) = await GuildLink.Instance.LoadGuildMembersAsync(gi.gid);
+            if (this == null || content == null || token != _viewToken) return;   // 창을 닫았거나 다른 길드를 엶
+            for (int i = content.childCount - 1; i >= 0; i--) Destroy(content.GetChild(i).gameObject);
+            if (err != null) { note($"<color=#FFB347>{err}</color>"); return; }
+            foreach (var m in members)
+            {
+                var row = m.me ? CommanderRow(content, null, roleTag(m.role)) : SnapRow(content, m.snap, roleTag(m.role), "", 120);
+                stat(row, m);
+            }
+            if (members.Count < gi.members) note($"<size=85%>길드원 {gi.members}명 중 {members.Count}명을 불러왔습니다 — 다른 길드원은 아직 서버에 정보를 올리지 않았을 수 있습니다</size>");
         }
 
         // ---------------- 길드원 · 가입 신청 ----------------
@@ -890,6 +982,7 @@ namespace SubcultureRPG.Meta.UI
         {
             Color bg = gi.mine ? new Color(0.25f, 0.4f, 0.65f, 0.55f) : gi.Real ? new Color(0.07f, 0.11f, 0.1f, 0.9f) : new Color(0.07f, 0.08f, 0.12f, 0.88f);
             var row = Row(_list, bg, 78);
+            OpenOnClick(row, gi);
             string medal = rank == 1 ? "#FFD36B" : rank == 2 ? "#D8E0EA" : rank == 3 ? "#E0A070" : "#FFFFFF";
             var r = Text(row.transform, $"<color={medal}><b>{rank}</b></color>", 34, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
             Place(r.rectTransform, 10, -14, 110, 50);

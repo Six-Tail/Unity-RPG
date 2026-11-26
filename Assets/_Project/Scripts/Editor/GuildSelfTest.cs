@@ -128,6 +128,32 @@ namespace SubcultureRPG.EditorTools
                 Draw("Members"); Draw("Boss"); Draw("War"); Draw("Rank");
                 if (g.IsReal && g.IsLeader) Draw("Requests");
 
+                // 길드 줄을 누르면 뜨는 길드원 창(가상 길드 · 우리 길드)
+                var show = typeof(GuildScreen).GetMethod("ShowGuild", BindingFlags.NonPublic | BindingFlags.Instance);
+                int DialogRows()
+                {
+                    // 마지막으로 연 창(에디터 모드에선 Destroy가 바로 지우지 않아 예전 창이 남아 있을 수 있음)
+                    int n = -1;
+                    foreach (var tr in screenGo.GetComponentsInChildren<Transform>(true))
+                        if (tr.name == "Dialog") foreach (var c in tr.GetComponentsInChildren<Transform>(true)) if (c.name == "Content") n = c.childCount;
+                    return n;
+                }
+                var other = VirtualGuilds.Info(42);
+                show.Invoke(screen, new object[] { other });
+                Check(DialogRows() == other.members, $"다른 가상 길드 '{other.name}' 길드원 창 {DialogRows()}줄 = {other.members}명");
+                var mine = GuildRanking.Mine();
+                show.Invoke(screen, new object[] { mine });
+                Check(DialogRows() == g.Members, $"우리 길드 길드원 창 {DialogRows()}줄 = {g.Members}명");
+                if (!g.IsReal)
+                {
+                    // 가입한 가상 길드의 길드원 = 그 길드를 밖에서 볼 때의 길드원(같은 사람들)
+                    var names = new System.Collections.Generic.HashSet<string>();
+                    foreach (var m in g.MemberList(null)) if (!m.me && m.commander != null) names.Add(m.commander.uid);
+                    bool same = true;
+                    for (int i = 0; i < g.Members - 1; i++) same &= names.Contains(VirtualGuilds.Member(g.Seed, i, null).uid);
+                    Check(same, "가입한 가상 길드의 길드원 = 밖에서 본 길드원");
+                }
+
                 var members = g.MemberList(null);
                 Check(members.Count == g.Members, $"길드원 수 {members.Count} = {g.Members}");
                 r.AppendLine($"  길드 보스 합계 {g.GuildBossTotal():N0} ({GuildBoss.Cleared(g.GuildBossTotal())}단계 깸) · 길드전 ★{GuildWar.OurStars()} : ★{GuildWar.TheirStars()} '{GuildWar.Opponent().name}'");
