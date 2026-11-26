@@ -8,6 +8,46 @@ using SubcultureRPG.Meta.Cloud;
 
 namespace SubcultureRPG.Meta.UI
 {
+    /// <summary>글자를 클립보드에 복사하는 작은 버튼(UID 등). 누르면 잠깐 '복사됨'.</summary>
+    public static class CopyButton
+    {
+        public static Button Create(Transform parent, TMP_FontAsset font, System.Func<string> text, float x, float y)
+        {
+            var b = UIFactory.AddButton("Copy", parent, "복사", 18, font, new Color(1f, 1f, 1f, 0.16f), Color.white);
+            OverlayWindow.Place((RectTransform)b.transform, x, y, 84, 34);
+            var lbl = b.GetComponentInChildren<TextMeshProUGUI>();
+            b.onClick.AddListener(() =>
+            {
+                string s = text?.Invoke();
+                if (string.IsNullOrEmpty(s)) return;
+                GUIUtility.systemCopyBuffer = s;
+                var fb = b.GetComponent<CopyFeedback>();
+                if (fb == null) fb = b.gameObject.AddComponent<CopyFeedback>();
+                fb.Arm(lbl);
+            });
+            return b;
+        }
+    }
+
+    /// <summary>복사 버튼 글자를 잠깐 '복사됨'으로.</summary>
+    public class CopyFeedback : MonoBehaviour
+    {
+        private TextMeshProUGUI _label;
+
+        public void Arm(TextMeshProUGUI label)
+        {
+            _label = label;
+            if (_label != null) { _label.text = "복사됨"; _label.color = new Color(0.49f, 1f, 0.6f); }
+            CancelInvoke(nameof(Back));
+            Invoke(nameof(Back), 1.5f);
+        }
+
+        private void Back()
+        {
+            if (_label != null) { _label.text = "복사"; _label.color = Color.white; }
+        }
+    }
+
     /// <summary>
     /// 다른 지휘관 정보창: 모든 순위표(결투장 · 월드 레이드) · 친구 · 길드원에서 그 지휘관을 누르면 열림.
     /// 테두리 · 아바타 · 이름 · 칭호 · 레벨 · UID · 인사말 · (순위 줄) · 전투력 상위 5명 — 캐릭터를 누르면 육성 · 장비 · 능력치 상세(<see cref="CharInfoWindow"/>).
@@ -51,8 +91,12 @@ namespace SubcultureRPG.Meta.UI
             string seen = s.real
                 ? (s.updated > 0 ? $"<color=#9AA3B5>{Ago(s.updated)} 갱신</color>" : "")
                 : (s.seed >= 0 ? Commanders.LastSeen(new Commander { seed = s.seed }) : "");
-            w.Text(p, $"Lv.<b>{s.level}</b>    <color=#9AA3B5>UID</color> {s.uid}    {seen}", 24, new Color(0.88f, 0.9f, 0.96f),
-                TextAlignmentOptions.Left, 270, -154, 790, 36);
+            var idLine = w.Text(p, $"Lv.<b>{s.level}</b>    <color=#9AA3B5>UID</color> {s.uid}", 24, new Color(0.88f, 0.9f, 0.96f),
+                TextAlignmentOptions.Left, 270, -154, 420, 36);
+            float idW = idLine.GetPreferredValues(idLine.text).x;
+            string uid = s.uid.ToString();
+            CopyButton.Create(p, w.Font, () => uid, 270 + idW + 12, -155);
+            w.Text(p, seen, 24, new Color(0.88f, 0.9f, 0.96f), TextAlignmentOptions.Left, 270 + idW + 120, -154, 400, 36);
             long power = SnapStats.TotalPower(s, db);
             w.Text(p, $"<color=#FFB347>전투력(상위 5명) <b>{power:N0}</b></color>" + (extra != null ? $"     {extra}" : ""), 25, Color.white,
                 TextAlignmentOptions.Left, 270, -196, 790, 40);

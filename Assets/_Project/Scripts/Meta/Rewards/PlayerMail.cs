@@ -31,6 +31,7 @@ namespace SubcultureRPG.Meta
             public List<Mail> mails = new();
             public bool welcome;
             public int seq;
+            public List<string> ops = new();   // 받은 운영 선물 id
         }
 
         private SaveData _d = new();
@@ -55,6 +56,33 @@ namespace SubcultureRPG.Meta
             EnsureLoaded();
         }
 
+        /// <summary>
+        /// 특정 지휘관(UID)에게 한 번만 보내는 운영 선물. id는 바꾸지 말 것(이미 받았는지 id로 기록).
+        /// 그 UID의 세이브가 열리면(로그인 · 다른 PC 포함) 우편함에 들어옴.
+        /// </summary>
+        private static readonly (string id, string uid, string title, string body, Func<RewardBundle> reward)[] OpsGifts =
+        {
+            ("ops_84059076_selectors", "84059076", "운영자 선물: 캐릭터 선택권",
+                "테스트에 협조해 주셔서 감사합니다. 원하는 캐릭터를 골라 영입하세요!\n(태생 6★ 선택권 두 장 중 하나는 지금 픽업 중인 캐릭터도 고를 수 있습니다)",
+                () => new RewardBundle().Mat(MaterialType.Select5, 1).Mat(MaterialType.Select6, 1).Mat(MaterialType.Select6All, 1)),
+        };
+
+        private void DeliverOpsGifts()
+        {
+            string uid = PlayerProfile.Instance != null ? PlayerProfile.Instance.Uid : null;
+            if (string.IsNullOrEmpty(uid)) return;
+            _d.ops ??= new();
+            bool any = false;
+            foreach (var g in OpsGifts)
+            {
+                if (g.uid != uid || _d.ops.Contains(g.id)) continue;
+                _d.ops.Add(g.id);
+                Add(g.title, g.body, g.reward());
+                any = true;
+            }
+            if (any) { Save(); OnChanged?.Invoke(); }
+        }
+
         /// <summary>신규 유저 보상(튜닝 지점).</summary>
         public static RewardBundle WelcomeReward() => new RewardBundle()
             .Pickup(10).Standard(10).Crystals(2000)
@@ -76,6 +104,7 @@ namespace SubcultureRPG.Meta
                 Add("신규 지휘관 환영 선물", "스텔라 앵커에 오신 것을 환영합니다! 여정의 첫걸음에 보탬이 되길 바랍니다.", WelcomeReward());
                 Save();
             }
+            DeliverOpsGifts();
         }
 
         private void Save()
@@ -97,13 +126,14 @@ namespace SubcultureRPG.Meta
         // ---------------- 조회 · 동작 ----------------
 
         /// <summary>우편 목록(새 우편이 앞).</summary>
-        public IReadOnlyList<Mail> Mails { get { EnsureLoaded(); return _d.mails; } }
+        public IReadOnlyList<Mail> Mails { get { EnsureLoaded(); DeliverOpsGifts(); return _d.mails; } }
 
         public int UnclaimedCount
         {
             get
             {
                 EnsureLoaded();
+                DeliverOpsGifts();
                 int n = 0;
                 foreach (var m in _d.mails) if (!m.claimed) n++;
                 return n;

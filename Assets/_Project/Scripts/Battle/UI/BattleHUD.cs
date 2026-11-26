@@ -284,7 +284,7 @@ namespace SubcultureRPG.Battle.UI
         {
             var list = new List<RectTransform>();
             if (_statsBtnRt != null) list.Add(_statsBtnRt);
-            if (_retryRt != null) list.Add(_retryRt);
+            if (_retryRt != null && _retryRt.gameObject.activeSelf) list.Add(_retryRt);
             if (_resultExitBtn != null && _resultExitBtn.gameObject.activeSelf) list.Add((RectTransform)_resultExitBtn.transform);
             if (_resultNextBtn != null && _resultNextBtn.gameObject.activeSelf) list.Add((RectTransform)_resultNextBtn.transform);
             const float gap = 30f;
@@ -319,6 +319,13 @@ namespace SubcultureRPG.Battle.UI
         /// null을 넘기면 기본 동작(같은 팀으로 재시작).
         /// </summary>
         public void SetRetryHandler(System.Func<string> handler) => _retryHandler = handler;
+
+        /// <summary>결과 화면 '다시' 버튼 숨기기(결투장 — 같은 상대와 연달아 싸우지 않음). 모드를 떠날 때 false로.</summary>
+        public void SetRetryHidden(bool hidden)
+        {
+            if (_retryRt != null) _retryRt.gameObject.SetActive(!hidden);
+            LayoutResultButtons();
+        }
 
         /// <summary>결과 화면 버튼 위에 잠깐 뜨는 알림(행동력 부족 등).</summary>
         public void ShowResultToast(string msg)

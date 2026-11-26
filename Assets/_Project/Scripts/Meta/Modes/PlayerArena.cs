@@ -24,6 +24,9 @@ namespace SubcultureRPG.Meta
         public enum Difficulty { Easy, Normal, Hard }
 
         public static readonly int[] WinPoints = { 12, 20, 32 }, WinCrystals = { 20, 30, 50 }, WinGold = { 3000, 5000, 8000 };
+
+        /// <summary>크리스탈로 도전권 구매: 하루 최대 10장, 2장마다 값이 오름(05:00 초기화).</summary>
+        public static readonly int[] BuyCosts = { 50, 50, 100, 100, 150, 150, 200, 200, 250, 250 };
         public static string DifficultyName(Difficulty d) => d switch { Difficulty.Easy => "쉬움", Difficulty.Normal => "보통", _ => "어려움" };
         public static Color DifficultyColor(Difficulty d) => d switch
         {
@@ -193,6 +196,7 @@ namespace SubcultureRPG.Meta
         {
             public int points = StartPoints, tickets = MaxTickets, wins, losses;
             public string ticketDay = "";
+            public int bought; public string boughtDay = "";   // 오늘 크리스탈로 산 도전권
             public List<Opponent> opponents = new();
             public int best;                 // 역대 최고 점수(티어 테두리 해금)
             public int rankFrames;           // 받은 시즌 순위 테두리(비트: 1위 · 2위 · 3위)
@@ -231,6 +235,25 @@ namespace SubcultureRPG.Meta
                 if (_d.ticketDay != today) { _d.ticketDay = today; _d.tickets = Mathf.Max(_d.tickets, MaxTickets); Save(); }
                 return _d.tickets;
             }
+        }
+
+        /// <summary>오늘 크리스탈로 산 도전권 수.</summary>
+        public int BoughtToday { get { _ = Tickets; return _d.boughtDay == _d.ticketDay ? _d.bought : 0; } }
+
+        /// <summary>다음 1장 값(크리스탈). 오늘 더 살 수 없으면 -1.</summary>
+        public int NextBuyCost => BoughtToday < BuyCosts.Length ? BuyCosts[BoughtToday] : -1;
+
+        /// <summary>크리스탈로 도전권 1장 구매(최대 개수를 넘어도 쌓임). 실패 사유를 돌려줌(성공이면 null).</summary>
+        public string BuyTicket()
+        {
+            int b = BoughtToday, cost = NextBuyCost;
+            if (cost < 0) return "오늘은 더 구매할 수 없습니다 (매일 05:00 초기화)";
+            var wallet = FindAnyObjectByType<PlayerWallet>();
+            if (wallet == null || !wallet.Spend(cost)) return $"크리스탈이 부족합니다 (필요 {cost:N0})";
+            _d.tickets++;
+            _d.bought = b + 1; _d.boughtDay = _d.ticketDay;
+            Changed();
+            return null;
         }
 
         private void Awake()
@@ -378,7 +401,7 @@ namespace SubcultureRPG.Meta
             if (_hud != null)
             {
                 _hud.SetBackground("Backgrounds/battle_arena", "Backgrounds/arena", "Backgrounds/battle");
-                _hud.SetRetryHandler(() => Fight(_fighting, _party) ? null : "결투장 도전권이 없습니다");
+                _hud.SetRetryHidden(true);   // 같은 상대와 연달아 싸우지 않음 — 결투장으로 돌아가 새로 고름
                 _hud.SetExitLabel("결투장으로");
                 _hud.SetRoundLimit(0);
             }
@@ -391,14 +414,14 @@ namespace SubcultureRPG.Meta
         {
             Refund();
             _active = false; _pending = false;
-            if (_hud != null) _hud.SetRetryHandler(null);
+            if (_hud != null) { _hud.SetRetryHandler(null); _hud.SetRetryHidden(false); }
         }
 
         private void Refund()
         {
             if (!_paid) return;
             _paid = false;
-            _d.tickets = Mathf.Min(MaxTickets, _d.tickets + 1);
+            _d.tickets += 1;   // 산 도전권도 그대로 돌려줌
             Changed();
         }
 

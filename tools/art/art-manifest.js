@@ -171,6 +171,7 @@ const ITEMS = [
   ['UiAttendance', '출석부 아이콘', 'a wall calendar page with a big golden star stamp on it and a red ribbon bookmark, blue header band'],
   ['Select5', '태생 5성 캐릭터 선택권', 'an ornate purple and silver ticket card with five small silver stars across the top and a glowing violet silhouette of a heroine in the center'],
   ['Select6', '태생 6성 캐릭터 선택권', 'a luxurious golden ticket card with six small golden stars across the top, a radiant rainbow-gold silhouette of a heroine in the center, sparkling gems on the corners'],
+  ['Select6All', '태생 6성 캐릭터 선택권(픽업 포함)', 'a luxurious prismatic rainbow ticket card with six radiant golden stars across the top, a glowing crowned heroine silhouette in the center surrounded by a burst of rainbow light, a small golden crown emblem and sparkling diamonds on the corners'],
   ['DispatchIcon', '파견 아이콘', 'a rolled parchment map with a red route line and a small golden compass on top, a tiny traveler backpack beside it'],
   ['TowerIcon', '무한의 탑 아이콘', 'a tall slender mystical stone tower spiraling up into the clouds with glowing blue windows and a bright star at its tip'],
   ['GuildIcon', '길드 아이콘', 'a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, hanging from a golden pole'],

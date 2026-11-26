@@ -497,6 +497,7 @@ namespace SubcultureRPG.Meta.UI
             _info = UIFactory.AddText("Info", p, "", 22, _font, Color.white, TextAlignmentOptions.TopLeft);
             _info.richText = true; _info.lineSpacing = 16f;
             Place(_info.rectTransform, 252, -228, 880, 170);
+            CopyButton.Create(p, _font, () => PlayerProfile.Instance.Uid, 252 + 200, -224);   // UID 복사
 
             // 인사말
             _greeting = Input(p, $"인사말을 입력해 주세요 (최대 {PlayerProfile.MaxGreetingLength}자)", PlayerProfile.MaxGreetingLength, 24);

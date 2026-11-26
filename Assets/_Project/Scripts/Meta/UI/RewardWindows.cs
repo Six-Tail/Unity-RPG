@@ -266,9 +266,12 @@ namespace SubcultureRPG.Meta.UI
             if (roster == null || inv == null) return;
             int rarity = Materials.SelectorRarity(ticket);
             var w = OverlayWindow.Open(Materials.Name(ticket), 1380, 900, font);
-            w.Text(w.Panel, ticket == MaterialType.Select6
-                    ? "<color=#9AA3B5>태생 6★ 캐릭터 1명을 고르세요. 지금 픽업 중인 캐릭터는 고를 수 없습니다.</color>"
-                    : "<color=#9AA3B5>태생 5★ 캐릭터 1명을 고르세요.</color>",
+            w.Text(w.Panel, ticket switch
+                    {
+                        MaterialType.Select6 => "<color=#9AA3B5>태생 6★ 캐릭터 1명을 고르세요. 지금 픽업 중인 캐릭터는 고를 수 없습니다.</color>",
+                        MaterialType.Select6All => "<color=#9AA3B5>태생 6★ 캐릭터 1명을 고르세요.</color> <color=#FFD36B>지금 픽업 중인 캐릭터도 고를 수 있습니다.</color>",
+                        _ => "<color=#9AA3B5>태생 5★ 캐릭터 1명을 고르세요.</color>",
+                    },
                 21, Color.white, TextAlignmentOptions.Left, 36, -84, 1000, 32);
 
             var view = UIFactory.NewRect("View", w.Panel);

@@ -268,7 +268,10 @@ namespace SubcultureRPG.Meta.UI
             _myPower = Text(head.transform, "", 22, new Color(0.8f, 0.83f, 0.9f), FontStyles.Normal, TextAlignmentOptions.Left);
             Place(_myPower.rectTransform, 140, -66, 760, 36);
             _tickets = Text(head.transform, "", 26, Color.white, FontStyles.Bold, TextAlignmentOptions.Right);
-            Place(_tickets.rectTransform, 1180, -12, 296, 40);
+            Place(_tickets.rectTransform, 1100, -12, 270, 40);
+            var buy = UIFactory.AddButton("BuyTicket", head.transform, "+ 구매", 20, font, new Color(0.25f, 0.55f, 0.9f, 0.96f), Color.white);
+            Place((RectTransform)buy.transform, 1380, -10, 98, 42);
+            buy.onClick.AddListener(OpenBuyTicket);
             var rankBtn = UIFactory.AddButton("Ranking", head.transform, "랭킹", 22, font, new Color(0.8f, 0.58f, 0.22f, 0.96f), Color.white);
             Place((RectTransform)rankBtn.transform, 920, -56, 170, 50);
             rankBtn.onClick.AddListener(OpenRanking);
@@ -282,7 +285,7 @@ namespace SubcultureRPG.Meta.UI
             _list = UIFactory.NewRect("List", _frame);
             Top(_list, 0, -250, 1500, 700, new Vector2(0.5f, 1));
 
-            var rule = Text(_frame, $"<color=#9AA3B5>도전권은 매일 05:00에 {PlayerArena.MaxTickets}장으로 충전 · 이기면 새 상대가 나타납니다 · 상대는 AI가 조종합니다</color>",
+            var rule = Text(_frame, $"<color=#9AA3B5>도전권은 매일 05:00에 {PlayerArena.MaxTickets}장으로 충전 · 모자라면 크리스탈로 구매(하루 {PlayerArena.BuyCosts.Length}장) · 이기면 새 상대가 나타납니다 · 상대는 AI가 조종합니다</color>",
                 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
             UIFactory.Anchor(rule.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
             rule.rectTransform.sizeDelta = new Vector2(1400, 30); rule.rectTransform.anchoredPosition = new Vector2(0, 70);
@@ -293,6 +296,24 @@ namespace SubcultureRPG.Meta.UI
         }
 
         private float _arenaFetchAt = -999f;
+
+        /// <summary>크리스탈로 도전권 1장 구매 확인 창.</summary>
+        private void OpenBuyTicket()
+        {
+            var a = PlayerArena.Instance;
+            int cost = a.NextBuyCost, bought = a.BoughtToday, max = PlayerArena.BuyCosts.Length;
+            if (cost < 0) { Toast($"오늘은 도전권을 모두 구매했습니다 ({max}/{max}, 매일 05:00 초기화)"); return; }
+            var wallet = FindAnyObjectByType<PlayerWallet>();
+            int have = wallet != null ? wallet.Crystals : 0;
+            Confirm($"<color=#8FE9FF>크리스탈 {cost:N0}</color>개로 결투장 도전권 1장을 구매할까요?\n" +
+                    $"<size=80%><color=#9AA3B5>보유 크리스탈 <color={(have >= cost ? "#FFFFFF" : "#FF8A8A")}>{have:N0}</color>  ·  오늘 구매 {bought} / {max}</color></size>",
+                "구매", () =>
+                {
+                    string err = a.BuyTicket();
+                    Toast(err ?? "도전권 1장을 구매했습니다");
+                    Refresh();
+                });
+        }
 
         protected override void Refresh()
         {
@@ -486,7 +507,7 @@ namespace SubcultureRPG.Meta.UI
             var opp = o;
             go.onClick.AddListener(() =>
             {
-                if (PlayerArena.Instance.Tickets <= 0) { Toast("도전권이 없습니다 (매일 05:00 충전)"); return; }
+                if (PlayerArena.Instance.Tickets <= 0) { OpenBuyTicket(); return; }   // 없으면 바로 구매 창
                 OnChallenge?.Invoke(opp);
             });
         }
