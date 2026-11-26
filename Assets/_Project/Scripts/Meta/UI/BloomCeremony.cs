@@ -358,45 +358,57 @@ namespace SubcultureRPG.Meta.UI
 
             // ---------------- ④ 개화: 제목 · 특성 · 대사 ----------------
             SoundManager.Play(Sfx.LevelUp, 0.8f);
-            var top = UIFactory.NewRect("Top", transform);
-            UIFactory.Anchor(top, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            top.sizeDelta = new Vector2(1500, 230); top.anchoredPosition = new Vector2(0, -26);
-            var deco = Img("Deco", top, ProceduralSprites.Beam, Tinted(0.5f, 0f), new Vector2(40, 900));
-            deco.rectTransform.localEulerAngles = new Vector3(0, 0, 90);
-            deco.rectTransform.anchoredPosition = new Vector2(0, -70);
-            var head = Label(top, "숨겨진 특성 개화", 50, Color.white, FontStyles.Bold);
-            head.characterSpacing = 18f;
-            head.rectTransform.sizeDelta = new Vector2(1500, 70); head.rectTransform.anchoredPosition = new Vector2(0, -40);
+            // 캐릭터는 왼쪽으로 비켜서고, 오른쪽 어두운 판에 제목 · 특성 · 효과(밝은 일러스트 위에 글자를 얹지 않음)
+            const float StageX = -400f;
+            var panel = Img("Panel", transform, ProceduralSprites.Rounded, new Color(0.04f, 0.03f, 0.1f, 0.86f), new Vector2(820, 470));
+            panel.type = Image.Type.Sliced;
+            UIFactory.Anchor(panel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            panel.rectTransform.anchoredPosition = new Vector2(470, 110);
+            var panelEdge = Img("Edge", panel.transform, null, Tinted(0.35f, 0.9f), new Vector2(6, 430));
+            panelEdge.rectTransform.anchoredPosition = new Vector2(-404, 0);
+            var head = Label(panel.transform, "숨겨진 특성 개화", 44, Color.white, FontStyles.Bold);
+            head.characterSpacing = 14f;
+            head.rectTransform.sizeDelta = new Vector2(780, 64); head.rectTransform.anchoredPosition = new Vector2(0, 170);
             head.gameObject.AddComponent<RainbowText>();
-            TextOutline.Apply(head, 0.18f, new Color32(20, 10, 40, 255));
-            var trait = Label(top, $"<color=#{ColorUtility.ToHtmlStringRGB(Color.Lerp(_tint, Color.white, 0.55f))}>◆</color>  <b>{hidden.name}</b>  <color=#{ColorUtility.ToHtmlStringRGB(Color.Lerp(_tint, Color.white, 0.55f))}>◆</color>", 40, Color.white);
-            trait.rectTransform.sizeDelta = new Vector2(1500, 56); trait.rectTransform.anchoredPosition = new Vector2(0, -118);
-            TextOutline.Apply(trait, 0.2f, new Color32(20, 10, 40, 255));
-            var desc = Label(top, hidden.Desc, 22, new Color(0.92f, 0.94f, 1f));
+            var deco = Img("Deco", panel.transform, ProceduralSprites.Beam, Tinted(0.5f, 0f), new Vector2(14, 680));
+            deco.rectTransform.localEulerAngles = new Vector3(0, 0, 90);
+            deco.rectTransform.anchoredPosition = new Vector2(0, 126);
+            string gem = ColorUtility.ToHtmlStringRGB(Color.Lerp(_tint, Color.white, 0.55f));
+            var who = Label(panel.transform, $"<color=#{gem}>{c.displayName}</color>", 26, Color.white);
+            who.rectTransform.sizeDelta = new Vector2(780, 36); who.rectTransform.anchoredPosition = new Vector2(0, 86);
+            var trait = Label(panel.transform, $"<color=#{gem}>◆</color>  <b>{hidden.name}</b>  <color=#{gem}>◆</color>", 48, Color.white);
+            trait.rectTransform.sizeDelta = new Vector2(780, 64); trait.rectTransform.anchoredPosition = new Vector2(0, 36);
+            TextOutline.Apply(trait, 0.18f, new Color32(10, 6, 24, 255));
+            var desc = Label(panel.transform, hidden.Desc, 26, new Color(0.93f, 0.95f, 1f), FontStyles.Normal, TextAlignmentOptions.Top);
             desc.textWrappingMode = TextWrappingModes.Normal;
-            desc.rectTransform.sizeDelta = new Vector2(1300, 64); desc.rectTransform.anchoredPosition = new Vector2(0, -176);
-            TextOutline.Apply(desc, 0.2f, new Color32(10, 6, 24, 255));
-            var topTexts = new TMP_Text[] { head, trait, desc };
+            desc.lineSpacing = 10f;
+            desc.rectTransform.sizeDelta = new Vector2(740, 200); desc.rectTransform.anchoredPosition = new Vector2(0, -110);
+            var topTexts = new TMP_Text[] { head, who, trait, desc };
             foreach (var tx in topTexts) tx.alpha = 0f;
+            var panelGroup = panel.gameObject.AddComponent<CanvasGroup>();
+            panelGroup.alpha = 0f;
 
             // 대화창(아래)
-            var box = Img("Box", transform, ProceduralSprites.Rounded, new Color(0.05f, 0.04f, 0.1f, 0.88f), new Vector2(1380, 170));
+            var box = Img("Box", transform, ProceduralSprites.Rounded, new Color(0.04f, 0.03f, 0.09f, 0.92f), new Vector2(1380, 170));
             box.type = Image.Type.Sliced;
             Bottom(box.rectTransform, new Vector2(1380, 170), new Vector2(0, -200));
-            var boxLine = Img("Line", box.transform, null, Tinted(0.3f, 0.9f), new Vector2(1340, 3));
-            boxLine.rectTransform.anchoredPosition = new Vector2(0, -80);   // 아래쪽 속성 색 줄
-            var plate = Img("Plate", box.transform, ProceduralSprites.Rounded, Tinted(0.15f, 0.95f), new Vector2(300, 48));
+            var plateCol = Color.Lerp(_tint, new Color(0.06f, 0.05f, 0.12f), 0.5f); plateCol.a = 0.98f;   // 밝은 속성 색(물리 · 얼음)이어도 흰 글자가 보이게 어둡게
+            var plate = Img("Plate", box.transform, ProceduralSprites.Rounded, plateCol, new Vector2(300, 50));
             plate.type = Image.Type.Sliced;
             UIFactory.Anchor(plate.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 0.5f));
             plate.rectTransform.anchoredPosition = new Vector2(40, 0);
-            var plateText = Label(plate.transform, $"<b>{c.displayName}</b>", 24, Color.white);
+            var plateEdge = Img("PlateEdge", plate.transform, null, Tinted(0.45f, 1f), new Vector2(300, 3));
+            UIFactory.Anchor(plateEdge.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            plateEdge.rectTransform.sizeDelta = new Vector2(0, 3);
+            var plateText = Label(plate.transform, $"<b>{c.displayName}</b>", 26, Color.white);
             UIFactory.Stretch(plateText.rectTransform);
-            var line = Label(box.transform, "", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+            TextOutline.Apply(plateText, 0.2f, new Color32(10, 6, 24, 255));
+            var line = Label(box.transform, "", 32, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
             line.textWrappingMode = TextWrappingModes.Normal;
-            UIFactory.Stretch(line.rectTransform, 48, 18, 48, 38);   // 왼 · 아래 · 오른 · 위(이름표 아래부터)
-            var hint = Label(transform, "화면을 누르면 계속", 18, new Color(0.75f, 0.78f, 0.88f));
+            UIFactory.Stretch(line.rectTransform, 48, 40, 48, 40);   // 왼 · 아래 · 오른 · 위(이름표 아래부터)
+            var hint = Label(box.transform, "▼ 화면을 누르면 계속", 19, new Color(0.85f, 0.88f, 0.96f), FontStyles.Normal, TextAlignmentOptions.Right);
             UIFactory.Anchor(hint.rectTransform, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
-            hint.rectTransform.sizeDelta = new Vector2(400, 28); hint.rectTransform.anchoredPosition = new Vector2(-40, 12);
+            hint.rectTransform.sizeDelta = new Vector2(400, 28); hint.rectTransform.anchoredPosition = new Vector2(-24, 10);
             hint.alpha = 0f;
 
             _tapped = false;
@@ -406,20 +418,27 @@ namespace SubcultureRPG.Meta.UI
             {
                 float dt = Dt;
                 // 제목 · 특성 · 효과가 차례로
-                float k1 = Mathf.Clamp01(t / 0.45f), k2 = Mathf.Clamp01((t - 0.25f) / 0.45f), k3 = Mathf.Clamp01((t - 0.5f) / 0.45f);
-                head.alpha = k1; head.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.35f, 1f, 1f - (1f - k1) * (1f - k1));
-                trait.alpha = k2; trait.rectTransform.anchoredPosition = new Vector2(0, -118 - 30f * (1f - k2));
+                // 캐릭터가 왼쪽으로 비켜섬 → 오른쪽 판이 밀려 들어옴
+                float ks = Mathf.Clamp01(t / 0.5f), es = 1f - (1f - ks) * (1f - ks);
+                stage.anchoredPosition = new Vector2(StageX * es, 50);
+                float kp = Mathf.Clamp01((t - 0.15f) / 0.4f), ep = 1f - (1f - kp) * (1f - kp);
+                panelGroup.alpha = kp;
+                panel.rectTransform.anchoredPosition = new Vector2(470 + 120f * (1f - ep), 110);
+                float k1 = Mathf.Clamp01((t - 0.3f) / 0.45f), k2 = Mathf.Clamp01((t - 0.5f) / 0.45f), k3 = Mathf.Clamp01((t - 0.75f) / 0.45f);
+                head.alpha = k1; head.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.3f, 1f, 1f - (1f - k1) * (1f - k1));
+                who.alpha = k2;
+                trait.alpha = k2; trait.rectTransform.anchoredPosition = new Vector2(0, 36 - 24f * (1f - k2));
                 desc.alpha = k3;
-                deco.color = Tinted(0.5f, 0.55f * k2);
-                deco.rectTransform.sizeDelta = new Vector2(40, 1100f * k2);
+                deco.color = Tinted(0.5f, 0.7f * k1);
+                deco.rectTransform.sizeDelta = new Vector2(14, 680f * k1);
                 // 대화창이 올라오고 대사가 한 글자씩
-                float kb = Mathf.Clamp01((t - 0.55f) / 0.35f), eb = 1f - (1f - kb) * (1f - kb);
+                float kb = Mathf.Clamp01((t - 0.8f) / 0.35f), eb = 1f - (1f - kb) * (1f - kb);
                 box.rectTransform.anchoredPosition = new Vector2(0, Mathf.Lerp(-200f, 28f, eb));
-                int n = Mathf.Clamp(Mathf.FloorToInt((t - 0.9f) / 0.04f), 0, bloomLine.Length);
+                int n = Mathf.Clamp(Mathf.FloorToInt((t - 1.2f) / 0.04f), 0, bloomLine.Length);
                 if (typed) n = bloomLine.Length;
                 line.text = bloomLine.Substring(0, n);
                 bool done = n >= bloomLine.Length;
-                hint.alpha = done ? 0.55f + 0.45f * Mathf.Sin(t * 3f) : 0f;
+                hint.alpha = done ? 0.6f + 0.4f * Mathf.Sin(t * 3f) : 0f;
                 // 캐릭터 · 꽃 · 마법진이 숨 쉬듯
                 artRt.anchoredPosition = new Vector2(0, 8f * Mathf.Sin(t * 1.5f));
                 flower.color = Tinted(0.45f, 0.7f + 0.15f * Mathf.Sin(t * 2f));
@@ -438,14 +457,14 @@ namespace SubcultureRPG.Meta.UI
                 while (fall >= 1f)
                 {
                     fall -= 1f;
-                    Spawn(petalS, new Vector2(Random.Range(-1000f, 1000f), 620f), new Vector2(Random.Range(-40f, 40f), Random.Range(-160f, -90f)),
+                    Spawn(petalS, new Vector2(Random.Range(-1000f, 1000f) - stage.anchoredPosition.x, 620f), new Vector2(Random.Range(-40f, 40f), Random.Range(-160f, -90f)),
                         Random.Range(5f, 8f), Random.Range(26f, 48f), Color.Lerp(Tinted(0.4f, 0.85f), new Color(1f, 0.88f, 0.95f, 0.85f), Random.value * 0.5f),
                         Random.Range(-90f, 90f), 0f, 90f);
                 }
                 TickParticles(dt);
                 if (Tap())
                 {
-                    if (t < 0.9f) { t = 0.9f; }                 // 제목이 아직이면 바로 다 보이게
+                    if (t < 1.2f) { t = 1.2f; }                 // 제목이 아직이면 바로 다 보이게
                     else if (!done) typed = true;               // 대사가 나오는 중이면 다 보여 줌
                     else break;                                 // 다 나왔으면 닫기
                 }
