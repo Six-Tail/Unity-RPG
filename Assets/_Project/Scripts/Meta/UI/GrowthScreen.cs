@@ -1456,7 +1456,8 @@ namespace SubcultureRPG.Meta.UI
             const int pad = 14;
             var view = UIFactory.NewRect("GridView", list);
             UIFactory.Anchor(view, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            view.sizeDelta = new Vector2(gridW + pad * 2, 770); view.anchoredPosition = new Vector2(0, -246 + pad);   // 필터 바(3줄, -120 ~ -228) 아래
+            float listTop = 120 + RosterFilterBar.Height + 12;   // 필터 바(3줄, -120부터) 아래
+            view.sizeDelta = new Vector2(gridW + pad * 2, 1016 - listTop); view.anchoredPosition = new Vector2(0, -listTop + pad);
             _grid = UIFactory.NewRect("Grid", view);
             var gl = _grid.gameObject.AddComponent<GridLayoutGroup>();
             gl.padding = new RectOffset(pad, pad, pad, pad);   // 테두리·확대가 잘리지 않게

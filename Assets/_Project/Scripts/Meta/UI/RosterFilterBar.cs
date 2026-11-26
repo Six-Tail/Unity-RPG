@@ -90,9 +90,13 @@ namespace SubcultureRPG.Meta.UI
     /// </summary>
     public class RosterFilterBar
     {
-        private const float RowH = 32f;
-        private const float Gap = 6f;
-        private const float LabelW = 52f;
+        // 휴대폰에서도 누르기 · 읽기 쉽게(줄 높이 46 · 글자 23)
+        public const float RowH = 46f;
+        public const float Gap = 8f;
+        private const float LabelW = 78f;
+        private const float FontSize = 23f;
+        /// <summary>바 전체 높이(3줄).</summary>
+        public static float Height => RowH * 3 + Gap * 2;
 
         public readonly RosterFilter filter = new();
 
@@ -126,7 +130,7 @@ namespace SubcultureRPG.Meta.UI
         {
             var root = UIFactory.NewRect("FilterBar", parent);
             UIFactory.Anchor(root, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            root.sizeDelta = new Vector2(width, RowH * 3 + Gap * 2);
+            root.sizeDelta = new Vector2(width, Height);
             root.anchoredPosition = pos;
             var v = root.gameObject.AddComponent<VerticalLayoutGroup>();
             v.spacing = Gap;
@@ -136,10 +140,10 @@ namespace SubcultureRPG.Meta.UI
 
             // 1행: 정렬 / 순서 / 초기화 / 개수
             var row1 = Row(root);
-            _sortLabel = MakeButton(row1, 150, new Color(1, 1, 1, 0.14f), CycleSort).GetComponentInChildren<TextMeshProUGUI>();
-            _orderLabel = MakeButton(row1, 104, new Color(1, 1, 1, 0.14f), ToggleOrder).GetComponentInChildren<TextMeshProUGUI>();
-            MakeButton(row1, 84, new Color(1, 1, 1, 0.08f), ResetAll).GetComponentInChildren<TextMeshProUGUI>().text = "초기화";
-            _countText = UIFactory.AddText("Count", row1, "", 16, _font, new Color(0.85f, 0.88f, 0.95f), TextAlignmentOptions.Right, FontStyles.Bold);
+            _sortLabel = MakeButton(row1, 210, new Color(1, 1, 1, 0.14f), CycleSort).GetComponentInChildren<TextMeshProUGUI>();
+            _orderLabel = MakeButton(row1, 150, new Color(1, 1, 1, 0.14f), ToggleOrder).GetComponentInChildren<TextMeshProUGUI>();
+            MakeButton(row1, 120, new Color(1, 1, 1, 0.08f), ResetAll).GetComponentInChildren<TextMeshProUGUI>().text = "초기화";
+            _countText = UIFactory.AddText("Count", row1, "", FontSize, _font, new Color(0.85f, 0.88f, 0.95f), TextAlignmentOptions.Right, FontStyles.Bold);
             var cle = _countText.gameObject.AddComponent<LayoutElement>();
             cle.flexibleWidth = 1; cle.preferredHeight = RowH;
 
@@ -183,14 +187,14 @@ namespace SubcultureRPG.Meta.UI
 
         private void MakeLabel(Transform row, string text)
         {
-            var t = UIFactory.AddText("Label", row, text, 16, _font, new Color(0.75f, 0.78f, 0.85f), TextAlignmentOptions.Left, FontStyles.Bold);
+            var t = UIFactory.AddText("Label", row, text, FontSize, _font, new Color(0.75f, 0.78f, 0.85f), TextAlignmentOptions.Left, FontStyles.Bold);
             var le = t.gameObject.AddComponent<LayoutElement>();
             le.preferredWidth = LabelW - Gap; le.preferredHeight = RowH;
         }
 
         private Button MakeButton(Transform row, float width, Color bg, UnityEngine.Events.UnityAction onClick)
         {
-            var b = UIFactory.AddButton("Btn", row, "", 16, _font, bg, Color.white);
+            var b = UIFactory.AddButton("Btn", row, "", FontSize, _font, bg, Color.white);
             var le = b.gameObject.AddComponent<LayoutElement>();
             le.preferredWidth = width; le.preferredHeight = RowH;
             b.onClick.AddListener(onClick);

@@ -273,7 +273,7 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Stretch(art);
             _artGroup = art.gameObject.AddComponent<CanvasGroup>();
             _artGroup.blocksRaycasts = false;
-            BackgroundArt.Create(art, 0f).Set("Title/keyart", "Backgrounds/home");
+            BackgroundArt.Create(art, 0f, keepWhole: true).SetBack("Title/keyart_bg").Set("Title/keyart", "Backgrounds/home");
             _shade = UIFactory.AddImage("Shade", art, new Color(0, 0, 0, 0.5f));
             UIFactory.Stretch(_shade.rectTransform);
             // 아래쪽 글씨가 잘 보이게 어두운 띠

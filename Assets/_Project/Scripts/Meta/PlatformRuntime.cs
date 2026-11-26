@@ -53,10 +53,49 @@ namespace SubcultureRPG.Meta
             if (paused) SaveStore.Save();
         }
 
+        private float _safeTick;
+
         private void Update()
         {
+            if (Time.unscaledTime >= _safeTick) { _safeTick = Time.unscaledTime + 0.5f; ApplySafeArea(); }
             if (!CanQuit) return;
             if (Input.GetKeyDown(KeyCode.Escape)) Back();
+        }
+
+        /// <summary>
+        /// 안전 영역(노치 · 둥근 모서리 · 홈 표시줄): 화면 전체가 안전하지 않으면(iPhone 등) 모든 화면 캔버스의 내용을
+        /// 'SafeArea' 칸으로 옮겨 그 안에만 그림 — 버튼이 노치에 가려지지 않음(노치 쪽은 검은 여백). 0.5초마다 확인(회전 · 새 창).
+        /// 안드로이드는 출시 설정에서 노치 부분을 아예 그리지 않게 해 두어 여기서는 할 일이 없음. PC는 늘 전체.
+        /// </summary>
+        private static void ApplySafeArea()
+        {
+            var sa = Screen.safeArea;
+            float w = Screen.width, h = Screen.height;
+            if (w <= 0 || h <= 0) return;
+            // 가로 화면이라 노치 · 둥근 모서리는 양옆. 위 · 아래(홈 표시줄) 여백까지 빼면 화면 높이가 줄어 가운데 기준 창이
+            // 위 글자를 덮으므로(스테이지 상세 ↔ 행동력) 좌우만 비움 — 위아래 배치는 설계 그대로
+            bool full = sa.xMin <= 0.5f && sa.width >= w - 1f;
+            var min = full ? Vector2.zero : new Vector2(sa.xMin / w, 0f);
+            var max = full ? Vector2.one : new Vector2(sa.xMax / w, 1f);
+            foreach (var c in FindObjectsByType<Canvas>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            {
+                if (c == null || !c.isRootCanvas || c.renderMode != RenderMode.ScreenSpaceOverlay) continue;
+                var safe = c.transform.Find("SafeArea") as RectTransform;
+                if (full && safe == null) continue;
+                if (safe == null)
+                {
+                    safe = new GameObject("SafeArea", typeof(RectTransform)).GetComponent<RectTransform>();
+                    safe.SetParent(c.transform, false);
+                }
+                safe.anchorMin = min; safe.anchorMax = max;
+                safe.offsetMin = Vector2.zero; safe.offsetMax = Vector2.zero;
+                safe.pivot = new Vector2(0.5f, 0.5f);
+                if (c.transform.childCount <= 1) continue;
+                // 캔버스 바로 아래의 다른 것들을 순서대로 SafeArea 안으로(앵커 · 위치는 SafeArea 기준으로 그대로)
+                var move = new System.Collections.Generic.List<Transform>();
+                for (int i = 0; i < c.transform.childCount; i++) { var ch = c.transform.GetChild(i); if (ch != safe) move.Add(ch); }
+                foreach (var ch in move) ch.SetParent(safe, false);
+            }
         }
 
         /// <summary>뒤로 가기 한 번.</summary>

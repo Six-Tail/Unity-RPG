@@ -129,8 +129,9 @@ namespace SubcultureRPG.Meta.UI
             const int Pad = 16;
             var view = UIFactory.NewRect("GridView", _root.transform);
             UIFactory.Anchor(view, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            view.sizeDelta = new Vector2(Columns * _cell.x + (Columns - 1) * _spacing.x + Pad * 2, 660);
-            view.anchoredPosition = new Vector2(0, -238);   // 필터 바(3줄, -112 ~ -228) 아래
+            float listTop = 112 + RosterFilterBar.Height + 10;   // 필터 바(3줄, -112부터) 아래
+            view.sizeDelta = new Vector2(Columns * _cell.x + (Columns - 1) * _spacing.x + Pad * 2, 898 - listTop);
+            view.anchoredPosition = new Vector2(0, -listTop);
             view.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.25f);   // 빈 곳을 잡고 끌 수 있도록
             view.gameObject.AddComponent<RectMask2D>();
 

@@ -64,6 +64,8 @@ namespace SubcultureRPG.EditorTools
             PlayerSettings.resizableWindow = true;
             PlayerSettings.runInBackground = true;
 
+            ApplyBranding();
+
             if (string.IsNullOrEmpty(PlayerSettings.bundleVersion)) PlayerSettings.bundleVersion = "1.0.0";
             if (string.IsNullOrEmpty(PlayerSettings.iOS.buildNumber) || PlayerSettings.iOS.buildNumber == "0")
                 PlayerSettings.iOS.buildNumber = PlayerSettings.Android.bundleVersionCode.ToString();
@@ -72,6 +74,40 @@ namespace SubcultureRPG.EditorTools
             EditorUtility.DisplayDialog("출시 설정",
                 $"적용했습니다.\n\n회사 {Company} · 이름 {Product}\n번들 ID {BundleId}\n버전 {PlayerSettings.bundleVersion} (빌드 번호 {PlayerSettings.Android.bundleVersionCode})\n\n" +
                 "가로 화면 고정 · 안드로이드 IL2CPP/ARM64/aab · iOS 13 이상 · PC 전체 화면(창 크기 조절 가능)", "확인");
+        }
+
+        private const string IconPath = "Assets/_Project/Branding/AppIcon.png";
+        private const string SplashLogoPath = "Assets/_Project/Resources/Art/Title/logo.png";
+
+        /// <summary>
+        /// 앱 아이콘(3플랫폼 공통 — Branding/AppIcon.png, 1024 정사각형 · 투명 없음) + 시작 화면(어두운 남색 바탕에 게임 로고 엠블럼, Unity 로고 숨김).
+        /// </summary>
+        private static void ApplyBranding()
+        {
+            if (AssetImporter.GetAtPath(IconPath) is TextureImporter ti)
+            {
+                bool dirty = ti.textureType != TextureImporterType.Default || ti.alphaSource != TextureImporterAlphaSource.None || ti.mipmapEnabled
+                             || ti.maxTextureSize < 1024 || ti.textureCompression != TextureImporterCompression.Uncompressed || ti.npotScale != TextureImporterNPOTScale.None;
+                ti.textureType = TextureImporterType.Default;
+                ti.alphaSource = TextureImporterAlphaSource.None;   // iOS 아이콘은 투명 불가
+                ti.mipmapEnabled = false;
+                ti.maxTextureSize = 1024;
+                ti.textureCompression = TextureImporterCompression.Uncompressed;
+                ti.npotScale = TextureImporterNPOTScale.None;
+                if (dirty) ti.SaveAndReimport();
+            }
+            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
+            if (icon != null) PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
+            else Debug.LogWarning($"[출시] 앱 아이콘이 없습니다: {IconPath}");
+
+            PlayerSettings.SplashScreen.show = true;
+            PlayerSettings.SplashScreen.showUnityLogo = false;   // 라이선스가 허용하지 않으면 Unity가 알아서 보여 줌
+            PlayerSettings.SplashScreen.backgroundColor = new Color(0.04f, 0.05f, 0.1f);
+            PlayerSettings.SplashScreen.overlayOpacity = 0f;
+            PlayerSettings.SplashScreen.drawMode = PlayerSettings.SplashScreen.DrawMode.AllSequential;
+            PlayerSettings.SplashScreen.animationMode = PlayerSettings.SplashScreen.AnimationMode.Dolly;
+            var logo = AssetDatabase.LoadAssetAtPath<Sprite>(SplashLogoPath);
+            if (logo != null) PlayerSettings.SplashScreen.logos = new[] { PlayerSettings.SplashScreenLogo.Create(2.5f, logo) };
         }
 
         [MenuItem("Tools/출시/2. 버전 올리기 (1.0.0 → 1.0.1)", priority = 2)]

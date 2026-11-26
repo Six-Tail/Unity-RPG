@@ -449,7 +449,7 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.06f, 0.05f, 0.09f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
-            _bg = BackgroundArt.Create(_root.transform, 0.5f);
+            _bg = BackgroundArt.Create(_root.transform, 0.5f, keepWhole: true).SetBack("Backgrounds/gacha_summon", "Backgrounds/gacha");   // 배너 인물 그림 · 양옆은 소환 배경
             var root = _root.transform;
 
             // 분류 탭(상단 중앙): 픽업 뽑기 · 상시 뽑기

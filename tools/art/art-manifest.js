@@ -462,6 +462,19 @@ function build() {
       negative: NEGATIVE + ', text, letters, numbers, face, character',
     }, `${look}. competitive ranked tier badge icon for a game, symmetrical, clean bold shapes, glossy, intense glow, centered, %BG%`));
 
+  // 앱 아이콘(스토어 · 바탕 화면) — Resources 밖(Assets/_Project/Branding)에 둠. 꽉 찬 정사각형(투명 없음 — iOS 규칙), 둥근 모서리로 잘려도 되게 가운데에 모음
+  list.push({
+    group: 'title', key: 'app_icon', label: '앱 아이콘',
+    out: '../../Branding/AppIcon.png', aspect: '1:1', resolution: '1K', width: 1024, height: 1024, format: 'png',
+    ref: 'Characters/c_seraphine.png',
+    prompt: 'mobile game app icon: a close-up bust portrait of the woman from the reference image (long crimson hair with ember-orange tips, golden eyes, black and red outfit with gold trim), ' +
+      'confident gentle smile, looking at the viewer, her face and shoulders centered and filling most of the square, ' +
+      'behind her a glowing golden emblem of a ship anchor whose top is a four-pointed star, drifting embers and small stars, rich deep navy and crimson gradient background, ' +
+      'all important content kept away from the corners, bold readable silhouette at small size, ' +
+      'subculture mobile gacha game art in modern Japanese and Korean anime style, crisp line art, bright cel shading, glossy highlights, luminous rim light, high quality',
+    negative: NEGATIVE + ', text, letters, logo, watermark, frame, border',
+  });
+
   // 타이틀 화면: 로고 엠블럼(글자 없음 — 게임 이름은 게임 폰트로 그림) + 픽업 캐릭터 2명 키 아트
   list.push(withBackground({
     group: 'title', key: 'title_logo', label: '타이틀 — 로고 엠블럼',
@@ -481,6 +494,16 @@ function build() {
       'subculture mobile gacha game title key visual in modern Japanese and Korean anime style, wide 16:9 composition, beautiful youthful faces with large detailed sparkling eyes, ' +
       'crisp thin line art, bright clean cel shading with glossy highlights, luminous dramatic lighting, high quality',
     negative: NEGATIVE + ', text, letters, logo, watermark',
+  });
+
+  // 타이틀 키 아트 양옆 배경(아주 넓은 화면에서 키 아트 좌우를 채움 — 인물 없이 같은 분위기의 풍경만)
+  list.push({
+    group: 'title', key: 'title_keyart_bg', label: '타이틀 — 키 아트 양옆 배경(인물 없음)',
+    out: 'Title/keyart_bg.jpg', aspect: '16:9', resolution: '2K', width: 1920, height: 1080, format: 'jpg',
+    prompt: 'a wide empty fantasy landscape with no people, split diagonally into two worlds: on the left a burning crimson night sky over a dark castle city with lava rivers and falling embers, ' +
+      'on the right a frozen pale-blue sky over a crystal ice castle and snowy cliffs with drifting snow crystals, a faint golden star-and-anchor constellation across the sky where they meet, ' +
+      'atmospheric depth, soft painterly anime game background art, luminous dramatic lighting, no characters, no figures, no weapons, high quality',
+    negative: NEGATIVE + ', people, person, character, girl, woman, man, hands, weapon, sword, text, letters, logo',
   });
 
   for (const [key, name, look, aspect, w, h] of GACHA_PROPS)
