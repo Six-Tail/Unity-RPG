@@ -373,13 +373,27 @@ namespace SubcultureRPG.Meta.UI
     }
 
     /// <summary>
-    /// 길드 화면: 미가입 — 추천 길드 가입 · 창설 / 가입 — 길드 정보(레벨 · 경험치) · 출석 · 기부 · 길드원 목록 · 탈퇴.
+    /// 길드 화면(docs/guild.md).
+    /// · 미가입: 창설(로그인 중이면 실제 길드) · 탭 [길드 찾기](실제 플레이어 길드 + 가상 길드 추천) · [순위]
+    /// · 가입: 위 = 길드 정보 · 출석 · 기부 · 채팅(실제 길드) · 탈퇴, 탭 [길드원] · [가입 신청](실제 길드장) · [길드 보스] · [길드전] · [순위]
     /// </summary>
     public class GuildScreen : SocialScreenBase
     {
+        private enum T { Find, Members, Requests, Boss, War, Rank }
+
         private RectTransform _list, _head;
         private GameObject _createBar;
         private TMP_InputField _name;
+        private TextMeshProUGUI _createTip;
+        private Button _freeBtn;
+        private bool _createFree = true;
+        private readonly List<Button> _tabs = new();
+        private T _tab = T.Find;
+        private GuildRanking.Tab _rankTab = GuildRanking.Tab.Boss;
+
+        /// <summary>길드 보스 도전 · 길드전 공격(편성 화면으로) — ScreenNavigator가 연결.</summary>
+        public event System.Action OnBossChallenge;
+        public event System.Action<int> OnWarChallenge;
 
         private void Awake()
         {
@@ -394,43 +408,136 @@ namespace SubcultureRPG.Meta.UI
             var bar = UIFactory.NewRect("CreateBar", _frame);
             Top(bar, 0, -104, RowW, 170, new Vector2(0.5f, 1));
             _createBar = bar.gameObject;
-            var tip = Text(bar, $"<b>길드에 가입해 보세요</b>\n<size=75%><color=#9AA3B5>출석 · 기부로 금화와 크리스탈을 받고 길드를 함께 키웁니다. 직접 만들려면 금화 {PlayerGuild.CreateCost:N0}이 필요합니다.</color></size>",
-                28, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
-            Place(tip.rectTransform, 28, -18, 1420, 80);
+            _createTip = Text(bar, "", 28, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+            Place(_createTip.rectTransform, 28, -18, 1420, 80);
             _name = Input(bar, $"새 길드 이름 ({PlayerGuild.MinNameLength} ~ {PlayerGuild.MaxNameLength}자)", PlayerGuild.MaxNameLength, 24);
             Place((RectTransform)_name.transform, 28, -100, 440, 54);
+            _freeBtn = UIFactory.AddButton("Free", bar, "", 20, font, Dim, Color.white);
+            Place((RectTransform)_freeBtn.transform, 482, -100, 190, 54);
+            _freeBtn.onClick.AddListener(() => { _createFree = !_createFree; Refresh(); });
             var create = UIFactory.AddButton("Create", bar, "길드 창설", 22, font, Gold, Color.white);
-            Place((RectTransform)create.transform, 482, -100, 180, 54);
+            Place((RectTransform)create.transform, 686, -100, 180, 54);
             create.onClick.AddListener(() =>
             {
                 string n = PlayerGuild.CleanName(_name.text);
                 if (n.Length < PlayerGuild.MinNameLength) { Toast($"길드 이름은 {PlayerGuild.MinNameLength} ~ {PlayerGuild.MaxNameLength}자입니다"); return; }
-                Confirm($"금화 {PlayerGuild.CreateCost:N0}으로 길드 '{n}'을(를) 만들까요?", "창설", () =>
+                string kind = GuildLink.Online ? $"플레이어 길드({(_createFree ? "자유 가입" : "승인 후 가입")})" : "길드(로그인하지 않아 가상 길드원과 함께)";
+                Confirm($"금화 {PlayerGuild.CreateCost:N0}으로 {kind} '{n}'을(를) 만들까요?", "창설", () =>
                 {
-                    string err = PlayerGuild.Instance.Create(n);
+                    string err = PlayerGuild.Instance.Create(n, _createFree);
                     Toast(err ?? $"길드 '{n}' 창설!");
+                    if (err == null) _tab = T.Members;
                 });
             });
             var re = UIFactory.AddButton("Re", bar, "추천 새로고침", 22, font, Dim, Color.white);
             Place((RectTransform)re.transform, 1262, -100, 200, 54);
             re.onClick.AddListener(() => PlayerGuild.Instance.RefreshRecommend());
 
-            _list = MakeList(-290, 720);
+            _list = MakeList(-352, 660);
             _root.SetActive(false);
-            PlayerGuild.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
+            PlayerGuild.Instance.OnChanged += RefreshIfOpen;
+            GuildLink.Instance.OnChanged += RefreshIfOpen;
+            GuildWar.Instance.OnChanged += RefreshIfOpen;
         }
+
+        private void RefreshIfOpen() { if (_root != null && _root.activeSelf) Refresh(); }
+
+        private float _askedAt = -999f;
+
+        /// <summary>화면이 열려 있는 동안 30초에 한 번 동기화 · 검색을 앞당김.</summary>
+        private void AskSync()
+        {
+            if (!GuildLink.Online || Time.unscaledTime - _askedAt < 30f) return;
+            _askedAt = Time.unscaledTime;
+            GuildLink.Instance.RequestSync();
+            GuildLink.Instance.RequestSearch();
+        }
+
+        // ---------------- 탭 ----------------
+
+        private List<T> TabsNow()
+        {
+            var g = PlayerGuild.Instance;
+            if (!g.Joined) return new List<T> { T.Find, T.Rank };
+            var list = new List<T> { T.Members };
+            if (g.IsReal && g.IsLeader) list.Add(T.Requests);
+            list.Add(T.Boss); list.Add(T.War); list.Add(T.Rank);
+            return list;
+        }
+
+        private string TabLabel(T t)
+        {
+            var g = PlayerGuild.Instance;
+            return t switch
+            {
+                T.Find => "길드 찾기",
+                T.Members => "길드원",
+                T.Requests => "가입 신청" + (g.Requests.Count > 0 ? $"  <color=#FF6B6B>●{g.Requests.Count}</color>" : ""),
+                T.Boss => "길드 보스" + (GuildBoss.ClaimableCount > 0 ? $"  <color=#FF6B6B>●{GuildBoss.ClaimableCount}</color>" : ""),
+                T.War => "길드전",
+                _ => "순위",
+            };
+        }
+
+        private void BuildTabs()
+        {
+            foreach (var b in _tabs) if (b != null) Destroy(b.gameObject);
+            _tabs.Clear();
+            var tabs = TabsNow();
+            if (!tabs.Contains(_tab)) _tab = tabs[0];
+            float w = 280f, gap = 14f, x0 = -(tabs.Count - 1) * (w + gap) / 2f;
+            for (int i = 0; i < tabs.Count; i++)
+            {
+                var t = tabs[i];
+                var b = TopButton(TabLabel(t), x0 + i * (w + gap), -288, w, t == _tab ? Blue : Dim, () => { _tab = t; Refresh(); });
+                b.GetComponentInChildren<TextMeshProUGUI>().richText = true;
+                _tabs.Add(b);
+            }
+        }
+
+        // ---------------- 그리기 ----------------
 
         protected override void Refresh()
         {
             var g = PlayerGuild.Instance;
+            AskSync();
+            if (g.Notices.Count > 0)
+            {
+                Notice("길드 알림", string.Join("\n", g.Notices), 380);
+                g.Notices.Clear();
+            }
             bool joined = g.Joined;
-            _head.gameObject.SetActive(true);
             _createBar.SetActive(!joined);
+            _head.gameObject.SetActive(joined);
             Clear(_list);
             for (int i = _head.childCount - 1; i >= 0; i--) Destroy(_head.GetChild(i).gameObject);
-            if (!joined) { BuildRecommend(); return; }
+            if (joined) BuildHead(g); else BuildCreateBar(g);
+            BuildTabs();
+            switch (_tab)
+            {
+                case T.Find: BuildFind(g); break;
+                case T.Members: BuildMembers(g); break;
+                case T.Requests: BuildRequests(g); break;
+                case T.Boss: BuildBoss(g); break;
+                case T.War: BuildWar(g); break;
+                default: BuildRank(g); break;
+            }
+        }
 
-            // --- 길드 정보 ---
+        private void BuildCreateBar(PlayerGuild g)
+        {
+            string req = !string.IsNullOrEmpty(g.RequestedGid)
+                ? $"   <size=75%><color=#FFE08A>'{g.RequestedName}' 길드에 가입 신청 중 — 길드장이 수락하면 가입됩니다</color></size>" : "";
+            string online = GuildLink.Online
+                ? "로그인 중이라 만든 길드는 <color=#7CFF9A>다른 플레이어가 찾아 가입하는 플레이어 길드</color>가 됩니다."
+                : "로그인하지 않아 만든 길드는 가상 길드원과 함께하는 길드가 됩니다(플레이어 길드는 설정 → 로그인).";
+            _createTip.text = $"<b>길드에 가입해 보세요</b>{req}\n<size=75%><color=#9AA3B5>출석 · 기부 · 길드 보스 · 길드전으로 보상을 받고 길드를 함께 키웁니다. 직접 만들려면 금화 {PlayerGuild.CreateCost:N0} — {online}</color></size>";
+            _freeBtn.gameObject.SetActive(GuildLink.Online);
+            _freeBtn.GetComponentInChildren<TextMeshProUGUI>().text = _createFree ? "가입: 자유" : "가입: 승인 후";
+        }
+
+        private void BuildHead(PlayerGuild g)
+        {
             var icon = GameArt.Load("Items/GuildIcon");
             if (icon != null)
             {
@@ -438,12 +545,13 @@ namespace SubcultureRPG.Meta.UI
                 im.preserveAspect = true;
                 Place(im.rectTransform, 22, -20, 130, 130);
             }
-            var name = Text(_head, $"<b>{g.Name}</b>   <size=70%><color=#FFD36B>Lv.{g.Level}</color>   <color=#9AA3B5>길드원 {g.Members}/{PlayerGuild.MaxMembers}</color></size>",
+            string tag = g.IsReal ? "   <color=#7CFF9A>● 플레이어 길드</color>" : "";
+            var name = Text(_head, $"<b>{g.Name}</b>   <size=70%><color=#FFD36B>Lv.{g.Level}</color>   <color=#9AA3B5>길드원 {g.Members}/{PlayerGuild.MaxMembers}</color>{tag}</size>",
                 34, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Place(name.rectTransform, 172, -16, 760, 48);
-            var intro = Text(_head, $"\"{g.Intro}\"   <color=#9AA3B5>이번 주 내 기여도 {g.Contribution:N0}</color>", 20, new Color(0.82f, 0.85f, 0.92f), FontStyles.Normal, TextAlignmentOptions.Left);
-            Place(intro.rectTransform, 172, -68, 760, 30);
-            // 경험치 막대
+            Place(name.rectTransform, 172, -16, 700, 48);
+            string sync = g.IsReal && GuildLink.Instance.Error != null ? $"   <color=#FFB347>{GuildLink.Instance.Error}</color>" : "";
+            var intro = Text(_head, $"\"{g.Intro}\"   <color=#9AA3B5>이번 주 내 기여도 {g.Contribution:N0}</color>{sync}", 20, new Color(0.82f, 0.85f, 0.92f), FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(intro.rectTransform, 172, -68, 700, 30);
             bool max = g.Level >= PlayerGuild.MaxLevel;
             int need = PlayerGuild.ExpForNext(g.Level);
             var bg = UIFactory.AddImage("ExpBg", _head, new Color(0, 0, 0, 0.5f));
@@ -454,29 +562,26 @@ namespace SubcultureRPG.Meta.UI
             var exp = Text(_head, max ? "최고 레벨" : $"길드 경험치 {g.Exp:N0} / {need:N0}", 18, new Color(0.75f, 0.78f, 0.86f), FontStyles.Normal, TextAlignmentOptions.Left);
             Place(exp.rectTransform, 172, -130, 600, 26);
 
-            HeadButton(g.Attended ? "출석 완료" : $"출석\n<size=62%>금화 {g.AttendGoldNow:N0} · 크리스탈 {PlayerGuild.AttendCrystals}</size>", 960, 230, Green, !g.Attended, () =>
+            HeadButton(g.Attended ? "출석 완료" : $"출석\n<size=62%>금화 {g.AttendGoldNow:N0} · 크리스탈 {PlayerGuild.AttendCrystals}</size>", 880, 220, Green, !g.Attended, () =>
             {
                 int gold = PlayerGuild.Instance.AttendGoldNow;
                 if (PlayerGuild.Instance.Attend()) Toast($"출석 완료 — 금화 +{gold:N0} · 크리스탈 +{PlayerGuild.AttendCrystals}");
             });
-            HeadButton($"기부 {g.DonationsLeft}/{PlayerGuild.DonatePerDay}\n<size=62%>금화 {PlayerGuild.DonateCost:N0} → 크리스탈 {PlayerGuild.DonateCrystals}</size>", 1200, 170, Gold, g.DonationsLeft > 0, () =>
+            HeadButton($"기부 {g.DonationsLeft}/{PlayerGuild.DonatePerDay}\n<size=62%>금화 {PlayerGuild.DonateCost:N0} → 크리스탈 {PlayerGuild.DonateCrystals}</size>", 1110, 170, Gold, g.DonationsLeft > 0, () =>
             {
                 string err = PlayerGuild.Instance.Donate();
-                Toast(err ?? $"기부 완료 — 길드 경험치 +{PlayerGuild.DonateExp} · 크리스탈 +{PlayerGuild.DonateCrystals}");
+                Toast(err ?? $"기부 완료 — 기여도 +{PlayerGuild.DonateExp} · 크리스탈 +{PlayerGuild.DonateCrystals}");
             });
-            HeadButton("탈퇴", 1380, 82, Red, true, () => Confirm($"길드 '{PlayerGuild.Instance.Name}'에서 탈퇴할까요?", "탈퇴", () => PlayerGuild.Instance.Leave()));
-
-            // --- 길드원 ---
-            int rank = 1;
-            foreach (var m in g.MemberList(Db()))
+            if (g.IsReal)
             {
-                string roleColor = m.role == "길드장" ? "#FFD36B" : m.role == "부길드장" ? "#9AD4FF" : "#9AA3B5";
-                var row = CommanderRow(_list, m.me ? null : m.commander, $"<color={roleColor}>{m.role}</color>");
-                var c = Text(row.transform, $"<size=70%><color=#9AA3B5>주간 기여도 {rank}위</color></size>\n<b>{m.contribution:N0}</b>", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
-                UIFactory.Anchor(c.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
-                c.rectTransform.sizeDelta = new Vector2(300, 80); c.rectTransform.anchoredPosition = new Vector2(-28, 0);
-                rank++;
+                int unread = ChatService.Instance.UnreadGuild;
+                HeadButton("채팅" + (unread > 0 ? $"\n<size=62%><color=#FF6B6B>●{unread}</color></size>" : ""), 1290, 80, Blue, true,
+                    () => ChatWindow.Open(font, ChatService.GuildPeer));
             }
+            bool disband = g.IsReal && g.IsLeader;
+            HeadButton(disband ? "해산" : "탈퇴", 1380, 82, Red, true, () => Confirm(
+                disband ? $"길드장이 나가면 길드 '{g.Name}'이(가) 해산됩니다.\n<size=80%><color=#9AA3B5>길드원은 다음 동기화 때 자동으로 나가집니다(길드장 위임은 다음 버전).</color></size>" : $"길드 '{g.Name}'에서 탈퇴할까요?",
+                disband ? "해산" : "탈퇴", () => { PlayerGuild.Instance.Leave(); _tab = T.Find; }));
         }
 
         private void HeadButton(string label, float x, float w, Color color, bool enabled, System.Action onClick)
@@ -488,34 +593,315 @@ namespace SubcultureRPG.Meta.UI
             b.onClick.AddListener(() => onClick());
         }
 
-        private void BuildRecommend()
+        private TextMeshProUGUI RightNote(Image row, string text, float w = 360, float right = 28)
         {
-            _head.gameObject.SetActive(false);
+            var c = Text(row.transform, text, 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
+            UIFactory.Anchor(c.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
+            c.rectTransform.sizeDelta = new Vector2(w, 90); c.rectTransform.anchoredPosition = new Vector2(-right, 0);
+            c.richText = true;
+            return c;
+        }
+
+        private void EmptyRow(string msg)
+        {
+            var row = Row(_list, new Color(0.07f, 0.08f, 0.12f, 0.75f), 90);
+            var t = Text(row.transform, msg, 22, new Color(0.7f, 0.74f, 0.82f), FontStyles.Normal, TextAlignmentOptions.Center);
+            UIFactory.Stretch(t.rectTransform, 20, 10, 20, 10);
+            t.textWrappingMode = TextWrappingModes.Normal;
+        }
+
+        // ---------------- 길드 찾기 ----------------
+
+        private void BuildFind(PlayerGuild g)
+        {
             int myLevel = PlayerProfile.Instance.Level;
-            foreach (var info in PlayerGuild.Instance.Recommended())
+            var link = GuildLink.Instance;
+            if (GuildLink.Online)
             {
-                var gi = info;
-                var row = Row(_list, new Color(0.07f, 0.08f, 0.12f, 0.9f), 100);
-                var icon = GameArt.Load("Items/GuildIcon");
-                if (icon != null)
-                {
-                    var im = UIFactory.AddImage("Icon", row.transform, Color.white, icon);
-                    im.preserveAspect = true;
-                    Place(im.rectTransform, 18, -10, 80, 80);
-                }
-                var t1 = Text(row.transform, $"<b>{gi.name}</b>   <size=72%><color=#FFD36B>Lv.{gi.level}</color>   <color=#9AA3B5>길드원 {gi.members}/{PlayerGuild.MaxMembers}</color></size>",
-                    28, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-                Place(t1.rectTransform, 116, -12, 700, 40);
-                bool ok = myLevel >= gi.minLevel;
-                var t2 = Text(row.transform, $"\"{gi.intro}\"   <color={(ok ? "#9AA3B5" : "#FF8A8A")}>가입 조건 지휘관 Lv.{gi.minLevel} 이상</color>", 20,
-                    new Color(0.82f, 0.85f, 0.92f), FontStyles.Normal, TextAlignmentOptions.Left);
-                Place(t2.rectTransform, 116, -56, 1000, 30);
-                RowButton(row, 0, "가입", Blue, () =>
-                {
-                    string err = PlayerGuild.Instance.Join(gi);
-                    Toast(err ?? $"'{gi.name}'에 가입했습니다");
-                }, ok);
+                if (link.Error != null) EmptyRow($"<color=#FFB347>{link.Error}</color>");
+                else if (link.Searching && link.Found.Count == 0) EmptyRow("플레이어 길드를 찾는 중...");
+                foreach (var info in link.Found) GuildRow(info, myLevel, g);
+                if (!link.Searching && link.Found.Count == 0 && link.Error == null) EmptyRow("모집 중인 플레이어 길드가 아직 없습니다 — 직접 만들어 친구를 초대해 보세요!");
             }
+            foreach (var info in g.Recommended()) GuildRow(info, myLevel, g);
+        }
+
+        private void GuildRow(GuildInfo gi, int myLevel, PlayerGuild g)
+        {
+            var row = Row(_list, gi.Real ? new Color(0.07f, 0.11f, 0.1f, 0.92f) : new Color(0.07f, 0.08f, 0.12f, 0.9f), 100);
+            var icon = GameArt.Load("Items/GuildIcon");
+            if (icon != null)
+            {
+                var im = UIFactory.AddImage("Icon", row.transform, Color.white, icon);
+                im.preserveAspect = true;
+                Place(im.rectTransform, 18, -10, 80, 80);
+            }
+            string tag = gi.Real ? $"   <color=#7CFF9A>● 플레이어 길드</color>   <color=#9AA3B5>{(gi.free ? "자유 가입" : "승인 후 가입")}{(gi.leaderName != "" ? $" · 길드장 {gi.leaderName}" : "")}</color>" : "";
+            var t1 = Text(row.transform, $"<b>{gi.name}</b>   <size=72%><color=#FFD36B>Lv.{gi.level}</color>   <color=#9AA3B5>길드원 {gi.members}/{PlayerGuild.MaxMembers}</color>{tag}</size>",
+                28, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t1.rectTransform, 116, -12, 1100, 40);
+            bool ok = myLevel >= gi.minLevel;
+            var t2 = Text(row.transform, $"\"{gi.intro}\"   <color={(ok ? "#9AA3B5" : "#FF8A8A")}>가입 조건 지휘관 Lv.{gi.minLevel} 이상</color>", 20,
+                new Color(0.82f, 0.85f, 0.92f), FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t2.rectTransform, 116, -56, 1000, 30);
+            bool requested = gi.Real && g.RequestedGid == gi.gid;
+            if (requested)
+            {
+                RowButton(row, 0, "신청 취소", Dim, () => { PlayerGuild.Instance.CancelRequest(); Toast("가입 신청을 취소했습니다"); });
+                return;
+            }
+            string label = gi.Real && !gi.free ? "가입 신청" : "가입";
+            RowButton(row, 0, label, Blue, () =>
+            {
+                if (!string.IsNullOrEmpty(PlayerGuild.Instance.RequestedGid) && gi.Real)
+                {
+                    Toast("이미 다른 길드에 가입 신청 중입니다 — 먼저 신청을 취소해 주세요");
+                    return;
+                }
+                string err = PlayerGuild.Instance.Join(gi);
+                Toast(err ?? (gi.Real && !gi.free ? $"'{gi.name}'에 가입 신청을 보냈습니다" : $"'{gi.name}'에 가입했습니다"));
+                if (err == null && PlayerGuild.Instance.Joined) _tab = T.Members;
+            }, ok);
+        }
+
+        // ---------------- 길드원 · 가입 신청 ----------------
+
+        private void BuildMembers(PlayerGuild g)
+        {
+            var db = Db();
+            int rank = 1;
+            bool leader = g.IsReal && g.IsLeader;
+            if (g.IsReal && g.RealMembers.Count == 0 && GuildLink.Instance.SyncedAt == System.DateTime.MinValue)
+                EmptyRow(GuildLink.Instance.Busy ? "길드원 정보를 불러오는 중..." : "길드원 정보를 아직 불러오지 못했습니다");
+            foreach (var m in g.MemberList(db))
+            {
+                string roleColor = m.role == "길드장" ? "#FFD36B" : m.role == "부길드장" ? "#9AD4FF" : "#9AA3B5";
+                string role = $"<color={roleColor}>{m.role}</color>";
+                Image row = m.me ? CommanderRow(_list, null, role)
+                    : m.Real ? SnapRow(_list, m.snap, role, "", 120)
+                    : CommanderRow(_list, m.commander, role);
+                string note = $"<size=65%><color=#9AA3B5>주간 기여도 {rank}위</color></size>\n<b>{m.contribution:N0}</b>" +
+                              $"\n<size=60%><color=#C9A0FF>보스 {Short(m.bossDamage)}</color>  <color=#FFD36B>★{m.warStars}</color></size>";
+                RightNote(row, note, 300, leader && m.Real && !m.me ? 190 : 28);
+                if (leader && m.Real && !m.me)
+                {
+                    var who = m;
+                    RowButton(row, 0, "추방", Red, () => Confirm($"{who.snap?.name ?? "길드원"} 님을 길드에서 내보낼까요?", "추방", () =>
+                    {
+                        GuildLink.Instance.Kick(who.pid);
+                        Toast("길드에서 내보냈습니다 — 상대가 다음 동기화 때 나가집니다");
+                    }));
+                }
+                rank++;
+            }
+        }
+
+        private void BuildRequests(PlayerGuild g)
+        {
+            // 모집 설정
+            var info = g.RealInfo;
+            bool free = info == null || info.free;
+            var set = Row(_list, new Color(0.08f, 0.09f, 0.14f, 0.92f), 96);
+            var st = Text(set.transform, $"<b>모집 설정</b>   <size=80%><color=#9AA3B5>가입 방식</color> {(free ? "자유 가입" : "승인 후 가입")}   <color=#9AA3B5>가입 조건</color> 지휘관 Lv.{info?.minLv ?? 1} 이상\n<color=#9AA3B5>소개</color> \"{g.Intro}\"</size>",
+                24, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(st.rectTransform, 24, -10, 900, 80);
+            int minLv = info?.minLv ?? 1;
+            RowButton(set, 0, free ? "승인제로" : "자유 가입으로", Dim, () => { PlayerGuild.Instance.EditRecruit(PlayerGuild.Instance.Intro, !free, minLv); Toast("가입 방식을 바꿨습니다"); });
+            RowButton(set, 1, "소개 바꾸기", Dim, () => EditIntro(free, minLv));
+            RowButton(set, 2, $"조건 Lv.{NextMinLevel(minLv)}", Dim, () => { PlayerGuild.Instance.EditRecruit(PlayerGuild.Instance.Intro, free, NextMinLevel(minLv)); });
+
+            if (g.Requests.Count == 0)
+            {
+                EmptyRow(free ? "자유 가입 길드라 신청 없이 바로 들어옵니다" : "받은 가입 신청이 없습니다");
+                return;
+            }
+            foreach (var s in g.Requests)
+            {
+                var sn = s;
+                var row = SnapRow(_list, sn, "<color=#FFE08A>가입 신청</color>");
+                RowButton(row, 0, "거절", Red, () => { GuildLink.Instance.Decline(sn.pid); Toast("가입 신청을 거절했습니다"); });
+                RowButton(row, 1, "수락", Green, () =>
+                {
+                    Toast(GuildLink.Instance.Accept(sn.pid) ? $"{sn.name} 님의 가입을 수락했습니다 — 상대가 다음 동기화 때 들어옵니다" : "정원이 가득 찼습니다");
+                });
+            }
+        }
+
+        private static int NextMinLevel(int cur)
+        {
+            int[] steps = { 1, 10, 20, 30, 40, 50, 60 };
+            for (int i = 0; i < steps.Length; i++) if (steps[i] > cur) return steps[i];
+            return 1;
+        }
+
+        private void EditIntro(bool free, int minLv)
+        {
+            var p = OpenDialog("길드 소개 바꾸기", 900, 300);
+            var field = Input(p, $"소개 ({PlayerGuild.MaxIntroLength}자까지)", PlayerGuild.MaxIntroLength, 24);
+            field.text = PlayerGuild.Instance.Intro;
+            Place((RectTransform)field.transform, 30, -90, 840, 60);
+            var ok = UIFactory.AddButton("Ok", p, "저장", 24, font, Blue, Color.white);
+            Place((RectTransform)ok.transform, 340, -190, 220, 60);
+            ok.onClick.AddListener(() =>
+            {
+                PlayerGuild.Instance.EditRecruit(field.text, free, minLv);
+                CloseDialog();
+                Toast("길드 소개를 바꿨습니다");
+            });
+        }
+
+        // ---------------- 길드 보스 ----------------
+
+        private void BuildBoss(PlayerGuild g)
+        {
+            long total = GuildBoss.GuildTotal;
+            int cleared = GuildBoss.Cleared(total), cur = GuildBoss.Current(total);
+            long hp = GuildBoss.StageHp(cur), into = System.Math.Min(hp, total - GuildBoss.ClearAt(cur - 1));
+            bool done = cleared >= GuildBoss.MaxStage;
+
+            var top = Row(_list, new Color(0.09f, 0.06f, 0.12f, 0.94f), 250);
+            var art = GameArt.Enemy(GuildBoss.BossName);
+            if (art != null)
+            {
+                var im = UIFactory.AddImage("Boss", top.transform, Color.white, art);
+                im.preserveAspect = true;
+                Place(im.rectTransform, 18, -10, 230, 230);
+            }
+            var title = Text(top.transform, $"<b>{GuildBoss.BossName}</b>   <size=70%><color=#FFB3A0>{(done ? "모든 단계 격파!" : $"{cur}단계 · Lv.{GuildBoss.LevelOf(cur)} · {WorldRaid.Diff(GuildBoss.DifficultyOf(cur)).name}")}</color></size>",
+                34, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(title.rectTransform, 270, -18, 900, 46);
+            var barBg = UIFactory.AddImage("HpBg", top.transform, new Color(0, 0, 0, 0.55f));
+            Place(barBg.rectTransform, 270, -78, 860, 26);
+            var bar = UIFactory.AddImage("Hp", barBg.transform, new Color(0.85f, 0.3f, 0.38f));
+            float left = done ? 0f : 1f - Mathf.Clamp01(into / (float)hp);
+            bar.rectTransform.anchorMin = Vector2.zero; bar.rectTransform.anchorMax = new Vector2(left, 1f);
+            bar.rectTransform.offsetMin = Vector2.zero; bar.rectTransform.offsetMax = Vector2.zero;
+            var hpText = Text(top.transform, done ? "이번 주 보스를 모두 쓰러뜨렸습니다" : $"남은 체력 {hp - into:N0} / {hp:N0}", 20, new Color(1f, 0.86f, 0.88f), FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(hpText.rectTransform, 270, -108, 860, 28);
+            string kind = g.IsReal ? "길드원 피해의 합" : "나 + 가상 길드원이 날마다 보탠 피해";
+            var info = Text(top.transform,
+                $"<color=#9AA3B5>길드 합계</color>  {total:N0}  <size=80%><color=#9AA3B5>({kind})</color></size>\n" +
+                $"<color=#9AA3B5>이번 주 내 피해</color>  {g.MyBossDamage:N0}   <color=#9AA3B5>오늘 남은 도전</color>  <color={(GuildBoss.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}>{GuildBoss.AttemptsLeft}</color> / {GuildBoss.AttemptsPerDay}\n" +
+                $"<size=80%><color=#9AA3B5>제한 {WorldRaid.TimeLimit / 60f:0}분 · 30초마다 격노 · 단계를 깨면 다음 단계(체력 ×3) · 지난주 길드 순위 보상은 월요일 우편</color></size>",
+                22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(info.rectTransform, 270, -142, 900, 100);
+            var go = UIFactory.AddButton("Go", top.transform, done ? "격파 완료" : "도전", 30, font, done || GuildBoss.AttemptsLeft <= 0 ? new Color(1, 1, 1, 0.08f) : Red, Color.white);
+            UIFactory.Anchor((RectTransform)go.transform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
+            ((RectTransform)go.transform).sizeDelta = new Vector2(240, 110); ((RectTransform)go.transform).anchoredPosition = new Vector2(-30, 0);
+            go.interactable = !done && GuildBoss.AttemptsLeft > 0;
+            go.onClick.AddListener(() => OnBossChallenge?.Invoke());
+
+            for (int s = 1; s <= GuildBoss.MaxStage; s++)
+            {
+                int st = s;
+                bool reached = cleared >= s, claimed = g.BossClaimed(s);
+                var row = Row(_list, reached && !claimed ? new Color(0.1f, 0.14f, 0.1f, 0.92f) : new Color(0.07f, 0.08f, 0.12f, 0.85f), 76);
+                var t = Text(row.transform, $"<b>{s}단계 격파</b>   <size=80%><color=#9AA3B5>누적 {GuildBoss.ClearAt(s):N0}</color>   <color=#8FE9FF>{GuildBoss.StageRewards[s - 1].label}</color></size>",
+                    24, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+                Place(t.rectTransform, 24, -18, 1100, 40);
+                var b = RowButton(row, 0, claimed ? "받음" : reached ? "받기" : "미달성", claimed || !reached ? Dim : Green, () =>
+                {
+                    var r = GuildBoss.Claim(st);
+                    if (r != null) Toast($"{st}단계 보상 — {r.Describe()}");
+                }, reached && !claimed);
+            }
+        }
+
+        private static string Short(long v) =>
+            v >= 100_000_000 ? $"{v / 100_000_000.0:0.#}억" : v >= 10_000 ? $"{v / 10_000.0:0.#}만" : v.ToString("N0");
+
+        // ---------------- 길드전 ----------------
+
+        private void BuildWar(PlayerGuild g)
+        {
+            var db = Db();
+            var war = GuildWar.Instance;
+            var opp = GuildWar.Opponent();
+            int ours = GuildWar.OurStars(), theirs = GuildWar.TheirStars();
+            var left = SubcultureRPG.Meta.Shop.PlayerShop.UntilReset(SubcultureRPG.Meta.Shop.ShopReset.Weekly, System.DateTime.Now) ?? System.TimeSpan.Zero;
+
+            var top = Row(_list, new Color(0.07f, 0.09f, 0.14f, 0.94f), 170);
+            var t1 = Text(top.transform, $"<b>이번 주 상대  {opp.name}</b>   <size=70%><color=#FFD36B>Lv.{opp.level}</color>   <color=#9AA3B5>가상 길드 · 결과는 월요일 05:00 (남은 시간 {left.Days}일 {left.Hours}시간)</color></size>",
+                32, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t1.rectTransform, 24, -14, 1400, 44);
+            string state = ours > theirs ? "<color=#7CFF9A>우세</color>" : ours == theirs ? "<color=#FFD36B>접전</color>" : "<color=#FF8A8A>열세</color>";
+            var t2 = Text(top.transform, $"우리 길드  <color=#FFD36B><b>★{ours}</b></color>  :  <b>★{theirs}</b>  상대 길드   {state}   <size=75%><color=#9AA3B5>(최대 ★{GuildWar.MaxStars})</color></size>",
+                34, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t2.rectTransform, 24, -64, 1100, 50);
+            var t3 = Text(top.transform, $"<color=#9AA3B5>오늘 남은 공격</color>  <color={(GuildWar.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}>{GuildWar.AttemptsLeft}</color> / {GuildWar.AttemptsPerDay}   " +
+                                         "<size=85%><color=#9AA3B5>이기면 별 — 모두 살아남음 ★3 · 절반 이상 ★2 · 그 밖 ★1. 길드 별 = 상대마다 길드원 최고 별의 합</color></size>",
+                22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t3.rectTransform, 24, -118, 1420, 40);
+
+            var defs = war.DefenderTeams(db);
+            int[] best = GuildBestStars(g);
+            for (int i = 0; i < defs.Count; i++)
+            {
+                int idx = i;
+                var com = war.DefenderCommander(i, db);
+                com.power = defs[i].power;
+                var row = CommanderRow(_list, com, $"<color=#FF9A6B>{i + 1}번 방어</color>",
+                    $"<color=#9AA3B5>길드 최고</color> {StarStr(best[i])}\n<color=#9AA3B5>내 최고</color> {StarStr(g.WarStarsOf(i))}\n<size=85%><color=#9AA3B5>Lv.{defs[i].level} · +{defs[i].transcend}</color></size>");
+                bool can = GuildWar.AttemptsLeft > 0;
+                RowButton(row, 0, "공격", can ? Red : Dim, () => OnWarChallenge?.Invoke(idx), can);
+            }
+        }
+
+        /// <summary>상대 길드원별 우리 길드 최고 별.</summary>
+        private static int[] GuildBestStars(PlayerGuild g)
+        {
+            var best = g.MyWarStars;
+            if (g.IsReal)
+                foreach (var m in g.RealMembers)
+                    if (m.warDetail != null) for (int i = 0; i < best.Length && i < m.warDetail.Length; i++) best[i] = Mathf.Max(best[i], m.warDetail[i]);
+            return best;
+        }
+
+        private static string StarStr(int n) => $"<color=#FFD36B>{new string('★', Mathf.Clamp(n, 0, 3))}</color><color=#555B66>{new string('☆', 3 - Mathf.Clamp(n, 0, 3))}</color>";
+
+        // ---------------- 순위 ----------------
+
+        private void BuildRank(PlayerGuild g)
+        {
+            if (GuildLink.Online && (System.DateTime.Now - GuildLink.Instance.RankedAt).TotalMinutes > 3) _ = GuildLink.Instance.RefreshRankAsync();
+            var sub = Row(_list, new Color(0.06f, 0.07f, 0.11f, 0.9f), 76);
+            var tabs = new[] { GuildRanking.Tab.Boss, GuildRanking.Tab.War, GuildRanking.Tab.Level };
+            for (int i = 0; i < tabs.Length; i++)
+            {
+                var tt = tabs[i];
+                var b = UIFactory.AddButton("Sub", sub.transform, GuildRanking.TabName(tt), 22, font, tt == _rankTab ? Blue : Dim, Color.white);
+                Place((RectTransform)b.transform, 20 + i * 230, -12, 214, 52);
+                b.onClick.AddListener(() => { _rankTab = tt; Refresh(); });
+            }
+            string realNote = GuildLink.Online ? (GuildLink.Instance.Error ?? $"플레이어 길드 {GuildLink.Instance.Ranked.Count}곳 포함") : "로그인하면 플레이어 길드도 함께 보입니다";
+            var note = Text(sub.transform, $"<size=80%><color=#9AA3B5>가상 길드 · 플레이어 길드가 한 표에 — {realNote}</color></size>", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
+            Place(note.rectTransform, 720, -20, 740, 40);
+
+            var list = GuildRanking.Build(_rankTab);
+            int mine = list.FindIndex(x => x.mine);
+            if (mine >= 0) RankRow(list[mine], mine + 1, true);
+            for (int i = 0; i < list.Count && i < 50; i++) RankRow(list[i], i + 1, false);
+            if (mine >= 0 && _rankTab == GuildRanking.Tab.Boss) PlayerGuild.Instance.RefreshSeen();   // 지난주 정산용 순위 기억
+        }
+
+        private void RankRow(GuildInfo gi, int rank, bool pinned)
+        {
+            Color bg = gi.mine ? new Color(0.25f, 0.4f, 0.65f, 0.55f) : gi.Real ? new Color(0.07f, 0.11f, 0.1f, 0.9f) : new Color(0.07f, 0.08f, 0.12f, 0.88f);
+            var row = Row(_list, bg, 78);
+            string medal = rank == 1 ? "#FFD36B" : rank == 2 ? "#D8E0EA" : rank == 3 ? "#E0A070" : "#FFFFFF";
+            var r = Text(row.transform, $"<color={medal}><b>{rank}</b></color>", 34, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            Place(r.rectTransform, 10, -14, 110, 50);
+            string tag = (gi.mine ? "  <size=70%><color=#9AD4FF>우리 길드</color></size>" : "") + (gi.Real ? "  <size=70%><color=#7CFF9A>● 플레이어</color></size>" : "");
+            var n = Text(row.transform, $"<b>{gi.name}</b>{tag}   <size=72%><color=#FFD36B>Lv.{gi.level}</color>   <color=#9AA3B5>길드원 {gi.members}</color></size>",
+                26, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(n.rectTransform, 130, -18, 900, 42);
+            string score = _rankTab switch
+            {
+                GuildRanking.Tab.Boss => $"<color=#C9A0FF>{gi.bossDamage:N0}</color>  <size=70%><color=#9AA3B5>{GuildBoss.Cleared(gi.bossDamage)}단계</color></size>",
+                GuildRanking.Tab.War => $"<color=#FFD36B>★{gi.warStars}</color>",
+                _ => $"<color=#8FE9FF>경험치 {gi.exp:N0}</color>",
+            };
+            RightNote(row, (pinned ? "<size=70%><color=#9AA3B5>내 길드 순위</color></size>\n" : "") + score, 520);
         }
     }
 }

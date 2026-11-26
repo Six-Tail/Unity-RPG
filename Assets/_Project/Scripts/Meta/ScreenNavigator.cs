@@ -170,7 +170,25 @@ namespace SubcultureRPG.Meta
                     team => PlayerArena.Instance.Fight(o, team), HubScreen.Arena, "← 결투장");
             }
             if (friends != null) friends.SetBackAction(GoHome);
-            if (guild != null) guild.SetBackAction(GoHome);
+            if (guild != null)
+            {
+                guild.SetBackAction(GoHome);
+                guild.OnBossChallenge += () =>
+                {
+                    long total = GuildBoss.GuildTotal;
+                    int st = GuildBoss.Current(total);
+                    OpenModeParty($"길드 보스  ·  {GuildBoss.BossName}  <size=60%><color=#FFB3A0>{st}단계 · Lv.{GuildBoss.LevelOf(st)}</color>  <color=#C9A0FF>제한 시간 {WorldRaid.TimeLimit / 60f:0}분 · 길드원 피해 합산</color></size>", "도전!",
+                        team => { string err = GuildBoss.Fight(team); if (err != null) Popups.Show("길드 보스", err); }, HubScreen.Guild, "← 길드");
+                };
+                guild.OnWarChallenge += i =>
+                {
+                    var db = FindAnyObjectByType<PlayerRoster>()?.Database;
+                    var defs = GuildWar.Instance.DefenderTeams(db);
+                    var o = i >= 0 && i < defs.Count ? defs[i] : null;
+                    OpenModeParty($"길드전  ·  {GuildWar.Opponent().name}  {i + 1}번 {o?.name}  <size=60%><color=#FFB347>상대 전투력 {(o?.power ?? 0):N0}</color>  <color=#9AA3B5>모두 살아남으면 ★3</color></size>", "공격!",
+                        team => { string err = GuildWar.Instance.Fight(i, team); if (err != null) Popups.Show("길드전", err); }, HubScreen.Guild, "← 길드");
+                };
+            }
             if (raid != null)
             {
                 raid.SetBackAction(GoHome);
@@ -286,6 +304,7 @@ namespace SubcultureRPG.Meta
                 LimitedEvent.Instance.Leave();
                 PlayerTower.Instance.Leave();
                 FriendlyBattle.Instance.Leave();
+                GuildWar.Instance.Leave();
                 if (stageRunner != null) stageRunner.Clear();
                 if (party != null)
                 {

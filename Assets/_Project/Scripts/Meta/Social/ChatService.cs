@@ -13,7 +13,7 @@ namespace SubcultureRPG.Meta
     /// <summary>채팅 메시지 1개.</summary>
     public class ChatMessage
     {
-        public string peer;        // 전체 채팅이면 "", 1:1이면 상대 플레이어 id
+        public string peer;        // 전체 채팅이면 "", 길드 채팅이면 ChatService.GuildPeer, 1:1이면 상대 플레이어 id
         public string senderId, name, uid, text;
         public DateTime time;
         public bool mine;
@@ -21,7 +21,7 @@ namespace SubcultureRPG.Meta
     }
 
     /// <summary>
-    /// 채팅(Unity Vivox 텍스트 채팅 위에 올림): 전체 채팅 채널 + 친구 1:1 대화.
+    /// 채팅(Unity Vivox 텍스트 채팅 위에 올림): 전체 채팅 채널 + 길드 채팅(실제 길드 — 채널 stella_guild_{길드 id}) + 친구 1:1 대화.
     /// · 로그인(계정)해야 씀 — 게스트는 못 씀. 로그인하면 자동으로 연결
     /// · 메시지 = 짧은 JSON(이름 · UID · 내용) — 이름 표시가 Vivox 표시 이름 규칙에 묶이지 않게
     /// · 안전: 금칙어 가리기(<see cref="ChatFilter"/>) · 차단(차단한 사람 메시지 숨김, 이 계정에 저장) · 신고(서버 기록 + 자동 차단) · 도배 방지(2초에 1개 · 80자)
@@ -32,6 +32,8 @@ namespace SubcultureRPG.Meta
     {
         /// <summary>전체 채팅 채널. 지난 기록을 모두 지우려면 이름 뒤 번호를 올림(새 빈 채널 — 예전 채널 기록은 더 이상 안 불러옴).</summary>
         public const string WorldChannel = "stella_world_2";
+        /// <summary>길드 채팅: 채널 이름 = GuildPrefix + 길드 id, 대화 목록에서의 이름 = GuildPeer.</summary>
+        public const string GuildPrefix = "stella_guild_", GuildPeer = "#guild";
         public const int MaxLength = 80, KeepWorld = 100, KeepDirect = 60;
         public const float SendInterval = 2f;
         private const string BlockKey = "chat.blocked";
@@ -62,6 +64,8 @@ namespace SubcultureRPG.Meta
         private readonly Dictionary<string, List<ChatMessage>> _direct = new();
         private readonly Dictionary<string, int> _unread = new();
         public int UnreadWorld { get; private set; }
+        public int UnreadGuild => UnreadOf(GuildPeer);
+        private string _guildChannel = "";   // 들어가 있는(들어갈) 길드 채널
 
         /// <summary>메시지가 오거나 연결 상태가 바뀜.</summary>
         public event Action OnChanged;
@@ -116,6 +120,8 @@ namespace SubcultureRPG.Meta
                 }
                 catch (Exception he) { Debug.LogWarning($"[Chat] 지난 메시지를 불러오지 못했습니다: {he.Message}"); }
                 Connected = true;
+                var guild = PlayerGuild.Instance;
+                if (guild.IsReal) await JoinGuildAsync(guild.Gid);
 #endif
                 await Task.CompletedTask;
             }
@@ -162,7 +168,8 @@ namespace SubcultureRPG.Meta
 
         private void Receive(string channel, string senderId, string raw, DateTime time, bool fromSelf, bool direct, bool quiet = false)
         {
-            if (!direct && channel != null && channel != WorldChannel) return;
+            bool guild = !direct && !string.IsNullOrEmpty(channel) && channel == _guildChannel && _guildChannel != "";
+            if (!direct && !guild && channel != null && channel != WorldChannel) return;
             Payload p = null;
             try { p = JsonUtility.FromJson<Payload>(raw); } catch { }
             if (p == null || string.IsNullOrEmpty(p.m)) return;
@@ -171,7 +178,7 @@ namespace SubcultureRPG.Meta
             if (!mine && IsBlocked(senderId)) return;
             var msg = new ChatMessage
             {
-                peer = direct ? senderId : "", senderId = senderId, name = Clean(p.n, 16), uid = Clean(p.u, 8),
+                peer = direct ? senderId : guild ? GuildPeer : "", senderId = senderId, name = Clean(p.n, 16), uid = Clean(p.u, 8),
                 text = ChatFilter.Mask(Clean(p.m, MaxLength)), time = time == default ? DateTime.Now : time.ToLocalTime(), mine = mine,
             };
             if (direct)
@@ -179,6 +186,13 @@ namespace SubcultureRPG.Meta
                 if (!PlayerSocial.Instance.IsRealFriend(senderId)) return;   // 1:1은 친구끼리만
                 Add(Log(senderId), msg, KeepDirect);
                 _unread[senderId] = UnreadOf(senderId) + 1;
+            }
+            else if (guild)
+            {
+                var log = Log(GuildPeer);
+                if (log.Exists(x => x.senderId == senderId && x.time == msg.time && x.text == msg.text)) return;
+                Add(log, msg, KeepWorld);
+                if (!mine && !quiet) _unread[GuildPeer] = UnreadOf(GuildPeer) + 1;
             }
             else
             {
@@ -209,7 +223,64 @@ namespace SubcultureRPG.Meta
         }
 
         public int UnreadOf(string peer) => _unread.TryGetValue(peer, out int n) ? n : 0;
-        public int UnreadDirect { get { int n = 0; foreach (var kv in _unread) n += kv.Value; return n; } }
+        public int UnreadDirect { get { int n = 0; foreach (var kv in _unread) if (kv.Key != GuildPeer) n += kv.Value; return n; } }
+
+        // ---------------- 길드 채널 ----------------
+
+        /// <summary>실제 길드에 들어가면 그 길드 채널에 들어감(연결 전이면 연결될 때).</summary>
+        public void JoinGuild(string gid)
+        {
+            if (string.IsNullOrEmpty(gid)) return;
+            if (Connected) _ = JoinGuildAsync(gid);
+        }
+
+        private async Task JoinGuildAsync(string gid)
+        {
+            string ch = GuildPrefix + gid;
+            if (_guildChannel == ch) return;
+            if (!string.IsNullOrEmpty(_guildChannel)) await LeaveGuildAsync();
+            _guildChannel = ch;
+            try
+            {
+#if VIVOX_PRESENT
+                var v = VivoxService.Instance;
+                if (!v.ActiveChannels.ContainsKey(ch)) await v.JoinGroupChannelAsync(ch, ChatCapability.TextOnly);
+                try
+                {
+                    var history = await v.GetChannelTextMessageHistoryAsync(ch, 30);
+                    if (history != null)
+                        foreach (var m in history) Receive(m.ChannelName, m.SenderPlayerId, m.MessageText, m.ReceivedTime, m.FromSelf, false, quiet: true);
+                    Log(GuildPeer).Sort((a, b) => a.time.CompareTo(b.time));
+                }
+                catch (Exception he) { Debug.LogWarning($"[Chat] 길드 채팅 기록을 불러오지 못했습니다: {he.Message}"); }
+#endif
+                await Task.CompletedTask;
+            }
+            catch (Exception e) { Debug.LogWarning($"[Chat] 길드 채널 입장 실패: {e.Message}"); _guildChannel = ""; }
+            Changed();
+        }
+
+        /// <summary>길드를 나가면 길드 채널에서 나감 · 길드 대화 지움.</summary>
+        public void LeaveGuild(string gid) { _ = LeaveGuildAsync(); }
+
+        private async Task LeaveGuildAsync()
+        {
+            string ch = _guildChannel;
+            _guildChannel = "";
+            Log(GuildPeer).Clear();
+            _unread.Remove(GuildPeer);
+            if (string.IsNullOrEmpty(ch)) { Changed(); return; }
+            try
+            {
+#if VIVOX_PRESENT
+                var v = VivoxService.Instance;
+                if (v.ActiveChannels.ContainsKey(ch)) await v.LeaveChannelAsync(ch);
+#endif
+                await Task.CompletedTask;
+            }
+            catch (Exception e) { Debug.LogWarning($"[Chat] 길드 채널 나가기 실패: {e.Message}"); }
+            Changed();
+        }
         /// <summary>읽음 표시. 안 읽은 것이 있었을 때만 알림(창을 다시 그리는 중에 불러도 되돌아오지 않게).</summary>
         public void MarkRead(string peer)
         {
@@ -241,7 +312,9 @@ namespace SubcultureRPG.Meta
             if (text.Length == 0) return "";
             if (text.Length > MaxLength) return $"{MaxLength}자까지 보낼 수 있습니다";
             if (Time.unscaledTime - _lastSend < SendInterval) return "너무 빨리 보내고 있습니다. 잠시 뒤에 보내 주세요";
-            if (!string.IsNullOrEmpty(peer) && !PlayerSocial.Instance.IsRealFriend(peer)) return "1:1 대화는 친구끼리만 할 수 있습니다";
+            bool toGuild = peer == GuildPeer;
+            if (toGuild && string.IsNullOrEmpty(_guildChannel)) return "길드 채팅에 연결하는 중입니다...";
+            if (!toGuild && !string.IsNullOrEmpty(peer) && !PlayerSocial.Instance.IsRealFriend(peer)) return "1:1 대화는 친구끼리만 할 수 있습니다";
             _lastSend = Time.unscaledTime;
             var pf = PlayerProfile.Instance;
             string payload = JsonUtility.ToJson(new Payload { n = pf.DisplayName, u = pf.Uid, m = ChatFilter.Mask(text) });
@@ -249,6 +322,7 @@ namespace SubcultureRPG.Meta
             {
 #if VIVOX_PRESENT
                 if (string.IsNullOrEmpty(peer)) await VivoxService.Instance.SendChannelTextMessageAsync(WorldChannel, payload);
+                else if (toGuild) await VivoxService.Instance.SendChannelTextMessageAsync(_guildChannel, payload);
                 else
                 {
                     await VivoxService.Instance.SendDirectTextMessageAsync(peer, payload);

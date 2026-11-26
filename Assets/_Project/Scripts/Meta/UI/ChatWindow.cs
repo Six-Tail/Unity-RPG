@@ -77,6 +77,8 @@ namespace SubcultureRPG.Meta.UI
 
                 OverlayWindow.Clear(left);
                 PeerButton(left, w.Font, "전체 채팅", "", chat.UnreadWorld, Rebuild);
+                if (PlayerGuild.Instance.IsReal) PeerButton(left, w.Font, "길드 채팅", ChatService.GuildPeer, chat.UnreadGuild, Rebuild);
+                else if (_peer == ChatService.GuildPeer) _peer = "";
                 foreach (var f in PlayerSocial.Instance.RealFriends)
                     PeerButton(left, w.Font, f.name, f.pid, chat.UnreadOf(f.pid), Rebuild);
                 if (PlayerSocial.Instance.RealFriends.Count == 0)
@@ -89,7 +91,9 @@ namespace SubcultureRPG.Meta.UI
                 var list = string.IsNullOrEmpty(_peer) ? chat.World : chat.Log(_peer);
                 if (list.Count == 0)
                 {
-                    string empty = string.IsNullOrEmpty(_peer) ? "아직 메시지가 없습니다. 첫 인사를 남겨 보세요!" : "아직 대화가 없습니다. 상대가 접속 중일 때 메시지가 전달됩니다.";
+                    string empty = string.IsNullOrEmpty(_peer) ? "아직 메시지가 없습니다. 첫 인사를 남겨 보세요!"
+                        : _peer == ChatService.GuildPeer ? "길드원에게 첫 인사를 남겨 보세요!"
+                        : "아직 대화가 없습니다. 상대가 접속 중일 때 메시지가 전달됩니다.";
                     var e = UIFactory.AddText("Empty", content, $"<color=#9AA3B5>{empty}</color>", 20, w.Font, Color.white, TextAlignmentOptions.Center);
                     e.gameObject.AddComponent<LayoutElement>().preferredHeight = 80;
                 }

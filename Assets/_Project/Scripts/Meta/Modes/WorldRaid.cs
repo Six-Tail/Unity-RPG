@@ -408,7 +408,10 @@ namespace SubcultureRPG.Meta
         /// 월드 레이드(서버 공유 보스) 전투: 같은 시간 제한 · 격노(극악 배율)로 싸우고, 끝나면 준 피해를 onEnd로 넘김.
         /// 도전 횟수 차감 · 보스 데이터 정리는 ServerRaid가 함.
         /// </summary>
-        public bool FightWorld(IList<CharacterData> party, BattleUnitData boss, string exitLabel, Action<long> onEnd, Func<string> retry)
+        /// <param name="difficulty">격노 · 비례 피해 배율에 쓸 난이도(생략 = 극악). 길드 보스는 단계에 맞춤.</param>
+        /// <param name="backgrounds">전투 배경 후보(생략 = 월드 레이드 배경).</param>
+        public bool FightWorld(IList<CharacterData> party, BattleUnitData boss, string exitLabel, Action<long> onEnd, Func<string> retry,
+            int difficulty = DifficultyCount - 1, string[] backgrounds = null)
         {
             if (party == null || party.Count == 0 || boss == null) return false;
             var launcher = FindAnyObjectByType<BattleLauncher>();
@@ -416,13 +419,13 @@ namespace SubcultureRPG.Meta
             Refund();
             Hook();
             CleanupBoss();
-            _fightDiff = DifficultyCount - 1;
+            _fightDiff = Mathf.Clamp(difficulty, 0, DifficultyCount - 1);
             _party = new List<CharacterData>(party);
             _pending = false; _worldPending = true;
             _worldEnd = onEnd;
             if (_hud != null)
             {
-                _hud.SetBackground("Backgrounds/battle_worldraid", "Backgrounds/worldraid", "Backgrounds/battle");
+                _hud.SetBackground(backgrounds ?? new[] { "Backgrounds/battle_worldraid", "Backgrounds/worldraid", "Backgrounds/battle" });
                 _hud.SetRetryHandler(retry);
                 _hud.SetExitLabel(exitLabel);
                 _hud.SetRoundLimit(0);
