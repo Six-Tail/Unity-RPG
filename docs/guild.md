@@ -83,6 +83,10 @@ Cloud Save ▸ **Queries(인덱스)** 에 3개 추가 — 모두 **Player · Pub
 - **자동 시험**: 메뉴 `SubcultureRPG > 길드 자동 시험`(또는 배치 `-executeMethod SubcultureRPG.EditorTools.GuildSelfTest.RunBatch`) → `Temp/GuildSelfTest/report.txt`. 로그인 없이(가상 길드) 길드 화면의 모든 탭을 그려 보고 길드 보스 단계 계산 · 길드전 방어 팀(전투력) · 순위표를 확인. 세이브의 길드 기록은 끝나면 원래대로 되돌림
   - 2026-11-26 결과: 모두 통과. 내 주력 전투력 9,322만 → 방어 팀 5,121만 ~ 1억 2,262만
 - Player Guild 컴포넌트 ⋮ → `테스트: 하루 넘기기` · `테스트: 길드 경험치 +500` · `테스트: 주 넘기기(지난주 정산)`
+- **서버 자동 시험**(실제 길드 · 인덱스 필요, Unity를 닫고 배치로): `Unity.exe -batchmode -projectPath . -executeMethod SubcultureRPG.EditorTools.GuildCloudTest.RunBatch -guildCloudOut <폴더>`
+  ([GuildCloudTest.cs](../Assets/_Project/Scripts/Editor/GuildCloudTest.cs)). 빈 씬으로 플레이 모드에 들어가(타이틀 · 로그인이 뜨지 않아 내 계정은 로그인 안 됨) 시험용 익명 플레이어 A · B를 만들어
+  실제 코드로 창설 → 검색 → 승인제 신청 → 수락 → 길드원 · 기록 확인 → 순위표 → 추방 → 자유 가입 → 해산을 돌리고, 끝나면 두 플레이어의 공개 데이터를 비우고 계정을 삭제 · 내 세이브의 길드 기록 복원
+  - 2026-11-26 결과: 22개 모두 통과(인덱스 g_id · g_open · g_req 확인)
 - 실제 길드는 계정 두 개(다른 기기 · 에디터 + 빌드)로: 한 쪽이 창설 → 다른 쪽이 `길드 찾기`에서 가입 → 2분 안에(길드 화면을 열면 30초 안에) 서로 보임
 
 ## 다음 버전
