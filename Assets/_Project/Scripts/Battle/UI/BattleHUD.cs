@@ -655,7 +655,8 @@ namespace SubcultureRPG.Battle.UI
                     _sceneFx.Speed = ss;
                     sceneDur = SkillFx.SceneLength(cid) / ss;
                     string sid = cid;
-                    _sceneFx.Schedule(dur * ss, () => _sceneFx.UltScene(sid));
+                    var sel = actor.character.element; var srole = actor.character.role;
+                    _sceneFx.Schedule(dur * ss, () => _sceneFx.UltScene(sid, sel, srole));
                 }
                 if (p != null)
                 {

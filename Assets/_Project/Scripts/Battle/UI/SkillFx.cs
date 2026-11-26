@@ -201,11 +201,9 @@ namespace SubcultureRPG.Battle.UI
         // 장면 끝에 화면 밝기가 돌아오는 순간 피해가 들어가도록 BattleHUD가 그만큼 기다림.
 
         /// <summary>캐릭터 id의 궁극기 장면이 있는가.</summary>
-        public static bool HasScene(string id) => id switch
-        {
-            "c_violet" or "c_seraphine" or "c_ciel" or "c_ark" or "c_aurora" or "c_kael" or "c_estelle" => true,
-            _ => false,
-        };
+        /// <summary>궁극기 장면이 있는가 — 6★는 전용 장면, 그 밖의 캐릭터는 속성 × 역할 장면(가운데에 캐릭터 문양).</summary>
+        public static bool HasScene(string id) => !string.IsNullOrEmpty(id);
+
 
         // 장면 틀: ① 암전(0.3초에 거의 완전히 검게) → ② 연출 → ③ 절정(섬광은 화면을 하얗게 덮지 않을 만큼) → ④ 밝기가 돌아옴 → 피해(BattleHUD)
         private const float Blackout = 0.3f, BrightenAfter = 0.12f, Tail = 0.5f;
@@ -216,11 +214,13 @@ namespace SubcultureRPG.Battle.UI
         private static float Climax(string id) => id switch
         {
             "c_violet" => 1.4f, "c_seraphine" => 1.15f, "c_ciel" => 1.2f, "c_ark" => 1.2f,
-            "c_aurora" => 1.25f, "c_kael" => 1.15f, "c_estelle" => 1.2f, _ => 0f,
+            "c_aurora" => 1.25f, "c_kael" => 1.15f, "c_estelle" => 1.2f,
+            null or "" => 0f,
+            _ => 1.0f,   // 속성 × 역할 장면
         };
 
-        /// <summary>장면 재생. 없으면 0.</summary>
-        public float UltScene(string id)
+        /// <summary>장면 재생(element · role은 6★가 아닌 캐릭터의 속성 × 역할 장면에 씀). 없으면 0.</summary>
+        public float UltScene(string id, Element element = Element.Physical, Role role = Role.Dealer)
         {
             float climax = Climax(id);
             if (climax <= 0f) return 0f;
@@ -230,7 +230,13 @@ namespace SubcultureRPG.Battle.UI
                 "c_violet" => new Color(0.02f, 0.01f, 0.05f), "c_seraphine" => new Color(0.05f, 0.01f, 0f),
                 "c_ciel" => new Color(0f, 0.02f, 0.05f), "c_ark" => new Color(0.01f, 0.01f, 0.05f),
                 "c_aurora" => new Color(0f, 0.03f, 0.05f), "c_kael" => new Color(0f, 0.04f, 0.02f),
-                _ => new Color(0.05f, 0.03f, 0.01f),
+                "c_estelle" => new Color(0.05f, 0.03f, 0.01f),
+                _ => element switch
+                {
+                    Element.Fire => new Color(0.05f, 0.01f, 0f), Element.Ice => new Color(0f, 0.02f, 0.05f),
+                    Element.Lightning => new Color(0.02f, 0.01f, 0.05f), Element.Wind => new Color(0f, 0.04f, 0.02f),
+                    _ => new Color(0.03f, 0.03f, 0.04f),
+                },
             };
             float total = climax + Tail;
             Darken(tint, 0.97f, 0f, total, Blackout, climax + BrightenAfter);
@@ -242,9 +248,112 @@ namespace SubcultureRPG.Battle.UI
                 case "c_ark": SceneArk(climax); break;
                 case "c_aurora": SceneAurora(climax); break;
                 case "c_kael": SceneKael(climax); break;
-                default: SceneEstelle(climax); break;
+                case "c_estelle": SceneEstelle(climax); break;
+                default: SceneGeneric(id, element, role, climax); break;
             }
             return total;
+        }
+
+        /// <summary>
+        /// 속성 × 역할 장면(5★ 이하): 가운데 캐릭터 문양(Fx/ult_{id}) + 속성 연출(화염 불꽃 · 얼음 파편 · 번개 · 바람 칼날 · 물리 베기)
+        /// + 역할 연출(탱커 = 문양이 내려앉으며 쿵 · 힐러 = 위에서 빛줄기와 깃털 · 서포터 = 마법진과 떠오르는 룬 · 딜러 = 절정 직전 X자 베기).
+        /// </summary>
+        private void SceneGeneric(string id, Element e, Role role, float climax)
+        {
+            Color col = Main(e), hot = Hot(e);
+            Vector2 c = new(0, 30);
+            float st = Blackout + 0.05f;
+
+            // 캐릭터 문양
+            var sig = T("ult_" + id, null);
+            if (sig != null)
+            {
+                bool slam = role == Role.Tank;
+                var m = Put("ult_" + id, ProceduralSprites.Glow, c, st, climax - st, Vector2.one * (slam ? 1100 : 280), Vector2.one * (slam ? 600 : 620),
+                    WithA(hot, 0.95f), WithA(Color.Lerp(col, Color.white, 0.3f), 0.8f), slam ? 0.12f : 0.3f);
+                m.rotVel = slam ? 0f : 10f;
+                if (slam) Schedule(st + 0.18f, () => Shake?.Invoke(12f, 0.22f));
+            }
+
+            // 역할
+            switch (role)
+            {
+                case Role.Healer:
+                    Put("scene_rays", ProceduralSprites.Glow, new Vector2(0, 160), st, climax - st + 0.25f, new Vector2(1400, 1000), new Vector2(1800, 1250), WithA(hot, 0f), WithA(hot, 0.8f), 0.5f, 0.85f);
+                    for (int i = 0; i < 12; i++)
+                    {
+                        var f = Put("feather_streak", ProceduralSprites.Beam, new Vector2(Random.Range(-850f, 850f), Random.Range(400f, 600f)), st + Random.Range(0.05f, 0.45f), 0.8f, new Vector2(28, 110), new Vector2(18, 70), WithA(Color.white, 0.9f), WithA(col, 0f), 0.15f);
+                        f.vel = new Vector2(Random.Range(-70f, 70f), Random.Range(-260f, -400f)); f.rotVel = Random.Range(-120f, 120f);
+                    }
+                    break;
+                case Role.Support:
+                    var mc = Put("magic_circle", ProceduralSprites.Ring, c, st, climax - st, Vector2.one * 500, Vector2.one * 900, WithA(col, 0.6f), WithA(hot, 0.3f), 0.3f);
+                    mc.rotVel = -50f;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        var r = Put("rune_glyph", ProceduralSprites.Star, c + new Vector2(Random.Range(-500f, 500f), Random.Range(-320f, -120f)), st + 0.1f + i * 0.05f, 0.8f, Vector2.one * 50, Vector2.one * 80, WithA(hot, 0.95f), WithA(col, 0f), 0.2f);
+                        r.vel = new Vector2(0, Random.Range(220f, 360f)); r.rotVel = Random.Range(-40f, 40f);
+                    }
+                    break;
+                case Role.Dealer:
+                    Slice(c, -40f, 1500, hot, climax - 0.1f);
+                    Slice(c, 40f, 1500, Color.white, climax - 0.04f);
+                    break;
+            }
+
+            // 속성
+            switch (e)
+            {
+                case Element.Fire:
+                    for (int i = 0; i < 10; i++)
+                    {
+                        var f = Put("flame", ProceduralSprites.Glow, new Vector2(Random.Range(-850f, 850f), -480f), st + Random.Range(0f, 0.4f), 0.85f, new Vector2(140, 180), new Vector2(40, 60), WithA(hot, 0.9f), WithA(col, 0f), 0.1f);
+                        f.vel = new Vector2(Random.Range(-20f, 20f), Random.Range(380f, 600f));
+                    }
+                    Put("fire_burst", ProceduralSprites.Glow, c, climax, 0.55f, Vector2.one * 300, Vector2.one * 1500, WithA(hot, 1f), WithA(col, 0f), 0.03f, 0.25f);
+                    break;
+                case Element.Ice:
+                    for (int i = 0; i < 12; i++)
+                    {
+                        float ang = i * 30f * Mathf.Deg2Rad;
+                        var from = c + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * 880f;
+                        var sh = Put("ice_shard", ProceduralSprites.Triangle, from, climax - 0.45f + i * 0.012f, 0.45f, new Vector2(60, 150), new Vector2(36, 90), WithA(Color.white, 1f), WithA(col, 0.8f), 0.05f);
+                        sh.vel = (c - from) * 2.2f; sh.alignToVel = true;
+                    }
+                    Put("ice_burst", ProceduralSprites.Glow, c, climax, 0.55f, Vector2.one * 400, Vector2.one * 1300, WithA(Color.white, 1f), WithA(col, 0f), 0.02f, 0.3f);
+                    break;
+                case Element.Lightning:
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float d = st + 0.2f + i * 0.12f;
+                        var b = Put("lightning_bolt", ProceduralSprites.Beam, new Vector2(Random.Range(-700f, 700f), 60), d, 0.22f, new Vector2(240, 1200), new Vector2(240, 1200), WithA(Color.white, 1f), WithA(col, 0f), 0.02f);
+                        b.flicker = true; b.rot = Random.value < 0.5f ? 0f : 180f;
+                        Schedule(d, () => Shake?.Invoke(5f, 0.1f));
+                    }
+                    Put("lightning_arc", ProceduralSprites.Glow, c, climax, 0.45f, Vector2.one * 300, Vector2.one * 1000, WithA(Color.white, 1f), WithA(col, 0f), 0.02f, 0.2f);
+                    break;
+                case Element.Wind:
+                    var sw = Put("wind_swirl", ProceduralSprites.Ring, c, st, climax - st, Vector2.one * 200, Vector2.one * 900, WithA(Color.white, 0.7f), WithA(col, 0.5f), 0.3f);
+                    sw.rotVel = 480f;
+                    for (int i = 0; i < 10; i++)
+                    {
+                        var b = Add(T("wind_blade", ProceduralSprites.Beam), c, 0.7f, st + i * 0.035f);
+                        b.orbit = true; b.center = c; b.radius = 600f; b.radiusVel = -540f; b.angle = i * 0.63f; b.angVel = 7f; b.alignToVel = true;
+                        b.size0 = new Vector2(110, 180); b.size1 = new Vector2(55, 90);
+                        b.c0 = WithA(Color.white, 1f); b.c1 = WithA(col, 0f); b.fadeIn = 0.15f; b.alphaMul = 1f;
+                    }
+                    break;
+                default:
+                    if (role != Role.Dealer) { Slice(c, -30f, 1400, Color.white, climax - 0.25f); Slice(c, 60f, 1400, hot, climax - 0.12f); }
+                    break;
+            }
+
+            // 절정
+            Put("impact_hit", ProceduralSprites.Glow, c, climax, 0.4f, Vector2.one * 300, Vector2.one * 1000, WithA(Color.white, 1f), WithA(col, 0f), 0.02f, 0.2f);
+            Ring(c, hot, 150, role == Role.Tank ? 1800 : 1400, 0.5f, climax);
+            Sparks(c, hot, 20, 1200, 22, 0.5f, climax);
+            float shake = role switch { Role.Tank => 16f, Role.Dealer => 13f, Role.Support => 8f, _ => 5f };
+            Climax(Color.Lerp(col, Color.white, 0.5f), climax, shake);
         }
 
         /// <summary>화면 전체를 color로 덮음: inDur 동안 진해지고 → outAt부터 life 끝까지 걷힘.</summary>

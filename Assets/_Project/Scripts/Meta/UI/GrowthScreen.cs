@@ -57,8 +57,13 @@ namespace SubcultureRPG.Meta.UI
         private CharacterData _selected;
         private BattleConfig _cfg;
 
-        private static readonly Vector2 HeroPos = new(-560, -40);
-        private const float HeroScale = 2.6f;
+        // 상세 왼쪽: 확대 카드가 큰 일러스트로 바뀜
+        private static readonly Vector2 HeroPos = new(-570, -20);
+        private static readonly Vector2 ArtSize = new(780, 920);
+        private const float HeroScale = 5.6f;   // 카드(130×160)가 일러스트 크기까지 커지며 사라짐
+        private RectTransform _heroArt;
+        private CanvasGroup _heroArtGroup, _heroGroup;
+        private Image _heroArtImg;
 
         private void Awake()
         {
@@ -266,8 +271,12 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(_hero, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             _hero.sizeDelta = _cell;
             BuildCardVisual(_hero, c, o);
+            _heroGroup = _hero.gameObject.AddComponent<CanvasGroup>();
+            _heroGroup.blocksRaycasts = false;
             Vector2 start = CardCenterInHeroLayer(c);
             _hero.anchoredPosition = start;
+            BuildHeroArt(c, o);
+            _heroArtGroup.alpha = 0f;
 
             // 상세 내용 미리 채우기(안 보이는 상태)
             _inDetail = true;
@@ -295,20 +304,26 @@ namespace SubcultureRPG.Meta.UI
             _listGroup.alpha = 0f;
             _listGroup.gameObject.SetActive(false);
 
-            // 2) 왼쪽으로 이동 · 상세가 오른쪽에서 나타남
+            // 2) 왼쪽으로 이동하며 카드가 일러스트 크기로 커지고 → 큰 일러스트로 바뀜 · 상세가 오른쪽에서 나타남
             Vector2 panelEnd = _detailPanel.anchoredPosition, panelStart = panelEnd + new Vector2(140, 0);
-            const float slide = 0.4f;
+            const float slide = 0.45f;
             for (float t = 0; t < slide; t += Time.unscaledDeltaTime)
             {
                 float k = EaseInOut(t / slide);
                 _hero.anchoredPosition = Vector2.Lerp(mid, HeroPos, k);
                 _hero.localScale = Vector3.one * Mathf.Lerp(3.2f, HeroScale, k);
+                _heroGroup.alpha = 1f - Mathf.Clamp01((t / slide - 0.35f) / 0.45f);
+                _heroArtGroup.alpha = Mathf.Clamp01((t / slide - 0.3f) / 0.5f);
+                _heroArt.localScale = Vector3.one * Mathf.Lerp(0.94f, 1f, k);
                 _detailGroup.alpha = k;
                 _detailPanel.anchoredPosition = Vector2.Lerp(panelStart, panelEnd, k);
                 yield return null;
             }
             _hero.anchoredPosition = HeroPos;
             _hero.localScale = Vector3.one * HeroScale;
+            _heroGroup.alpha = 0f;
+            _heroArtGroup.alpha = 1f;
+            _heroArt.localScale = Vector3.one;
             _detailPanel.anchoredPosition = panelEnd;
             _detailGroup.alpha = 1f;
             _detailGroup.blocksRaycasts = true;
@@ -336,6 +351,8 @@ namespace SubcultureRPG.Meta.UI
                 float k = EaseInOut(t / dur);
                 _detailGroup.alpha = 1f - Mathf.Clamp01(t / 0.2f);
                 _listGroup.alpha = Mathf.Clamp01((t - 0.15f) / 0.3f);
+                if (_heroArtGroup != null) _heroArtGroup.alpha = 1f - Mathf.Clamp01(t / 0.16f);
+                if (_heroGroup != null) _heroGroup.alpha = Mathf.Clamp01(t / 0.14f);
                 if (_hero != null)
                 {
                     _hero.anchoredPosition = Vector2.Lerp(from, end, k);
@@ -352,6 +369,7 @@ namespace SubcultureRPG.Meta.UI
         private void ExitDetailImmediate()
         {
             if (_hero != null) { Destroy(_hero.gameObject); _hero = null; }
+            DestroyHeroArt();
             _inDetail = false;
             if (_detailGroup != null) { _detailGroup.alpha = 0f; _detailGroup.blocksRaycasts = false; _detailGroup.gameObject.SetActive(false); }
             if (_listGroup != null) { _listGroup.gameObject.SetActive(true); _listGroup.alpha = 1f; _listGroup.blocksRaycasts = true; }
@@ -366,6 +384,144 @@ namespace SubcultureRPG.Meta.UI
             if (o == null) return;
             for (int i = _hero.childCount - 1; i >= 0; i--) Destroy(_hero.GetChild(i).gameObject);
             BuildCardVisual(_hero, _selected, o);
+            float a = _heroArtGroup != null ? _heroArtGroup.alpha : 1f;
+            BuildHeroArt(_selected, o);
+            _heroArtGroup.alpha = a;
+        }
+
+        private static Sprite _softPlate;
+        /// <summary>가운데는 고르게 진하고 네 가장자리로 부드럽게 사라지는 판(글자 받침 — 테두리 선이 생기지 않음).</summary>
+        private static Sprite SoftPlate
+        {
+            get
+            {
+                if (_softPlate != null) return _softPlate;
+                const int n = 64; const float f = 0.3f;
+                var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float u = x / (n - 1f), v = y / (n - 1f);
+                    float a = Mathf.SmoothStep(0f, 1f, Mathf.Min(u, 1f - u) / f) * Mathf.SmoothStep(0f, 1f, Mathf.Min(v, 1f - v) / f);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+                tex.Apply();
+                _softPlate = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f));
+                return _softPlate;
+            }
+        }
+
+        private static Sprite _fadeUp;
+        /// <summary>아래가 진하고 위로 갈수록 투명해지는 세로 그라데이션(글자 받침).</summary>
+        private static Sprite FadeUp
+        {
+            get
+            {
+                if (_fadeUp != null) return _fadeUp;
+                var tex = new Texture2D(4, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                for (int y = 0; y < 64; y++)
+                {
+                    float a = Mathf.Pow(1f - y / 63f, 1.6f);
+                    for (int x = 0; x < 4; x++) tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+                tex.Apply();
+                _fadeUp = Sprite.Create(tex, new Rect(0, 0, 4, 64), new Vector2(0.5f, 0.5f));
+                return _fadeUp;
+            }
+        }
+
+        /// <summary>
+        /// 상세 왼쪽의 큰 일러스트(움직이는 일러스트가 있으면 그것). 테두리 · 바탕 없이 가장자리를 흐려 배경에 녹이고,
+        /// 위에 속성 · 역할과 레벨, 아래 그라데이션 위에 별 · 이름.
+        /// </summary>
+        private void BuildHeroArt(CharacterData c, OwnedCharacter o)
+        {
+            DestroyHeroArt();
+            int starN = Transcendence.CurrentStar(c.rarity, o.star);
+
+            _heroArt = UIFactory.NewRect("HeroArt", _heroLayer);
+            UIFactory.Anchor(_heroArt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            _heroArt.sizeDelta = ArtSize; _heroArt.anchoredPosition = HeroPos;
+            _heroArtGroup = _heroArt.gameObject.AddComponent<CanvasGroup>();
+            _heroArtGroup.blocksRaycasts = false;
+            _heroArt.SetAsFirstSibling();   // 확대 카드보다 뒤
+
+            // 가장자리를 부드럽게 흐리는 창
+            var mask = UIFactory.NewRect("Mask", _heroArt);
+            UIFactory.Stretch(mask);
+            mask.gameObject.AddComponent<RectMask2D>().softness = new Vector2Int(110, 90);
+
+            // 일러스트: 창을 꽉 채움(넘치는 부분은 잘림 — 얼굴이 남도록 아래쪽을 더 자름)
+            var sprite = GameArt.Portrait(c) ?? GameArt.Thumb(c);
+            float aspect = sprite != null ? sprite.rect.width / sprite.rect.height : 0.75f;
+            float w = ArtSize.x, h = w / aspect;
+            if (h < ArtSize.y) { h = ArtSize.y; w = h * aspect; }
+            _heroArtImg = UIFactory.AddImage("Illust", mask, Color.white);
+            var irt = _heroArtImg.rectTransform;
+            UIFactory.Anchor(irt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            irt.sizeDelta = new Vector2(w, h); irt.anchoredPosition = new Vector2(0, (ArtSize.y - h) * 0.3f);
+            _heroArtImg.sprite = sprite; _heroArtImg.preserveAspect = false;
+            bool live = Live2DUI.Show(_heroArtImg, c);
+            _heroArtImg.enabled = !live && sprite != null;
+
+            // 글자 받침 그라데이션(창 안이라 가장자리도 같이 흐려짐)
+            var low = UIFactory.AddImage("LowFade", mask, new Color(0f, 0f, 0f, 0.88f), FadeUp);
+            Bottom(low.rectTransform, 330, 0);
+            var top = UIFactory.AddImage("TopFade", mask, new Color(0f, 0f, 0f, 0.6f), FadeUp);
+            UIFactory.Anchor(top.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            top.rectTransform.sizeDelta = new Vector2(0, 130); top.rectTransform.anchoredPosition = Vector2.zero;
+            top.rectTransform.localScale = new Vector3(1f, -1f, 1f);
+            top.rectTransform.pivot = new Vector2(0.5f, 0f);
+
+            // 글자 뒤 어두운 받침(창 밖이라 가장자리 흐림에 지워지지 않음)
+            var shade = new Color(0f, 0f, 0f, 0.78f);
+            var plTop = UIFactory.AddImage("PlateTopL", _heroArt, shade, SoftPlate);
+            UIFactory.Anchor(plTop.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            plTop.rectTransform.sizeDelta = new Vector2(440, 110); plTop.rectTransform.anchoredPosition = new Vector2(-60, 33);
+            var plLv = UIFactory.AddImage("PlateTopR", _heroArt, shade, SoftPlate);
+            UIFactory.Anchor(plLv.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            plLv.rectTransform.sizeDelta = new Vector2(390, 110); plLv.rectTransform.anchoredPosition = new Vector2(60, 33);
+            var plLow = UIFactory.AddImage("PlateLow", _heroArt, new Color(0f, 0f, 0f, 0.82f), SoftPlate);
+            UIFactory.Anchor(plLow.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            plLow.rectTransform.sizeDelta = new Vector2(Mathf.Max(760f, 260f + c.displayName.Length * 62f), 300);
+            plLow.rectTransform.anchoredPosition = new Vector2(-120, -50);
+
+            const float inset = 70f;
+            var traits = UIFactory.AddText("Traits", _heroArt,
+                $"<color={Traits.Hex(c.element)}>{Traits.Name(c.element)}</color> · {Traits.Name(c.role)}",
+                26, font, new Color(0.92f, 0.92f, 0.96f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UIFactory.Anchor(traits.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            traits.rectTransform.sizeDelta = new Vector2(-inset * 2, 40); traits.rectTransform.anchoredPosition = new Vector2(0, -22);
+            TextOutline.Apply(traits, 0.26f, new Color32(0, 0, 0, 255));
+
+            bool maxed = o.level >= Leveling.AwakenedMaxLevel;
+            var lv = UIFactory.AddText("Lv", _heroArt, $"Lv.{o.level}", 32, GameFonts.Number(font), new Color(1f, 0.85f, 0.4f), TextAlignmentOptions.Right, FontStyles.Bold);
+            UIFactory.Anchor(lv.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            lv.rectTransform.sizeDelta = new Vector2(-inset * 2, 40); lv.rectTransform.anchoredPosition = new Vector2(0, -22);
+            TextOutline.Apply(lv, 0.26f, new Color32(0, 0, 0, 255));
+            if (maxed) lv.gameObject.AddComponent<RainbowText>();
+
+            var stars = StarRow.Create(_heroArt, 34, TextAnchor.MiddleLeft, font);
+            UIFactory.Anchor(stars.Rect, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            stars.Rect.sizeDelta = new Vector2(-inset * 2, 38); stars.Rect.anchoredPosition = new Vector2(0, 128);
+            stars.Set(starN, o.transcend);
+
+            var name = UIFactory.AddText("Name", _heroArt, c.displayName, 54, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            UIFactory.Anchor(name.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            name.rectTransform.sizeDelta = new Vector2(-inset * 2, 70); name.rectTransform.anchoredPosition = new Vector2(0, 54);
+            TextOutline.Apply(name, 0.28f, new Color32(0, 0, 0, 255));
+
+            // 이름 아래 속성 색 밑줄
+            var line = UIFactory.AddImage("Line", _heroArt, Traits.ColorOf(c.element));
+            UIFactory.Anchor(line.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0.5f));
+            line.rectTransform.sizeDelta = new Vector2(320, 3); line.rectTransform.anchoredPosition = new Vector2(inset, 22);
+        }
+
+        private void DestroyHeroArt()
+        {
+            if (_heroArtImg != null) Live2DUI.Hide(_heroArtImg);
+            if (_heroArt != null) Destroy(_heroArt.gameObject);
+            _heroArt = null; _heroArtImg = null; _heroArtGroup = null;
         }
 
         // ================================================================

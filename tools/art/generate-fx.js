@@ -58,6 +58,25 @@ const FX = [
   ['ult_c_kael', '카엘 궁극기 문양', 'twin curved daggers crossed in the center of a spiraling wind vortex made of crescent air blades and leaf-shaped gusts'],
   ['ult_c_violet', '바이올렛 궁극기 문양', 'a single razor-sharp katana slash streak cutting diagonally across a thin outlined crescent moon ring (only the outline of the moon, empty inside), with a few falling petals and thin speed lines along the cut'],
   ['ult_c_estelle', '에스텔 궁극기 문양', 'a hanging lantern with a gentle flame in the center, surrounded by a radiant ring of rising feathers and soft embers like a sacred blessing'],
+  // 5★ 이하 궁극기 문양(속성 × 역할 장면 가운데에 펼쳐짐)
+  ['ult_c_luna', '루나 궁극기 문양', 'an ice bow fully drawn with a glowing ice arrow aimed straight up, in front of a large crescent moon'],
+  ['ult_c_rio', '리오 궁극기 문양', 'a wooden flute in the center surrounded by swirling musical notes and drifting feathers on a ring of wind'],
+  ['ult_c_selene', '셀레네 궁극기 문양', 'a glowing orb of water floating above open hands, a crescent moon behind it and flowing water ribbons circling around'],
+  ['ult_c_haru', '하루 궁극기 문양', 'a small flame banner on a pole planted in the center of a fiery alchemy circle with potion flasks around it'],
+  ['ult_c_rena', '레나 궁극기 문양', 'a lightning spear thrusting straight up and splitting a jagged thunderbolt, sparks bursting around the tip'],
+  ['ult_c_grey', '그레이 궁극기 문양', 'a heavy war hammer and a round shield crossed over a fierce wolf head crest'],
+  ['ult_c_mina', '미나 궁극기 문양', 'a small fire wand with a star-shaped flame burst at its tip under an apprentice witch hat silhouette'],
+  ['ult_c_coco', '코코 궁극기 문양', 'an oversized shield standing upright with a heart-shaped crest in the middle and sparkles around its rim'],
+  ['ult_c_bella', '벨라 궁극기 문양', 'a small hovering drone with four propellers shooting lightning downward, mechanical gears circling around it'],
+  ['ult_c_sora', '소라 궁극기 문양', 'a frosted kite shield with a snowflake crest, sharp ice crystals growing from its rim'],
+  ['ult_c_yuna', '유나 궁극기 문양', 'a short bow with three arrows fanned out and flying forward, each trailing wind streaks'],
+  ['ult_c_teo', '테오 궁극기 문양', 'two armored gauntlet fists bumping together with gentle electric sparks forming a medical cross between them'],
+  ['ult_c_riri', '리리 궁극기 문양', 'a small woven herb basket with leaves spiraling up out of it in a soft healing swirl inside a circle'],
+  ['ult_c_pin', '핀 궁극기 문양', 'a short sword held point-up with a small star badge on the guard and two simple crossing slash lines behind it'],
+  ['ult_c_momo', '모모 궁극기 문양', 'a round guard shield with a small torch flame rising above it, town guard emblem style'],
+  ['ult_c_dodo', '도도 궁극기 문양', 'three ice throwing knives fanned out and flying forward with frosty trails'],
+  ['ult_c_ruru', '루루 궁극기 문양', 'a glowing signal lantern sending out lightning rays in all directions like a beacon'],
+  ['ult_c_kiki', '키키 궁극기 문양', 'a large wooden round shield with a bandana knot tied on it, swirling wind circling around'],
 ];
 
 const PROMPT = (desc) =>
