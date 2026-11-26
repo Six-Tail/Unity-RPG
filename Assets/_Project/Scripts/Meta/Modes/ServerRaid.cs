@@ -40,8 +40,17 @@ namespace SubcultureRPG.Meta
         public const long MaxHp = 10_000_000_000;
         public const int RankLimit = 100;
 
+        /// <summary>
+        /// 기록 검증(조작 방지): 한 판 피해 상한(최종 육성 한 판 약 1.8억의 3배 남짓) · 한 주 상한(= 한 판 상한 × 하루 도전 × 7일).
+        /// 상한을 넘는 다른 플레이어 기록은 순위표 · 공유 체력에서 빼고, 내 한 판 기록은 상한으로 자름.
+        /// </summary>
+        public const long MaxRunDamage = 600_000_000;
+        public static long MaxWeekDamage => MaxRunDamage * AttemptsPerDay * 7;
+        public static bool Plausible(long weekDamage) => weekDamage > 0 && weekDamage <= MaxWeekDamage;
+
         /// <summary>함께 싸우는 가상 지휘관 수와, 주가 끝날 때까지 그들이 깎는 몫(최대 체력 대비) — 튜닝 지점.</summary>
-        public const int VirtualCount = 60;
+        public const int VirtualCount = 1000;
+        public const int AroundSpan = 3;
         public const float VirtualShare = 0.92f;
         private const string SaveKey = "wraid";
 
@@ -70,6 +79,7 @@ namespace SubcultureRPG.Meta
         {
             public int from, to;            // 순위 범위(포함)
             public string title, frame;     // 칭호 · 테두리 id(1 · 2 · 3위만)
+            public float pct;               // 0보다 크면 퍼센트 구간(100위 밖 · 상위 pct 이내)
             public string label;
             public Func<RewardBundle> bundle;
         }
@@ -91,13 +101,29 @@ namespace SubcultureRPG.Meta
                 bundle = () => new RewardBundle().Crystals(200).Mat(MaterialType.EquipEssence, 100) },
             new() { from = 51, to = 100, label = "크리스탈 100 · 금화 50,000",
                 bundle = () => new RewardBundle().Crystals(100).Gold(50000) },
+            // 100위 밖: 퍼센트 구간
+            new() { from = 101, to = int.MaxValue, pct = 0.10f, label = "크리스탈 80 · 금화 30,000",
+                bundle = () => new RewardBundle().Crystals(80).Gold(30000) },
+            new() { from = 101, to = int.MaxValue, pct = 0.30f, label = "크리스탈 50 · 금화 20,000",
+                bundle = () => new RewardBundle().Crystals(50).Gold(20000) },
+            new() { from = 101, to = int.MaxValue, pct = 1f, label = "금화 10,000 (참여)",
+                bundle = () => new RewardBundle().Gold(10000) },
         };
 
-        public static RankTier TierOf(int rank)
+        /// <summary>순위 보상 구간(total = 그 주 참여 인원, 퍼센트 구간에 씀).</summary>
+        public static RankTier TierOf(int rank, int total = 0)
         {
-            foreach (var t in RankTiers) if (rank >= t.from && rank <= t.to) return t;
+            foreach (var t in RankTiers)
+            {
+                if (rank < t.from || rank > t.to) continue;
+                if (t.pct <= 0f) return t;
+                if (rank <= Mathf.CeilToInt(Mathf.Max(total, rank) * t.pct)) return t;
+            }
             return null;
         }
+
+        public static string RangeLabel(RankTier t) =>
+            t.pct > 0f ? (t.pct >= 1f ? "그 밖 참여자" : $"상위 {t.pct * 100f:0}%") : t.from == t.to ? $"{t.from}위" : $"{t.from} ~ {t.to}위";
 
         // ---------------- 세이브 ----------------
 
@@ -199,6 +225,7 @@ namespace SubcultureRPG.Meta
             public long damage;
             public bool me;
             public int seed = -1;   // 가상 지휘관 번호(실제 플레이어는 -1)
+            public int rank;        // 이번 주 순위(순위표를 만들 때 매김)
             public bool Virtual => seed >= 0;
         }
 
@@ -235,21 +262,20 @@ namespace SubcultureRPG.Meta
             double sum = 0;
             for (int i = 0; i < VirtualCount; i++)
             {
-                weight[i] = Math.Pow(i + 2, -1.15) * (0.85 + 0.3 * rng.NextDouble());
+                weight[i] = Math.Pow(i + 2, -1.25) * (0.85 + 0.3 * rng.NextDouble());
                 start[i] = rng.NextDouble() < 0.75 ? 0 : rng.NextDouble() * 0.35;
                 phase[i] = rng.NextDouble();
-                // 순위가 높을수록 높은 레벨의 지휘관(정보창의 육성 상태가 기록과 어울리게)
-                int minLevel = Mathf.Clamp(80 - i, 20, 78), seed = 0;
-                for (int tries = 0; tries < 300; tries++)
+                // 상위 60명은 순위가 높을수록 높은 레벨의 지휘관(정보창의 육성 상태가 기록과 어울리게), 나머지는 아무나
+                int minLevel = i < 60 ? Mathf.Clamp(80 - i, 20, 78) : 0, seed = 0;
+                for (int tries = 0; tries < (i < 60 ? 300 : 8); tries++)
                 {
                     seed = rng.Next(0, Commanders.MaxSeed);
-                    if (!used.Contains(seed) && Commanders.FromSeed(seed, null).level >= minLevel) break;
+                    if (!used.Contains(seed) && (minLevel == 0 || Commanders.FromSeed(seed, null).level >= minLevel)) break;
                 }
                 used.Add(seed);
                 seeds[i] = seed;
                 sum += weight[i];
             }
-            var db = FindAnyObjectByType<PlayerRoster>()?.Database;
             progress = Mathf.Clamp01(progress);
             for (int i = 0; i < VirtualCount; i++)
             {
@@ -258,7 +284,7 @@ namespace SubcultureRPG.Meta
                 p = Math.Clamp(p, 0.0, 1.0);
                 long dmg = (long)(MaxHp * (double)VirtualShare * weight[i] / sum * p);
                 if (dmg <= 0) continue;
-                var c = Commanders.FromSeed(seeds[i], db);
+                var c = Commanders.FromSeed(seeds[i], null);
                 list.Add(new Entry { id = "v" + seeds[i], name = c.name, damage = dmg, seed = seeds[i] });
             }
             return list;
@@ -270,7 +296,8 @@ namespace SubcultureRPG.Meta
             var list = new List<Entry>();
             if (real != null) foreach (var e in real) if (!e.Virtual) list.Add(e);
             list.AddRange(VirtualEntries(CurrentWeek, WeekProgress));
-            list.Sort((a, b) => b.damage.CompareTo(a.damage));
+            list.Sort((a, b) => b.damage != a.damage ? b.damage.CompareTo(a.damage) : b.me.CompareTo(a.me));
+            for (int i = 0; i < list.Count; i++) list[i].rank = i + 1;
             Ranking = list;
             long sum = 0;
             foreach (var e in list) sum += e.damage;
@@ -304,6 +331,40 @@ namespace SubcultureRPG.Meta
             _d.claimed |= 1 << i;
             Changed();
             return r;
+        }
+
+        /// <summary>
+        /// 친구 순위표: 나 + 실제 플레이어 친구(이번 주 기록이 있으면) + 가상 친구(지휘관 레벨에 맞춘 기록 — 하루 2번씩 도전하는 것처럼 늘어남).
+        /// rank는 전체 순위표 기준.
+        /// </summary>
+        public List<Entry> FriendBoard()
+        {
+            var list = new List<Entry>();
+            var mine = Ranking.Find(e => e.me);
+            list.Add(mine ?? new Entry { id = CloudAccount.PlayerId, name = PlayerProfile.Instance.DisplayName, damage = MyDamage, me = true });
+            var social = PlayerSocial.Instance;
+            foreach (var f in social.RealFriends)
+            {
+                var e = Ranking.Find(x => x.id == f.pid);
+                if (e != null) list.Add(e);
+            }
+            float steps = Mathf.Floor(WeekProgress * 14f);
+            foreach (int seed in social.Friends)
+            {
+                var c = Commanders.FromSeed(seed, null);
+                float strength = Mathf.Pow(c.level / 80f, 2f);
+                long dmg = (long)(MaxRunDamage * 0.2f * strength * steps * (0.8f + (seed % 40) / 100f));
+                list.Add(new Entry { id = "f" + seed, name = c.name, damage = dmg, seed = seed });
+            }
+            foreach (var e in list)
+            {
+                if (e.rank > 0 && Ranking.Contains(e)) continue;
+                int above = 0;
+                foreach (var r in Ranking) if (r.damage > e.damage) above++;
+                e.rank = e.damage > 0 ? above + 1 : 0;
+            }
+            list.Sort((a, b) => b.damage != a.damage ? b.damage.CompareTo(a.damage) : b.me.CompareTo(a.me));
+            return list;
         }
 
         /// <summary>내 순위(이번 주, 0 = 순위표에 없음).</summary>
@@ -389,7 +450,8 @@ namespace SubcultureRPG.Meta
                             if (it.Key == kDmg) { try { e.damage = it.Value.GetAs<long>(); } catch { } }
                             else if (it.Key == kName) { try { e.name = it.Value.GetAs<string>(); } catch { } }
                         }
-                    if (e.damage > 0) result.Add(e);
+                    if (Plausible(e.damage)) result.Add(e);   // 비정상 기록은 제외
+                    else if (e.damage > 0) Debug.LogWarning($"[ServerRaid] 비정상 기록 제외: {e.name} {e.damage:N0}");
                 }
                 if (rows.Count < page) break;
             }
@@ -415,7 +477,7 @@ namespace SubcultureRPG.Meta
             for (int i = 0; i < list.Count; i++) if (list[i].me) { rank = i + 1; break; }
             _d.rankWeek = last;
             _d.lastRank = rank;
-            var tier = rank > 0 ? TierOf(rank) : null;
+            var tier = rank > 0 ? TierOf(rank, list.Count) : null;
             if (tier != null)
             {
                 if (rank <= 3) _d.rankBits |= 1 << (rank - 1);
@@ -475,6 +537,7 @@ namespace SubcultureRPG.Meta
         {
             // 끝까지 싸운 전투만 도전 횟수를 씀(중간에 나가면 기록 · 횟수 모두 없음)
             if (!WorldRaid.FreeAttempts) _d.used++;
+            dmg = Math.Min(Math.Max(0, dmg), MaxRunDamage);
             _d.damage += dmg;
             bool newBest = dmg > _d.best;
             if (newBest) _d.best = dmg;

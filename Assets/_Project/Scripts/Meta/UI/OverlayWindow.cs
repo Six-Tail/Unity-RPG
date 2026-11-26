@@ -42,7 +42,11 @@ namespace SubcultureRPG.Meta.UI
             win.Root = go;
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = order + _openCount;
+            // 새 창은 지금 열려 있는 창보다 늘 위(채팅 창에서 정보창 · 정보창에서 신고 · 캐릭터 상세 등)
+            int top = order + _openCount;
+            foreach (var c in Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+                if (c != null && c.isRootCanvas && c.gameObject.name == "OverlayWindow") top = Mathf.Max(top, c.sortingOrder + 1);
+            canvas.sortingOrder = top;
             var scaler = go.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);

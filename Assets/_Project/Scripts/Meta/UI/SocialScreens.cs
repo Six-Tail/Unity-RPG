@@ -76,7 +76,7 @@ namespace SubcultureRPG.Meta.UI
         }
 
         /// <summary>실제 플레이어 한 줄(서버 공개 프로필). 누르면 지휘관 정보창.</summary>
-        protected Image SnapRow(Transform list, ProfileSnap s, string tag = "", string note = "")
+        protected Image SnapRow(Transform list, ProfileSnap s, string tag = "", string note = "", float noteW = 300)
         {
             var db = Db();
             var row = Row(list, new Color(0.07f, 0.1f, 0.12f, 0.9f));
@@ -96,7 +96,7 @@ namespace SubcultureRPG.Meta.UI
             string third = note != "" ? note
                 : (string.IsNullOrEmpty(s.greeting) ? "" : $"\"{s.greeting}\"   ") + (s.updated > 0 ? $"<color=#9AA3B5>{PlayerInfoWindow.Ago(s.updated)} 갱신</color>" : "");
             var t3 = Text(row.transform, third, 18, new Color(0.72f, 0.75f, 0.82f), FontStyles.Normal, TextAlignmentOptions.Left);
-            Place(t3.rectTransform, 660, -14, 300, 84);
+            Place(t3.rectTransform, 660, -14, noteW, 84);
             t3.textWrappingMode = TextWrappingModes.Normal;
             if (s.level > 0)
             {
@@ -271,7 +271,9 @@ namespace SubcultureRPG.Meta.UI
                 foreach (var f in new List<PlayerSocial.RealFriend>(s.RealFriends))
                 {
                     string pid = f.pid, fname = f.name;
-                    var row = SnapRow(_list, FriendSnap(f), $"<color=#9AA3B5>UID {f.uid}</color>");
+                    var row = SnapRow(_list, FriendSnap(f), $"<color=#9AA3B5>UID {f.uid}</color>", "", 150);
+                    int unread = ChatService.Instance.UnreadOf(pid);
+                    RowButton(row, 3, unread > 0 ? $"대화 <color=#FF6B6B>●{unread}</color>" : "대화", Green, () => ChatWindow.Open(font, pid)).GetComponentInChildren<TextMeshProUGUI>().richText = true;
                     bool done = s.GreetedReal(pid);
                     RowButton(row, 1, done ? "인사 완료" : "인사", Green, () =>
                     {

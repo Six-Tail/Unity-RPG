@@ -78,7 +78,7 @@ namespace SubcultureRPG.Meta
                     if (c != null && !IsOwned(c)) { Add(c, false); changed = true; }
 
             // 테스트용 전원 지급
-            if (grantAllOnStart && database != null)
+            if (grantAllOnStart && SubcultureRPG.UI.DevTools.Enabled && database != null)
                 foreach (var c in database.Characters)
                     if (!IsOwned(c)) { Add(c, false); changed = true; }
 

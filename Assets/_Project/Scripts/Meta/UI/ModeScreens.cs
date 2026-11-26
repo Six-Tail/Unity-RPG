@@ -246,7 +246,9 @@ namespace SubcultureRPG.Meta.UI
         /// <summary>'도전'을 눌렀을 때(상대).</summary>
         public event System.Action<PlayerArena.Opponent> OnChallenge;
 
-        private TextMeshProUGUI _rank, _tickets, _myPower;
+        private TextMeshProUGUI _rank, _tickets, _myPower, _refreshLabel;
+        private Image _tierIcon;
+        private float _refreshTick;
         private RectTransform _list;
 
         private void Awake()
@@ -256,13 +258,10 @@ namespace SubcultureRPG.Meta.UI
 
             var head = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.88f));
             Top(head.rectTransform, 0, -108, 1500, 120, new Vector2(0.5f, 1));
-            var icon = GameArt.Load("Items/ArenaCoin");
-            if (icon != null)
-            {
-                var im = UIFactory.AddImage("Icon", head.transform, Color.white, icon);
-                im.preserveAspect = true;
-                Place(im.rectTransform, 24, -12, 96, 96);
-            }
+            // 내 티어 아이콘(단계마다 다름 — Refresh에서 바꿈)
+            _tierIcon = UIFactory.AddImage("TierIcon", head.transform, Color.white, GameArt.Load("Items/ArenaCoin"));
+            _tierIcon.preserveAspect = true;
+            Place(_tierIcon.rectTransform, 18, -6, 108, 108);
             _rank = Text(head.transform, "", 34, Color.white, FontStyles.Bold, TextAlignmentOptions.Left);
             Place(_rank.rectTransform, 140, -14, 760, 50);
             _myPower = Text(head.transform, "", 22, new Color(0.8f, 0.83f, 0.9f), FontStyles.Normal, TextAlignmentOptions.Left);
@@ -280,7 +279,9 @@ namespace SubcultureRPG.Meta.UI
             tierBtn.onClick.AddListener(OpenTiers);
             var refresh = UIFactory.AddButton("Refresh", head.transform, "상대 새로고침", 22, font, new Color(1, 1, 1, 0.16f), Color.white);
             Place((RectTransform)refresh.transform, 1298, -56, 180, 50);
-            refresh.onClick.AddListener(() => { PlayerArena.Instance.Refresh(); Refresh(); Toast("새 상대를 찾았습니다"); });
+            _refreshLabel = refresh.GetComponentInChildren<TextMeshProUGUI>();
+            _refreshLabel.richText = true;
+            refresh.onClick.AddListener(OnRefreshClicked);
 
             _list = UIFactory.NewRect("List", _frame);
             Top(_list, 0, -250, 1500, 700, new Vector2(0.5f, 1));
@@ -297,6 +298,39 @@ namespace SubcultureRPG.Meta.UI
 
         private float _arenaFetchAt = -999f;
         private bool _autoMatched;
+
+        /// <summary>상대 새로고침: 무료(3분에 한 번) 또는 쿨타임 중이면 크리스탈 확인 창.</summary>
+        private void OnRefreshClicked()
+        {
+            var a = PlayerArena.Instance;
+            int left = a.RefreshSecondsLeft;
+            if (left <= 0)
+            {
+                a.ManualRefresh(false);
+                Toast("새 상대를 찾았습니다");
+                return;
+            }
+            var wallet = FindAnyObjectByType<PlayerWallet>();
+            int have = wallet != null ? wallet.Crystals : 0;
+            Confirm($"무료 새로고침까지 <color=#FFD36B>{left / 60}:{left % 60:00}</color> 남았습니다.\n<color=#8FE9FF>크리스탈 {PlayerArena.RefreshCost}</color>개로 지금 새로고침할까요?\n" +
+                    $"<size=80%><color=#9AA3B5>보유 크리스탈 {have:N0} · 이기면 상대가 무료로 새로 나옵니다</color></size>",
+                "새로고침", () =>
+                {
+                    string err = a.ManualRefresh(true);
+                    Toast(err ?? "새 상대를 찾았습니다");
+                });
+        }
+
+        /// <summary>새로고침 버튼 글자(남은 쿨타임 · 크리스탈) — 1초마다.</summary>
+        private void Update()
+        {
+            if (_refreshLabel == null || _root == null || !_root.activeSelf) return;
+            if (Time.unscaledTime < _refreshTick) return;
+            _refreshTick = Time.unscaledTime + 0.5f;
+            int left = PlayerArena.Instance.RefreshSecondsLeft;
+            _refreshLabel.text = left <= 0 ? "상대 새로고침"
+                : $"새로고침 <size=80%><color=#8FE9FF>{PlayerArena.RefreshCost}</color> <color=#9AA3B5>{left / 60}:{left % 60:00}</color></size>";
+        }
 
         /// <summary>크리스탈로 도전권 1장 구매 확인 창.</summary>
         private void OpenBuyTicket()
@@ -335,15 +369,32 @@ namespace SubcultureRPG.Meta.UI
                 a.Refresh();   // OnChanged → 다시 그림
                 return;
             }
-            var (tier, color) = PlayerArena.Tier(a.Points);
-            _rank.text = $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{tier}</color>   {a.Points:N0} 점   <size=65%><color=#FFD36B>시즌 {a.MyRank}위</color>   <color=#9AA3B5>{a.Wins}승 {a.Losses}패</color></size>";
+            int myRank = a.MyRank, total = a.RankTotal;
+            var (tier, color) = PlayerArena.Tier(a.Points, myRank);
+            var tierSprite = PlayerArena.Icon(a.Points, myRank);
+            if (_tierIcon != null && tierSprite != null) _tierIcon.sprite = tierSprite;
+
+            // 승급 축하(한 번)
+            var promo = a.TakePromotion();
+            if (promo.HasValue)
+            {
+                var (from, to, reward) = promo.Value;
+                bool newTier = from < 0 || to / 3 > from / 3;
+                Popups.Show(newTier ? "새로운 티어 달성!" : "승급!",
+                    $"<size=120%><b>{PlayerArena.LevelName(to)}</b></size>" + (from >= 0 ? $"   <color=#9AA3B5>({PlayerArena.LevelName(from)}에서)</color>" : "") + "\n\n" +
+                    $"<color=#FFD36B>승급 보상</color>  <color=#8FE9FF>{reward.Describe()}</color>\n<size=80%><color=#9AA3B5>보상은 이미 지급되었습니다</color></size>",
+                    "확인", null, null, null, PlayerArena.LevelIconKey(to));
+            }
+            _rank.text = $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{tier}</color>   {a.Points:N0} 점   <size=65%><color=#FFD36B>시즌 {myRank:N0}위</color> <color=#9AA3B5>({PlayerArena.Percent(myRank, total)})   {a.Wins}승 {a.Losses}패</color></size>";
 
             // 지난 시즌 정산(한 번만)
             var st = a.TakeSettlement();
             if (st != null)
             {
                 string frame = st.frameId != null ? $"\n<color=#FFD36B>한정 테두리 '{ProfileRewards.Frame(st.frameId).name}' 획득!</color>" : "";
-                Notice("시즌 정산", $"지난 시즌 최종 순위  <color=#FFD36B><b>{st.rank}위</b></color>  ({st.points:N0}점)\n" +
+                if (st.tierIndex >= PlayerArena.PointTiers)
+                    frame += $"\n<color=#{ColorUtility.ToHtmlStringRGB(PlayerArena.Tiers[st.tierIndex].color)}>{PlayerArena.Tiers[st.tierIndex].name}</color> 달성 — 테두리 '{ProfileRewards.Frame(PlayerArena.Tiers[st.tierIndex].frameId).name}' 획득!";
+                Notice("시즌 정산", $"지난 시즌 최종 순위  <color=#FFD36B><b>{st.rank:N0}위</b></color> / {st.total:N0}명 ({PlayerArena.Percent(st.rank, st.total)})  ({st.points:N0}점)\n" +
                                   $"<color=#8FE9FF>크리스탈 {st.crystals:N0}</color> 지급{frame}\n" +
                                   $"<size=80%><color=#9AA3B5>새 시즌 시작 점수 {st.newPoints:N0}점</color></size>");
             }
@@ -357,84 +408,131 @@ namespace SubcultureRPG.Meta.UI
             foreach (var o in a.Opponents) { Row(o, db, y); y -= 226; }
         }
 
-        /// <summary>시즌 랭킹 창(100명).</summary>
+        private int _rankTab;   // 0 전체 · 1 친구
+
+        /// <summary>시즌 랭킹 창: 탭(전체 · 친구) · 상위 100명 + 내 주변 · 아래에 내 순위 고정.</summary>
         private void OpenRanking()
         {
             var a = PlayerArena.Instance;
-            var p = OpenDialog("시즌 랭킹", 1100, 940);
+            var board = a.BuildBoard();
+            var p = OpenDialog("시즌 랭킹", 1100, 960);
             var t = PlayerArena.UntilSeasonEnd;
-            var sub = Text(p, $"<color=#9AA3B5>시즌 종료까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  월요일 05:00 정산</color>   내 순위 <color=#FFD36B><b>{a.MyRank}위</b></color>",
+            var sub = Text(p, $"<color=#9AA3B5>시즌 종료까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분 · 월요일 05:00 정산 · 참가 {board.total:N0}명</color>",
                 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(sub.rectTransform, 30, -68, 640, 30);
             var pubp = SubcultureRPG.Meta.Cloud.PublicProfile.Instance;
-            int realCount = pubp.ArenaPlayers.Count;
             var srv = Text(p, !SubcultureRPG.Meta.Cloud.PublicProfile.Online ? "<color=#FFB347>게스트 — 서버 플레이어는 로그인하면 함께 보입니다</color>"
                 : !string.IsNullOrEmpty(pubp.ArenaError) ? $"<color=#FF8A8A>{pubp.ArenaError}</color>"
-                : $"<color=#7CFF9A>● 플레이어</color> <color=#9AA3B5>서버 플레이어 {realCount}명 + 다른 지휘관</color>", 18, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
+                : $"<color=#7CFF9A>● 플레이어</color> <color=#9AA3B5>서버 플레이어 {pubp.ArenaPlayers.Count}명 + 다른 지휘관</color>", 18, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
             Place(srv.rectTransform, 680, -70, 390, 26);
+
+            // 탭
+            string[] tabs = { "전체", $"친구 ({board.friends.Count - 1}명)" };
+            for (int i = 0; i < 2; i++)
+            {
+                int idx = i;
+                var tb = UIFactory.AddButton("Tab", p, tabs[i], 21, font, i == _rankTab ? new Color(0.25f, 0.55f, 0.9f, 0.96f) : new Color(1, 1, 1, 0.12f), Color.white);
+                Place((RectTransform)tb.transform, 30 + i * 200, -106, 190, 44);
+                tb.onClick.AddListener(() => { if (_rankTab == idx) return; _rankTab = idx; CloseDialog(); OpenRanking(); });
+            }
+
             var view = UIFactory.NewRect("View", p);
-            UIFactory.Stretch(view, 24, 90, 24, 108);
+            UIFactory.Stretch(view, 24, 160, 24, 182);
             var content = UIFactory.NewRect("Content", view);
             var vl = content.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 4; vl.padding = new RectOffset(4, 4, 4, 4);
             vl.childControlWidth = true; vl.childControlHeight = true; vl.childForceExpandHeight = false;
             var scroll = UIFactory.MakeVerticalScroll(view, content);
-            var list = a.Ranking();
-            int mine = 0;
-            for (int i = 0; i < list.Count; i++)
+
+            int mine = 0, count = 0;
+            void Add(PlayerArena.RankEntry e)
             {
-                var e = list[i];
-                if (e.me) mine = i;
-                var (tier, tc) = PlayerArena.Tier(e.points);
-                var row = Panel(content, e.me ? new Color(0.25f, 0.45f, 0.75f, 0.7f) : e.rank <= 3 ? new Color(0.5f, 0.4f, 0.15f, 0.45f) : new Color(1, 1, 1, 0.05f));
+                if (e.me) mine = count;
+                var row = RankRow(content, e);
                 row.gameObject.AddComponent<LayoutElement>().preferredHeight = 52;
-                string rc = e.rank == 1 ? "#FFD36B" : e.rank == 2 ? "#DCE6FF" : e.rank == 3 ? "#E0A070" : "#FFFFFF";
-                var r1 = Text(row.transform, $"<color={rc}><b>{e.rank}</b></color>", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
-                Place(r1.rectTransform, 10, -6, 90, 40);
-                var r2 = Text(row.transform, $"<b>{e.name}</b>" + (e.me ? "  <size=75%><color=#9AD4FF>나</color></size>" : e.Real ? "  <size=70%><color=#7CFF9A>● 플레이어</color></size>" : ""), 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-                Place(r2.rectTransform, 120, -6, 460, 40);
-                var r3 = Text(row.transform, $"<color=#{ColorUtility.ToHtmlStringRGB(tc)}>{tier}</color>", 22, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
-                Place(r3.rectTransform, 600, -6, 200, 40);
-                var r4 = Text(row.transform, $"{e.points:N0} 점", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
-                Place(r4.rectTransform, 810, -6, 210, 40);
-                if (!e.me)
+                count++;
+            }
+            if (_rankTab == 0)
+            {
+                foreach (var e in board.top) Add(e);
+                if (board.around.Count > 0)
                 {
-                    // 누르면 그 지휘관 정보창(결투장 순위 · 티어 · 점수 포함)
-                    row.raycastTarget = true;
-                    var btn = row.gameObject.AddComponent<Button>();
-                    btn.transition = Selectable.Transition.None;
-                    row.gameObject.AddComponent<ButtonFx>();
-                    var entry = e;
-                    btn.onClick.AddListener(() =>
-                    {
-                        if (entry.Real)
-                        {
-                            // 실제 플레이어: 서버 공개 프로필(불러온 것이 있으면 바로)
-                            var (rtn, rtc) = PlayerArena.Tier(entry.points);
-                            string line = $"<color=#FFD36B>결투장 {entry.rank}위</color>  <color=#{ColorUtility.ToHtmlStringRGB(rtc)}>{rtn}</color>  {entry.points:N0}점";
-                            if (entry.snap != null) PlayerInfoWindow.Open(entry.snap, font, line);
-                            else PlayerInfoWindow.OpenPlayer(entry.pid, font, line);
-                            return;
-                        }
-                        var who = Commanders.FromSeed(entry.seed, FindAnyObjectByType<PlayerRoster>()?.Database);
-                        // 결투장 점수에 맞춰 레벨 · 전투력을 보정(상위권일수록 강함)
-                        who.level = Mathf.Clamp(20 + entry.points / 55, who.level, 80);
-                        who.power = (long)(4 * (12000 + who.level * who.level * 60) * (0.95 + (entry.seed % 10) * 0.01));
-                        var (tn, tcol) = PlayerArena.Tier(entry.points);
-                        PlayerInfoWindow.Open(who, font, $"<color=#FFD36B>결투장 {entry.rank}위</color>  <color=#{ColorUtility.ToHtmlStringRGB(tcol)}>{tn}</color>  {entry.points:N0}점");
-                    });
+                    var gap = Text(content, "<color=#6B7280>· · ·</color>", 24, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
+                    gap.gameObject.AddComponent<LayoutElement>().preferredHeight = 34;
+                    count++;
+                    foreach (var e in board.around) Add(e);
+                }
+            }
+            else
+            {
+                foreach (var e in board.friends) Add(e);
+                if (board.friends.Count <= 1)
+                {
+                    var none = Text(content, "<color=#9AA3B5>친구가 없거나 이번 시즌에 결투장을 한 친구가 없습니다.</color>", 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+                    none.gameObject.AddComponent<LayoutElement>().preferredHeight = 60;
                 }
             }
             // 내 줄이 보이도록 스크롤
             Canvas.ForceUpdateCanvases();
-            scroll.verticalNormalizedPosition = list.Count > 1 ? Mathf.Clamp01(1f - (mine - 6) / (float)Mathf.Max(1, list.Count - 14)) : 1f;
+            scroll.verticalNormalizedPosition = count > 1 ? Mathf.Clamp01(1f - (mine - 6) / (float)Mathf.Max(1, count - 14)) : 1f;
 
-            var foot = Text(p, "<color=#FFD36B>정산 보상</color>  1위 1,500 · 2위 1,000 · 3위 700 · 4 ~ 10위 500 · 11 ~ 30위 300 · 31 ~ 60위 200 · 그 밖 100 크리스탈\n" +
-                               "<color=#FFD36B>1 · 2 · 3위</color>는 한정 테두리 지급  ·  정산 뒤 점수는 1,000점 초과분의 75%만 이어집니다  ·  이번 시즌에 1판 이상 싸워야 정산됩니다",
-                18, new Color(0.82f, 0.85f, 0.92f), FontStyles.Normal, TextAlignmentOptions.Center);
+            // 아래에 내 순위 고정
+            var pin = RankRow(p, board.me);
+            UIFactory.Anchor(pin.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            pin.rectTransform.sizeDelta = new Vector2(-48, 56); pin.rectTransform.anchoredPosition = new Vector2(0, 112);
+            var pct = Text(pin.transform, $"<color=#FFD36B>{PlayerArena.Percent(board.me.rank, board.total)}</color>", 19, Color.white, FontStyles.Bold, TextAlignmentOptions.Left);
+            Place(pct.rectTransform, 360, -8, 200, 40);
+
+            var foot = Text(p, "<color=#FFD36B>정산 보상</color>  1위 1,500 · 2위 1,000 · 3위 700 · 10위 500 · 100위 300 · 상위 5% 200 · 10% 150 · 30% 120 · 그 밖 100 크리스탈\n" +
+                               $"<color=#FFD36B>다이아 이상</color>이면서 {PlayerArena.NebulaRank}위 성운 · {PlayerArena.SupernovaRank}위 초신성 · {PlayerArena.AnchorRank}위 앵커(정산 때 테두리) · 1 · 2 · 3위 한정 테두리 · 정산 뒤 1,000점 초과분의 75%만 이어짐",
+                17, new Color(0.82f, 0.85f, 0.92f), FontStyles.Normal, TextAlignmentOptions.Center);
             foot.textWrappingMode = TextWrappingModes.Normal;
             UIFactory.Anchor(foot.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
-            foot.rectTransform.sizeDelta = new Vector2(-60, 70); foot.rectTransform.anchoredPosition = new Vector2(0, 18);
+            foot.rectTransform.sizeDelta = new Vector2(-60, 80); foot.rectTransform.anchoredPosition = new Vector2(0, 18);
+        }
+
+        /// <summary>랭킹 한 줄(순위 · 이름 · 티어 · 점수). 다른 지휘관 줄을 누르면 정보창.</summary>
+        private Image RankRow(Transform parent, PlayerArena.RankEntry e)
+        {
+            var (tier, tc) = PlayerArena.Tier(e.points, e.rank);
+            var row = Panel(parent, e.me ? new Color(0.25f, 0.45f, 0.75f, 0.7f) : e.rank <= 3 ? new Color(0.5f, 0.4f, 0.15f, 0.45f) : new Color(1, 1, 1, 0.05f));
+            string rc = e.rank == 1 ? "#FFD36B" : e.rank == 2 ? "#DCE6FF" : e.rank == 3 ? "#E0A070" : "#FFFFFF";
+            var r1 = Text(row.transform, $"<color={rc}><b>{e.rank:N0}</b></color>", e.rank >= 1000 ? 20 : 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            Place(r1.rectTransform, 6, -6, 100, 40);
+            var r2 = Text(row.transform, $"<b>{e.name}</b>" + (e.me ? "  <size=75%><color=#9AD4FF>나</color></size>" : e.Real ? "  <size=70%><color=#7CFF9A>● 플레이어</color></size>" : ""), 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(r2.rectTransform, 120, -6, 460, 40);
+            var ti = UIFactory.AddImage("TierIcon", row.transform, Color.white, PlayerArena.Icon(e.points, e.rank));
+            ti.preserveAspect = true; ti.raycastTarget = false;
+            Place(ti.rectTransform, 596, -2, 48, 48);
+            var r3 = Text(row.transform, $"<color=#{ColorUtility.ToHtmlStringRGB(tc)}>{tier}</color>", 22, Color.white, FontStyles.Bold, TextAlignmentOptions.Left);
+            Place(r3.rectTransform, 650, -6, 170, 40);
+            var r4 = Text(row.transform, $"{e.points:N0} 점", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
+            UIFactory.Anchor(r4.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            r4.rectTransform.sizeDelta = new Vector2(210, 40); r4.rectTransform.anchoredPosition = new Vector2(-20, -6);
+            if (!e.me)
+            {
+                row.raycastTarget = true;
+                var btn = row.gameObject.AddComponent<Button>();
+                btn.transition = Selectable.Transition.None;
+                row.gameObject.AddComponent<ButtonFx>();
+                var entry = e;
+                string line = $"<color=#FFD36B>결투장 {entry.rank:N0}위</color>  <color=#{ColorUtility.ToHtmlStringRGB(tc)}>{tier}</color>  {entry.points:N0}점";
+                btn.onClick.AddListener(() =>
+                {
+                    if (entry.Real)
+                    {
+                        if (entry.snap != null) PlayerInfoWindow.Open(entry.snap, font, line);
+                        else PlayerInfoWindow.OpenPlayer(entry.pid, font, line);
+                        return;
+                    }
+                    var who = Commanders.FromSeed(entry.seed, FindAnyObjectByType<PlayerRoster>()?.Database);
+                    // 결투장 점수에 맞춰 레벨 · 전투력을 보정(상위권일수록 강함)
+                    who.level = Mathf.Clamp(20 + entry.points / 55, who.level, 80);
+                    who.power = (long)(4 * (12000 + who.level * who.level * 60) * (0.95 + (entry.seed % 10) * 0.01));
+                    PlayerInfoWindow.Open(who, font, line);
+                });
+            }
+            return row;
         }
 
         /// <summary>티어 · 테두리 안내 창.</summary>
@@ -445,7 +543,7 @@ namespace SubcultureRPG.Meta.UI
             var note = Text(p, "<color=#9AA3B5>처음 그 티어에 오르면 테두리를 받습니다(프로필 → 테두리 변경). 시즌 1 · 2 · 3위는 한정 테두리.</color>", 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(note.rectTransform, 30, -68, 1200, 30);
             var who = ProfileAvatar.CharacterOf(PlayerProfile.Instance, FindAnyObjectByType<PlayerRoster>());
-            int cur = PlayerArena.TierIndex(a.Points);
+            int cur = PlayerArena.TierIndex(a.Points, a.MyRank);
             void Cell(int col, int rowIdx, string frameId, string title, string cond, Color color, bool got, bool now)
             {
                 var cell = Panel(p, now ? new Color(0.25f, 0.45f, 0.75f, 0.6f) : new Color(1, 1, 1, 0.06f));
@@ -462,8 +560,11 @@ namespace SubcultureRPG.Meta.UI
             for (int i = 0; i < PlayerArena.Tiers.Length; i++)
             {
                 var t = PlayerArena.Tiers[i];
-                bool got = a.BestPoints >= t.min;
-                Cell(i % 6, i / 6, t.frameId, t.name, i == 0 ? "시작 티어" : $"{t.min:N0}점 이상", t.color, got, i == cur);
+                bool rankTier = i >= PlayerArena.PointTiers;
+                int bit = i == PlayerArena.AnchorIndex ? 8 : i == PlayerArena.SupernovaIndex ? 16 : 32;
+                bool got = rankTier ? (a.RankFrameBits & bit) != 0 : a.BestPoints >= t.min;
+                string cond = i == 0 ? "시작 티어 (3 → 2 → 1단계)" : rankTier ? PlayerArena.RankTierCondition(i) : $"{t.min:N0}점 이상 (3 → 2 → 1단계)";
+                Cell(i % 6, i / 6, t.frameId, t.name, cond, t.color, got, i == cur);
             }
             string[] rn = { "시즌 1위", "시즌 2위", "시즌 3위" };
             Color[] rcol = { new(1f, 0.83f, 0.42f), new(0.85f, 0.9f, 1f), new(0.85f, 0.6f, 0.4f) };

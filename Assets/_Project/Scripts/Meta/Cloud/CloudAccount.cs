@@ -234,6 +234,34 @@ namespace SubcultureRPG.Meta.Cloud
         public void GoOffline() { Offline = true; Synced = true; }
 
         /// <summary>로그아웃: 남은 변경을 올린 뒤 로그인 정보를 지우고 타이틀부터 다시.</summary>
+        /// <summary>
+        /// 계정 삭제(스토어 필수 기능): 서버의 세이브 · 공개 데이터(프로필 · 순위 · 친구)를 지우고 계정을 없앤 뒤,
+        /// 이 기기의 게임 데이터도 지우고 처음부터(게스트) 다시 시작. 실패하면 사유, 성공하면 null(곧 게임을 다시 불러옴).
+        /// </summary>
+        public async Task<string> DeleteAccountAsync()
+        {
+            if (!SignedIn) return "로그인 상태가 아닙니다.";
+            _dirty = false;   // 지우는 동안 다시 올리지 않게
+            try
+            {
+                try { await CloudSaveService.Instance.Data.Player.DeleteAllAsync(new Unity.Services.CloudSave.Models.Data.Player.DeleteAllOptions(new Unity.Services.CloudSave.Models.Data.Player.PublicWriteAccessClassOptions())); }
+                catch (Exception e) { Debug.LogWarning($"[CloudAccount] 공개 데이터 삭제 실패(계속): {e.Message}"); }
+                await CloudSaveService.Instance.Data.Player.DeleteAllAsync(new Unity.Services.CloudSave.Models.Data.Player.DeleteAllOptions());
+                await AuthenticationService.Instance.DeleteAccountAsync();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudAccount] 계정 삭제 실패: {e}");
+                return "계정을 삭제하지 못했습니다. 인터넷 연결을 확인하고 잠시 뒤 다시 시도해 주세요.";
+            }
+            try { AuthenticationService.Instance.SignOut(true); } catch { }
+            SaveStore.ClearAccountData();
+            SaveStore.Owner = "";
+            Synced = false; Offline = false;
+            SaveStore.ReloadGame();
+            return null;
+        }
+
         public async Task SignOutAsync()
         {
             if (SignedIn && _dirty && !_uploading) await UploadAsync();

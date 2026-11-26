@@ -219,6 +219,7 @@ namespace SubcultureRPG.Meta
             R("t_ach_level", "전설의 지휘관", "업적 '지휘관의 길' 완료", Gold, c => PlayerAchievements.Instance.IsComplete("a_level")),
             R("t_ach_bond", "모두의 지휘관", "업적 '깊은 인연' 완료", Rainbow, c => PlayerAchievements.Instance.IsComplete("a_bond")),
             R("t_ach_lv80", "최강 부대의 지휘관", "업적 '정점의 부대' 완료", Red, c => PlayerAchievements.Instance.IsComplete("a_lv80")),
+            R("t_ach_power", "무적의 사령관", "업적 '최강의 부대' 완료", Rainbow, c => PlayerAchievements.Instance.IsComplete("a_power")),
             // 월드 레이드 주간 순위 1 · 2 · 3위 한정(ServerRaid)
             R("tw_1", "종언을 끊어낸 자", "월드 레이드 주간 1위 (한정)", Rainbow, c => (ServerRaid.Instance.RankBits & 1) != 0),
             R("tw_2", "거신을 꺾은 자", "월드 레이드 주간 2위 (한정)", Gold, c => (ServerRaid.Instance.RankBits & 2) != 0),
@@ -239,9 +240,9 @@ namespace SubcultureRPG.Meta
             R("fa_gold", "결투장 골드", "결투장 골드 달성", PlayerArena.Tiers[2].color, c => c.arenaBest >= PlayerArena.Tiers[2].min),
             R("fa_platinum", "결투장 플래티넘", "결투장 플래티넘 달성", PlayerArena.Tiers[3].color, c => c.arenaBest >= PlayerArena.Tiers[3].min),
             R("fa_diamond", "결투장 다이아", "결투장 다이아 달성", PlayerArena.Tiers[4].color, c => c.arenaBest >= PlayerArena.Tiers[4].min),
-            R("fa_nebula", "결투장 성운", "결투장 성운 달성", PlayerArena.Tiers[5].color, c => c.arenaBest >= PlayerArena.Tiers[5].min),
-            R("fa_supernova", "결투장 초신성", "결투장 초신성 달성", PlayerArena.Tiers[6].color, c => c.arenaBest >= PlayerArena.Tiers[6].min),
-            R("fa_anchor", "결투장 앵커", "결투장 앵커 달성", PlayerArena.Tiers[7].color, c => c.arenaBest >= PlayerArena.Tiers[7].min),
+            R("fa_nebula", "결투장 성운", "결투장 시즌 정산 성운(다이아 이상 · 100위 이내)", PlayerArena.Tiers[5].color, c => (c.arenaRankBits & 32) != 0),
+            R("fa_supernova", "결투장 초신성", "결투장 시즌 정산 초신성(다이아 이상 · 50위 이내)", PlayerArena.Tiers[6].color, c => (c.arenaRankBits & 16) != 0),
+            R("fa_anchor", "결투장 앵커", "결투장 시즌 정산 앵커(다이아 이상 · 10위 이내)", PlayerArena.Tiers[7].color, c => (c.arenaRankBits & 8) != 0),
             // 결투장 시즌 순위 한정
             R("fr_1", "시즌 챔피언", "시즌 1위 (한정)", Gold, c => (c.arenaRankBits & 1) != 0),
             R("fr_2", "시즌 2위", "시즌 2위 (한정)", new Color(0.85f, 0.9f, 1f), c => (c.arenaRankBits & 2) != 0),

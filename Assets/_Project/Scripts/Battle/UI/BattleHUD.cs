@@ -1482,9 +1482,9 @@ namespace SubcultureRPG.Battle.UI
                 var btn = face.gameObject.AddComponent<Button>();
                 btn.targetGraphic = face;
                 btn.interactable = can;
-                btn.onClick.AddListener(() => OnSkillChosen(skillRef));
-                face.gameObject.AddComponent<ButtonFx>();
                 var hover = face.gameObject.AddComponent<SkillHover>();
+                btn.onClick.AddListener(() => { if (!hover.ConsumeLongPress()) OnSkillChosen(skillRef); });   // 길게 누르면 설명만
+                face.gameObject.AddComponent<ButtonFx>();
                 hover.onEnter = () => ShowSkillDesc(skillRef);
                 hover.onExit = () => ShowSkillDesc(null);
             }

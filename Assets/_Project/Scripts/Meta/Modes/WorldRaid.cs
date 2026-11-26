@@ -214,7 +214,7 @@ namespace SubcultureRPG.Meta
         public int AttemptsLeft { get { EnsureLoaded(); return FreeAttempts ? AttemptsPerDay : Mathf.Max(0, AttemptsPerDay - _d.used); } }
 
         /// <summary>최대 육성 테스트 중(TestMaxData 백업이 있음)에는 도전 횟수를 쓰지 않음.</summary>
-        public static bool FreeAttempts => TestMaxData.HasBackup;
+        public static bool FreeAttempts => SubcultureRPG.UI.DevTools.Enabled && TestMaxData.HasBackup;
         public bool IsClaimed(int d, int i) { EnsureLoaded(); return (_d.claims[Mathf.Clamp(d, 0, DifficultyCount - 1)] & (1 << i)) != 0; }
         public bool CanClaim(int d, int i) => i >= 0 && i < Diff(d).milestones.Count && !IsClaimed(d, i) && TotalDamage(d) >= Diff(d).milestones[i].damage;
         public int ClaimableIn(int d) { int n = 0; for (int i = 0; i < Diff(d).milestones.Count; i++) if (CanClaim(d, i)) n++; return n; }

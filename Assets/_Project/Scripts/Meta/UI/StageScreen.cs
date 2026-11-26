@@ -763,6 +763,7 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(c3rt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
             c3rt.sizeDelta = new Vector2(220, 40); c3rt.anchoredPosition = new Vector2(-50 - CurrencyBar.PillW - 14 - 196 - 12, -38);
             clear3.onClick.AddListener(TestClearToChapter3);
+            DevTools.Gate(refill.gameObject); DevTools.Gate(clear3.gameObject);   // 출시 빌드에서는 없음
 
             // 위: 난이도 + 돌파 던전 · 아래: 챕터 번호
             _modeTabs = TabRow("ModeTabs", -98, 44, 10);

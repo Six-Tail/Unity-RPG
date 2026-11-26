@@ -538,6 +538,7 @@ namespace SubcultureRPG.Meta.UI
                 wallet.Add(chargeAmount);
                 wallet.AddTickets(CurType, chargeTickets);
             });
+            DevTools.Gate(charge.gameObject);   // 출시 빌드에서는 없음
 
             // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
             _backBtn = UIFactory.AddButton("BackBtn", root, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);

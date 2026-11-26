@@ -18,7 +18,9 @@ namespace SubcultureRPG.Meta.UI
         public event System.Action OnWeekly;
 
         private TextMeshProUGUI _summary, _hpText, _weak, _left, _rankTitle, _status;
-        private RectTransform _hpFill, _rewards, _ranking;
+        private RectTransform _hpFill, _rewards, _ranking, _pin;
+        private int _rankTab;   // 0 전체 · 1 친구
+        private Button[] _tabBtns;
 
         private void Awake()
         {
@@ -100,12 +102,27 @@ namespace SubcultureRPG.Meta.UI
 
             // ---- 순위 ----
             _rankTitle = Text(_frame, "", 25, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Top(_rankTitle.rectTransform, 420 - 110, -654, 640, 38, new Vector2(0.5f, 1));
+            Top(_rankTitle.rectTransform, 420 - 215, -654, 430, 38, new Vector2(0.5f, 1));
+            // 탭: 전체 · 친구
+            _tabBtns = new Button[2];
+            string[] tabNames = { "전체", "친구" };
+            for (int i = 0; i < 2; i++)
+            {
+                int idx = i;
+                _tabBtns[i] = UIFactory.AddButton("Tab", _frame, tabNames[i], 19, font, new Color(1, 1, 1, 0.12f), Color.white);
+                Top((RectTransform)_tabBtns[i].transform, 470 + i * 104, -652, 96, 42, new Vector2(0.5f, 1));
+                _tabBtns[i].onClick.AddListener(() => { _rankTab = idx; Refresh(); });
+            }
             var tiers = UIFactory.AddButton("Tiers", _frame, "순위 보상 보기", 19, font, new Color(0.8f, 0.58f, 0.22f, 0.95f), Color.white);
             Top((RectTransform)tiers.transform, 420 + 320, -652, 210, 42, new Vector2(0.5f, 1));
             tiers.onClick.AddListener(ShowTiers);
             var view = UIFactory.NewRect("RankView", _frame);
-            Top(view, 420, -698, 860, 290, new Vector2(0.5f, 1));
+            Top(view, 420, -698, 860, 244, new Vector2(0.5f, 1));
+            // 아래에 내 순위 고정
+            _pin = UIFactory.NewRect("MyRank", _frame);
+            Top(_pin, 420, -948, 860, 44, new Vector2(0.5f, 1));
+            var pl = _pin.gameObject.AddComponent<VerticalLayoutGroup>();
+            pl.childControlWidth = true; pl.childControlHeight = true; pl.childForceExpandHeight = false;
             _ranking = UIFactory.NewRect("Ranking", view);
             var rl = _ranking.gameObject.AddComponent<VerticalLayoutGroup>();
             rl.spacing = 4; rl.padding = new RectOffset(2, 2, 2, 2);
@@ -147,15 +164,50 @@ namespace SubcultureRPG.Meta.UI
             Clear(_rewards);
             for (int i = 0; i < ServerRaid.HpRewards.Length; i++) RewardRow(i);
 
-            _rankTitle.text = $"<b>이번 주 순위</b>  <size=75%><color=#9AA3B5>준 피해 순 · {r.Ranking.Count}명 참여" +
+            _rankTitle.text = $"<b>이번 주 순위</b>  <size=75%><color=#9AA3B5>{r.Ranking.Count:N0}명 참여" +
                               (r.FetchedAt > System.DateTime.MinValue ? $" · {r.FetchedAt:HH:mm} 기준" : "") + "</color></size>";
             Clear(_ranking);
+            Clear(_pin);
+            for (int i = 0; i < 2; i++) _tabBtns[i].GetComponent<Image>().color = i == _rankTab ? new Color(0.25f, 0.55f, 0.9f, 0.96f) : new Color(1, 1, 1, 0.12f);
             if (!ServerRaid.Online) _status.text = "로그인하면 서버 순위를 볼 수 있습니다.";
             else if (r.Fetching && r.Ranking.Count == 0) _status.text = "서버에서 불러오는 중...";
             else if (!string.IsNullOrEmpty(r.LastError)) _status.text = $"<color=#FF8A8A>{r.LastError}</color>";
             else if (r.Ranking.Count == 0) _status.text = "아직 이번 주 기록이 없습니다. 첫 번째로 도전해 보세요!";
             else _status.text = "";
-            for (int i = 0; i < r.Ranking.Count && i < ServerRaid.RankLimit; i++) RankRow(i + 1, r.Ranking[i]);
+            int total = r.Ranking.Count;
+            if (_rankTab == 0)
+            {
+                // 상위 100명 + (100위 밖이면) 내 주변
+                for (int i = 0; i < total && i < ServerRaid.RankLimit; i++) RankRow(_ranking, r.Ranking[i].rank, r.Ranking[i]);
+                if (myRank > ServerRaid.RankLimit)
+                {
+                    var gap = Text(_ranking, "<color=#6B7280>· · ·</color>", 22, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
+                    gap.gameObject.AddComponent<LayoutElement>().preferredHeight = 28;
+                    for (int i = Mathf.Max(ServerRaid.RankLimit, myRank - 1 - ServerRaid.AroundSpan); i < Mathf.Min(total, myRank + ServerRaid.AroundSpan); i++)
+                        RankRow(_ranking, r.Ranking[i].rank, r.Ranking[i]);
+                }
+            }
+            else
+            {
+                _status.text = "";
+                var friends = r.FriendBoard();
+                foreach (var e in friends) RankRow(_ranking, e.rank, e);
+                if (friends.Count <= 1)
+                {
+                    var none = Text(_ranking, "<color=#9AA3B5>친구가 없거나 이번 주 기록이 있는 친구가 없습니다.</color>", 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+                    none.gameObject.AddComponent<LayoutElement>().preferredHeight = 50;
+                }
+            }
+            // 내 순위 고정 줄
+            var me = r.Ranking.Find(x => x.me);
+            if (me != null) RankRow(_pin, me.rank, me, $"  <size=80%><color=#FFD36B>{PlayerArena.Percent(me.rank, total)}</color></size>");
+            else
+            {
+                var none = Panel(_pin, new Color(1, 1, 1, 0.05f));
+                none.gameObject.AddComponent<LayoutElement>().preferredHeight = 44;
+                var tx = Text(none.transform, "<color=#9AA3B5>이번 주 내 기록 없음 — 도전하면 순위에 오릅니다</color>", 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+                UIFactory.Stretch(tx.rectTransform, 10, 4, 10, 4);
+            }
         }
 
         private void RewardRow(int i)
@@ -181,15 +233,15 @@ namespace SubcultureRPG.Meta.UI
             });
         }
 
-        private void RankRow(int rank, ServerRaid.Entry e)
+        private void RankRow(RectTransform parent, int rank, ServerRaid.Entry e, string extra = "")
         {
-            var row = Panel(_ranking, e.me ? new Color(0.45f, 0.35f, 0.15f, 0.75f) : new Color(1, 1, 1, rank % 2 == 0 ? 0.05f : 0.08f));
+            var row = Panel(parent, e.me ? new Color(0.45f, 0.35f, 0.15f, 0.75f) : new Color(1, 1, 1, rank % 2 == 0 ? 0.05f : 0.08f));
             row.gameObject.AddComponent<LayoutElement>().preferredHeight = 44;
             string rc = rank switch { 1 => "#FFD36B", 2 => "#DDE6FF", 3 => "#E0A070", _ => "#C8CEDA" };
-            var tier = ServerRaid.TierOf(rank);
-            var rt = Text(row.transform, $"<color={rc}><b>{rank}</b></color>", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            var tier = ServerRaid.TierOf(rank, ServerRaid.Instance.Ranking.Count);
+            var rt = Text(row.transform, $"<color={rc}><b>{rank:N0}</b></color>", rank >= 1000 ? 18 : 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
             Place(rt.rectTransform, 6, -4, 70, 36);
-            var nm = Text(row.transform, $"{(e.me ? "<color=#FFD36B>" : "")}{e.name}{(e.me ? " (나)</color>" : "")}" +
+            var nm = Text(row.transform, $"{(e.me ? "<color=#FFD36B>" : "")}{e.name}{(e.me ? " (나)</color>" : "")}{extra}" +
                                          (rank <= 3 && tier?.title != null ? $"  <size=75%><color=#C9A0FF>{ProfileRewards.Title(tier.title).name}</color></size>" : ""),
                 21, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(nm.rectTransform, 86, -4, 480, 36);
@@ -217,7 +269,7 @@ namespace SubcultureRPG.Meta.UI
             lines.Append("<color=#9AA3B5>매주 월요일 05:00에 지난주 순위(준 피해 순)로 정해지고, 다음에 월드 레이드를 열 때 우편함으로 보내 드립니다.</color>\n\n");
             foreach (var t in ServerRaid.RankTiers)
             {
-                string range = t.from == t.to ? $"{t.from}위" : $"{t.from} ~ {t.to}위";
+                string range = ServerRaid.RangeLabel(t);
                 string col = t.from switch { 1 => "#FFD36B", 2 => "#DDE6FF", 3 => "#E0A070", _ => "#C8CEDA" };
                 lines.Append($"<color={col}><b>{range}</b></color>   {t.label}\n");
             }

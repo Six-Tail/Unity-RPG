@@ -433,6 +433,35 @@ function build() {
     }, `a perfectly circular ornate avatar frame ring ${look}, thick ring with a round hollow center, seen straight from the front, symmetrical. ` +
        'game UI profile portrait frame, clean bold shapes, soft glow, centered, %BG%'));
 
+  // 결투장 티어 아이콘: 브론즈 ~ 다이아 × 단계(3 · 2 · 1 — 1이 가장 화려함) + 순위 티어(성운 · 초신성 · 앵커) — Tiers/{key}.png
+  const TIER_MAT = [
+    ['bronze', '브론즈', 'worn warm bronze metal'], ['silver', '실버', 'polished bright silver'], ['gold', '골드', 'radiant shining gold'],
+    ['platinum', '플래티넘', 'teal-white platinum with cyan glow'], ['diamond', '다이아', 'sparkling faceted blue diamond crystal with silver trim'],
+  ];
+  const TIER_DIV = {
+    3: 'a simple compact shield-shaped emblem with one small glowing gem in the center',
+    2: 'a shield-shaped emblem with two glowing gems and a pair of small wings on both sides',
+    1: 'a grand ornate shield-shaped emblem with three glowing gems, large spread wings on both sides and a small crown on top',
+  };
+  for (const [k, n, mat] of TIER_MAT)
+    for (const d of [3, 2, 1])
+      list.push(withBackground({
+        group: 'title', key: `tier_${k}_${d}`, label: `결투장 티어 — ${n} ${d}`,
+        out: `Tiers/${k}_${d}.png`, aspect: '1:1', resolution: '1K', width: 256, height: 256, format: 'png',
+        negative: NEGATIVE + ', text, letters, numbers, face, character',
+      }, `${TIER_DIV[d]}, made of ${mat}, two crossed swords behind the shield. ` +
+         'competitive ranked tier badge icon for a game, symmetrical, clean bold shapes, glossy, soft glow, centered, %BG%'));
+  for (const [k, n, look] of [
+    ['nebula', '성운', 'a majestic emblem of a swirling purple and pink cosmic nebula inside a dark star-metal shield ring, tiny stars and stardust wisps, large spread wings of starlight'],
+    ['supernova', '초신성', 'a majestic emblem of a blazing white-gold exploding star with radiant orange and cyan energy rays bursting outward from a gold shield, large flaming wings'],
+    ['anchor', '앵커', 'a legendary emblem of a majestic golden ship anchor whose top is a brilliant four-pointed star, black and gold star-metal shield, grand golden wings, a crown, orbiting small stars and a rainbow aurora glow'],
+  ])
+    list.push(withBackground({
+      group: 'title', key: `tier_${k}`, label: `결투장 티어 — ${n}`,
+      out: `Tiers/${k}.png`, aspect: '1:1', resolution: '1K', width: 256, height: 256, format: 'png',
+      negative: NEGATIVE + ', text, letters, numbers, face, character',
+    }, `${look}. competitive ranked tier badge icon for a game, symmetrical, clean bold shapes, glossy, intense glow, centered, %BG%`));
+
   // 타이틀 화면: 로고 엠블럼(글자 없음 — 게임 이름은 게임 폰트로 그림) + 픽업 캐릭터 2명 키 아트
   list.push(withBackground({
     group: 'title', key: 'title_logo', label: '타이틀 — 로고 엠블럼',

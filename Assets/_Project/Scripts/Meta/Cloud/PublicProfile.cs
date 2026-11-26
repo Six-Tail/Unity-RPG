@@ -326,6 +326,47 @@ namespace SubcultureRPG.Meta.Cloud
 
         internal static ProfileSnap ParseSnap(string json, string pid) => Parse(json, pid);
 
+        /// <summary>
+        /// 다른 플레이어 공개 프로필의 값을 게임에서 가능한 범위로 자름(조작 방지) — 레벨 · 성급 · 초월 · 스킬 · 호감도,
+        /// 장비(6부위 · 성급 · 강화 · 초월 · 보조 옵션 4개 · 옵션 값은 굴린 횟수 × 최대 1회 값까지).
+        /// </summary>
+        private static void Sanitize(ProfileSnap s)
+        {
+            s.level = Mathf.Clamp(s.level, 1, PlayerProfile.MaxLevel);
+            s.arenaPoints = Mathf.Clamp(s.arenaPoints, 0, PlayerArena.MaxPlausiblePoints);
+            if (s.top.Count > 5) s.top.RemoveRange(5, s.top.Count - 5);
+            foreach (var c in s.top)
+            {
+                if (c == null) continue;
+                c.level = Mathf.Clamp(c.level, 1, Leveling.AwakenedMaxLevel);
+                c.asc = Mathf.Clamp(c.asc, 0, Leveling.MaxAscension);
+                c.star = Mathf.Clamp(c.star, 1, Transcendence.MaxStar);
+                c.transcend = Mathf.Clamp(c.transcend, 0, Transcendence.MaxTranscend);
+                c.bond = Mathf.Clamp(c.bond, 1, PlayerBond.MaxLevel);
+                if (c.skills == null || c.skills.Length != 3) c.skills = new[] { 1, 1, 1 };
+                for (int i = 0; i < 3; i++) c.skills[i] = Mathf.Clamp(c.skills[i], 1, Leveling.MaxSkillLevel);
+                if (c.gear == null) { c.gear = new(); continue; }
+                var slots = new HashSet<EquipSlot>();
+                c.gear.RemoveAll(g => g == null || !slots.Add(g.slot));   // 부위당 1개
+                foreach (var g in c.gear)
+                {
+                    g.rarity = Mathf.Clamp(g.rarity, EquipStats.MinRarity, EquipStats.MaxRarity);
+                    g.level = Mathf.Clamp(g.level, 0, EquipStats.MaxLevelOf(g.rarity));
+                    g.transcend = Mathf.Clamp(g.transcend, 0, EquipStats.MaxTranscendOf(g.rarity));
+                    g.subs ??= new();
+                    if (g.subs.Count > 4) g.subs.RemoveRange(4, g.subs.Count - 4);
+                    int maxRolls = 1 + g.level / 4;
+                    foreach (var sb in g.subs)
+                    {
+                        if (sb == null) continue;
+                        sb.rolls = Mathf.Clamp(sb.rolls, 1, maxRolls);
+                        float cap = sb.rolls * EquipStats.SubUnit(sb.stat) * EquipStats.RarityScale(g.rarity) * 1.001f;
+                        sb.value = Mathf.Clamp(sb.value, 0f, cap);
+                    }
+                }
+            }
+        }
+
         private static ProfileSnap Parse(string json, string pid)
         {
             if (string.IsNullOrEmpty(json)) return null;
@@ -335,6 +376,7 @@ namespace SubcultureRPG.Meta.Cloud
                 if (s == null) return null;
                 s.pid = pid; s.real = true;
                 s.top ??= new();
+                Sanitize(s);
                 return s;
             }
             catch { return null; }
@@ -374,6 +416,7 @@ namespace SubcultureRPG.Meta.Cloud
                                 else if (it.Key == KPoints) { try { pts = it.Value.GetAs<int>(); } catch { } }
                             }
                         if (snap == null) continue;
+                        if (pts < 0 || pts > PlayerArena.MaxPlausiblePoints) { Debug.LogWarning($"[PublicProfile] 비정상 결투장 점수 제외: {snap.name} {pts}"); continue; }
                         snap.arenaPoints = pts;
                         _cache[row.Id] = (snap, Time.unscaledTime);
                         list.Add(snap);

@@ -11,6 +11,7 @@ namespace SubcultureRPG.Meta.Missions
         BattleWin, DungeonClear, GachaPull, Growth, ShopBuy, DailyMissions,
         // 현재 상태(볼 때마다 계산)
         Owned, Stars, Chapters, CommanderLevel, BondMax, Level80,
+        Power,   // 주력 4명 전투력(가장 높았던 값 기억)
     }
 
     /// <summary>업적 1개 — 단계(targets)마다 보상, 마지막 단계에 칭호(있으면).</summary>
@@ -26,7 +27,7 @@ namespace SubcultureRPG.Meta.Missions
     }
 
     /// <summary>
-    /// 업적: 계정 누적 기록(초기화 없음). 12종 × 3 ~ 6단계. 단계마다 크리스탈, 마지막 단계는 상시 뽑기권 + 칭호.
+    /// 업적: 계정 누적 기록(초기화 없음). 13종 × 3 ~ 6단계. 단계마다 크리스탈, 마지막 단계는 상시 뽑기권 + 칭호.
     /// 임무 화면의 '업적' 탭에서 받습니다. 씬에 없어도 처음 쓸 때 스스로 만들어짐(PlayerAchievements.Instance).
     /// 문서: docs/achievements.md
     /// </summary>
@@ -48,6 +49,7 @@ namespace SubcultureRPG.Meta.Missions
             A("a_level", "지휘관의 길", AchievementStat.CommanderLevel, "지휘관 Lv.{0}", "t_ach_level", 10, 20, 30, 50, 70, 100),
             A("a_bond", "깊은 인연", AchievementStat.BondMax, "호감도 Lv.10 캐릭터 {0}명", "t_ach_bond", 1, 3, 5, 10),
             A("a_lv80", "정점의 부대", AchievementStat.Level80, "Lv.80 캐릭터 {0}명", "t_ach_lv80", 1, 3, 6, 12),
+            A("a_power", "최강의 부대", AchievementStat.Power, "주력 4명 전투력 {0}", "t_ach_power", 1_000_000, 3_000_000, 10_000_000, 30_000_000, 60_000_000, 90_000_000),
         };
 
         private static Achievement A(string id, string name, AchievementStat stat, string format, string title, params int[] targets) =>
@@ -174,6 +176,20 @@ namespace SubcultureRPG.Meta.Missions
                         if (stat == AchievementStat.BondMax ? PlayerBond.Instance.Level(ch) >= PlayerBond.MaxLevel : roster.LevelOf(ch) >= 80) n++;
                     }
                     return n;
+                }
+                case AchievementStat.Power:
+                {
+                    // 주력 4명(전투력 높은 순) 합. 장비를 빼도 줄지 않게 가장 높았던 값을 기억
+                    long now = 0; int n = 0;
+                    foreach (var kv in CombatPower.All(FindAnyObjectByType<PlayerRoster>(), FindAnyObjectByType<PlayerEquipment>()))
+                    {
+                        if (n++ >= 4) break;
+                        now += kv.Value;
+                    }
+                    var c = _d.counters.Find(x => x.stat == (int)stat);
+                    if (c == null) { c = new Counter { stat = (int)stat }; _d.counters.Add(c); }
+                    if (now > c.value) { c.value = now; Save(); }
+                    return c.value;
                 }
                 default:
                     return _d.counters.Find(x => x.stat == (int)stat)?.value ?? 0;

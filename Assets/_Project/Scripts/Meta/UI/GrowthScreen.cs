@@ -43,7 +43,10 @@ namespace SubcultureRPG.Meta.UI
         private RectTransform _grid;
         private RosterFilterBar _filterBar;
         private readonly Dictionary<CharacterData, RectTransform> _cardRT = new();
-        private readonly Vector2 _cell = new(130, 160);
+        private readonly Vector2 _cell = new(130, 160);   // 카드 그림 기준 크기
+        private const float CardScale = 1.45f;             // 목록에서는 크게(남는 공간 없이) — 칸 = 기준 × 배율
+        private const int Cols = 8;
+        private Vector2 Slot => _cell * CardScale;
 
         // 상세
         private CanvasGroup _detailGroup;
@@ -162,8 +165,12 @@ namespace SubcultureRPG.Meta.UI
             foreach (var e in entries)
             {
                 var card = UIFactory.NewRect("Card", _grid);
-                BuildCardVisual(card, e.character, e.owned);
-                var frame = card.GetChild(0).GetComponent<Image>();
+                // 카드 그림은 기준 크기로 만들고 칸에 맞게 확대(글자 · 별 비율 유지)
+                var art = UIFactory.NewRect("Art", card);
+                UIFactory.Anchor(art, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                art.sizeDelta = _cell; art.anchoredPosition = Vector2.zero; art.localScale = Vector3.one * CardScale;
+                BuildCardVisual(art, e.character, e.owned);
+                var frame = art.GetChild(0).GetComponent<Image>();
                 var btn = frame.gameObject.AddComponent<Button>();
                 btn.targetGraphic = frame;
                 var c = e.character;
@@ -296,7 +303,7 @@ namespace SubcultureRPG.Meta.UI
                 float k = EaseOut(t / spin);
                 _listGroup.alpha = 1f - Mathf.Clamp01(t / 0.25f);
                 _hero.anchoredPosition = Vector2.Lerp(start, mid, k);
-                _hero.localScale = Vector3.one * Mathf.Lerp(1f, 3.2f, k);
+                _hero.localScale = Vector3.one * Mathf.Lerp(CardScale, 3.2f, k);
                 _hero.localEulerAngles = new Vector3(0, 360f * k, 0);
                 yield return null;
             }
@@ -356,7 +363,7 @@ namespace SubcultureRPG.Meta.UI
                 if (_hero != null)
                 {
                     _hero.anchoredPosition = Vector2.Lerp(from, end, k);
-                    _hero.localScale = Vector3.one * Mathf.Lerp(fromScale, 1f, k);
+                    _hero.localScale = Vector3.one * Mathf.Lerp(fromScale, CardScale, k);
                     _hero.localEulerAngles = new Vector3(0, -360f * k, 0);
                 }
                 yield return null;
@@ -1419,6 +1426,8 @@ namespace SubcultureRPG.Meta.UI
                         "<size=85%><color=#9AA3B5>로그인 중이면 최대 육성 상태도 서버에 저장되고, 되돌리면 원래 세이브가 다시 올라갑니다.</color></size>",
                         "적용", () => TestMaxData.Apply(), "취소");
             });
+            // 출시 빌드에서는 테스트 버튼 없음
+            DevTools.Gate(charge.gameObject); DevTools.Gate(dup.gameObject); DevTools.Gate(maxBtn.gameObject);
 
             _equipPanel = EquipmentPanel.Create(root, font, equipment, inventory, wallet,
                 key => database != null ? database.GetCharacter(key)?.displayName : null);
@@ -1441,18 +1450,18 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Stretch(list);
             _listGroup = list.gameObject.AddComponent<CanvasGroup>();
 
-            const int cols = 7;
-            float gridW = cols * _cell.x + (cols - 1) * 12;
+            const int cols = Cols;
+            float gridW = cols * Slot.x + (cols - 1) * 14;
             // 목록은 필터 바 아래 ~ 하단 테스트 버튼 위에서 스크롤(캐릭터가 늘어도 겹치지 않음)
             const int pad = 14;
             var view = UIFactory.NewRect("GridView", list);
             UIFactory.Anchor(view, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            view.sizeDelta = new Vector2(gridW + pad * 2, 730); view.anchoredPosition = new Vector2(0, -246 + pad);   // 필터 바(3줄, -120 ~ -228) 아래
+            view.sizeDelta = new Vector2(gridW + pad * 2, 770); view.anchoredPosition = new Vector2(0, -246 + pad);   // 필터 바(3줄, -120 ~ -228) 아래
             _grid = UIFactory.NewRect("Grid", view);
             var gl = _grid.gameObject.AddComponent<GridLayoutGroup>();
             gl.padding = new RectOffset(pad, pad, pad, pad);   // 테두리·확대가 잘리지 않게
             UIFactory.MakeVerticalScroll(view, _grid);
-            gl.cellSize = _cell; gl.spacing = new Vector2(12, 14);
+            gl.cellSize = Slot; gl.spacing = new Vector2(14, 16);
             gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = cols;
             gl.childAlignment = TextAnchor.UpperCenter;
 

@@ -173,11 +173,41 @@ namespace SubcultureRPG.Battle.UI
 
 namespace SubcultureRPG.Battle.UI
 {
-    /// <summary>행동 버튼에 손(마우스)을 올리면 설명을 보여 주기 위한 작은 도우미.</summary>
-    public class SkillHover : UnityEngine.MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
+    /// <summary>
+    /// 행동 버튼 설명: 마우스는 올리면 보임. 터치(모바일)는 누르고 있는 동안 보이고,
+    /// 0.4초 넘게 길게 눌렀다 떼면 그 기술을 쓰지 않음(설명만 읽기) — <see cref="ConsumeLongPress"/>.
+    /// </summary>
+    public class SkillHover : UnityEngine.MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler,
+        UnityEngine.EventSystems.IPointerDownHandler, UnityEngine.EventSystems.IPointerUpHandler
     {
+        public const float LongPress = 0.4f;
         public System.Action onEnter, onExit;
+        private float _downAt = -1f;
+        private bool _long;
+
         public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData e) => onEnter?.Invoke();
         public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e) => onExit?.Invoke();
+
+        public void OnPointerDown(UnityEngine.EventSystems.PointerEventData e)
+        {
+            _downAt = UnityEngine.Time.unscaledTime;
+            _long = false;
+            onEnter?.Invoke();   // 터치는 누르는 순간 설명
+        }
+
+        public void OnPointerUp(UnityEngine.EventSystems.PointerEventData e)
+        {
+            _long = _downAt >= 0f && UnityEngine.Time.unscaledTime - _downAt >= LongPress;
+            _downAt = -1f;
+            if (UnityEngine.Application.isMobilePlatform) onExit?.Invoke();
+        }
+
+        /// <summary>방금 길게 눌러 설명만 봤으면 true(이번 클릭은 무시).</summary>
+        public bool ConsumeLongPress()
+        {
+            bool l = _long;
+            _long = false;
+            return l;
+        }
     }
 }

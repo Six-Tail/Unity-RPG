@@ -106,6 +106,7 @@ namespace SubcultureRPG.Meta.UI
         private void OnDestroy()
         {
             if (_missions != null) _missions.OnChanged -= RefreshMissionBadge;
+            if (FindAnyObjectByType<ChatService>() is ChatService chat) chat.OnChanged -= RefreshMiniChat;
             if (FindAnyObjectByType<PlayerAchievements>() is PlayerAchievements ach) ach.OnChanged -= RefreshMissionBadge;
             if (FindAnyObjectByType<SeasonPass>() is SeasonPass sp) sp.OnChanged -= RefreshBadges;
             if (_codex != null) _codex.OnChanged -= RefreshCodexButton;
@@ -522,6 +523,7 @@ namespace SubcultureRPG.Meta.UI
             _assistName.enableAutoSizing = true; _assistName.fontSizeMin = 16; _assistName.fontSizeMax = 30;
 
             BuildEventBanner(root);
+            BuildMiniChat(root);
 
             // 재화(오른쪽 위): 크리스탈 · 금화 알약
             CurrencyBar.Create(root, font, wallet, new Vector2(-50, -36), Currency.Crystal, Currency.Gold);
@@ -596,6 +598,49 @@ namespace SubcultureRPG.Meta.UI
         private NotifyBadge _eventBadge;
 
         /// <summary>기간 한정 이벤트 배너(왼쪽, 대표 캐릭터 이름 위).</summary>
+        private TextMeshProUGUI _miniChat;
+        private NotifyBadge _chatBadge;
+
+        /// <summary>미니 채팅(왼쪽 아래 이벤트 배너 위): 최근 전체 채팅 한 줄 · 안 읽은 1:1이 있으면 빨간 점 · 누르면 채팅 창.</summary>
+        private void BuildMiniChat(Transform root)
+        {
+            var bg = UIFactory.AddImage("MiniChat", root, new Color(0.06f, 0.08f, 0.14f, 0.82f), ProceduralSprites.Rounded, raycast: true);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            var rt = bg.rectTransform;
+            UIFactory.Anchor(rt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            rt.sizeDelta = new Vector2(440, 60); rt.anchoredPosition = new Vector2(50, 272);
+            var b = bg.gameObject.AddComponent<Button>();
+            b.targetGraphic = bg;
+            b.onClick.AddListener(() => ChatWindow.Open(font));
+            bg.gameObject.AddComponent<ButtonFx>();
+            var tag = UIFactory.AddText("Tag", rt, "<b>채팅</b>", 20, font, new Color(0.6f, 0.85f, 1f), TextAlignmentOptions.Center);
+            tag.richText = true;
+            UIFactory.Anchor(tag.rectTransform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f));
+            tag.rectTransform.sizeDelta = new Vector2(70, 0); tag.rectTransform.anchoredPosition = new Vector2(8, 0);
+            _miniChat = UIFactory.AddText("Last", rt, "", 18, font, new Color(0.88f, 0.9f, 0.96f), TextAlignmentOptions.Left);
+            _miniChat.richText = true;
+            _miniChat.overflowMode = TextOverflowModes.Ellipsis;
+            _miniChat.textWrappingMode = TextWrappingModes.NoWrap;
+            UIFactory.Stretch(_miniChat.rectTransform, 82, 6, 16, 6);
+            _chatBadge = NotifyBadge.Attach(b, font, 4, 4, 18);
+            ChatService.Instance.OnChanged += RefreshMiniChat;
+            RefreshMiniChat();
+        }
+
+        private void RefreshMiniChat()
+        {
+            if (_miniChat == null) return;
+            var chat = ChatService.Instance;
+            string why = chat.CannotSend();
+            if (chat.World.Count > 0)
+            {
+                var m = chat.World[chat.World.Count - 1];
+                _miniChat.text = $"<color=#FFD98A>{m.name}</color>  {m.text.Replace("<", "‹")}";
+            }
+            else _miniChat.text = $"<color=#9AA3B5>{why ?? "전체 채팅에 인사를 남겨 보세요"}</color>";
+            if (_chatBadge != null) _chatBadge.Set(chat.UnreadDirect > 0);
+        }
+
         private void BuildEventBanner(Transform root)
         {
             _eventBg = UIFactory.AddImage("EventBanner", root, new Color(0.3f, 0.15f, 0.1f, 0.88f), ProceduralSprites.Rounded, raycast: true);
@@ -707,7 +752,7 @@ namespace SubcultureRPG.Meta.UI
                 else
                 {
                     var a = PlayerArena.Instance;
-                    var (tier, _) = PlayerArena.Tier(a.Points);
+                    var (tier, _) = a.MyTier;
                     _arenaLabel.text = $"결투장\n<size=55%>{tier} · {a.MyRank}위 · {a.Tickets}/{PlayerArena.MaxTickets}</size>";
                 }
             }

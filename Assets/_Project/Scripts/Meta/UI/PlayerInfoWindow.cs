@@ -143,6 +143,18 @@ namespace SubcultureRPG.Meta.UI
 
             // 친선 전투(나 말고 · 캐릭터 정보가 있으면)
             bool me = s.real && s.pid == CloudAccount.PlayerId;
+            // 실제 플레이어: 위 오른쪽 '신고'(랭킹 · 친구 · 길드 · 채팅 어디서 열어도) · 친구면 '대화'
+            if (s.real && !me && !string.IsNullOrEmpty(s.pid))
+            {
+                w.Btn(p, "신고", 20, new Color(0.6f, 0.25f, 0.25f, 0.9f), 1100 - 20 - 120 - 12 - 110, -20, 110, 44, () =>
+                    ReportWindow.Open(s.pid, s.uid, s.name, string.IsNullOrEmpty(s.greeting) ? "" : $"인사말: {s.greeting}", w.Font));
+                if (PlayerSocial.Instance.IsRealFriend(s.pid))
+                    w.Btn(p, "대화", 24, new Color(0.3f, 0.62f, 0.42f, 0.96f), 1100 - 44 - 240 - 20 - 240 - 20 - 200, -710, 200, 64, () =>
+                    {
+                        w.Close();
+                        ChatWindow.Open(w.Font, s.pid);
+                    });
+            }
             if (!me && cards.Count > 0)
                 w.Btn(p, "친선 전투", 24, OverlayWindow.Gold, 1100 - 44 - 240 - 20 - 240, -710, 240, 64, () =>
                 {
