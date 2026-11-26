@@ -17,6 +17,7 @@ namespace SubcultureRPG.Meta
         // 순위표용(이번 주)
         public long bossDamage;
         public int warStars;
+        public int warRating;           // 길드전 점수(결투장 점수처럼 — 시작 1,000, 이기면 오르고 지면 내림)
         public long exp;
         public string leaderName = "";
         public bool mine;               // 내 길드(순위표 표시용)
@@ -50,7 +51,19 @@ namespace SubcultureRPG.Meta
             g.minLevel = new[] { 1, 1, 5, 10, 20 }[rng.Next(5)];
             g.intro = Intros[rng.Next(Intros.Length)];
             g.free = true;
+            g.warRating = WarRating(seed);
             return g;
+        }
+
+        /// <summary>
+        /// 가상 길드의 길드전 점수(번호로 늘 같음). 결투장 점수와 같은 눈금(900 ~ 3,800) — 낮은 점수가 많고 높을수록 드묾.
+        /// 상대 방어 팀의 강함이 이 점수로 정해짐(<see cref="GuildWar.Strength"/>).
+        /// </summary>
+        public static int WarRating(int seed)
+        {
+            var rng = new System.Random(seed * 2851 + 101);
+            double u = rng.NextDouble();
+            return 900 + (int)Math.Round(Math.Pow(u, 1.7) * 2900);
         }
 
         /// <summary>이번 주가 얼마나 지났는가(0 = 월요일 05:00 · 1 = 다음 월요일 05:00).</summary>
@@ -77,11 +90,12 @@ namespace SubcultureRPG.Meta
             return (long)(weekTotal * Math.Pow(Mathf.Clamp01(progress), 0.9));
         }
 
-        /// <summary>가상 길드가 이번 주 길드전에서 얻은 별(0 ~ 30, 지금 시점).</summary>
+        /// <summary>가상 길드가 이번 주 길드전에서 얻은 별(0 ~ 30, 지금 시점). 길드전 점수가 높은 길드일수록 많이 얻음.</summary>
         public static int WarStars(int seed, int level, string week, float progress)
         {
             double n = Noise(seed, week, 2);
-            double final = GuildWar.MaxStars * Math.Min(0.97, 0.42 + 0.04 * level + 0.22 * n);
+            double skill = Mathf.Clamp01((WarRating(seed) - 900) / 2900f);
+            double final = GuildWar.MaxStars * Math.Min(0.97, 0.35 + 0.45 * skill + 0.2 * n);
             return Mathf.Clamp((int)Math.Round(final * Math.Min(1.0, progress * 1.35)), 0, GuildWar.MaxStars);
         }
 

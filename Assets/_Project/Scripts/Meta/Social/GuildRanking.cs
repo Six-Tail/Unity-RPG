@@ -11,7 +11,7 @@ namespace SubcultureRPG.Meta
     {
         public enum Tab { Boss, War, Level }
 
-        public static string TabName(Tab t) => t switch { Tab.Boss => "길드 보스", Tab.War => "길드전", _ => "길드 레벨" };
+        public static string TabName(Tab t) => t switch { Tab.Boss => "길드 보스", Tab.War => "길드전 점수", _ => "길드 레벨" };
 
         /// <summary>내 길드(지금 기록).</summary>
         public static GuildInfo Mine()
@@ -24,11 +24,11 @@ namespace SubcultureRPG.Meta
             return new GuildInfo
             {
                 seed = g.IsReal ? -1 : g.Seed, gid = g.Gid, name = g.Name, intro = g.Intro, level = g.Level, members = g.Members,
-                bossDamage = g.GuildBossTotal(), warStars = g.GuildWarStars(), exp = exp, mine = true,
+                bossDamage = g.GuildBossTotal(), warStars = g.GuildWarStars(), warRating = g.WarRating, exp = exp, mine = true,
             };
         }
 
-        public static long Score(GuildInfo g, Tab t) => t switch { Tab.Boss => g.bossDamage, Tab.War => g.warStars, _ => g.exp };
+        public static long Score(GuildInfo g, Tab t) => t switch { Tab.Boss => g.bossDamage, Tab.War => g.warRating, _ => g.exp };
 
         /// <summary>순위표(높은 순).</summary>
         public static List<GuildInfo> Build(Tab tab)

@@ -18,8 +18,22 @@ namespace SubcultureRPG.EditorTools
     ///   Unity.exe -batchmode -quit -projectPath . -executeMethod SubcultureRPG.EditorTools.GuildSelfTest.RunBatch [-guildTestOut 폴더]
     ///   에디터: 메뉴 SubcultureRPG > 길드 자동 시험 → Temp/GuildSelfTest/report.txt
     /// </summary>
+    [InitializeOnLoad]
     public static class GuildSelfTest
     {
+        // 에디터가 열려 있을 때: Temp/guild_test_request.txt 가 생기면 실행(플레이 중이 아닐 때) → Temp/GuildSelfTest/report.txt
+        private const string Request = "Temp/guild_test_request.txt";
+        private static double _next;
+        static GuildSelfTest() { EditorApplication.update += Poll; }
+        private static void Poll()
+        {
+            if (EditorApplication.timeSinceStartup < _next) return;
+            _next = EditorApplication.timeSinceStartup + 1.0;
+            if (EditorApplication.isPlayingOrWillChangePlaymode || !File.Exists(Request)) return;
+            File.Delete(Request);
+            Run("Temp/GuildSelfTest");
+        }
+
         private const string ScenePath = "Assets/_Project/Scenes/Main.unity";
         private static readonly string[] Keys = { "guild", "guildwar", "mail", "arena" };   // 시험이 건드릴 수 있는 세이브 키
 
@@ -49,9 +63,15 @@ namespace SubcultureRPG.EditorTools
             for (int i = 0; i < Keys.Length; i++) { had[i] = PlayerPrefs.HasKey(Keys[i]); backup[i] = PlayerPrefs.GetString(Keys[i], ""); }
 
             GameObject screenGo = null;
+            UnityEngine.SceneManagement.Scene temp = default;
+            var prevActive = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
             try
             {
-                if (File.Exists(ScenePath)) EditorSceneManager.OpenScene(ScenePath);
+                // 배치 모드에서만 메인 씬을 엶(에디터가 열려 있으면 지금 씬을 건드리지 않음 — 저장 안 된 변경 보호)
+                if (Application.isBatchMode && File.Exists(ScenePath)) { EditorSceneManager.OpenScene(ScenePath); prevActive = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); }
+                // 시험이 만드는 오브젝트(길드 싱글턴 · 화면)는 임시 씬에 — 끝나면 통째로 닫아 메인 씬에 남지 않게
+                temp = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+                UnityEngine.SceneManagement.SceneManager.SetActiveScene(temp);
 
                 // --- 계산 ---
                 r.AppendLine("[길드 보스 단계]");
@@ -115,7 +135,15 @@ namespace SubcultureRPG.EditorTools
                 var defs = GuildWar.Instance.DefenderTeams(roster != null ? roster.Database : null);
                 Check(defs.Count == GuildWar.Defenders, $"길드전 방어 팀 {defs.Count}개");
                 for (int i = 0; i < defs.Count; i++) r.AppendLine($"  {i + 1}번 {defs[i].name} Lv.{defs[i].level} +{defs[i].transcend} 전투력 {defs[i].power:N0} ({string.Join("/", defs[i].team)})");
-                if (defs.Count == GuildWar.Defenders) Check(defs[GuildWar.Defenders - 1].power >= defs[0].power, "뒤 번호일수록 강함");
+                if (defs.Count == GuildWar.Defenders) Check(defs[GuildWar.Defenders - 1].level >= defs[0].level, "뒤 번호일수록 강함(레벨)");
+                var opp = GuildWar.Opponent();
+                r.AppendLine($"  우리 길드전 점수 {g.WarRating:N0} → 상대 '{opp.name}' 점수 {opp.warRating:N0} · {GuildWar.OpponentRank()}위 · 강함 {GuildWar.Strength(opp.warRating):0.00}");
+                Check(Mathf.Abs(opp.warRating - g.WarRating) <= 400, "점수가 가까운 가상 길드와 매칭");
+                long maxDef = 0; foreach (var d in defs) maxDef = System.Math.Max(maxDef, d.power);
+                Check(myPower <= 0 || maxDef < myPower, $"가장 강한 방어 팀({maxDef:N0})이 내 전투력({myPower:N0})보다 약함 — 내 전투력에 맞추지 않음");
+                // 점수가 아주 높은 가상 길드(최상위)도 결투장 최상위 가상 상대 수준인지
+                int top = 1; for (int s = 1; s <= VirtualGuilds.RankPool; s++) if (VirtualGuilds.WarRating(s) > VirtualGuilds.WarRating(top)) top = s;
+                r.AppendLine($"  최상위 가상 길드 '{VirtualGuilds.Info(top).name}' 점수 {VirtualGuilds.WarRating(top):N0} → 강함 {GuildWar.Strength(VirtualGuilds.WarRating(top)):0.00}(최대 1.40)");
 
                 var (rank, total) = GuildRanking.MyRank(GuildRanking.Tab.Boss);
                 Check(rank >= 1 && total >= VirtualGuilds.RankPool, $"순위표에 우리 길드 {rank}위 / {total}");
@@ -128,6 +156,11 @@ namespace SubcultureRPG.EditorTools
             finally
             {
                 if (screenGo != null) UnityEngine.Object.DestroyImmediate(screenGo);
+                if (temp.IsValid())
+                {
+                    if (prevActive.IsValid()) UnityEngine.SceneManagement.SceneManager.SetActiveScene(prevActive);
+                    EditorSceneManager.CloseScene(temp, true);
+                }
                 for (int i = 0; i < Keys.Length; i++)
                 {
                     if (had[i]) PlayerPrefs.SetString(Keys[i], backup[i]); else PlayerPrefs.DeleteKey(Keys[i]);

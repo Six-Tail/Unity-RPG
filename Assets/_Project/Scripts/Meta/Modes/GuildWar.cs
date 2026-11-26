@@ -10,8 +10,9 @@ namespace SubcultureRPG.Meta
 {
     /// <summary>
     /// 길드전(주간 PVP): 매주 가상 길드 1곳과 대전합니다(실제 길드도 상대는 가상 길드).
-    /// · 상대 길드원 10명이 방어 팀을 둠. 강함은 내 주력 4명 전투력의 55% ~ 132%(번호가 클수록 강함) — 레벨 · 초월 · 스킬로 맞추고,
-    ///   최대로도 모자라면 장비 대신 보정(체력 · 공격 · 방어 %)을 더 올림
+    /// · 결투장처럼: 길드마다 길드전 점수(시작 1,000)가 있고, 매주 점수가 가까운 가상 길드와 매칭. 이기면 점수가 오르고 지면 내림
+    /// · 상대 길드원 10명이 방어 팀을 둠. 강함은 상대 길드의 점수로 정함(결투장 가상 상대와 같은 규칙 — 내 전투력과 상관없음).
+    ///   점수가 높은(순위가 높은) 길드일수록 강하지만, 가장 강한 가상 길드도 결투장 최상위 가상 상대 수준
     /// · 공격: 하루 3회(05:00 충전). 이기면 별 — 아군이 모두 살아 있으면 ★3, 절반 이상 ★2, 그보다 적으면 ★1
     /// · 길드 별 = 상대 길드원별로 우리 길드원이 얻은 최고 별의 합(최대 30). 상대 길드도 날마다 우리를 공략해 별을 쌓음
     /// · 주가 끝나면(월요일 05:00) 별이 많은 쪽이 승리 → 결과 보상을 우편으로(이번 주에 한 번이라도 공격했을 때)
@@ -21,6 +22,7 @@ namespace SubcultureRPG.Meta
     {
         public const int Defenders = 10, MaxStars = Defenders * 3, AttemptsPerDay = 3;
         private const string SaveKey = "guildwar";
+        private const int Version = 2;   // 방어 팀 만드는 규칙이 바뀌면 올림(그 주 방어 팀을 다시 만듦)
 
         [Serializable]
         private class SaveData
@@ -28,6 +30,7 @@ namespace SubcultureRPG.Meta
             public string week = "", guild = "";
             public int oppSeed;
             public long basePower;
+            public int version;
             public List<PlayerArena.Opponent> defenders = new();
         }
 
@@ -63,7 +66,28 @@ namespace SubcultureRPG.Meta
 
         private void Save() { SaveStore.SetString(SaveKey, JsonUtility.ToJson(_d)); SaveStore.Save(); }
 
-        // ---------------- 상대 길드 ----------------
+        // ---------------- 길드전 점수 · 매칭 ----------------
+
+        /// <summary>
+        /// 길드전 점수: 시작 1,000(결투장 점수와 같은 눈금). 길드전은 한 주에 한 번 끝나므로 별 차이만큼 더 크게 움직임:
+        /// 승리 +60 + 별 차이 × 6(최대 +200) · 무승부 +10 · 패배 −30 − 별 차이 × 3(최대 −120).
+        /// 크게 이기는 길드는 주마다 약 +150 ~ 200 → 서너 달이면 최상위 가상 길드(약 3,800점)와 만남.
+        /// </summary>
+        public const int StartRating = 1000, WinRating = 60, DrawRating = 10, LoseRating = -30;
+        /// <summary>매칭 후보: 내 점수와 가까운 가상 길드 이만큼 중 하나(주마다 바뀜).</summary>
+        public const int MatchPool = 6;
+
+        public static int RatingDelta(int ours, int theirs) =>
+            ours > theirs ? Mathf.Min(200, WinRating + (ours - theirs) * 6)
+            : ours == theirs ? DrawRating
+            : Mathf.Max(-120, LoseRating - (theirs - ours) * 3);
+
+        /// <summary>
+        /// 길드 점수 → 상대 길드원 방어 팀의 강함(0 ~ 1.4). 결투장 가상 상대와 같은 규칙(<see cref="PlayerArena.TierStrength"/>):
+        /// 1,000점 = 0(Lv.12 · 장비 보정 없음) … 3,800점 이상 = 1.4(Lv.99 · +6 · 스킬 Lv.10 · 장비 보정 +126%).
+        /// 내 전투력과는 상관없음 — 가장 강한 가상 길드도 결투장 최상위 가상 상대 수준(최대로 키운 플레이어보다 약함).
+        /// </summary>
+        public static float Strength(int rating) => PlayerArena.TierStrength(rating);
 
         /// <summary>내 길드를 가리키는 이름(실제 = 길드 id, 가상 = 번호).</summary>
         private static string GuildKey()
@@ -72,47 +96,65 @@ namespace SubcultureRPG.Meta
             return !g.Joined ? "" : g.IsReal ? g.Gid : "v" + g.Seed;
         }
 
+        /// <summary>이번 주 상대: 순위표의 가상 길드 중 길드전 점수가 내 점수와 가장 가까운 몇 곳 중 하나(결투장 매칭처럼).</summary>
         public static int OpponentSeed()
         {
             var g = PlayerGuild.Instance;
+            int my = g.WarRating;
+            var cands = new List<(int seed, int diff)>();
+            for (int s = 1; s <= VirtualGuilds.RankPool; s++)
+            {
+                if (!g.IsReal && s == g.Seed) continue;
+                cands.Add((s, Math.Abs(VirtualGuilds.WarRating(s) - my)));
+            }
+            cands.Sort((a, b) => a.diff != b.diff ? a.diff.CompareTo(b.diff) : a.seed.CompareTo(b.seed));
             int h = Commanders.Hash(GuildKey() + "|" + g.Week);
-            int seed = 1_000 + (int)((uint)h % 98_000u);
-            if (!g.IsReal && seed == g.Seed) seed++;
-            return seed;
+            int pick = (int)((uint)h % (uint)Mathf.Min(MatchPool, cands.Count));
+            return cands[pick].seed;
         }
 
-        /// <summary>이번 주 상대 가상 길드.</summary>
-        public static GuildInfo Opponent()
+        /// <summary>이번 주 상대 가상 길드(점수 · 레벨 포함).</summary>
+        public static GuildInfo Opponent() => VirtualGuilds.Info(OpponentSeed());
+
+        /// <summary>상대 길드의 길드전 순위(순위표 기준).</summary>
+        public static int OpponentRank()
         {
-            var o = VirtualGuilds.Info(OpponentSeed());
-            o.level = Mathf.Clamp(PlayerGuild.Instance.Level + (OpponentSeed() % 3) - 1, 1, PlayerGuild.MaxLevel);
-            return o;
+            int seed = OpponentSeed();
+            var list = GuildRanking.Build(GuildRanking.Tab.War);
+            for (int i = 0; i < list.Count; i++) if (!list[i].Real && !list[i].mine && list[i].seed == seed) return i + 1;
+            return 0;
         }
 
-        /// <summary>상대 길드가 지금까지 우리 길드에게서 얻은 별(날마다 늘어남).</summary>
+        /// <summary>
+        /// 상대 길드가 지금까지 우리 길드에게서 얻은 별(날마다 늘어남). 상대 점수가 우리보다 높을수록 많이 얻음.
+        /// </summary>
         public static int TheirStars()
         {
-            if (!PlayerGuild.Instance.Joined) return 0;
+            var g = PlayerGuild.Instance;
+            if (!g.Joined) return 0;
             var o = Opponent();
-            return VirtualGuilds.WarStars(o.seed, o.level, PlayerGuild.Instance.Week, VirtualGuilds.WeekProgress());
+            var rng = new System.Random(o.seed * 613 + Commanders.Hash(GuildKey() + g.Week));
+            double edge = (o.warRating - g.WarRating) / 1500.0;
+            double final = MaxStars * Mathf.Clamp(0.55f + (float)edge + (float)(rng.NextDouble() * 0.2 - 0.1), 0.25f, 0.95f);
+            return Mathf.Clamp((int)Math.Round(final * Math.Min(1.0, VirtualGuilds.WeekProgress() * 1.35)), 0, MaxStars);
         }
 
         public static int OurStars() => PlayerGuild.Instance.GuildWarStars();
         public static int AttemptsLeft => Mathf.Max(0, AttemptsPerDay - PlayerGuild.Instance.WarUsedToday);
 
-        /// <summary>상대 길드원(방어 팀) 목록 — 주마다 한 번 만들어 둠.</summary>
+        /// <summary>상대 길드원(방어 팀) 목록 — 주마다 한 번 만들어 둠(그 주 동안 그대로).</summary>
         public List<PlayerArena.Opponent> DefenderTeams(GameDatabase db)
         {
             EnsureLoaded();
             var g = PlayerGuild.Instance;
             if (!g.Joined || db == null) return new List<PlayerArena.Opponent>();
             int seed = OpponentSeed();
-            if (_d.week != g.Week || _d.guild != GuildKey() || _d.oppSeed != seed || _d.defenders.Count != Defenders)
+            if (_d.week != g.Week || _d.guild != GuildKey() || _d.oppSeed != seed || _d.defenders.Count != Defenders || _d.version != Version)
             {
-                _d.week = g.Week; _d.guild = GuildKey(); _d.oppSeed = seed;
-                _d.basePower = MyPower();
+                _d.week = g.Week; _d.guild = GuildKey(); _d.oppSeed = seed; _d.version = Version;
+                float t = Strength(VirtualGuilds.WarRating(seed));
                 _d.defenders = new List<PlayerArena.Opponent>();
-                for (int i = 0; i < Defenders; i++) _d.defenders.Add(MakeDefender(i, seed, _d.basePower, db));
+                for (int i = 0; i < Defenders; i++) _d.defenders.Add(MakeDefender(i, seed, t, db));
                 Save();
             }
             return _d.defenders;
@@ -121,48 +163,30 @@ namespace SubcultureRPG.Meta
         public Commander DefenderCommander(int i, GameDatabase db) =>
             Commanders.FromSeed((OpponentSeed() * 37 + i * 7919 + 5) % Commanders.MaxSeed, db);
 
-        private static long MyPower()
-        {
-            long sum = 0; int n = 0;
-            foreach (var kv in CombatPower.All(FindAnyObjectByType<PlayerRoster>(), FindAnyObjectByType<PlayerEquipment>())) { if (n++ >= 4) break; sum += kv.Value; }
-            return Math.Max(1, sum);
-        }
-
-        /// <summary>i번 방어 팀: 내 전투력 × (0.55 + 0.085 × i)에 가깝게 강함을 맞춤.</summary>
-        private PlayerArena.Opponent MakeDefender(int i, int oppSeed, long myPower, GameDatabase db)
+        /// <summary>
+        /// i번 방어 팀: 길드 강함 t를 중심으로 앞 번호는 조금 약하게(×0.7) · 뒤 번호는 조금 강하게(×1.15), 최대 1.4.
+        /// 고성급 캐릭터를 고를 확률도 결투장처럼 강함을 따라 오름.
+        /// </summary>
+        private PlayerArena.Opponent MakeDefender(int i, int oppSeed, float guildT, GameDatabase db)
         {
             var rng = new System.Random(oppSeed * 131 + i * 17);
             var com = DefenderCommander(i, db);
             var o = new PlayerArena.Opponent { name = com.name, frameId = com.frameId ?? "", avatarId = com.avatarId ?? "" };
+            float t = Mathf.Clamp(guildT * (0.7f + 0.05f * i) + 0.015f * i, 0f, 1.4f);
             var pool = new List<CharacterData>(db.Characters);
             pool.RemoveAll(c => c == null);
+            float highChance = Mathf.Clamp01(0.15f + 0.6f * t);
             for (int k = 0; k < 4 && pool.Count > 0; k++)
             {
-                var ch = pool[rng.Next(pool.Count)];
+                bool wantHigh = rng.NextDouble() < highChance;
+                var cands = pool.FindAll(c => ((int)c.rarity >= 5) == wantHigh);
+                if (cands.Count == 0) cands = pool;
+                var ch = cands[rng.Next(cands.Count)];
                 o.team.Add(!string.IsNullOrEmpty(ch.id) ? ch.id : ch.name);
                 pool.Remove(ch);
             }
-            long target = (long)(myPower * (0.55 + 0.085 * i));
-            float lo = 0f, hi = 1.4f;
-            for (int it = 0; it < 8; it++)
-            {
-                float t = (lo + hi) / 2f;
-                Shape(o, t);
-                if (PowerOf(o, db) < target) lo = t; else hi = t;
-            }
-            Shape(o, (lo + hi) / 2f);
-            if (PowerOf(o, db) < target * 0.95)
-            {
-                // 최대(Lv.100 · +6)로도 모자라면(장비를 잘 갖춘 최종 육성) 장비 대신 보정을 더 올려 맞춤
-                Shape(o, 1.4f);
-                float glo = o.gearPct, ghi = 40f;
-                for (int it = 0; it < 10; it++)
-                {
-                    o.gearPct = (glo + ghi) / 2f;
-                    if (PowerOf(o, db) < target) glo = o.gearPct; else ghi = o.gearPct;
-                }
-                o.gearPct = (glo + ghi) / 2f;
-            }
+            Shape(o, t);
+            o.points = Mathf.RoundToInt(1000 + t * 2000);
             o.power = (int)Math.Min(int.MaxValue, PowerOf(o, db));
             o.difficulty = Mathf.Clamp(i * 3 / Defenders, 0, 2);
             return o;
@@ -193,7 +217,7 @@ namespace SubcultureRPG.Meta
 
         // ---------------- 정산 ----------------
 
-        internal static void SettleWeek(int ours, int theirs, string opponent, int myStars)
+        internal static void SettleWeek(int ours, int theirs, string opponent, int myStars, int ratingBefore, int ratingAfter)
         {
             if (myStars <= 0) return;
             var mail = FindAnyObjectByType<PlayerMail>();
@@ -202,7 +226,9 @@ namespace SubcultureRPG.Meta
             if (ours > theirs) { result = "승리"; reward = new RewardBundle().Crystals(150).Gold(50000).Mat(MaterialType.EquipEssence, 40); }
             else if (ours == theirs) { result = "무승부"; reward = new RewardBundle().Crystals(90).Gold(30000); }
             else { result = "패배"; reward = new RewardBundle().Crystals(50).Gold(20000); }
-            mail.Send($"지난주 길드전 {result}", $"상대 '{opponent}'\n우리 길드 ★{ours} : ★{theirs}\n내가 얻은 별 ★{myStars}", reward);
+            int d = ratingAfter - ratingBefore;
+            mail.Send($"지난주 길드전 {result}",
+                $"상대 '{opponent}'\n우리 길드 ★{ours} : ★{theirs}\n내가 얻은 별 ★{myStars}\n길드전 점수 {ratingBefore:N0} → {ratingAfter:N0} ({(d >= 0 ? "+" : "")}{d})", reward);
         }
 
         // ---------------- 전투 ----------------

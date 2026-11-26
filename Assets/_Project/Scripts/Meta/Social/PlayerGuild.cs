@@ -63,6 +63,7 @@ namespace SubcultureRPG.Meta
             public int bossClaims;            // 받은 단계 보상(비트)
             public int[] warStars = new int[GuildWar.Defenders];   // 이번 주 상대 길드원별 내 최고 별
             public int warUsed; public string warDay = "";
+            public int warRating;             // 길드전 점수(0 = 아직 없음 → 시작 점수). 실제 길드는 길드장 값을 따름
 
             // 지난주 정산용(이번 주에 마지막으로 본 길드 기록)
             public string seenWeek = "";
@@ -126,7 +127,10 @@ namespace SubcultureRPG.Meta
                 if (_d.joined && !string.IsNullOrEmpty(_d.seenWeek) && _d.seenWeek == _d.week)
                 {
                     GuildBoss.SettleWeek(_d.seenBossTotal, _d.bossDamage, _d.seenRank, _d.seenRankTotal);
-                    GuildWar.SettleWeek(_d.seenOurStars, _d.seenTheirStars, _d.seenOpponent, MyWarTotal());
+                    int before = LocalWarRating;
+                    int delta = GuildWar.RatingDelta(_d.seenOurStars, _d.seenTheirStars);
+                    if (_d.seenOurStars > 0 || _d.seenTheirStars > 0) _d.warRating = Mathf.Max(0, before + delta);
+                    GuildWar.SettleWeek(_d.seenOurStars, _d.seenTheirStars, _d.seenOpponent, MyWarTotal(), before, _d.warRating);
                 }
                 _d.week = week;
                 _d.contribution = 0;
@@ -366,6 +370,7 @@ namespace SubcultureRPG.Meta
         {
             RealInfo = info;
             if (info == null) return;
+            if (!_d.founder && info.warRating > 0) _d.warRating = info.warRating;   // 길드원은 길드장의 점수를 따름
             var (lv, ex) = LevelOf(info.exp);
             _d.name = info.name; _d.intro = info.intro ?? ""; _d.level = lv; _d.exp = ex;
             _d.members = Mathf.Max(1, info.members != null ? info.members.Count + 1 : 1);
@@ -426,6 +431,19 @@ namespace SubcultureRPG.Meta
         public int WarStarsOf(int i) { EnsureLoaded(); return i >= 0 && i < _d.warStars.Length ? _d.warStars[i] : 0; }
         public int[] MyWarStars { get { EnsureLoaded(); return (int[])_d.warStars.Clone(); } }
         public int MyWarTotal() { int n = 0; foreach (int s in _d.warStars) n += s; return n; }
+
+        private int LocalWarRating => _d.warRating > 0 ? _d.warRating : GuildWar.StartRating;
+
+        /// <summary>우리 길드 길드전 점수(실제 길드 = 길드장이 올린 값, 그 밖 = 이 PC 기록).</summary>
+        public int WarRating
+        {
+            get
+            {
+                EnsureLoaded();
+                if (_d.real && !_d.founder && RealInfo != null && RealInfo.warRating > 0) return RealInfo.warRating;
+                return LocalWarRating;
+            }
+        }
         public bool BossClaimed(int stage) => (_d.bossClaims & (1 << stage)) != 0;
 
         internal void UseBossAttempt() { EnsureLoaded(); if (_d.bossDay != _d.day) { _d.bossDay = _d.day; _d.bossUsed = 0; } _d.bossUsed++; Changed(); }

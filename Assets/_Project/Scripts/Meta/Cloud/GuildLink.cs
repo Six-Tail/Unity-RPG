@@ -46,6 +46,7 @@ namespace SubcultureRPG.Meta.Cloud
             public string week = "";
             public long boss;                       // 이번 주 길드 보스 피해
             public int war;                         // 이번 주 길드전 별
+            public int warRating;                   // 길드전 점수(길드장 기준 — 길드원은 이 값을 따름)
             public long synced;                     // 길드장이 마지막으로 정리한 때(UTC ticks)
             public int Count => (members?.Count ?? 0) + 1;
         }
@@ -276,6 +277,7 @@ namespace SubcultureRPG.Meta.Cloud
             {
                 seed = -1, gid = gid, name = i.name, intro = i.intro, level = lv, members = i.Count, minLevel = Mathf.Max(1, i.minLv), free = i.free,
                 exp = i.exp, bossDamage = thisWeek ? Math.Max(0, i.boss) : 0, warStars = thisWeek ? Mathf.Clamp(i.war, 0, GuildWar.MaxStars) : 0, leaderName = i.leaderName ?? "",
+                warRating = i.warRating > 0 ? Mathf.Clamp(i.warRating, 0, 9999) : GuildWar.StartRating,
             };
         }
 
@@ -395,7 +397,7 @@ namespace SubcultureRPG.Meta.Cloud
                         g.RefreshSeen();
                         if (g.IsLeader)
                         {
-                            _mine.week = week; _mine.boss = g.GuildBossTotal(); _mine.war = g.GuildWarStars();
+                            _mine.week = week; _mine.boss = g.GuildBossTotal(); _mine.war = g.GuildWarStars(); _mine.warRating = g.WarRating;
                             _mine.synced = DateTime.UtcNow.Ticks;
                             _infoDirty = true;
                             await PublishAsync();

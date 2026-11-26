@@ -28,6 +28,7 @@ MonoBehaviour:
   effectChance: 1
   splash: 0
   lifesteal: 0
+  maxHpDamage: 0
   advance: 0
   cleanse: 0
   selfEffect: 0

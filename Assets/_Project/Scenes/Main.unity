@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &125164407
+--- !u!1 &48382614
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,202 +127,36 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 125164418}
-  - component: {fileID: 125164410}
-  - component: {fileID: 125164409}
-  - component: {fileID: 125164411}
-  - component: {fileID: 125164414}
-  - component: {fileID: 125164415}
-  - component: {fileID: 125164417}
-  - component: {fileID: 125164416}
-  - component: {fileID: 125164413}
-  - component: {fileID: 125164412}
-  - component: {fileID: 125164408}
+  - component: {fileID: 48382616}
+  - component: {fileID: 48382615}
   m_Layer: 0
-  m_Name: Meta
+  m_Name: CodexScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &125164408
+--- !u!114 &48382615
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
+  m_GameObject: {fileID: 48382614}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b9816047f7dd4d12a0ba883c3dd19a18, type: 3}
+  m_Script: {fileID: 11500000, guid: 8720033f335c434e95139f4bc1d195c6, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.Codex.PlayerCodex
-  roster: {fileID: 125164411}
-  wallet: {fileID: 125164410}
-  inventory: {fileID: 125164409}
-  database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
-  gacha: {fileID: 1401052596}
-  saveKey: codex
---- !u!114 &125164409
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa5c03401fdb42747b2da52d2a31d3ca, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.PlayerInventory
-  saveKey: inventory
---- !u!114 &125164410
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b03ebf361b3059428cdb0a479f149ec, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.PlayerWallet
-  saveKey: wallet
-  maxStamina: 240
-  staminaRegenSeconds: 360
-  startingStamina: 240
---- !u!114 &125164411
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a5f01b5b5a481f644959383c753fe37b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.PlayerRoster
-  gacha: {fileID: 1401052596}
-  grantAllOnStart: 0
-  database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
-  starterCharacters:
-  - {fileID: 11400000, guid: f8fdc0de9a89dc34c94005e5e930eb0d, type: 2}
-  - {fileID: 11400000, guid: d6f30f689e640654897bd153a2a02e98, type: 2}
-  - {fileID: 11400000, guid: 0c50a7f7ac07cbe4c95b1ff506f9c780, type: 2}
-  saveKey: roster
---- !u!114 &125164412
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 96f4b78bdd0f4943b82f9df58c1dcbf7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.Missions.PlayerMissions
-  wallet: {fileID: 125164410}
-  inventory: {fileID: 125164409}
-  stageRunner: {fileID: 125164416}
-  gacha: {fileID: 1401052596}
-  saveKey: missions
---- !u!114 &125164413
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c81dff60d5b14b368eecfe238ef5e290, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.Shop.PlayerShop
-  wallet: {fileID: 125164410}
-  inventory: {fileID: 125164409}
-  saveKey: shop
---- !u!114 &125164414
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 892176a9eba7270448a8ac80076e8011, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.BattleLauncher
-  controller: {fileID: 1250871888}
-  database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
-  roster: {fileID: 125164411}
-  equipment: {fileID: 125164415}
-  partyLevel: 1
-  enemyTeam:
-  - {fileID: 11400000, guid: 8453a70f30195c54c840a257c5b2f65f, type: 2}
-  - {fileID: 11400000, guid: 301040ca24121c04c99c5801c3af3adf, type: 2}
-  - {fileID: 11400000, guid: efa700920c6a1c947b2dd71821576781, type: 2}
---- !u!114 &125164415
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6c067a11edd60174880b013de714973e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.PlayerEquipment
-  saveKey: equipment
-  wallet: {fileID: 125164410}
-  inventory: {fileID: 125164409}
---- !u!114 &125164416
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 74de1ba83c15e6e439bb4e0290122a90, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.StageRunner
-  controller: {fileID: 1250871888}
-  launcher: {fileID: 125164414}
-  hud: {fileID: 1835275267}
-  progress: {fileID: 125164417}
-  wallet: {fileID: 125164410}
-  inventory: {fileID: 125164409}
-  roster: {fileID: 125164411}
-  equipment: {fileID: 125164415}
-  database: {fileID: 11400000, guid: 1d37e9beaf3190c448f3369a6f3936a9, type: 2}
-  autoNextSeconds: 5
-  repeatDelaySeconds: 3
---- !u!114 &125164417
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: be13afd84a825cc40bda313fb35a3461, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.StageProgress
-  saveKey: stages
---- !u!4 &125164418
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.CodexScreen
+  codex: {fileID: 1444846548}
+  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
+--- !u!4 &48382616
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 125164407}
+  m_GameObject: {fileID: 48382614}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -331,7 +165,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &143071118
+--- !u!1 &869368782
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -339,8 +173,168 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 143071120}
-  - component: {fileID: 143071119}
+  - component: {fileID: 869368784}
+  - component: {fileID: 869368783}
+  m_Layer: 0
+  m_Name: StageScreen
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &869368783
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 869368782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a97dc257bd18094ca8d9c3cc5dfe35f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.StageScreen
+  database: {fileID: 11400000, guid: 1d37e9beaf3190c448f3369a6f3936a9, type: 2}
+  progress: {fileID: 1444846557}
+  wallet: {fileID: 0}
+  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
+--- !u!4 &869368784
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 869368782}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1102621302
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1102621304}
+  - component: {fileID: 1102621303}
+  m_Layer: 0
+  m_Name: Navigator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1102621303
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1102621302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6f7bb28551847f438a332d132ff9032, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.ScreenNavigator
+  home: {fileID: 1897502326}
+  stage: {fileID: 869368783}
+  stageRunner: {fileID: 1444846556}
+  gacha: {fileID: 1970698680}
+  growth: {fileID: 2129259896}
+  party: {fileID: 1892047242}
+  bag: {fileID: 1190692713}
+  shop: {fileID: 2030609525}
+  mission: {fileID: 1142896829}
+  codex: {fileID: 48382615}
+  arena: {fileID: 0}
+  raid: {fileID: 0}
+  eventScreen: {fileID: 0}
+  dispatch: {fileID: 0}
+  tower: {fileID: 0}
+  worldRaid: {fileID: 0}
+  friends: {fileID: 0}
+  guild: {fileID: 0}
+  battleHud: {fileID: 1803125621}
+  battle: {fileID: 1475256684}
+  startScreen: 0
+--- !u!4 &1102621304
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1102621302}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1142896828
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1142896830}
+  - component: {fileID: 1142896829}
+  m_Layer: 0
+  m_Name: MissionScreen
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1142896829
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142896828}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a560328eab04668aa7dede23f77eced, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.MissionScreen
+  missions: {fileID: 1444846552}
+  wallet: {fileID: 1444846550}
+  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
+--- !u!4 &1142896830
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142896828}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1190692712
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1190692714}
+  - component: {fileID: 1190692713}
   m_Layer: 0
   m_Name: BagScreen
   m_TagString: Untagged
@@ -348,28 +342,28 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &143071119
+--- !u!114 &1190692713
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 143071118}
+  m_GameObject: {fileID: 1190692712}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d86ed48bec958714fb44af40160ee241, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.BagScreen
-  inventory: {fileID: 125164409}
-  wallet: {fileID: 125164410}
+  inventory: {fileID: 1444846549}
+  wallet: {fileID: 1444846550}
   font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
---- !u!4 &143071120
+--- !u!4 &1190692714
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 143071118}
+  m_GameObject: {fileID: 1190692712}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -378,7 +372,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &504072133
+--- !u!1 &1342716386
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -386,9 +380,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 504072136}
-  - component: {fileID: 504072135}
-  - component: {fileID: 504072134}
+  - component: {fileID: 1342716389}
+  - component: {fileID: 1342716388}
+  - component: {fileID: 1342716387}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -396,21 +390,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &504072134
+--- !u!81 &1342716387
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 504072133}
+  m_GameObject: {fileID: 1342716386}
   m_Enabled: 1
---- !u!20 &504072135
+--- !u!20 &1342716388
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 504072133}
+  m_GameObject: {fileID: 1342716386}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
@@ -455,13 +449,13 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &504072136
+--- !u!4 &1342716389
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 504072133}
+  m_GameObject: {fileID: 1342716386}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -10}
@@ -470,7 +464,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1008389167
+--- !u!1 &1429192505
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -478,37 +472,38 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1008389169}
-  - component: {fileID: 1008389168}
+  - component: {fileID: 1429192507}
+  - component: {fileID: 1429192506}
   m_Layer: 0
-  m_Name: MissionScreen
+  m_Name: GachaResultPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1008389168
+--- !u!114 &1429192506
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1008389167}
+  m_GameObject: {fileID: 1429192505}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0a560328eab04668aa7dede23f77eced, type: 3}
+  m_Script: {fileID: 11500000, guid: cf3b821adde704a49bcab37551ec1273, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.MissionScreen
-  missions: {fileID: 125164412}
-  wallet: {fileID: 125164410}
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Gacha.UI.GachaResultPanel
+  controller: {fileID: 2009949773}
   font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
---- !u!4 &1008389169
+  autoPlayOnPull: 1
+  revealInterval: 0.11
+--- !u!4 &1429192507
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1008389167}
+  m_GameObject: {fileID: 1429192505}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -517,7 +512,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1012319599
+--- !u!1 &1444846547
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -525,40 +520,202 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1012319601}
-  - component: {fileID: 1012319600}
+  - component: {fileID: 1444846558}
+  - component: {fileID: 1444846550}
+  - component: {fileID: 1444846549}
+  - component: {fileID: 1444846551}
+  - component: {fileID: 1444846554}
+  - component: {fileID: 1444846555}
+  - component: {fileID: 1444846557}
+  - component: {fileID: 1444846556}
+  - component: {fileID: 1444846553}
+  - component: {fileID: 1444846552}
+  - component: {fileID: 1444846548}
   m_Layer: 0
-  m_Name: PartyScreen
+  m_Name: Meta
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1012319600
+--- !u!114 &1444846548
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1012319599}
+  m_GameObject: {fileID: 1444846547}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 805d4df01173b2d4c9c70124269af216, type: 3}
+  m_Script: {fileID: 11500000, guid: b9816047f7dd4d12a0ba883c3dd19a18, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.PartyScreen
-  roster: {fileID: 125164411}
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.Codex.PlayerCodex
+  roster: {fileID: 1444846551}
+  wallet: {fileID: 1444846550}
+  inventory: {fileID: 1444846549}
   database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
-  launcher: {fileID: 125164414}
-  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
-  maxParty: 4
-  showOnStart: 0
---- !u!4 &1012319601
+  gacha: {fileID: 2009949773}
+  saveKey: codex
+--- !u!114 &1444846549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa5c03401fdb42747b2da52d2a31d3ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.PlayerInventory
+  saveKey: inventory
+--- !u!114 &1444846550
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b03ebf361b3059428cdb0a479f149ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.PlayerWallet
+  saveKey: wallet
+  maxStamina: 240
+  staminaRegenSeconds: 360
+  startingStamina: 240
+--- !u!114 &1444846551
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5f01b5b5a481f644959383c753fe37b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.PlayerRoster
+  gacha: {fileID: 2009949773}
+  grantAllOnStart: 0
+  database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
+  starterCharacters:
+  - {fileID: 11400000, guid: f8fdc0de9a89dc34c94005e5e930eb0d, type: 2}
+  - {fileID: 11400000, guid: d6f30f689e640654897bd153a2a02e98, type: 2}
+  - {fileID: 11400000, guid: 0c50a7f7ac07cbe4c95b1ff506f9c780, type: 2}
+  saveKey: roster
+--- !u!114 &1444846552
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96f4b78bdd0f4943b82f9df58c1dcbf7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.Missions.PlayerMissions
+  wallet: {fileID: 1444846550}
+  inventory: {fileID: 1444846549}
+  stageRunner: {fileID: 1444846556}
+  gacha: {fileID: 2009949773}
+  saveKey: missions
+--- !u!114 &1444846553
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c81dff60d5b14b368eecfe238ef5e290, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.Shop.PlayerShop
+  wallet: {fileID: 1444846550}
+  inventory: {fileID: 1444846549}
+  saveKey: shop
+--- !u!114 &1444846554
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 892176a9eba7270448a8ac80076e8011, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.BattleLauncher
+  controller: {fileID: 1475256684}
+  database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
+  roster: {fileID: 1444846551}
+  equipment: {fileID: 1444846555}
+  partyLevel: 1
+  enemyTeam:
+  - {fileID: 11400000, guid: 8453a70f30195c54c840a257c5b2f65f, type: 2}
+  - {fileID: 11400000, guid: 301040ca24121c04c99c5801c3af3adf, type: 2}
+  - {fileID: 11400000, guid: efa700920c6a1c947b2dd71821576781, type: 2}
+--- !u!114 &1444846555
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c067a11edd60174880b013de714973e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.PlayerEquipment
+  saveKey: equipment
+  wallet: {fileID: 1444846550}
+  inventory: {fileID: 1444846549}
+--- !u!114 &1444846556
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74de1ba83c15e6e439bb4e0290122a90, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.StageRunner
+  controller: {fileID: 1475256684}
+  launcher: {fileID: 1444846554}
+  hud: {fileID: 1803125621}
+  progress: {fileID: 1444846557}
+  wallet: {fileID: 1444846550}
+  inventory: {fileID: 1444846549}
+  roster: {fileID: 1444846551}
+  equipment: {fileID: 1444846555}
+  database: {fileID: 11400000, guid: 1d37e9beaf3190c448f3369a6f3936a9, type: 2}
+  autoNextSeconds: 5
+  repeatDelaySeconds: 3
+--- !u!114 &1444846557
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444846547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be13afd84a825cc40bda313fb35a3461, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.StageProgress
+  saveKey: stages
+--- !u!4 &1444846558
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1012319599}
+  m_GameObject: {fileID: 1444846547}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -567,7 +724,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1250871887
+--- !u!1 &1475256683
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -575,8 +732,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1250871889}
-  - component: {fileID: 1250871888}
+  - component: {fileID: 1475256685}
+  - component: {fileID: 1475256684}
   m_Layer: 0
   m_Name: Battle
   m_TagString: Untagged
@@ -584,13 +741,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1250871888
+--- !u!114 &1475256684
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1250871887}
+  m_GameObject: {fileID: 1475256683}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4f6b20492661ab24eba8a8670e8e592c, type: 3}
@@ -603,13 +760,13 @@ MonoBehaviour:
   startOnPlay: 0
   enemyTurnDelay: 0.6
   betweenTurnDelay: 0.35
---- !u!4 &1250871889
+--- !u!4 &1475256685
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1250871887}
+  m_GameObject: {fileID: 1475256683}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -618,7 +775,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1346107609
+--- !u!1 &1803125620
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -626,36 +783,38 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1346107611}
-  - component: {fileID: 1346107610}
+  - component: {fileID: 1803125622}
+  - component: {fileID: 1803125621}
   m_Layer: 0
-  m_Name: CodexScreen
+  m_Name: BattleHUD
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1346107610
+--- !u!114 &1803125621
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1346107609}
+  m_GameObject: {fileID: 1803125620}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8720033f335c434e95139f4bc1d195c6, type: 3}
+  m_Script: {fileID: 11500000, guid: 26bd9a049e1302944a47a102f2170ea4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.CodexScreen
-  codex: {fileID: 125164408}
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Battle.UI.BattleHUD
+  controller: {fileID: 1475256684}
   font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
---- !u!4 &1346107611
+  drawBackground: 1
+  turnPreviewCount: 8
+--- !u!4 &1803125622
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1346107609}
+  m_GameObject: {fileID: 1803125620}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -664,7 +823,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1389709828
+--- !u!1 &1892047241
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -672,38 +831,40 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1389709830}
-  - component: {fileID: 1389709829}
+  - component: {fileID: 1892047243}
+  - component: {fileID: 1892047242}
   m_Layer: 0
-  m_Name: StageScreen
+  m_Name: PartyScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1389709829
+--- !u!114 &1892047242
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1389709828}
+  m_GameObject: {fileID: 1892047241}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0a97dc257bd18094ca8d9c3cc5dfe35f, type: 3}
+  m_Script: {fileID: 11500000, guid: 805d4df01173b2d4c9c70124269af216, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.StageScreen
-  database: {fileID: 11400000, guid: 1d37e9beaf3190c448f3369a6f3936a9, type: 2}
-  progress: {fileID: 125164417}
-  wallet: {fileID: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.PartyScreen
+  roster: {fileID: 1444846551}
+  database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
+  launcher: {fileID: 1444846554}
   font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
---- !u!4 &1389709830
+  maxParty: 4
+  showOnStart: 0
+--- !u!4 &1892047243
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1389709828}
+  m_GameObject: {fileID: 1892047241}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -712,7 +873,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1401052595
+--- !u!1 &1897502325
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -720,8 +881,109 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1401052597}
-  - component: {fileID: 1401052596}
+  - component: {fileID: 1897502327}
+  - component: {fileID: 1897502326}
+  m_Layer: 0
+  m_Name: HomeScreen
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1897502326
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1897502325}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f6e7fd1443b5f847962d8f7147a249e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.HomeScreen
+  navigator: {fileID: 1102621303}
+  wallet: {fileID: 1444846550}
+  inventory: {fileID: 1444846549}
+  roster: {fileID: 1444846551}
+  gacha: {fileID: 2009949773}
+  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
+--- !u!4 &1897502327
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1897502325}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1970698679
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1970698681}
+  - component: {fileID: 1970698680}
+  m_Layer: 0
+  m_Name: GachaScreen
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1970698680
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1970698679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e1541fe0555ce2488ee78b3c170ceb7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.GachaScreen
+  gacha: {fileID: 2009949773}
+  wallet: {fileID: 1444846550}
+  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
+  singleCost: 160
+  multiCost: 1600
+  chargeAmount: 3200
+  chargeTickets: 10
+--- !u!4 &1970698681
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1970698679}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2009949772
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2009949774}
+  - component: {fileID: 2009949773}
   m_Layer: 0
   m_Name: Gacha
   m_TagString: Untagged
@@ -729,13 +991,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1401052596
+--- !u!114 &2009949773
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1401052595}
+  m_GameObject: {fileID: 2009949772}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1aa050f3a3b15a2409581c20e91c3231, type: 3}
@@ -747,13 +1009,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a9ef971147cffdd478d15f3872afaeb4, type: 2}
   - {fileID: 11400000, guid: bff85e2eba53f914280ee2cf667da1ef, type: 2}
   multiPullCount: 10
---- !u!4 &1401052597
+--- !u!4 &2009949774
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1401052595}
+  m_GameObject: {fileID: 2009949772}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -762,7 +1024,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1487045058
+--- !u!1 &2030609524
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -770,269 +1032,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1487045060}
-  - component: {fileID: 1487045059}
-  m_Layer: 0
-  m_Name: HomeScreen
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1487045059
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1487045058}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6f6e7fd1443b5f847962d8f7147a249e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.HomeScreen
-  navigator: {fileID: 1576846989}
-  wallet: {fileID: 125164410}
-  inventory: {fileID: 125164409}
-  roster: {fileID: 125164411}
-  gacha: {fileID: 1401052596}
-  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
---- !u!4 &1487045060
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1487045058}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1576846988
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1576846990}
-  - component: {fileID: 1576846989}
-  m_Layer: 0
-  m_Name: Navigator
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1576846989
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1576846988}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f6f7bb28551847f438a332d132ff9032, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.ScreenNavigator
-  home: {fileID: 1487045059}
-  stage: {fileID: 1389709829}
-  stageRunner: {fileID: 125164416}
-  gacha: {fileID: 1674703763}
-  growth: {fileID: 1879985236}
-  party: {fileID: 1012319600}
-  bag: {fileID: 143071119}
-  shop: {fileID: 1895491328}
-  mission: {fileID: 1008389168}
-  codex: {fileID: 1346107610}
-  arena: {fileID: 0}
-  raid: {fileID: 0}
-  eventScreen: {fileID: 0}
-  friends: {fileID: 0}
-  guild: {fileID: 0}
-  battleHud: {fileID: 1835275267}
-  battle: {fileID: 1250871888}
-  startScreen: 0
---- !u!4 &1576846990
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1576846988}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1674703762
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1674703764}
-  - component: {fileID: 1674703763}
-  m_Layer: 0
-  m_Name: GachaScreen
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1674703763
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1674703762}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e1541fe0555ce2488ee78b3c170ceb7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.GachaScreen
-  gacha: {fileID: 1401052596}
-  wallet: {fileID: 125164410}
-  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
-  singleCost: 160
-  multiCost: 1600
-  chargeAmount: 3200
-  chargeTickets: 10
---- !u!4 &1674703764
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1674703762}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1835275266
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1835275268}
-  - component: {fileID: 1835275267}
-  m_Layer: 0
-  m_Name: BattleHUD
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1835275267
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1835275266}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 26bd9a049e1302944a47a102f2170ea4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Battle.UI.BattleHUD
-  controller: {fileID: 1250871888}
-  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
-  drawBackground: 1
-  turnPreviewCount: 8
---- !u!4 &1835275268
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1835275266}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1879985235
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1879985237}
-  - component: {fileID: 1879985236}
-  m_Layer: 0
-  m_Name: GrowthScreen
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1879985236
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1879985235}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f204653cd737e7d44b26058093ffbf01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.GrowthScreen
-  roster: {fileID: 125164411}
-  database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
-  inventory: {fileID: 125164409}
-  wallet: {fileID: 0}
-  equipment: {fileID: 0}
-  font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
---- !u!4 &1879985237
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1879985235}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1895491327
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1895491329}
-  - component: {fileID: 1895491328}
+  - component: {fileID: 2030609526}
+  - component: {fileID: 2030609525}
   m_Layer: 0
   m_Name: ShopScreen
   m_TagString: Untagged
@@ -1040,29 +1041,29 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1895491328
+--- !u!114 &2030609525
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1895491327}
+  m_GameObject: {fileID: 2030609524}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8c2ca6a6ef24e8a93572a97030020c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.ShopScreen
-  shop: {fileID: 125164413}
-  wallet: {fileID: 125164410}
-  inventory: {fileID: 125164409}
+  shop: {fileID: 1444846553}
+  wallet: {fileID: 1444846550}
+  inventory: {fileID: 1444846549}
   font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
---- !u!4 &1895491329
+--- !u!4 &2030609526
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1895491327}
+  m_GameObject: {fileID: 2030609524}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -1071,7 +1072,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2055577591
+--- !u!1 &2129259895
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1079,38 +1080,40 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2055577593}
-  - component: {fileID: 2055577592}
+  - component: {fileID: 2129259897}
+  - component: {fileID: 2129259896}
   m_Layer: 0
-  m_Name: GachaResultPanel
+  m_Name: GrowthScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2055577592
+--- !u!114 &2129259896
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2055577591}
+  m_GameObject: {fileID: 2129259895}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cf3b821adde704a49bcab37551ec1273, type: 3}
+  m_Script: {fileID: 11500000, guid: f204653cd737e7d44b26058093ffbf01, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Gacha.UI.GachaResultPanel
-  controller: {fileID: 1401052596}
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.UI.GrowthScreen
+  roster: {fileID: 1444846551}
+  database: {fileID: 11400000, guid: 4fc3e9a63a742f842993b99e206da0ec, type: 2}
+  inventory: {fileID: 1444846549}
+  wallet: {fileID: 0}
+  equipment: {fileID: 0}
   font: {fileID: 11400000, guid: a1c10a7055004f2479338da1d0c1e86f, type: 2}
-  autoPlayOnPull: 1
-  revealInterval: 0.11
---- !u!4 &2055577593
+--- !u!4 &2129259897
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2055577591}
+  m_GameObject: {fileID: 2129259895}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -1123,19 +1126,19 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 504072136}
-  - {fileID: 1401052597}
-  - {fileID: 2055577593}
-  - {fileID: 1250871889}
-  - {fileID: 1835275268}
-  - {fileID: 125164418}
-  - {fileID: 143071120}
-  - {fileID: 1895491329}
-  - {fileID: 1008389169}
-  - {fileID: 1346107611}
-  - {fileID: 1389709830}
-  - {fileID: 1487045060}
-  - {fileID: 1674703764}
-  - {fileID: 1879985237}
-  - {fileID: 1012319601}
-  - {fileID: 1576846990}
+  - {fileID: 1342716389}
+  - {fileID: 2009949774}
+  - {fileID: 1429192507}
+  - {fileID: 1475256685}
+  - {fileID: 1803125622}
+  - {fileID: 1444846558}
+  - {fileID: 1190692714}
+  - {fileID: 2030609526}
+  - {fileID: 1142896830}
+  - {fileID: 48382616}
+  - {fileID: 869368784}
+  - {fileID: 1897502327}
+  - {fileID: 1970698681}
+  - {fileID: 2129259897}
+  - {fileID: 1892047243}
+  - {fileID: 1102621304}

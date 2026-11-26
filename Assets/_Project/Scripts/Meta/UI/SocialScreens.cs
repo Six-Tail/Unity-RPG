@@ -821,7 +821,9 @@ namespace SubcultureRPG.Meta.UI
             var left = SubcultureRPG.Meta.Shop.PlayerShop.UntilReset(SubcultureRPG.Meta.Shop.ShopReset.Weekly, System.DateTime.Now) ?? System.TimeSpan.Zero;
 
             var top = Row(_list, new Color(0.07f, 0.09f, 0.14f, 0.94f), 170);
-            var t1 = Text(top.transform, $"<b>이번 주 상대  {opp.name}</b>   <size=70%><color=#FFD36B>Lv.{opp.level}</color>   <color=#9AA3B5>가상 길드 · 결과는 월요일 05:00 (남은 시간 {left.Days}일 {left.Hours}시간)</color></size>",
+            int oppRank = GuildWar.OpponentRank();
+            var t1 = Text(top.transform, $"<b>이번 주 상대  {opp.name}</b>   <size=70%><color=#FFD36B>Lv.{opp.level}</color>   <color=#FF9A6B>길드전 점수 {opp.warRating:N0}{(oppRank > 0 ? $" · {oppRank}위" : "")}</color>   " +
+                                         $"<color=#9AA3B5>우리 길드 점수 {g.WarRating:N0} · 결과는 월요일 05:00 (남은 {left.Days}일 {left.Hours}시간)</color></size>",
                 32, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(t1.rectTransform, 24, -14, 1400, 44);
             string state = ours > theirs ? "<color=#7CFF9A>우세</color>" : ours == theirs ? "<color=#FFD36B>접전</color>" : "<color=#FF8A8A>열세</color>";
@@ -829,7 +831,7 @@ namespace SubcultureRPG.Meta.UI
                 34, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(t2.rectTransform, 24, -64, 1100, 50);
             var t3 = Text(top.transform, $"<color=#9AA3B5>오늘 남은 공격</color>  <color={(GuildWar.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}>{GuildWar.AttemptsLeft}</color> / {GuildWar.AttemptsPerDay}   " +
-                                         "<size=85%><color=#9AA3B5>이기면 별 — 모두 살아남음 ★3 · 절반 이상 ★2 · 그 밖 ★1. 길드 별 = 상대마다 길드원 최고 별의 합</color></size>",
+                                         $"<size=85%><color=#9AA3B5>이기면 별(모두 살아남음 ★3 · 절반 이상 ★2 · 그 밖 ★1) · 길드 별 = 상대마다 길드원 최고 별의 합 · 점수가 가까운 가상 길드와 매칭, 이기면 +{GuildWar.WinRating}~200 · 지면 {GuildWar.LoseRating}~−120(별 차이만큼 더)</color></size>",
                 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(t3.rectTransform, 24, -118, 1420, 40);
 
@@ -898,7 +900,7 @@ namespace SubcultureRPG.Meta.UI
             string score = _rankTab switch
             {
                 GuildRanking.Tab.Boss => $"<color=#C9A0FF>{gi.bossDamage:N0}</color>  <size=70%><color=#9AA3B5>{GuildBoss.Cleared(gi.bossDamage)}단계</color></size>",
-                GuildRanking.Tab.War => $"<color=#FFD36B>★{gi.warStars}</color>",
+                GuildRanking.Tab.War => $"<color=#FF9A6B>{gi.warRating:N0}점</color>  <size=70%><color=#FFD36B>이번 주 ★{gi.warStars}</color></size>",
                 _ => $"<color=#8FE9FF>경험치 {gi.exp:N0}</color>",
             };
             RightNote(row, (pinned ? "<size=70%><color=#9AA3B5>내 길드 순위</color></size>\n" : "") + score, 520);
