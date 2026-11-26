@@ -219,6 +219,10 @@ namespace SubcultureRPG.Meta
             R("t_ach_level", "전설의 지휘관", "업적 '지휘관의 길' 완료", Gold, c => PlayerAchievements.Instance.IsComplete("a_level")),
             R("t_ach_bond", "모두의 지휘관", "업적 '깊은 인연' 완료", Rainbow, c => PlayerAchievements.Instance.IsComplete("a_bond")),
             R("t_ach_lv80", "최강 부대의 지휘관", "업적 '정점의 부대' 완료", Red, c => PlayerAchievements.Instance.IsComplete("a_lv80")),
+            // 월드 레이드 주간 순위 1 · 2 · 3위 한정(ServerRaid)
+            R("tw_1", "종언을 끊어낸 자", "월드 레이드 주간 1위 (한정)", Rainbow, c => (ServerRaid.Instance.RankBits & 1) != 0),
+            R("tw_2", "거신을 꺾은 자", "월드 레이드 주간 2위 (한정)", Gold, c => (ServerRaid.Instance.RankBits & 2) != 0),
+            R("tw_3", "거신에 맞선 자", "월드 레이드 주간 3위 (한정)", Red, c => (ServerRaid.Instance.RankBits & 4) != 0),
         };
 
         public static readonly List<ProfileReward> Frames = new()
@@ -242,6 +246,10 @@ namespace SubcultureRPG.Meta
             R("fr_1", "시즌 챔피언", "시즌 1위 (한정)", Gold, c => (c.arenaRankBits & 1) != 0),
             R("fr_2", "시즌 2위", "시즌 2위 (한정)", new Color(0.85f, 0.9f, 1f), c => (c.arenaRankBits & 2) != 0),
             R("fr_3", "시즌 3위", "시즌 3위 (한정)", new Color(0.85f, 0.6f, 0.4f), c => (c.arenaRankBits & 4) != 0),
+            // 월드 레이드 주간 순위 한정 테두리(ServerRaid)
+            R("fw_1", "거신 토벌 1위", "월드 레이드 주간 1위 (한정)", Rainbow, c => (ServerRaid.Instance.RankBits & 1) != 0),
+            R("fw_2", "거신 토벌 2위", "월드 레이드 주간 2위 (한정)", Gold, c => (ServerRaid.Instance.RankBits & 2) != 0),
+            R("fw_3", "거신 토벌 3위", "월드 레이드 주간 3위 (한정)", Red, c => (ServerRaid.Instance.RankBits & 4) != 0),
         };
 
         public static ProfileReward Title(string id) => Titles.Find(t => t.id == id) ?? Titles[0];

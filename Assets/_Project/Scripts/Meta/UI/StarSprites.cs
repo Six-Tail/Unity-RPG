@@ -13,6 +13,7 @@ namespace SubcultureRPG.Meta.UI
 
         private static Sprite _holo, _plain;
 
+        // 2026-11-26: 생성한 입체 별 그림을 써 봤지만 작은 크기에서 복잡해 잘 안 보여서 코드로 그린 단순한 별로 되돌림
         public static Sprite Holo => _holo != null ? _holo : (_holo = Build(true));
         public static Sprite Plain => _plain != null ? _plain : (_plain = Build(false));
 

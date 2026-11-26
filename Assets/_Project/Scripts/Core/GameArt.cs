@@ -55,10 +55,16 @@ namespace SubcultureRPG
 
         /// <summary>캐릭터 일러스트: 에셋에 직접 연결한 portrait → Characters/{id} → thumbnail.</summary>
         /// <summary>입고 있는 의상의 그림(folder/{id}{접미사}) → 없으면 기본 의상 그림(folder/{id}).</summary>
-        public static Sprite Outfitted(string folder, string key)
+        public static Sprite Outfitted(string folder, string key) => Outfitted(folder, key, CharacterOutfits.SuffixOf(key));
+
+        /// <summary>
+        /// 의상을 직접 정해서(sfx = "" 기본 · "_bloom" 개화 …). 내 캐릭터가 아닌 그림(상대 · 적 · 다른 지휘관)은 내 옷장 선택을 따르면 안 되므로
+        /// 이쪽을 씀 — 다른 지휘관은 기본 의상(실제 플레이어는 그 사람이 고른 의상).
+        /// </summary>
+        public static Sprite Outfitted(string folder, string key, string sfx)
         {
             if (string.IsNullOrEmpty(key)) return null;
-            string sfx = CharacterOutfits.SuffixOf(key);
+            sfx ??= "";
             if (sfx != "")
             {
                 var o = Load(folder + key + sfx);
@@ -67,10 +73,13 @@ namespace SubcultureRPG
             return Load(folder + key);
         }
 
-        public static Sprite Portrait(CharacterData c)
+        public static Sprite Portrait(CharacterData c) => c == null ? null : Portrait(c, CharacterOutfits.SuffixOf(c));
+
+        /// <summary>의상을 직접 정한 일러스트(다른 지휘관 · 상대용 — <see cref="Outfitted(string,string,string)"/> 참고).</summary>
+        public static Sprite Portrait(CharacterData c, string sfx)
         {
             if (c == null) return null;
-            if (CharacterOutfits.SuffixOf(c) != "") { var o = Load("Characters/" + KeyOf(c) + CharacterOutfits.SuffixOf(c)); if (o != null) return o; }
+            if (!string.IsNullOrEmpty(sfx)) { var o = Load("Characters/" + KeyOf(c) + sfx); if (o != null) return o; }
             if (c.portrait != null) return c.portrait;
             var s = Load("Characters/" + KeyOf(c));
             if (s != null) return s;
@@ -111,14 +120,20 @@ namespace SubcultureRPG
         }
 
         /// <summary>캐릭터 썸네일: 에셋에 직접 연결한 thumbnail → Thumbs/{id} → 일러스트.</summary>
-        public static Sprite Thumb(CharacterData c)
+        public static Sprite Thumb(CharacterData c) => c == null ? null : Thumb(c, CharacterOutfits.SuffixOf(c));
+
+        /// <summary>의상을 직접 정한 썸네일(다른 지휘관 · 상대용). sfx "" = 기본 의상.</summary>
+        public static Sprite Thumb(CharacterData c, string sfx)
         {
             if (c == null) return null;
-            if (CharacterOutfits.SuffixOf(c) != "") { var o = Load("Thumbs/" + KeyOf(c) + CharacterOutfits.SuffixOf(c)); if (o != null) return o; }
+            if (!string.IsNullOrEmpty(sfx)) { var o = Load("Thumbs/" + KeyOf(c) + sfx); if (o != null) return o; }
             if (c.thumbnail != null) return c.thumbnail;
             var s = Load("Thumbs/" + KeyOf(c));
-            return s != null ? s : Portrait(c);
+            return s != null ? s : Portrait(c, sfx);
         }
+
+        /// <summary>전투 유닛 의상: 아군(내 캐릭터) = 내 옷장, 적(결투장 상대 등) = 기본 의상.</summary>
+        public static string SuffixFor(CharacterData c, bool mine) => mine && c != null ? CharacterOutfits.SuffixOf(c) : "";
 
         /// <summary>적 일러스트(표시 이름 기준).</summary>
         public static Sprite Enemy(string displayName) =>

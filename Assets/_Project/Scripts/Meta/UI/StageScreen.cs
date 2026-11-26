@@ -264,6 +264,25 @@ namespace SubcultureRPG.Meta.UI
             Refresh();
         }
 
+        /// <summary>테스트: 쉬움 1 ~ 3장의 모든 스테이지를 별 3개로 클리어 처리(첫 클리어 보상 · 스토리는 건너뜀).</summary>
+        private void TestClearToChapter3()
+        {
+            if (database == null || progress == null) return;
+            int n = 0;
+            foreach (var s in database.Ordered(StageDifficulty.Easy))
+            {
+                if (s == null || s.chapter > 3) continue;
+                if (progress.StarsOf(s) >= 3) continue;
+                progress.RecordClear(s, 3);
+                n++;
+            }
+            JumpToFrontier();
+            Refresh();
+            Popups.Show("3장까지 클리어 (테스트)",
+                n > 0 ? $"쉬움 1 ~ 3장 스테이지 {n}개를 별 3개로 클리어 처리했습니다.\n결투장 · 주간 보스 · 월드 레이드 · 이벤트 · 파견 · 무한의 탑이 열립니다.\n<size=85%><color=#9AA3B5>첫 클리어 보상과 스토리는 건너뜁니다. 챕터 별 보상은 스테이지 화면에서 받을 수 있습니다.</color></size>"
+                      : "이미 3장까지 모두 별 3개로 클리어되어 있습니다.");
+        }
+
         public void Show(bool on)
         {
             if (_root != null) _root.SetActive(on);
@@ -738,6 +757,12 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(rfrt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
             rfrt.sizeDelta = new Vector2(196, 40); rfrt.anchoredPosition = new Vector2(-50 - CurrencyBar.PillW - 14, -38);
             refill.onClick.AddListener(() => { if (wallet != null) wallet.AddStamina(120); });
+            // 테스트: 쉬움 1 ~ 3장 모든 스테이지를 별 3개로 클리어 처리(결투장 · 주간 보스 · 월드 레이드 · 이벤트 · 파견 · 탑 개방 확인용)
+            var clear3 = UIFactory.AddButton("Clear3Test", _root.transform, "3장까지 클리어 (테스트)", 16, font, new Color(1, 1, 1, 0.12f), Color.white);
+            var c3rt = (RectTransform)clear3.transform;
+            UIFactory.Anchor(c3rt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            c3rt.sizeDelta = new Vector2(220, 40); c3rt.anchoredPosition = new Vector2(-50 - CurrencyBar.PillW - 14 - 196 - 12, -38);
+            clear3.onClick.AddListener(TestClearToChapter3);
 
             // 위: 난이도 + 돌파 던전 · 아래: 챕터 번호
             _modeTabs = TabRow("ModeTabs", -98, 44, 10);

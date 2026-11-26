@@ -100,6 +100,17 @@ namespace SubcultureRPG.Meta.Cloud
             PlayerPrefs.SetInt(DirtyKey, 0);
         }
 
+        /// <summary>마지막으로 서버와 맞춘(올리거나 받은) 세이브의 시각(이 PC 시간). 아직 없으면 null.</summary>
+        public static DateTime? LastSavedLocal
+        {
+            get
+            {
+                long t = SyncedAt;
+                if (t <= 0) return null;
+                try { return new DateTime(t, DateTimeKind.Utc).ToLocalTime(); } catch { return null; }
+            }
+        }
+
         private static long SyncedAt
         {
             get => long.TryParse(PlayerPrefs.GetString(SyncedKey, "0"), out long v) ? v : 0;
@@ -187,6 +198,30 @@ namespace SubcultureRPG.Meta.Cloud
                 return null;
             }
             catch (Exception e) { return ErrorText(e, true); }
+        }
+
+        /// <summary>
+        /// 비밀번호 변경(로그인 중). 서버로는 게임 규칙의 덧붙임 글자를 붙여 보냄. 이 규칙 전에 만든 계정은 지금 비밀번호를 그대로 한 번 더 시도.
+        /// 성공하면 null, 실패하면 이유 문구.
+        /// </summary>
+        public async Task<string> ChangePasswordAsync(string current, string next)
+        {
+            if (!SignedIn) return "로그인한 상태에서만 바꿀 수 있습니다.";
+            try
+            {
+                await AuthenticationService.Instance.UpdatePasswordAsync(ServerPass(current), ServerPass(next));
+                return null;
+            }
+            catch (Exception e)
+            {
+                if (current.Length <= 30)
+                    try { await AuthenticationService.Instance.UpdatePasswordAsync(current, ServerPass(next)); return null; }
+                    catch { /* 처음 오류를 보여 줌 */ }
+                Debug.LogWarning($"[CloudAccount] 비밀번호 변경 실패: {e}");
+                if (e is RequestFailedException rf && (rf.ErrorCode == CommonErrorCodes.TransportError || rf.ErrorCode == CommonErrorCodes.Timeout || rf.ErrorCode == CommonErrorCodes.ServiceUnavailable))
+                    return "서버에 연결할 수 없습니다. 인터넷 연결을 확인해 주세요.";
+                return "지금 비밀번호가 맞지 않습니다.";
+            }
         }
 
         /// <summary>회원가입 직후: 가입하며 자동으로 된 로그인을 풀고 로그인 창에서 다시 로그인하게 함(아이디는 기억).</summary>

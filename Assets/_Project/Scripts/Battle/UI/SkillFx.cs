@@ -38,6 +38,7 @@ namespace SubcultureRPG.Battle.UI
             // 바닥에 눕힌 모양(마법진): 세로를 이 비율로 납작하게. 회전은 납작해지기 전에 적용
             public float squash;
             public RectTransform holder;
+            public float alphaMul = 1f;   // 만들 때의 Dim(적이 쓰는 기술은 옅게)
         }
 
         private readonly List<P> _live = new();
@@ -46,6 +47,12 @@ namespace SubcultureRPG.Battle.UI
 
         /// <summary>이펙트 재생 속도(배속).</summary>
         public float Speed { get; set; } = 1f;
+
+        /// <summary>
+        /// 이펙트 진하기(0~1). 적(보스 등)이 아군에게 쓰는 기술은 옅게 해서 아군 그림이 흰 빛에 묻히지 않게 — BattleHUD가 행동마다 정함.
+        /// 이후에 만드는 이펙트에만 적용.
+        /// </summary>
+        public float Dim { get; set; } = 1f;
 
         public static SkillFx Create(Transform parent)
         {
@@ -111,11 +118,28 @@ namespace SubcultureRPG.Battle.UI
             }
         }
 
-        /// <summary>궁극기: 바닥 마법진 + 빛기둥 + 큰 속성 연출 + 충격파 2겹 + 떠오르는 룬 + 금빛 불꽃.</summary>
-        public void Ultimate(Element e, Vector2 pos, float s, float delay)
+        /// <summary>
+        /// 궁극기: 바닥 마법진 + 빛기둥 + 큰 속성 연출 + 충격파 2겹 + 떠오르는 룬 + 금빛 불꽃.
+        /// signature = 캐릭터 id(예: c_seraphine) — Fx/ult_{id} 문양 그림이 있으면 대상 위에 크게 펼쳐짐(6★ 전용 연출).
+        /// </summary>
+        public void Ultimate(Element e, Vector2 pos, float s, float delay, string signature = null)
         {
             Color c = Main(e), hot = Hot(e);
             var feet = pos + new Vector2(0, -120 * s);
+
+            // 6★ 전용 문양: 작게 시작해 돌며 크게 펼쳐졌다 사라짐 + 뒤에 옅은 큰 잔상
+            var sig = !string.IsNullOrEmpty(signature) ? T("ult_" + signature, null) : null;
+            if (sig != null)
+            {
+                var m = Add(sig, pos + new Vector2(0, 30 * s), 0.95f, delay + 0.05f);
+                m.size0 = Vector2.one * 220 * s; m.size1 = Vector2.one * 640 * s;
+                m.rot = -10f; m.rotVel = 18f;
+                m.c0 = WithA(Color.Lerp(hot, Color.white, 0.3f), 1f); m.c1 = WithA(c, 0f); m.fadeIn = 0.08f; m.fadeOutFrom = 0.5f;
+                var g = Add(sig, pos + new Vector2(0, 30 * s), 0.8f, delay + 0.12f);
+                g.size0 = Vector2.one * 520 * s; g.size1 = Vector2.one * 900 * s;
+                g.rot = 8f; g.rotVel = -10f;
+                g.c0 = WithA(c, 0.45f); g.c1 = WithA(c, 0f); g.fadeIn = 0.1f;
+            }
 
             // 바닥 마법진: 눕혀서 회전하며 펼쳐졌다가 사라짐
             if (Has("magic_circle"))
@@ -155,6 +179,77 @@ namespace SubcultureRPG.Battle.UI
                     r.size0 = Vector2.one * 40 * s; r.size1 = Vector2.one * 70 * s;
                     r.c0 = WithA(hot, 0.95f); r.c1 = WithA(c, 0f); r.fadeIn = 0.25f; r.rotVel = Random.Range(-40f, 40f);
                 }
+        }
+
+        /// <summary>
+        /// 블랙홀(보스 필살기 '사건의 지평선' 직전): 가운데 어둠이 커지고, 보랏빛 · 검은 알갱이가 소용돌이치며 빨려 듦 + 줄어드는 고리.
+        /// </summary>
+        public void Vortex(Vector2 center, float s, float dur)
+        {
+            if (dur <= 0.05f) return;
+            var violet = new Color(0.62f, 0.3f, 1f);
+            var dark = new Color(0.08f, 0.02f, 0.14f);
+            var core = Add(T("glow_orb", ProceduralSprites.Glow), center, dur, 0f);
+            core.size0 = Vector2.one * 60 * s; core.size1 = Vector2.one * 420 * s; core.rotVel = -90f;
+            core.c0 = WithA(dark, 0.3f); core.c1 = WithA(dark, 0.85f); core.fadeIn = 0.6f;
+            var rim = Add(T("shockwave", ProceduralSprites.Ring), center, dur, 0f);
+            rim.size0 = Vector2.one * 760 * s; rim.size1 = Vector2.one * 120 * s; rim.rotVel = 160f;
+            rim.c0 = WithA(violet, 0.2f); rim.c1 = WithA(violet, 0.9f); rim.fadeIn = 0.4f;
+            var swirl = T("wind_swirl", ProceduralSprites.Ring);
+            var w = Add(swirl, center, dur, 0f);
+            w.size0 = Vector2.one * 640 * s; w.size1 = Vector2.one * 160 * s; w.rotVel = -360f;
+            w.c0 = WithA(violet, 0.15f); w.c1 = WithA(Color.Lerp(violet, Color.white, 0.4f), 0.8f); w.fadeIn = 0.5f;
+            for (int i = 0; i < 26; i++)
+            {
+                var p = Add(i % 3 == 0 ? T("spark_star", ProceduralSprites.Star) : ProceduralSprites.Glow, center, dur, Random.Range(0f, dur * 0.3f));
+                p.orbit = true; p.center = center;
+                p.radius = Random.Range(260f, 520f) * s; p.radiusVel = -p.radius / (dur * 0.85f);
+                p.angle = Random.Range(0f, Mathf.PI * 2f); p.angVel = Random.Range(4f, 7f);
+                p.size0 = Vector2.one * Random.Range(14f, 30f) * s; p.size1 = Vector2.one * 6f * s;
+                p.c0 = i % 2 == 0 ? WithA(violet, 0.9f) : WithA(dark, 0.9f); p.c1 = WithA(Color.white, 0.5f); p.fadeIn = 0.25f;
+            }
+        }
+
+        /// <summary>치명타: 금빛 타격 섬광 크게 + 엇갈린 검기 2줄 + 충격파 + 금빛 불꽃이 사방으로.</summary>
+        public void Crit(Vector2 pos, float s, float delay)
+        {
+            var gold = new Color(1f, 0.84f, 0.35f);
+            var hot = new Color(1f, 0.96f, 0.8f);
+            Hit(pos, gold, 300 * s, 0.3f, delay);
+            float a = Random.Range(20f, 50f);
+            Slash(pos, hot, a, 360 * s, 30 * s, 0.24f, delay);
+            Slash(pos, gold, a + 90f, 300 * s, 24 * s, 0.24f, delay + 0.04f);
+            Ring(pos, gold, 60 * s, 380 * s, 0.35f, delay + 0.02f);
+            Sparks(pos, gold, 16, 720 * s, 22 * s, 0.45f, delay + 0.02f);
+        }
+
+        /// <summary>약점 공격: 분홍빛 충격파 + 작은 파편 반짝임.</summary>
+        public void Weak(Vector2 pos, float s, float delay)
+        {
+            var pink = new Color(1f, 0.55f, 0.85f);
+            Ring(pos, pink, 40 * s, 260 * s, 0.3f, delay);
+            Sparks(pos, Color.Lerp(pink, Color.white, 0.4f), 8, 480 * s, 18 * s, 0.35f, delay);
+        }
+
+        /// <summary>브레이크: 내구도가 깨지며 파편(얼음 파편 그림을 주황으로)이 사방으로 튀고 큰 충격파 2겹 + 섬광.</summary>
+        public void BreakShatter(Vector2 pos, float s, float delay)
+        {
+            var orange = new Color(1f, 0.72f, 0.28f);
+            Hit(pos, orange, 380 * s, 0.35f, delay);
+            Ring(pos, orange, 60 * s, 520 * s, 0.45f, delay);
+            Ring(pos, Color.white, 30 * s, 360 * s, 0.35f, delay + 0.08f);
+            var shard = T("ice_shard", ProceduralSprites.Triangle);
+            for (int i = 0; i < 14; i++)
+            {
+                float ang = (i * (360f / 14f) + Random.Range(-12f, 12f)) * Mathf.Deg2Rad;
+                var dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
+                var p = Add(shard, pos + dir * 20f * s, Random.Range(0.5f, 0.75f), delay + Random.Range(0f, 0.05f));
+                p.vel = dir * Random.Range(520f, 900f) * s; p.drag = 3.5f; p.gravity = new Vector2(0, -600f * s);
+                p.alignToVel = true;
+                p.size0 = new Vector2(34, 80) * s * Random.Range(0.7f, 1.2f); p.size1 = p.size0 * 0.4f;
+                p.c0 = Color.Lerp(orange, Color.white, 0.5f); p.c1 = WithA(orange, 0f); p.fadeIn = 0.03f; p.fadeOutFrom = 0.4f;
+            }
+            Sparks(pos, orange, 14, 760 * s, 22 * s, 0.5f, delay + 0.03f);
         }
 
         /// <summary>화면 전체 번쩍임(궁극기).</summary>
@@ -500,7 +595,7 @@ namespace SubcultureRPG.Battle.UI
             var p = new P
             {
                 rt = rt, img = img, pos = pos, life = Mathf.Max(0.02f, life), delay = Mathf.Max(0f, delay),
-                size0 = Vector2.one * 40, size1 = Vector2.one * 40, c0 = Color.white, c1 = Color.white,
+                size0 = Vector2.one * 40, size1 = Vector2.one * 40, c0 = Color.white, c1 = Color.white, alphaMul = Mathf.Clamp01(Dim),
             };
             _live.Add(p);
             return p;
@@ -584,7 +679,7 @@ namespace SubcultureRPG.Battle.UI
                 float ck = p.fadeOutFrom > 0f ? Mathf.Clamp01((k - p.fadeOutFrom) / (1f - p.fadeOutFrom)) : k;
                 var c = Color.Lerp(p.c0, p.c1, ck);
                 float env = k < p.fadeIn ? k / p.fadeIn : 1f;
-                c.a *= env * (p.flicker ? Random.Range(0.35f, 1f) : 1f);
+                c.a *= env * p.alphaMul * (p.flicker ? Random.Range(0.35f, 1f) : 1f);
                 p.img.color = c;
             }
         }

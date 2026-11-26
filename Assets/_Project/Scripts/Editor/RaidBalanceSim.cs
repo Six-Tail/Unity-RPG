@@ -109,7 +109,10 @@ namespace SubcultureRPG.EditorTools
 
         private static Outcome Simulate(List<BattleUnitData> party, int bossLevel, Dictionary<string, float> o, int seed)
         {
-            var boss = WorldRaid.CreateBoss(bossLevel);
+            // diff=0~3(쉬움 · 보통 · 어려움 · 극악): 그 난이도의 보스 레벨 · 배율 · 격노로
+            int diff = (int)Get(o, "diff", 2);
+            if (o.ContainsKey("diff")) bossLevel = WorldRaid.BossLevel(diff);
+            var boss = WorldRaid.CreateBoss(bossLevel, diff);
             float atkMul = Get(o, "atkMul", 1f);
             boss.baseStats.atk = Mathf.RoundToInt(boss.baseStats.atk * atkMul);
             boss.baseStats.atkGrowth = Mathf.RoundToInt(boss.baseStats.atkGrowth * atkMul);
@@ -118,7 +121,7 @@ namespace SubcultureRPG.EditorTools
             if (o.ContainsKey("hpMul")) foreach (var s in boss.skills) if (!s.IsUltimate) s.maxHpDamage *= o["hpMul"];
 
             float limit = Get(o, "time", WorldRaid.TimeLimit), every = Get(o, "every", WorldRaid.EnrageEvery);
-            float enrage = Get(o, "enrage", WorldRaid.EnrageAtk), spa = Get(o, "spa", 300f / 141f);
+            float enrage = Get(o, "enrage", WorldRaid.Diff(diff).enrageAtk), spa = Get(o, "spa", 300f / 141f);
 
             var rng = new System.Random(seed);
             var eng = new BattleEngine(party, new[] { boss }, null, () => (float)rng.NextDouble());
@@ -132,7 +135,7 @@ namespace SubcultureRPG.EditorTools
                 if (st != stage)
                 {
                     stage = st;
-                    WorldRaid.ApplyEnrage(b, stage, baseAtk);
+                    WorldRaid.ApplyEnrage(b, stage, baseAtk, diff);
                     if (o.ContainsKey("enrage")) b.atk = Mathf.RoundToInt(baseAtk * (1f + enrage * stage));
                     if (o.ContainsKey("horizon")) foreach (var s in b.skills) if (s.IsUltimate) s.maxHpDamage = o["horizon"] + Get(o, "horizonStep", WorldRaid.HorizonPerStage) * stage;
                 }

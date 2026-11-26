@@ -42,6 +42,14 @@ const FX = [
   ['heal_cross', '회복 빛', 'a single soft glowing plus-shaped healing cross symbol with gentle radiant halo and tiny floating sparkles around it'],
   ['rune_glyph', '룬 문자', 'a single glowing mystical rune glyph symbol made of thin elegant lines inside a small circle, fantasy magic sigil'],
   ['feather_streak', '빛 줄기', 'a single soft elongated vertical streak of light like a comet tail, bright rounded head at the top fading into a long thin tail at the bottom'],
+  // 6★ 궁극기 전용 문양(SkillFx.Ultimate가 캐릭터 id로 찾음: Fx/ult_{id}) — 무기 · 상징을 넣은 큰 문양
+  ['ult_c_seraphine', '세라핀 궁극기 문양', 'a huge flaming greatsword thrust straight down through the center of a blazing phoenix-wing emblem, burning feathers fanning out to both sides'],
+  ['ult_c_ciel', '시엘 궁극기 문양', 'two slender rapiers crossed in an X in front of a giant six-pointed snowflake crystal emblem with sharp icy facets'],
+  ['ult_c_ark', '아크 궁극기 문양', 'a massive heraldic tower shield emblem at the center crackling with branching lightning bolts radiating outward in all directions'],
+  ['ult_c_aurora', '오로라 궁극기 문양', 'a tall crystal staff in the center surrounded by flowing aurora ribbons forming a round halo, with tiny twinkling stars'],
+  ['ult_c_kael', '카엘 궁극기 문양', 'twin curved daggers crossed in the center of a spiraling wind vortex made of crescent air blades and leaf-shaped gusts'],
+  ['ult_c_violet', '바이올렛 궁극기 문양', 'a single razor-sharp katana slash streak cutting diagonally across a thin outlined crescent moon ring (only the outline of the moon, empty inside), with a few falling petals and thin speed lines along the cut'],
+  ['ult_c_estelle', '에스텔 궁극기 문양', 'a hanging lantern with a gentle flame in the center, surrounded by a radiant ring of rising feathers and soft embers like a sacred blessing'],
 ];
 
 const PROMPT = (desc) =>

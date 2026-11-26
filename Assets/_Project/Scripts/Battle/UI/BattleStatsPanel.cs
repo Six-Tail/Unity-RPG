@@ -157,7 +157,7 @@ namespace SubcultureRPG.Battle.UI
             float ps = h - 10;
             var frame = Rounded("Frame", _content, new Color(1, 1, 1, 0.08f));
             Place(frame.rectTransform, XPortrait, y - 5, ps, ps);
-            Sprite sprite = u.character != null ? GameArt.Thumb(u.character) : GameArt.Enemy(u.Name);
+            Sprite sprite = u.character != null ? GameArt.Thumb(u.character, GameArt.SuffixFor(u.character, u.team == Team.Ally)) : GameArt.Enemy(u.Name);
             if (sprite != null)
             {
                 var img = UIFactory.AddImage("Portrait", frame.transform, alive ? Color.white : new Color(0.5f, 0.5f, 0.5f), sprite);

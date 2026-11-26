@@ -218,14 +218,15 @@ namespace SubcultureRPG.Meta.UI
             }
         }
 
-        protected Image Thumb(Transform parent, CharacterData c, float x, float y, float size, int star)
+        /// <param name="mine">내 캐릭터면 내 옷장(개화 등) 그림, 아니면(결투장 상대 · 보너스 캐릭터 소개) 기본 의상</param>
+        protected Image Thumb(Transform parent, CharacterData c, float x, float y, float size, int star, bool mine = true)
         {
             var col = StarText.ColorOf(star);
             var cell = UIFactory.AddImage("Cell", parent, new Color(col.r, col.g, col.b, 0.9f));
             Place(cell.rectTransform, x, y, size, size);
             var inner = UIFactory.AddImage("Inner", cell.transform, new Color(0.1f, 0.1f, 0.15f, 1f));
             UIFactory.Stretch(inner.rectTransform, 2, 2, 2, 2);
-            var th = c != null ? GameArt.Thumb(c) : null;
+            var th = c != null ? GameArt.Thumb(c, GameArt.SuffixFor(c, mine)) : null;
             if (th != null)
             {
                 var img = UIFactory.AddImage("Thumb", inner.transform, Color.white, th);
@@ -288,10 +289,20 @@ namespace SubcultureRPG.Meta.UI
 
             _root.SetActive(false);
             PlayerArena.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
+            SubcultureRPG.Meta.Cloud.PublicProfile.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
         }
+
+        private float _arenaFetchAt = -999f;
 
         protected override void Refresh()
         {
+            // 서버 순위(실제 플레이어)를 오래됐으면 다시 불러옴 — 끝나면 OnChanged로 다시 그림
+            var pub = SubcultureRPG.Meta.Cloud.PublicProfile.Instance;
+            if (SubcultureRPG.Meta.Cloud.PublicProfile.Online && !pub.ArenaFetching && Time.unscaledTime - _arenaFetchAt > 60f)
+            {
+                _arenaFetchAt = Time.unscaledTime;
+                _ = pub.RefreshArenaAsync();
+            }
             var a = PlayerArena.Instance;
             var roster = FindAnyObjectByType<PlayerRoster>();
             var db = roster != null ? roster.Database : null;
@@ -325,7 +336,13 @@ namespace SubcultureRPG.Meta.UI
             var t = PlayerArena.UntilSeasonEnd;
             var sub = Text(p, $"<color=#9AA3B5>시즌 종료까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  월요일 05:00 정산</color>   내 순위 <color=#FFD36B><b>{a.MyRank}위</b></color>",
                 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Place(sub.rectTransform, 30, -68, 1040, 30);
+            Place(sub.rectTransform, 30, -68, 640, 30);
+            var pubp = SubcultureRPG.Meta.Cloud.PublicProfile.Instance;
+            int realCount = pubp.ArenaPlayers.Count;
+            var srv = Text(p, !SubcultureRPG.Meta.Cloud.PublicProfile.Online ? "<color=#FFB347>게스트 — 서버 플레이어는 로그인하면 함께 보입니다</color>"
+                : !string.IsNullOrEmpty(pubp.ArenaError) ? $"<color=#FF8A8A>{pubp.ArenaError}</color>"
+                : $"<color=#7CFF9A>● 플레이어</color> <color=#9AA3B5>서버 플레이어 {realCount}명 + 다른 지휘관</color>", 18, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
+            Place(srv.rectTransform, 680, -70, 390, 26);
             var view = UIFactory.NewRect("View", p);
             UIFactory.Stretch(view, 24, 90, 24, 108);
             var content = UIFactory.NewRect("Content", view);
@@ -345,7 +362,7 @@ namespace SubcultureRPG.Meta.UI
                 string rc = e.rank == 1 ? "#FFD36B" : e.rank == 2 ? "#DCE6FF" : e.rank == 3 ? "#E0A070" : "#FFFFFF";
                 var r1 = Text(row.transform, $"<color={rc}><b>{e.rank}</b></color>", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
                 Place(r1.rectTransform, 10, -6, 90, 40);
-                var r2 = Text(row.transform, $"<b>{e.name}</b>" + (e.me ? "  <size=75%><color=#9AD4FF>나</color></size>" : ""), 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+                var r2 = Text(row.transform, $"<b>{e.name}</b>" + (e.me ? "  <size=75%><color=#9AD4FF>나</color></size>" : e.Real ? "  <size=70%><color=#7CFF9A>● 플레이어</color></size>" : ""), 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
                 Place(r2.rectTransform, 120, -6, 460, 40);
                 var r3 = Text(row.transform, $"<color=#{ColorUtility.ToHtmlStringRGB(tc)}>{tier}</color>", 22, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
                 Place(r3.rectTransform, 600, -6, 200, 40);
@@ -361,6 +378,15 @@ namespace SubcultureRPG.Meta.UI
                     var entry = e;
                     btn.onClick.AddListener(() =>
                     {
+                        if (entry.Real)
+                        {
+                            // 실제 플레이어: 서버 공개 프로필(불러온 것이 있으면 바로)
+                            var (rtn, rtc) = PlayerArena.Tier(entry.points);
+                            string line = $"<color=#FFD36B>결투장 {entry.rank}위</color>  <color=#{ColorUtility.ToHtmlStringRGB(rtc)}>{rtn}</color>  {entry.points:N0}점";
+                            if (entry.snap != null) PlayerInfoWindow.Open(entry.snap, font, line);
+                            else PlayerInfoWindow.OpenPlayer(entry.pid, font, line);
+                            return;
+                        }
                         var who = Commanders.FromSeed(entry.seed, FindAnyObjectByType<PlayerRoster>()?.Database);
                         // 결투장 점수에 맞춰 레벨 · 전투력을 보정(상위권일수록 강함)
                         who.level = Mathf.Clamp(20 + entry.points / 55, who.level, 80);
@@ -428,7 +454,7 @@ namespace SubcultureRPG.Meta.UI
             var leader = PlayerArena.Instance.Leader(o, db);
             var av = new ProfileAvatar(row.transform, 150);
             Place(av.Rect, 24, -30, 150, 150);
-            av.Set(leader, o.Diff == PlayerArena.Difficulty.Hard ? "f_gold" : o.Diff == PlayerArena.Difficulty.Normal ? "f_silver" : "f_bronze");
+            av.Set(leader, o.Diff == PlayerArena.Difficulty.Hard ? "f_gold" : o.Diff == PlayerArena.Difficulty.Normal ? "f_silver" : "f_bronze", "");   // 상대는 기본 의상
             var (tier, tc) = PlayerArena.Tier(o.points);
             var name = Text(row.transform, $"<b>{o.name}</b>   <size=70%><color=#{ColorUtility.ToHtmlStringRGB(dc)}>{PlayerArena.DifficultyName(o.Diff)}</color></size>", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(name.rectTransform, 196, -24, 420, 44);
@@ -443,7 +469,7 @@ namespace SubcultureRPG.Meta.UI
             {
                 var c = db != null ? db.GetCharacter(id) : null;
                 if (c == null) continue;
-                Thumb(row.transform, c, tx, -38, 112, o.transcend > 0 ? 6 : (int)c.rarity);
+                Thumb(row.transform, c, tx, -38, 112, o.transcend > 0 ? 6 : (int)c.rarity, mine: false);
                 var lv = Text(row.transform, $"Lv.{o.level}", 16, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
                 Place(lv.rectTransform, tx, -154, 112, 24);
                 tx += 124;
@@ -467,15 +493,18 @@ namespace SubcultureRPG.Meta.UI
     }
 
     /// <summary>
-    /// 주간 보스(월드 레이드) 화면: 보스 그림 · 이번 주 약점 · 남은 시간 · 오늘 남은 도전 · 누적/최고 피해 · 누적 보상(수령).
+    /// 주간 보스 화면: 난이도 탭(쉬움 · 보통 · 어려움 · 극악) · 보스 그림 · 이번 주 약점 · 남은 시간 · 오늘 남은 도전 ·
+    /// 고른 난이도의 누적/최고 점수 · 누적 보상(수령).
     /// '도전' → 편성(출격 모드) → 전투(아군 행동 20회 제한).
     /// </summary>
     public class RaidScreen : ModeScreenBase
     {
         public event System.Action OnChallenge;
+        public event System.Action OnWorld;
 
-        private TextMeshProUGUI _summary, _weak, _left;
+        private TextMeshProUGUI _summary, _weak, _left, _rewardTitle;
         private RectTransform _rewards, _featured;
+        private readonly List<(Image bg, TextMeshProUGUI label, NotifyBadge badge)> _tabs = new();
 
         private void Awake()
         {
@@ -499,10 +528,29 @@ namespace SubcultureRPG.Meta.UI
             Top(_weak.rectTransform, -480, -846, 760, 40, new Vector2(0.5f, 1));
             _left = Text(_frame, "", 20, new Color(0.75f, 0.78f, 0.86f), FontStyles.Normal, TextAlignmentOptions.Center);
             Top(_left.rectTransform, -480, -888, 760, 30, new Vector2(0.5f, 1));
+            var world = UIFactory.AddButton("World", _frame, "월드 레이드 ▶  <size=70%>서버 공유 보스</size>", 22, font, new Color(0.8f, 0.32f, 0.28f, 0.95f), Color.white);
+            world.GetComponentInChildren<TextMeshProUGUI>().richText = true;
+            Top((RectTransform)world.transform, -480, -940, 380, 58, new Vector2(0.5f, 1));
+            world.onClick.AddListener(() => OnWorld?.Invoke());
+
+            // 오른쪽 맨 위: 난이도 탭
+            for (int d = 0; d < WorldRaid.DifficultyCount; d++)
+            {
+                int dd = d;
+                var df = WorldRaid.Diff(d);
+                var tab = UIFactory.AddButton("Diff" + d, _frame, "", 22, font, new Color(1, 1, 1, 0.1f), Color.white);
+                Top((RectTransform)tab.transform, 420 - 323 + d * 215, -104, 205, 58, new Vector2(0.5f, 1));
+                var lbl = tab.GetComponentInChildren<TextMeshProUGUI>();
+                lbl.richText = true;
+                lbl.text = $"<color={df.hex}><b>{df.name}</b></color>  <size=75%><color=#C8CEDA>Lv.{df.level}</color></size>";
+                var badge = NotifyBadge.Attach(tab, font, 4, 4, 26);
+                tab.onClick.AddListener(() => { WorldRaid.Instance.Selected = dd; Refresh(); });
+                _tabs.Add((tab.GetComponent<Image>(), lbl, badge));
+            }
 
             // 오른쪽: 기록 · 도전
             var info = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.9f));
-            Top(info.rectTransform, 420, -108, 860, 210, new Vector2(0.5f, 1));
+            Top(info.rectTransform, 420, -174, 860, 196, new Vector2(0.5f, 1));
             _summary = Text(info.transform, "", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
             _summary.lineSpacing = 12f;
             UIFactory.Stretch(_summary.rectTransform, 30, 20, 330, 20);
@@ -517,18 +565,18 @@ namespace SubcultureRPG.Meta.UI
 
             // 이번 주 보너스 캐릭터
             var fp = Panel(_frame, new Color(0.12f, 0.08f, 0.18f, 0.9f));
-            Top(fp.rectTransform, 420, -330, 860, 168, new Vector2(0.5f, 1));
+            Top(fp.rectTransform, 420, -382, 860, 156, new Vector2(0.5f, 1));
             var ft = Text(fp.transform, $"<b>이번 주 보너스 캐릭터</b>   <size=80%><color=#7CFF9A>파티에 1명당 점수 +{WorldRaid.FeaturedBonus * 100f:0}%  (최대 {WorldRaid.FeaturedMax}명, +{WorldRaid.FeaturedBonus * WorldRaid.FeaturedMax * 100f:0}%)</color></size>",
                 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(ft.rectTransform, 24, -10, 820, 34);
             _featured = UIFactory.NewRect("Featured", fp.transform);
-            Place(_featured, 24, -48, 820, 112);
+            Place(_featured, 24, -46, 820, 104);
 
             // 누적 보상
-            var title = Text(_frame, "<b>이번 주 누적 점수 보상</b>  <size=75%><color=#9AA3B5>월요일 05:00 초기화  ·  점수 = 준 피해 × 보너스</color></size>", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Top(title.rectTransform, 420, -510, 860, 40, new Vector2(0.5f, 1));
+            _rewardTitle = Text(_frame, "", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Top(_rewardTitle.rectTransform, 420, -550, 860, 40, new Vector2(0.5f, 1));
             var view = UIFactory.NewRect("RewardView", _frame);
-            Top(view, 420, -556, 860, 430, new Vector2(0.5f, 1));
+            Top(view, 420, -594, 860, 392, new Vector2(0.5f, 1));
             _rewards = UIFactory.NewRect("Rewards", view);
             var vl = _rewards.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 8; vl.padding = new RectOffset(4, 4, 4, 4);
@@ -542,15 +590,25 @@ namespace SubcultureRPG.Meta.UI
         protected override void Refresh()
         {
             var r = WorldRaid.Instance;
+            int sel = r.Selected;
+            var df = WorldRaid.Diff(sel);
+            for (int d = 0; d < _tabs.Count; d++)
+            {
+                var dfd = WorldRaid.Diff(d);
+                ColorUtility.TryParseHtmlString(dfd.hex, out var c);
+                _tabs[d].bg.color = d == sel ? new Color(c.r * 0.45f, c.g * 0.45f, c.b * 0.45f, 0.95f) : new Color(1, 1, 1, 0.08f);
+                _tabs[d].badge.Set(r.ClaimableIn(d) > 0);
+            }
             var weak = WorldRaid.Weaknesses;
             var parts = new List<string>();
             foreach (var e in weak) parts.Add($"<color={Traits.Hex(e)}><b>{Traits.Name(e)}</b></color>");
-            _weak.text = $"이번 주 약점  {string.Join("  ·  ", parts)}   <size=80%><color=#9AA3B5>Lv.{WorldRaid.BossLevel()}</color></size>";
+            _weak.text = $"이번 주 약점  {string.Join("  ·  ", parts)}   <size=80%><color={df.hex}>{df.name}</color> <color=#9AA3B5>Lv.{df.level}</color></size>";
             var t = WorldRaid.UntilWeekReset;
-            _left.text = $"교체까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  제한 시간 {WorldRaid.TimeLimit / 60f:0}분 · {WorldRaid.EnrageEvery:0}초마다 격노(공격력 +{WorldRaid.EnrageAtk * 100f:0}% · 즉시 '사건의 지평선' — 최대 체력 비례 피해)";
+            _left.text = $"교체까지 {(t.Days > 0 ? $"{t.Days}일 " : "")}{t.Hours}시간 {t.Minutes}분  ·  제한 시간 {WorldRaid.TimeLimit / 60f:0}분 · {WorldRaid.EnrageEvery:0}초마다 격노(공격력 +{df.enrageAtk * 100f:0}% · 즉시 '사건의 지평선' — 최대 체력 비례 피해)";
             _summary.text = $"<color=#9AA3B5>오늘 남은 도전</color>   <color={(r.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}><b>{r.AttemptsLeft}</b></color> / {WorldRaid.AttemptsPerDay}{(WorldRaid.FreeAttempts ? "  <color=#FFD36B>(최대 육성 테스트 중 · 소모 안 함)</color>" : "")}\n" +
-                            $"<color=#9AA3B5>이번 주 누적 점수</color>   <color=#FFD36B><b>{r.TotalDamage:N0}</b></color>\n" +
-                            $"<color=#9AA3B5>최고 기록(1회)</color>   {r.BestDamage:N0}";
+                            $"<color=#9AA3B5>이번 주 누적 점수</color> <size=80%><color={df.hex}>{df.name}</color></size>   <color=#FFD36B><b>{r.TotalDamage(sel):N0}</b></color>\n" +
+                            $"<color=#9AA3B5>최고 기록(1회)</color>   {r.BestDamage(sel):N0}";
+            _rewardTitle.text = $"<b><color={df.hex}>{df.name}</color> 누적 점수 보상</b>  <size=75%><color=#9AA3B5>난이도마다 따로 · 월요일 05:00 초기화 · 점수 = 준 피해 × 보너스</color></size>";
 
             Clear(_featured);
             var roster = FindAnyObjectByType<PlayerRoster>();
@@ -558,7 +616,7 @@ namespace SubcultureRPG.Meta.UI
             foreach (var c in WorldRaid.Featured)
             {
                 bool owned = roster != null && roster.IsOwned(c);
-                var cell = Thumb(_featured, c, fx, 0, 86, roster != null && owned ? roster.StarOf(c) : (int)c.rarity);
+                var cell = Thumb(_featured, c, fx, 0, 86, roster != null && owned ? roster.StarOf(c) : (int)c.rarity, mine: false);
                 if (!owned) cell.color = new Color(0.4f, 0.4f, 0.45f, 0.9f);
                 var nm = Text(_featured, $"<b>{c.displayName}</b>\n<size=80%><color={Traits.Hex(c.element)}>{Traits.Name(c.element)}</color> · {(owned ? "<color=#7CFF9A>보유</color>" : "<color=#9AA3B5>미보유</color>")}</size>",
                     17, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
@@ -567,14 +625,14 @@ namespace SubcultureRPG.Meta.UI
             }
 
             Clear(_rewards);
-            for (int i = 0; i < WorldRaid.Milestones.Count; i++) RewardRow(i);
+            for (int i = 0; i < df.milestones.Count; i++) RewardRow(sel, i);
         }
 
-        private void RewardRow(int i)
+        private void RewardRow(int d, int i)
         {
             var r = WorldRaid.Instance;
-            var m = WorldRaid.Milestones[i];
-            bool claimed = r.IsClaimed(i), can = r.CanClaim(i);
+            var m = WorldRaid.Diff(d).milestones[i];
+            bool claimed = r.IsClaimed(d, i), can = r.CanClaim(d, i);
             var row = Panel(_rewards, claimed ? new Color(1, 1, 1, 0.04f) : can ? new Color(0.3f, 0.55f, 0.4f, 0.4f) : new Color(1, 1, 1, 0.07f));
             row.gameObject.AddComponent<LayoutElement>().preferredHeight = 74;
             var label = Text(row.transform, $"<color=#FFD36B><b>{m.damage:N0}</b></color>  <size=80%><color=#9AA3B5>점수</color></size>   {m.label}", 22,
@@ -586,7 +644,7 @@ namespace SubcultureRPG.Meta.UI
             bg.rectTransform.sizeDelta = new Vector2(-220, 8); bg.rectTransform.anchoredPosition = new Vector2(20, 12);
             var fill = UIFactory.AddImage("Fill", bg.transform, can || claimed ? new Color(0.45f, 0.95f, 0.55f) : new Color(1f, 0.8f, 0.4f));
             fill.rectTransform.anchorMin = Vector2.zero;
-            fill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(r.TotalDamage / (float)m.damage), 1f);
+            fill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(r.TotalDamage(d) / (float)m.damage), 1f);
             fill.rectTransform.offsetMin = Vector2.zero; fill.rectTransform.offsetMax = Vector2.zero;
 
             var btn = UIFactory.AddButton("Claim", row.transform, claimed ? "수령 완료" : can ? "받기" : "진행 중", 20, font,
@@ -595,7 +653,7 @@ namespace SubcultureRPG.Meta.UI
             ((RectTransform)btn.transform).sizeDelta = new Vector2(160, 52); ((RectTransform)btn.transform).anchoredPosition = new Vector2(-16, 0);
             btn.interactable = can;
             int idx = i;
-            btn.onClick.AddListener(() => { if (WorldRaid.Instance.Claim(idx)) Toast($"{m.label} 획득!"); });
+            btn.onClick.AddListener(() => { if (WorldRaid.Instance.Claim(d, idx)) Toast($"{m.label} 획득!"); });
         }
     }
 }

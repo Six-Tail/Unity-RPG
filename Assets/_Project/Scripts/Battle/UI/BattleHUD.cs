@@ -33,7 +33,21 @@ namespace SubcultureRPG.Battle.UI
         public void SetBackground(params string[] paths)
         {
             if (_bgArt != null) _bgArt.Set(paths);
+            // 떠다니는 입자 색을 배경에 맞춤: 월드 레이드 = 불씨, 주간 보스 = 보랏빛 별가루, 그 밖 = 따뜻한 빛 먼지
+            string first = paths != null && paths.Length > 0 ? paths[0] ?? "" : "";
+            if (_ambient != null)
+            {
+                if (first.Contains("worldraid")) _ambient.SetTheme(new Color(1f, 0.55f, 0.25f), new Color(1f, 0.85f, 0.5f));
+                else if (first.Contains("raid")) _ambient.SetTheme(new Color(0.75f, 0.5f, 1f), new Color(1f, 0.85f, 0.55f));
+                else _ambient.SetTheme(new Color(1f, 0.92f, 0.75f), new Color(0.75f, 0.85f, 1f));
+            }
         }
+
+        private BattleCinematics _cine;
+        private AmbientParticles _ambient;
+
+        /// <summary>보스 필살기 예고(붉은 화면 가장자리 맥동 + WARNING 띠) — 주간 보스 · 월드 레이드가 격노 직전에 부름.</summary>
+        public void BossWarning(string title, string sub, float dur) => _cine?.Warning(title, sub, dur);
         private RectTransform _stage, _enemyRow, _allyRow, _turnStrip, _skillBar, _field;
         private Image _fieldDim;
         private RectTransform _glowLayer;
@@ -575,7 +589,7 @@ namespace SubcultureRPG.Battle.UI
                     SpawnPopup(panel, $"{head}{h.totalDamage:N0}", col, h.anyCrit, at + 0.04f, 34f, new Color(1f, 0.6f, 0.3f));
                     var hitPanel = panel;
                     bool crit = h.anyCrit;
-                    StartCoroutine(After(at, () => { if (hitPanel != null) hitPanel.PlayHit(crit ? new Color(1f, 0.85f, 0.4f) : Color.white, 8f, 0.25f); }));
+                    StartCoroutine(After(at, () => { if (hitPanel != null) hitPanel.PlayHit(Color.white, 8f, 0.25f); }));
                     // 추가 공격한 쪽도 살짝 튀어나옴
                     if (h.source != null && _panels.TryGetValue(h.source, out var src))
                     {
@@ -632,6 +646,9 @@ namespace SubcultureRPG.Battle.UI
                 StartCoroutine(UltimateCutIn(actor, skill, dur));
                 if (p != null)
                 {
+                    // 카메라: 컷인이 걷힐 즈음 시전자에게 확 당겼다가 → 타격 순간 대상 쪽으로(HandleResolved)
+                    var caster = p;
+                    StartCoroutine(After(dur * 0.72f, () => CameraPunch(FieldPos(caster), 1.14f, 0.16f / Mathf.Sqrt(speed), 0.25f / Mathf.Sqrt(speed), 0.3f / Mathf.Sqrt(speed), 0.3f)));
                     // 컷인이 끝날 즈음 돌진(또는 한 발) — 타격과 맞물리게
                     StartCoroutine(After(dur - outDur, () =>
                     {
@@ -639,6 +656,32 @@ namespace SubcultureRPG.Battle.UI
                         else p.PlayLunge(new Vector2(40, 0), (outDur + back) * 1.2f);
                     }));
                 }
+                controller.PresentationDelay = dur + 0.05f;
+            }
+            else if (skill != null && skill.IsUltimate && actor.team == Team.Enemy && _cine != null)
+            {
+                // 적 궁극기: 캐릭터(결투장 상대)는 아군과 같은 컷인, 보스(그림만 있는 적)는 붉은 보스 컷인
+                float dur = 1.25f / Mathf.Sqrt(speed);
+                if (actor.character != null) StartCoroutine(UltimateCutIn(actor, skill, dur));
+                else StartCoroutine(_cine.BossCutIn(actor.Name, GameArt.Enemy(actor.Name), skill.skillName, dur));
+                // 아군 전체를 노리면 아군 한가운데에 블랙홀이 열리며 빨아들임
+                if (_fx != null && skill.target == TargetType.AllEnemies)
+                {
+                    Vector2 c = Vector2.zero; int n = 0;
+                    foreach (var kv in _panels) if (kv.Key.team == Team.Ally && kv.Key.IsAlive) { c += FieldPos(kv.Value); n++; }
+                    if (n > 0)
+                    {
+                        _fx.Speed = 1f; _fx.Dim = 1f;
+                        _fx.Vortex(c / n + new Vector2(0, 40f), 1f, dur + outDur);
+                    }
+                }
+                ScreenShake(5f, dur * 0.7f);
+                if (p != null)
+                    StartCoroutine(After(dur - outDur, () =>
+                    {
+                        if (dash) DashTo(p, tp, outDur, hold * 1.6f, back);
+                        else p.PlayLunge(new Vector2(40, 0), (outDur + back) * 1.2f);
+                    }));
                 controller.PresentationDelay = dur + 0.05f;
             }
             else
@@ -649,6 +692,7 @@ namespace SubcultureRPG.Battle.UI
                 if (isSkill && p != null && _fx != null)
                 {
                     _fx.Speed = 1f;
+                    _fx.Dim = actor != null && actor.team == Team.Enemy ? 0.42f : 1f;   // 적의 시전 모으기도 옅게
                     _fx.Charge(skill.element, _fx.ToLocal((RectTransform)p.transform), 0.8f, charge + outDur, dash ? charge : charge + outDur);
                     CameraPunch(Vector2.Lerp(FieldPos(p), tp != null ? FieldPos(tp) : FieldPos(p), 0.35f), 1.05f, 0.18f / speed, charge, 0.3f / speed, 0.15f);
                 }
@@ -681,6 +725,9 @@ namespace SubcultureRPG.Battle.UI
             float fxScale = cat == SkillCategory.Basic ? 1f : cat == SkillCategory.Skill ? 1.15f : 1.3f;
             float end = 0f;                                           // 연출이 끝나는 시점(다음 턴 대기용)
             if (_fx != null) _fx.Speed = Mathf.Pow(speed, 0.6f);
+            // 적(보스 등)이 아군에게 쓰는 기술은 이펙트를 옅게 — 아군 그림이 흰 빛 · 빛기둥에 묻히지 않게
+            bool enemyActs = result.actor != null && result.actor.team == Team.Enemy;
+            if (_fx != null) _fx.Dim = enemyActs ? 0.42f : 1f;
 
             // 연쇄 시전(처치 → 스킬 자동 재시전)이면 행동자 위에 순번과 피해 배율 표시
             if (result.recast > 0 && result.actor != null && _panels.TryGetValue(result.actor, out var recastPanel))
@@ -691,7 +738,7 @@ namespace SubcultureRPG.Battle.UI
 
             bool anyDamage = false;
             foreach (var h in result.hits) anyDamage |= !h.extra && h.totalDamage > 0;
-            if (ult && anyDamage && _fx != null) _fx.ScreenFlash(Traits.ColorOf(elem), 0.35f / sq, 0.35f);
+            if (ult && anyDamage && _fx != null) _fx.ScreenFlash(Traits.ColorOf(elem), 0.35f / sq, enemyActs ? 0.18f : 0.35f);
 
             // 카메라: 궁극기는 맞는 쪽으로 확대하며 필드를 어둡게, 치명 · 브레이크는 살짝 당김 + 히트스톱
             {
@@ -706,7 +753,8 @@ namespace SubcultureRPG.Battle.UI
                 {
                     focus /= nf;
                     if (ult) { CameraPunch(focus, 1.13f, 0.1f / sq, 0.45f / sq, 0.4f / sq, 0.45f); HitStop(0.09f); }
-                    else if (crit || broke) { CameraPunch(focus, 1.04f, 0.06f / sq, 0.08f / sq, 0.25f / sq, 0f); HitStop(0.06f); }
+                    else if (broke) { CameraPunch(focus, 1.08f, 0.05f / sq, 0.16f / sq, 0.3f / sq, 0.25f); HitStop(0.14f); }
+                    else if (crit) { CameraPunch(focus, 1.05f, 0.05f / sq, 0.1f / sq, 0.25f / sq, 0f); HitStop(0.08f); }
                     else if (cat == SkillCategory.Skill) HitStop(0.04f);
                 }
             }
@@ -732,7 +780,11 @@ namespace SubcultureRPG.Battle.UI
                     {
                         if (cat == SkillCategory.Basic) _fx.Basic(elem, pos, fxScale, delay);
                         else if (cat == SkillCategory.Skill) _fx.Skill(elem, pos, fxScale, delay);
-                        else _fx.Ultimate(elem, pos, fxScale, delay);
+                        else
+                        {
+                            var ac = result.actor != null && result.actor.team == Team.Ally ? result.actor.character : null;
+                            _fx.Ultimate(elem, pos, fxScale, delay, ac != null ? (!string.IsNullOrEmpty(ac.id) ? ac.id : ac.name) : null);
+                        }
                     }
 
                     // 피해 숫자 스타일: 기본 32 · 스킬 38(속성 빛) · 궁극기 48(금빛)
@@ -741,16 +793,20 @@ namespace SubcultureRPG.Battle.UI
                         : cat == SkillCategory.Skill ? Traits.ColorOf(elem) : new Color(1f, 0.8f, 0.3f);
                     var col = h.anyCrit ? new Color(1f, 0.85f, 0.35f)
                         : (h.weakness ? new Color(1f, 0.6f, 0.9f) : Color.white);
-                    var flash = h.anyCrit ? new Color(1f, 0.85f, 0.4f) : h.weakness ? new Color(1f, 0.55f, 0.85f) : Color.white;
+                    // 피격 번쩍임은 늘 흰빛(치명 · 약점은 숫자 머리말 · 전용 이펙트로 구분 — 금빛 테두리가 계속 겹치면 몸이 선 그림처럼 보임)
+                    var flash = Color.white;
                     float amp = h.anyCrit || ult ? 14f : 8f;
 
                     int n = h.hitDamages != null ? h.hitDamages.Count : 0;
                     if (n <= 1)
                     {
                         string txt = h.totalDamage.ToString("N0");
-                        if (h.anyCrit) txt = $"<size=55%>치명</size>\n{txt}";
-                        else if (h.weakness) txt = $"<size=55%>약점</size>\n{txt}";
-                        SpawnPopup(panel, txt, col, h.anyCrit || h.weakness || ult, delay + 0.04f, size * (h.anyCrit || h.weakness ? 1.2f : 1f), glow);
+                        if (h.anyCrit) txt = $"<size=48%><color=#FFE9A8>CRITICAL{(h.weakness ? " · WEAK" : "")}</color></size>\n{txt}";
+                        else if (h.weakness) txt = $"<size=48%><color=#FFC2EC>WEAK</color></size>\n{txt}";
+                        SpawnPopup(panel, txt, col, h.anyCrit || h.weakness || ult, delay + 0.04f, size * (h.anyCrit ? 1.4f : h.weakness ? 1.2f : 1f),
+                            h.anyCrit ? new Color(1f, 0.7f, 0.2f) : glow);
+                        if (h.anyCrit) _fx?.Crit(pos, fxScale, delay + 0.03f);
+                        else if (h.weakness) _fx?.Weak(pos, fxScale, delay + 0.03f);
                         panel.PlayHit(flash, amp, 0.32f);
                         after = delay + 0.1f;
                     }
@@ -762,16 +818,18 @@ namespace SubcultureRPG.Battle.UI
                             float dk = delay + k * gap;
                             bool crit = h.hitCrits != null && k < h.hitCrits.Count && h.hitCrits[k];
                             if (k > 0) _fx?.Impact(elem, cat, pos, fxScale * 0.8f, dk);
+                            if (crit) _fx?.Crit(pos, fxScale * 0.6f, dk + 0.02f);
                             var hc = crit ? new Color(1f, 0.85f, 0.35f) : (h.weakness ? new Color(1f, 0.75f, 0.92f) : new Color(0.92f, 0.94f, 1f));
                             float x = -70f + 140f * (n == 1 ? 0.5f : k / (float)(n - 1)) + Random.Range(-8f, 8f);
                             SpawnPopup(panel, h.hitDamages[k].ToString("N0"), hc, false, dk + 0.03f, size * 0.72f, null, x);
-                            var fcol = crit ? new Color(1f, 0.85f, 0.4f) : flash;
+                            var fcol = flash;
                             if (k == 0) panel.PlayHit(fcol, amp * 0.7f, 0.22f);
                             else StartCoroutine(After(dk, () => panel.PlayHit(fcol, amp * 0.7f, 0.22f)));
                         }
                         float dt = delay + n * gap + 0.04f;
-                        string head = h.anyCrit ? "치명 · 총 피해" : h.weakness ? "약점 · 총 피해" : "총 피해";
-                        SpawnPopup(panel, $"<size=50%>{head}</size>\n{h.totalDamage:N0}", col, true, dt, size * 1.15f, glow ?? new Color(1f, 1f, 1f, 0.6f), 0f);
+                        string head = h.anyCrit ? (h.weakness ? "CRITICAL · WEAK · TOTAL" : "CRITICAL · TOTAL") : h.weakness ? "WEAK · TOTAL" : "TOTAL";
+                        SpawnPopup(panel, $"<size=46%>{head}</size>\n{h.totalDamage:N0}", col, true, dt, size * (h.anyCrit ? 1.35f : 1.15f),
+                            h.anyCrit ? new Color(1f, 0.7f, 0.2f) : glow ?? new Color(1f, 1f, 1f, 0.6f), 0f);
                         after = dt;
                     }
                     bigHit |= h.anyCrit || ult;
@@ -779,8 +837,10 @@ namespace SubcultureRPG.Battle.UI
                 if (h.broke)
                 {
                     float db = after + 0.06f;
-                    SpawnPopup(panel, "BREAK!", new Color(1f, 0.75f, 0.25f), true, db, 0f, new Color(1f, 0.7f, 0.25f));
+                    SpawnPopup(panel, "BREAK!", new Color(1f, 0.78f, 0.28f), true, db, 76f, new Color(1f, 0.6f, 0.15f));
                     StartCoroutine(After(db, () => StartCoroutine(BreakBurst(panel))));
+                    _fx?.BreakShatter(pos, 1f, db);
+                    StartCoroutine(After(db, () => { _fx?.ScreenFlash(new Color(1f, 0.7f, 0.3f), 0.25f, 0.22f); HitStop(0.12f); }));
                     bigHit = true;
                     after = db;
                 }
@@ -1089,6 +1149,7 @@ namespace SubcultureRPG.Battle.UI
             mist.preserveAspect = false;
             UIFactory.Anchor(mist.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0.5f));
             mist.rectTransform.sizeDelta = new Vector2(3400, 520); mist.rectTransform.anchoredPosition = new Vector2(0, -60);
+            _ambient = AmbientParticles.Create(_stage);   // 떠다니는 별가루 · 불씨(유닛 뒤)
             _glowLayer = UIFactory.NewRect("GlowLayer", _stage);   // 유닛 역광(모든 유닛 뒤)
             UIFactory.Stretch(_glowLayer);
             _field = UIFactory.NewRect("Field", _stage);
@@ -1151,6 +1212,7 @@ namespace SubcultureRPG.Battle.UI
             _autoBtn.onClick.AddListener(ToggleAuto);
 
             BuildCutIn(rootT);
+            _cine = BattleCinematics.Create(rootT, font);   // 보스 필살기 예고 · 보스 컷인
             BuildTip(rootT);
             BuildFinish(rootT);
             _turnDamage = TurnDamageCounter.Create(rootT, font);   // 오른쪽 '총 피해량'
@@ -1418,7 +1480,7 @@ namespace SubcultureRPG.Battle.UI
                 le.preferredWidth = sz; le.preferredHeight = sz;
                 var inner = UIFactory.AddImage("Inner", chip.transform, new Color(0.08f, 0.09f, 0.12f, 1f));
                 UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
-                Sprite sp = u.character != null ? GameArt.Thumb(u.character) : GameArt.Enemy(u.Name);
+                Sprite sp = u.character != null ? GameArt.Thumb(u.character, GameArt.SuffixFor(u.character, u.team == Team.Ally)) : GameArt.Enemy(u.Name);
                 if (sp != null)
                 {
                     var face = UIFactory.AddImage("Face", inner.transform, Color.white, sp);
@@ -1579,8 +1641,9 @@ namespace SubcultureRPG.Battle.UI
 
             // 배경 없는 상반신(Cutouts)이 있으면 그것을 크게(사각 카드처럼 보이지 않게). 없으면 움직이는 일러스트 → 초상
             Sprite cutout = null;
-            if (c != null) cutout = GameArt.Load("Cutouts/" + (!string.IsNullOrEmpty(c.id) ? c.id : c.name));
-            var sprite = cutout != null ? cutout : (c != null ? GameArt.Portrait(c) : null);
+            string csfx = GameArt.SuffixFor(c, actor.team == Team.Ally);   // 상대 캐릭터는 기본 의상
+            if (c != null) cutout = GameArt.Outfitted("Cutouts/", !string.IsNullOrEmpty(c.id) ? c.id : c.name, csfx);
+            var sprite = cutout != null ? cutout : (c != null ? GameArt.Portrait(c, csfx) : null);
             _cutArt.sprite = sprite;
             _cutArtRT.sizeDelta = cutout != null ? new Vector2(900, 1200) : new Vector2(620, 820);
             bool live = cutout == null && c != null && Live2DUI.Show(_cutArt, c);

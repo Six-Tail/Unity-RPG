@@ -20,12 +20,13 @@ namespace SubcultureRPG.Meta
         Mission,
         Codex,
         Arena,     // 결투장(PVP)
-        Raid,      // 주간 보스(월드 레이드)
+        Raid,      // 주간 보스
         Friends,   // 친구
         Guild,     // 길드
         Event,     // 기간 한정 이벤트
         Dispatch,  // 파견
         Tower,     // 무한의 탑
+        WorldRaid, // 월드 레이드(서버 공유 보스)
     }
 
     /// <summary>
@@ -51,6 +52,7 @@ namespace SubcultureRPG.Meta
         [SerializeField] private EventScreen eventScreen;
         [SerializeField] private DispatchScreen dispatch;
         [SerializeField] private TowerScreen tower;
+        [SerializeField] private ServerRaidScreen worldRaid;
         [SerializeField] private FriendScreen friends;
         [SerializeField] private GuildScreen guild;
 
@@ -89,6 +91,8 @@ namespace SubcultureRPG.Meta
             if (dispatch == null && home != null) dispatch = CreateMode<DispatchScreen>("DispatchScreen");
             if (tower == null) tower = FindAnyObjectByType<TowerScreen>();
             if (tower == null && home != null) tower = CreateMode<TowerScreen>("TowerScreen");
+            if (worldRaid == null) worldRaid = FindAnyObjectByType<ServerRaidScreen>();
+            if (worldRaid == null && home != null) worldRaid = CreateMode<ServerRaidScreen>("ServerRaidScreen");
             if (friends == null) friends = FindAnyObjectByType<FriendScreen>();
             if (friends == null && home != null) friends = CreateMode<FriendScreen>("FriendScreen");
             if (guild == null) guild = FindAnyObjectByType<GuildScreen>();
@@ -173,6 +177,19 @@ namespace SubcultureRPG.Meta
                 raid.OnChallenge += () => OpenModeParty(
                     $"주간 보스  ·  {WorldRaid.BossName}  <size=60%><color=#C9A0FF>제한 시간 {WorldRaid.TimeLimit / 60f:0}분</color>  <color=#7CFF9A>보너스 캐릭터 1명당 점수 +{WorldRaid.FeaturedBonus * 100f:0}% (최대 {WorldRaid.FeaturedMax}명)</color></size>", "도전!",
                     team => WorldRaid.Instance.Fight(team), HubScreen.Raid, "← 주간 보스");
+                raid.OnWorld += () => Go(HubScreen.WorldRaid);
+            }
+            if (worldRaid != null)
+            {
+                worldRaid.SetBackAction(GoHome);
+                worldRaid.OnWeekly += () => Go(HubScreen.Raid);
+                worldRaid.OnChallenge += () => OpenModeParty(
+                    $"월드 레이드  ·  {ServerRaid.BossName}  <size=60%><color=#FFB3A0>Lv.{ServerRaid.BossLevel}</color>  <color=#C9A0FF>제한 시간 {WorldRaid.TimeLimit / 60f:0}분 · 서버 공유 체력</color></size>", "도전!",
+                    team =>
+                    {
+                        string err = ServerRaid.Instance.Fight(team);
+                        if (err != null) Popups.Show("월드 레이드", err);
+                    }, HubScreen.WorldRaid, "← 월드 레이드");
             }
             if (dispatch != null) dispatch.SetBackAction(GoHome);
             if (tower != null)
@@ -228,10 +245,10 @@ namespace SubcultureRPG.Meta
                     $"아직 열리지 않았습니다.\n<color=#FFD36B>{need}장</color>(쉬움)을 클리어하면 열립니다.\n\n<color=#9AA3B5>지금 {FeatureGate.ClearedChapters()}장까지 클리어</color>");
                 return;
             }
-            if ((screen == HubScreen.Arena && !FeatureGate.ArenaOpen) || (screen == HubScreen.Raid && !FeatureGate.RaidOpen))
+            if ((screen == HubScreen.Arena && !FeatureGate.ArenaOpen) || ((screen == HubScreen.Raid || screen == HubScreen.WorldRaid) && !FeatureGate.RaidOpen))
             {
                 int need = screen == HubScreen.Arena ? FeatureGate.ArenaChapter : FeatureGate.RaidChapter;
-                Popups.Show(screen == HubScreen.Arena ? "결투장" : "주간 보스",
+                Popups.Show(screen == HubScreen.Arena ? "결투장" : screen == HubScreen.WorldRaid ? "월드 레이드" : "주간 보스",
                     $"아직 열리지 않았습니다.\n<color=#FFD36B>{need}장</color>(쉬움)을 클리어하면 열립니다.\n\n<color=#9AA3B5>지금 {FeatureGate.ClearedChapters()}장까지 클리어</color>");
                 return;
             }
@@ -243,7 +260,7 @@ namespace SubcultureRPG.Meta
             }
 
             // 홈/스테이지 목록으로 돌아오면 스테이지 출격 모드 해제
-            if (screen == HubScreen.Home || screen == HubScreen.Stage || screen == HubScreen.Arena || screen == HubScreen.Raid || screen == HubScreen.Event || screen == HubScreen.Tower)
+            if (screen == HubScreen.Home || screen == HubScreen.Stage || screen == HubScreen.Arena || screen == HubScreen.Raid || screen == HubScreen.Event || screen == HubScreen.Tower || screen == HubScreen.WorldRaid)
             {
                 _modeReturn = null;
                 PlayerArena.Instance.Leave();   // 끝나지 않은 전투에서 나오면 도전권 · 도전 횟수 반환
@@ -274,6 +291,7 @@ namespace SubcultureRPG.Meta
             if (eventScreen != null) eventScreen.Show(screen == HubScreen.Event);
             if (dispatch != null) dispatch.Show(screen == HubScreen.Dispatch);
             if (tower != null) tower.Show(screen == HubScreen.Tower);
+            if (worldRaid != null) worldRaid.Show(screen == HubScreen.WorldRaid);
             if (friends != null) friends.Show(screen == HubScreen.Friends);
             if (guild != null) guild.Show(screen == HubScreen.Guild);
             if (battleHud != null) battleHud.Show(screen == HubScreen.Battle);
@@ -292,11 +310,11 @@ namespace SubcultureRPG.Meta
             HubScreen.Gacha => "gacha",
             HubScreen.Battle => mode switch
             {
-                HubScreen.Raid or HubScreen.Tower => "boss",
+                HubScreen.Raid or HubScreen.Tower or HubScreen.WorldRaid => "boss",
                 HubScreen.Arena => "arena",
                 _ => "battle",
             },
-            HubScreen.Arena or HubScreen.Raid or HubScreen.Tower => "arena",
+            HubScreen.Arena or HubScreen.Raid or HubScreen.Tower or HubScreen.WorldRaid => "arena",
             HubScreen.Event => "event",
             _ => "menu",
         };

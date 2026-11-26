@@ -178,6 +178,7 @@ namespace SubcultureRPG.Meta.Cloud
             _busy = false;
             float h = signUp ? 600 : 470;
             _w = OverlayWindow.Open(signUp ? "회원가입" : "로그인", 900, h, _font, dimCloses: false, order: Order, closeButton: false);
+            CapsLockHint.Add(_w, 900, 44);
             var p = _w.Panel;
 
             Label("아이디", -100);
@@ -260,6 +261,12 @@ namespace SubcultureRPG.Meta.Cloud
         private static string CheckSignUp(string user, string pass, string pass2)
         {
             if (!UserRule.IsMatch(user)) return "아이디는 3 ~ 20자, 영문 · 숫자 · . - @ _ 만 쓸 수 있습니다.";
+            return CheckPassword(pass, pass2, "가입하려면");
+        }
+
+        /// <summary>새 비밀번호 규칙 확인(가입 · 비밀번호 변경 공용). 맞으면 null, 아니면 이유.</summary>
+        internal static string CheckPassword(string pass, string pass2, string confirmWhat)
+        {
             if (pass.Length < CloudAccount.MinPassword || pass.Length > CloudAccount.MaxPassword)
                 return $"비밀번호는 {CloudAccount.MinPassword} ~ {CloudAccount.MaxPassword}자여야 합니다.";
             bool letter = false, dig = false, sym = false;
@@ -271,12 +278,12 @@ namespace SubcultureRPG.Meta.Cloud
                 else sym = true;
             }
             if (!(letter && dig && sym)) return "비밀번호에 영문 · 숫자 · 기호가 각각 1개 이상 있어야 합니다.";
-            if (pass2.Length == 0) return "가입하려면 '비밀번호 확인'에도 같은 비밀번호를 입력해 주세요.";
+            if (pass2.Length == 0) return $"{confirmWhat} '비밀번호 확인'에도 같은 비밀번호를 입력해 주세요.";
             if (pass != pass2) return "비밀번호 확인이 맞지 않습니다.";
             return null;
         }
 
-        private static TMP_InputField Input(RectTransform parent, TMP_FontAsset font, string placeholder, int limit, float y, bool password = false)
+        internal static TMP_InputField Input(RectTransform parent, TMP_FontAsset font, string placeholder, int limit, float y, bool password = false)
         {
             const float size = 24;
             var bg = UIFactory.AddImage("Input", parent, new Color(1, 1, 1, 0.1f), ProceduralSprites.Rounded, raycast: true);
@@ -309,6 +316,99 @@ namespace SubcultureRPG.Meta.Cloud
             field.selectionColor = new Color(0.4f, 0.6f, 1f, 0.5f);
             InputFocusFx.Attach(field);   // 입력 중 표시(밝은 칸 · 금빛 밑줄 · 굵은 커서)
             return field;
+        }
+    }
+
+    /// <summary>비밀번호 변경 창(설정 → 계정 → 비밀번호 변경): 지금 비밀번호 · 새 비밀번호 · 새 비밀번호 확인.</summary>
+    public static class PasswordWindow
+    {
+        public static void Open(TMP_FontAsset font)
+        {
+            var w = OverlayWindow.Open("비밀번호 변경", 900, 600, font, dimCloses: false, order: 600);
+            CapsLockHint.Add(w, 900, 160);   // 오른쪽 위 '닫기' 버튼 왼쪽
+            var p = w.Panel;
+            void Label(string t, float y) => w.Text(p, t, 22, new Color(0.85f, 0.88f, 0.95f), TextAlignmentOptions.Left, 44, y, 170, 40);
+            w.Text(p, $"<color=#9AA3B5>아이디</color>  <b>{CloudAccount.LastUsername}</b>", 22, Color.white, TextAlignmentOptions.Left, 44, -84, 812, 34);
+            Label("지금 비밀번호", -150);
+            var cur = LoginWindow.Input(p, font, "지금 비밀번호", 30, -140, true);
+            Label("새 비밀번호", -220);
+            var nw = LoginWindow.Input(p, font, "새 비밀번호", CloudAccount.MaxPassword, -210, true);
+            Label("새 비밀번호 확인", -290);
+            var nw2 = LoginWindow.Input(p, font, "새 비밀번호를 한 번 더", CloudAccount.MaxPassword, -280, true);
+            var rules = w.Text(p, "새 비밀번호: 8 ~ 26자, 영문 · 숫자 · 기호를 각각 1개 이상 (대문자 필요 없음)", 18, new Color(0.62f, 0.66f, 0.74f),
+                TextAlignmentOptions.TopLeft, 44, -352, 812, 30);
+            rules.textWrappingMode = TextWrappingModes.Normal;
+            var msg = w.Text(p, "", 21, new Color(1f, 0.55f, 0.55f), TextAlignmentOptions.Center, 44, -392, 812, 60);
+            msg.textWrappingMode = TextWrappingModes.Normal;
+
+            bool busy = false;
+            Button ok = null;
+            async void Submit()
+            {
+                if (busy) return;
+                string c = cur.text ?? "", n = nw.text ?? "", n2 = nw2.text ?? "";
+                if (c.Length == 0) { msg.text = "지금 비밀번호를 입력해 주세요."; return; }
+                string err = LoginWindow.CheckPassword(n, n2, "바꾸려면");
+                if (err == null && n == c) err = "새 비밀번호가 지금 비밀번호와 같습니다.";
+                if (err != null) { msg.text = err; return; }
+                busy = true; ok.interactable = false;
+                msg.text = "<color=#C8D0E0>바꾸는 중...</color>";
+                err = await CloudAccount.Instance.ChangePasswordAsync(c, n);
+                if (!w.IsOpen) return;
+                busy = false; ok.interactable = true;
+                if (err != null) { msg.text = err; return; }
+                w.Close();
+                Popups.Show("비밀번호 변경", "비밀번호를 바꿨습니다.\n다음 로그인부터 새 비밀번호를 쓰세요.");
+            }
+            ok = w.Btn(p, "변경하기", 26, OverlayWindow.Blue, 44, -480, 520, 70, Submit);
+            w.Btn(p, "취소", 24, OverlayWindow.Dim, 580, -480, 276, 70, () => { if (!busy) w.Close(); });
+            nw2.onSubmit.AddListener(s => Submit());
+            cur.ActivateInputField();
+        }
+    }
+
+    /// <summary>
+    /// 'Caps Lock이 켜져 있습니다' 안내(로그인 · 회원가입 · 비밀번호 변경 창 오른쪽 위). 켜지고 꺼질 때마다 바로 바뀜.
+    /// Caps Lock '켜짐 상태'는 Windows에서만 정확히 알 수 있어(GetKeyState) 그 밖의 환경에서는 안내하지 않음.
+    /// </summary>
+    public class CapsLockHint : MonoBehaviour
+    {
+        private TextMeshProUGUI _text;
+        private float _next;
+
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern short GetKeyState(int key);
+        public static bool IsOn
+        {
+            get { try { return (GetKeyState(0x14) & 1) != 0; } catch { return false; } }
+        }
+#else
+        public static bool IsOn => false;
+#endif
+
+        /// <param name="rightInset">창 오른쪽 끝에서 띄울 거리(닫기 버튼이 있으면 그만큼)</param>
+        public static void Add(OverlayWindow w, float width, float rightInset)
+        {
+            if (w == null || w.Panel == null) return;
+            var t = w.Text(w.Panel, "", 20, new Color(1f, 0.8f, 0.35f), TextAlignmentOptions.Right, width - rightInset - 380, -26, 380, 36);
+            var h = t.gameObject.AddComponent<CapsLockHint>();
+            h._text = t;
+            h.Refresh();
+        }
+
+        private void Update()
+        {
+            if (Time.unscaledTime < _next) return;
+            _next = Time.unscaledTime + 0.15f;
+            Refresh();
+        }
+
+        private void Refresh()
+        {
+            if (_text == null) return;
+            string want = IsOn ? "<b>Caps Lock</b>이 켜져 있습니다" : "";
+            if (_text.text != want) _text.text = want;
         }
     }
 }

@@ -51,7 +51,7 @@ namespace SubcultureRPG.Meta
             c.titleId = ProfileRewards.Titles[Mathf.Min(ProfileRewards.Titles.Count - 1, rng.Next(1 + c.level / 8))].id;
             c.frameId = ProfileRewards.Frames[Mathf.Min(6, rng.Next(1 + c.level / 12))].id;
             c.greeting = Greetings[rng.Next(Greetings.Length)];
-            c.power = (long)(4 * (12000 + c.level * c.level * 60) * (0.8 + rng.NextDouble() * 0.4));
+            c.power = (long)(10 * 4 * (12000 + c.level * c.level * 60) * (0.8 + rng.NextDouble() * 0.4));   // 능력치 규모 10배에 맞춤
             if (db != null && db.Characters.Count > 0)
             {
                 var ch = db.Characters[rng.Next(db.Characters.Count)];

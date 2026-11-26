@@ -263,6 +263,7 @@ const BACKGROUNDS = [
   ['guild', '길드', 'the interior of a warm fantasy guild hall, long wooden tables, a big stone fireplace, blue banners with a golden anchor crest hanging from wooden beams, a quest board, cozy lantern light'],
   ['friends', '친구', 'a cozy seaside harbor plaza at dusk with string lights, small cafe tables, paper lanterns, ships anchored in the bay, a friendly gathering place, warm and inviting'],
   ['raid', '주간 보스', 'a vast cosmic battlefield on a floating stone platform under a starry void, a giant swirling black hole in the sky devouring stars, purple and gold light'],
+  ['worldraid', '월드 레이드', 'an apocalyptic shattered plain of black obsidian under a blood-red sky, colossal broken golden pillars, rivers of glowing molten light in the cracks, a burning ring-shaped halo hanging in the sky, epic scale, ominous'],
   ['gacha_summon', '가챠 소환 의식(계약 스크롤 뒤 배경)', 'a dark circular arcane summoning chamber, tall stone pillars with faint glowing blue runes, drifting golden dust motes, a soft beam of light falling on an empty stone dais in the center'],
   ['home', '홈', 'a cozy medieval fantasy great hall interior at dusk, tall arched windows overlooking a fantasy town with castle spires, warm glowing lanterns, wooden beams, plain cloth drapes'],
   ['gacha', '가챠(배너 그림이 없을 때)', 'a mystical summoning hall, glowing magic circle on the floor, floating crystals, starry dome ceiling'],
@@ -312,6 +313,8 @@ const BANNERS = [
 // 로컬 Flux 는 투명을 못 그리므로 게임 칸과 비슷한 어두운 단색 배경으로.
 // 주간 보스(월드 레이드) — 적 그림과 같은 방식(Enemies/{이름}.png)
 const RAID_BOSS = ['별을 삼키는 자', 'a colossal cosmic dragon-like devourer made of black void and starlight, many glowing violet eyes, a swirling black hole in its chest, huge spread wings full of stars, menacing'];
+// 월드 레이드(서버 공유 보스, ServerRaid)
+const WORLD_BOSS = ['종언의 거신', 'a colossal ancient titan of black obsidian armor and molten gold veins, a burning crimson crystal heart in its chest, a blazing ring-shaped halo of fire behind its horned head, four massive arms, cracks of glowing red light, towering and menacing'];
 
 const BG_DARK = {
   enemies: 'simple dark misty background', items: 'plain very dark navy background', equipment: 'plain very dark navy background',
@@ -391,6 +394,11 @@ function build() {
     out: `Enemies/${RAID_BOSS[0]}.png`, aspect: '1:1', resolution: '1K', width: 512, height: 512, format: 'png',
     negative: NEGATIVE,
   }, `${RAID_BOSS[1]}. ${STYLE.enemy}`));
+  list.push(withBackground({
+    group: 'enemies', key: WORLD_BOSS[0], label: `월드 레이드 — ${WORLD_BOSS[0]}`,
+    out: `Enemies/${WORLD_BOSS[0]}.png`, aspect: '1:1', resolution: '1K', width: 512, height: 512, format: 'png',
+    negative: NEGATIVE,
+  }, `${WORLD_BOSS[1]}. ${STYLE.enemy}`));
 
   // 프로필 테두리(아바타 뒤에 깔고 가운데에 원형 아바타를 올림 — 가운데가 비지 않아도 됨)
   for (const [key, name, look] of [
@@ -412,6 +420,10 @@ function build() {
     ['fr_1', '시즌 챔피언 테두리', 'made of legendary radiant gold and red rubies with a grand golden crown on top, golden wings on both sides, intense divine glow'],
     ['fr_2', '시즌 2위 테두리', 'made of gleaming silver and blue sapphires with a silver crown on top and silver wings on both sides'],
     ['fr_3', '시즌 3위 테두리', 'made of rich copper-bronze and green emeralds with a bronze crown on top and bronze wings on both sides'],
+    // 월드 레이드 주간 순위 한정 테두리(ServerRaid)
+    ['fw_1', '거신 토벌 1위 테두리', 'made of black obsidian and molten gold with a blazing ring-shaped halo of fire on top, a crimson crystal heart gem at the bottom, small rainbow prism shards orbiting, legendary divine glow'],
+    ['fw_2', '거신 토벌 2위 테두리', 'made of dark obsidian and polished silver with a silver flame halo on top, a blue crystal gem at the bottom, cool white glow'],
+    ['fw_3', '거신 토벌 3위 테두리', 'made of dark obsidian and copper-bronze with a smoldering ember halo on top, an orange crystal gem at the bottom, warm ember glow'],
   ])
     list.push(withBackground({
       group: 'title', key, label: `프로필 테두리 — ${name}`,

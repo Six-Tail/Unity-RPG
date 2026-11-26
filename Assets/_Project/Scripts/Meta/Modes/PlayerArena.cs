@@ -75,6 +75,9 @@ namespace SubcultureRPG.Meta
             public int rank, points, seed;
             public string name;
             public bool me;
+            public string pid;      // 실제 플레이어(서버) id — 가상 지휘관이면 null
+            public SubcultureRPG.Meta.Cloud.ProfileSnap snap;   // 실제 플레이어의 공개 프로필(불러왔으면)
+            public bool Real => !string.IsNullOrEmpty(pid);
         }
 
         /// <summary>시즌 정산 결과(결투장 화면에 들어갈 때 한 번 보여 주고 지급).</summary>
@@ -93,6 +96,10 @@ namespace SubcultureRPG.Meta
             return Mathf.Clamp01(1f - (float)(left.TotalDays / 7.0));
         }
 
+        /// <summary>
+        /// 시즌 랭킹 = 가상 지휘관 99명 + 실제 서버 플레이어(친구들, 그 시즌에 기록이 있는 사람) + 나. 점수 순.
+        /// 실제 플레이어는 PublicProfile이 서버에서 불러온 최신 점수(정산 때는 그 시즌에 마지막으로 본 점수).
+        /// </summary>
         private static List<RankEntry> BuildRanking(string season, float progress, int myPoints)
         {
             int h = Commanders.Hash(season);
@@ -105,6 +112,15 @@ namespace SubcultureRPG.Meta
                 // 친구 · 길드와 같은 지휘관 생성기(번호 → 이름 · 테두리 · 대표 캐릭터)를 써서 정보창 · 친구 추가가 같은 사람을 가리키게
                 int seed = 1000 + (int)((uint)(h + i * 7919) % 899_000u);
                 list.Add(new RankEntry { points = pts, name = Commanders.FromSeed(seed, null).name, seed = seed });
+            }
+            // 실제 플레이어
+            var pp = SubcultureRPG.Meta.Cloud.PublicProfile.Instance;
+            string me = SubcultureRPG.Meta.Cloud.CloudAccount.PlayerId;
+            foreach (var seen in pp.SeenInSeason(season))
+            {
+                if (seen == null || string.IsNullOrEmpty(seen.pid) || seen.pid == me) continue;
+                var snap = season == SubcultureRPG.Meta.Cloud.PublicProfile.SeasonKey ? pp.ArenaPlayers.Find(x => x.pid == seen.pid) : null;
+                list.Add(new RankEntry { points = seen.points, name = seen.name, seed = -1, pid = seen.pid, snap = snap });
             }
             list.Add(new RankEntry { points = myPoints, name = PlayerProfile.Instance.DisplayName, me = true });
             list.Sort((a, b) => a.points != b.points ? b.points.CompareTo(a.points) : b.me.CompareTo(a.me));
@@ -418,6 +434,7 @@ namespace SubcultureRPG.Meta
             var tierBefore = Tier(before).name;
             int bestTierBefore = TierIndex(BestPoints);
             _d.seasonGames++;
+            SubcultureRPG.Meta.Cloud.PublicProfile.Instance.RequestPublish();   // 서버 순위표에 새 점수(1초 뒤 — 점수 반영 후)
             string detail;
             if (winner == Team.Ally)
             {

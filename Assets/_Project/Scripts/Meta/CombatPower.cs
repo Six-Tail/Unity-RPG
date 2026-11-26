@@ -19,8 +19,11 @@ namespace SubcultureRPG.Meta
     {
         private static BattleConfig _cfg;
 
-        /// <summary>표시 배율(숫자 규모 조절). 태생 3★ Lv.1 ≈ 1만, 6★ Lv.80 풀 육성 ≈ 15 ~ 25만.</summary>
-        public const float Scale = 3.5f;   // 능력치 규모(BattleStats.Scale = 3)를 올리면서 같은 크기가 되도록 맞춤
+        /// <summary>
+        /// 표시 배율(숫자 규모 조절). 전투력은 능력치에서 계산하므로 능력치 규모(BattleStats.Scale)를 올리면 저절로 같이 커짐 —
+        /// 능력치 10배(3 → 30) 뒤 태생 3★ Lv.1 ≈ 10만, 6★ 풀 육성 · 장비 ≈ 수천만.
+        /// </summary>
+        public const float Scale = 3.5f;
 
         public static int Of(BattleUnit u, int[] effectiveSkillLevels)
         {

@@ -680,7 +680,7 @@ namespace SubcultureRPG.Meta.UI
             _attendBadge.Set(PlayerAttendance.Instance.CanClaimAny);
             if (_passBadge != null) _passBadge.Set(SeasonPass.Instance.ClaimableCount() > 0);
             _missionBadge.Set((_missions != null && _missions.ClaimableCount() > 0) || PlayerAchievements.Instance.ClaimableCount() > 0);
-            _raidBadge.Set(FeatureGate.RaidOpen && WorldRaid.Instance.ClaimableCount > 0);
+            _raidBadge.Set(FeatureGate.RaidOpen && (WorldRaid.Instance.ClaimableCount > 0 || ServerRaid.Instance.ClaimableCount > 0));
             _guildBadge.Set(PlayerGuild.Instance.BadgeCount > 0);
             _friendBadge.Set(PlayerSocial.Instance.BadgeCount > 0);
             if (_stageScreen == null) _stageScreen = FindAnyObjectByType<StageScreen>();
@@ -708,18 +708,18 @@ namespace SubcultureRPG.Meta.UI
                 {
                     var a = PlayerArena.Instance;
                     var (tier, _) = PlayerArena.Tier(a.Points);
-                    _arenaLabel.text = $"결투장\n<size=55%>{tier} · {a.MyRank}위 · 도전권 {a.Tickets}/{PlayerArena.MaxTickets}</size>";
+                    _arenaLabel.text = $"결투장\n<size=55%>{tier} · {a.MyRank}위 · {a.Tickets}/{PlayerArena.MaxTickets}</size>";
                 }
             }
             if (_raidLabel != null)
             {
                 bool open = cleared >= FeatureGate.RaidChapter;
                 TileLocked(_raidTile, !open, _raidColor);
-                if (!open) _raidLabel.text = $"주간 보스\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.RaidChapter)}</color></size>";
+                if (!open) _raidLabel.text = $"레이드\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.RaidChapter)}</color></size>";
                 else
                 {
                     var r = WorldRaid.Instance;
-                    _raidLabel.text = $"주간 보스\n<size=55%>남은 도전 {r.AttemptsLeft}/{WorldRaid.AttemptsPerDay}</size>";
+                    _raidLabel.text = $"레이드\n<size=55%>주간 {r.AttemptsLeft}/{WorldRaid.AttemptsPerDay} · 월드 {ServerRaid.Instance.AttemptsLeft}/{ServerRaid.AttemptsPerDay}</size>";
                 }
             }
             if (_guildLabel != null)
@@ -802,6 +802,9 @@ namespace SubcultureRPG.Meta.UI
             var lbl = btn.GetComponentInChildren<TextMeshProUGUI>();
             lbl.richText = true;
             lbl.lineSpacing = -6f;
+            // 글이 길어도 타일 밖으로 넘치거나 잘리지 않게 줄여서 맞춤(아이콘 있는 타일은 글 칸이 좁음)
+            lbl.enableAutoSizing = true; lbl.fontSizeMax = fontSize; lbl.fontSizeMin = fontSize * 0.5f;
+            lbl.textWrappingMode = TextWrappingModes.NoWrap;   // 줄은 직접 넣은 줄바꿈으로만 나눔 → 길면 줄바꿈 대신 글자를 줄임
             btn.onClick.AddListener(onClick);
             return btn;
         }

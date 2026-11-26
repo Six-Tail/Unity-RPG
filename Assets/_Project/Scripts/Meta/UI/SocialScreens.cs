@@ -47,7 +47,7 @@ namespace SubcultureRPG.Meta.UI
             var av = new ProfileAvatar(row.transform, 92);
             Place(av.Rect, 18, -10, 92, 92);
             if (me) av.Set(ProfileAvatar.CharacterOf(pf, FindAnyObjectByType<PlayerRoster>()), pf.FrameId);
-            else av.Set(Commanders.Avatar(c, Db()), c.frameId);
+            else av.Set(Commanders.Avatar(c, Db()), c.frameId, "");   // 다른 지휘관은 기본 의상
 
             var title = ProfileRewards.Title(me ? pf.TitleId : c.titleId);
             string name = me ? pf.DisplayName + "  <size=70%><color=#9AD4FF>나</color></size>" : c.name;

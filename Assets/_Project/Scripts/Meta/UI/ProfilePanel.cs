@@ -48,7 +48,10 @@ namespace SubcultureRPG.Meta.UI
             rt.sizeDelta = new Vector2(size, size); rt.anchoredPosition = Vector2.zero;
         }
 
-        public void Set(CharacterData character, string frameId)
+        public void Set(CharacterData character, string frameId) => Set(character, frameId, null);
+
+        /// <param name="outfitSuffix">null = 내 옷장(내 프로필), "" = 기본 의상, "_bloom" 등 = 그 의상(다른 지휘관)</param>
+        public void Set(CharacterData character, string frameId, string outfitSuffix)
         {
             var frame = ProfileRewards.Frame(frameId);
             var art = GameArt.Load("Frames/" + frame.id);
@@ -57,7 +60,7 @@ namespace SubcultureRPG.Meta.UI
             _ring.enabled = art == null;
             _ring.color = frame.color;
 
-            var th = character != null ? GameArt.Thumb(character) : null;
+            var th = character == null ? null : outfitSuffix == null ? GameArt.Thumb(character) : GameArt.Thumb(character, outfitSuffix);
             _face.sprite = th;
             _face.enabled = th != null;
         }
@@ -167,25 +170,81 @@ namespace SubcultureRPG.Meta.UI
             for (int i = 0; i < Mathf.Min(5, powers.Count); i++) TopCell(powers[i].Key, powers[i].Value, i);
         }
 
+        /// <summary>
+        /// 주력 캐릭터 카드(넓고 긴 세로 카드 5장): 일러스트(위쪽을 채워 잘라 보여 줌) · 순위 · 성급/초월 · 이름 · 레벨 · 전투력.
+        /// 누르면 캐릭터 상세(장비 · 능력치 · 스킬 — 다른 지휘관 정보창과 같은 창).
+        /// </summary>
         private void TopCell(CharacterData c, int power, int index)
         {
-            int star = _roster.StarOf(c);
-            var col = StarText.ColorOf(star);
-            var cell = UIFactory.AddImage("Top", _top5, new Color(col.r, col.g, col.b, 0.9f));
-            Place(cell.rectTransform, index * 124, 0, 112, 112);
-            var inner = UIFactory.AddImage("Inner", cell.transform, new Color(0.1f, 0.1f, 0.15f, 1f));
+            const float W = 212, H = 250, Gap = 12;
+            int star = _roster.StarOf(c), tr = _roster.TranscendOf(c);
+            var col = StarText.FrameColor(star, tr);
+            var cell = UIFactory.AddImage("Top", _top5, new Color(col.r, col.g, col.b, 0.95f), ProceduralSprites.Rounded, raycast: true);
+            cell.type = Image.Type.Sliced; cell.preserveAspect = false;
+            Place(cell.rectTransform, index * (W + Gap), 0, W, H);
+            var inner = UIFactory.AddImage("Inner", cell.transform, new Color(0.08f, 0.09f, 0.13f, 1f), ProceduralSprites.Rounded);
+            inner.type = Image.Type.Sliced; inner.preserveAspect = false; inner.raycastTarget = false;
             UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
-            var th = GameArt.Thumb(c);
-            if (th != null)
+            inner.gameObject.AddComponent<RectMask2D>();
+
+            // 일러스트: 카드 너비에 맞추고(3:4) 위쪽 기준으로 — 얼굴 · 상반신이 보이게 아래를 잘라 냄
+            var art = GameArt.Portrait(c) ?? GameArt.Thumb(c);
+            if (art != null)
             {
-                var img = UIFactory.AddImage("Thumb", inner.transform, Color.white, th);
-                img.preserveAspect = true;
-                UIFactory.Stretch(img.rectTransform, 2, 2, 2, 2);
+                var img = UIFactory.AddImage("Art", inner.transform, Color.white, art);
+                img.preserveAspect = false; img.raycastTarget = false;
+                float aw = W - 6, ah = aw * art.rect.height / Mathf.Max(1f, art.rect.width);
+                UIFactory.Anchor(img.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+                img.rectTransform.sizeDelta = new Vector2(aw, ah); img.rectTransform.anchoredPosition = new Vector2(0, 6);
             }
-            var lv = Text(inner.transform, $"Lv.{_roster.LevelOf(c)}", 15, Color.white, FontStyles.Bold, TextAlignmentOptions.BottomRight);
-            UIFactory.Stretch(lv.rectTransform, 2, 2, 6, 2);
-            var pw = Text(_top5, $"{power:N0}", 17, new Color(1f, 0.86f, 0.5f), FontStyles.Bold, TextAlignmentOptions.Center);
-            Place(pw.rectTransform, index * 124 - 6, -114, 124, 24);
+
+            // 아래 정보 띠
+            var band = UIFactory.AddImage("Band", inner.transform, new Color(0.03f, 0.03f, 0.06f, 0.82f));
+            band.raycastTarget = false;
+            UIFactory.Anchor(band.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            band.rectTransform.sizeDelta = new Vector2(0, 84); band.rectTransform.anchoredPosition = Vector2.zero;
+            var stars = StarRow.Create(band.transform, 22, TextAnchor.MiddleLeft, _font);   // 입체 별 + 초월 홀로 별(빛이 훑고 지나감)
+            UIFactory.Anchor(stars.Rect, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            stars.Rect.sizeDelta = new Vector2(190, 24); stars.Rect.anchoredPosition = new Vector2(8, -3);
+            stars.Set(star, tr);
+            var nm = Text(band.transform, $"<b>{c.displayName}</b>  <size=75%><color=#C8CEDA>Lv.{_roster.LevelOf(c)}</color></size>", 21, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            nm.richText = true;
+            UIFactory.Stretch(nm.rectTransform, 10, 30, 10, 26);
+            var pw = Text(band.transform, $"<size=70%><color=#9AA3B5>전투력</color></size> {power:N0}", 19, new Color(1f, 0.84f, 0.45f), FontStyles.Bold, TextAlignmentOptions.Left);
+            pw.richText = true;
+            UIFactory.Stretch(pw.rectTransform, 10, 4, 10, 54);
+
+            // 순위 배지(왼쪽 위)
+            var badge = UIFactory.AddImage("Rank", inner.transform, new Color(0, 0, 0, 0.6f), ProceduralSprites.Circle);
+            badge.raycastTarget = false;
+            UIFactory.Anchor(badge.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            badge.rectTransform.sizeDelta = new Vector2(40, 40); badge.rectTransform.anchoredPosition = new Vector2(6, -6);
+            string rc = index switch { 0 => "#FFD36B", 1 => "#DDE6FF", 2 => "#E0A070", _ => "#FFFFFF" };
+            var rk = Text(badge.transform, $"<color={rc}><b>{index + 1}</b></color>", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            rk.richText = true;
+            UIFactory.Stretch(rk.rectTransform);
+
+            // 누르면 캐릭터 상세
+            var btn = cell.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            cell.gameObject.AddComponent<ButtonFx>();
+            btn.onClick.AddListener(() =>
+            {
+                var mine = SubcultureRPG.Meta.Cloud.PublicProfile.BuildMine();
+                string key = PlayerRoster.KeyOf(c);
+                var cs = mine.top.Find(x => x.id == key);
+                if (cs == null)
+                {
+                    // 상위 5명 기준이 바뀐 사이 등 — 이 캐릭터만 따로 만들어 보여 줌
+                    var o = _roster.GetOwned(c);
+                    if (o == null) return;
+                    cs = new SubcultureRPG.Meta.Cloud.CharSnap { id = key, level = o.level, asc = o.ascension, star = star, transcend = tr,
+                        bond = PlayerBond.Instance.Level(c), skills = _roster.SkillLevels(c), outfit = CharacterOutfits.SuffixOf(c) };
+                    var eq = FindAnyObjectByType<PlayerEquipment>();
+                    if (eq != null) cs.gear.AddRange(eq.EquippedOn(c));
+                }
+                CharInfoWindow.Open(cs, mine.name, _font, 700);   // 프로필 창(600) 위에
+            });
         }
 
         // ---------------- 하위 창 ----------------
@@ -449,7 +508,7 @@ namespace SubcultureRPG.Meta.UI
             tl.richText = true;
             Place(tl.rectTransform, 36, -500, 700, 36);
             _top5 = UIFactory.NewRect("Top5", p);
-            Place(_top5, 40, -548, 700, 150);
+            Place(_top5, 36, -542, 1108, 250);
 
             // 아래 버튼
             var close = UIFactory.AddButton("Close", p, "닫기", 26, _font, new Color(1, 1, 1, 0.16f), Color.white);

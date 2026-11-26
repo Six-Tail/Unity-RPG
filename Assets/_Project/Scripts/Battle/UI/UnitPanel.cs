@@ -255,11 +255,13 @@ namespace SubcultureRPG.Battle.UI
             if (_unit.character != null)
             {
                 string key = !string.IsNullOrEmpty(_unit.character.id) ? _unit.character.id : _unit.character.name;
-                var full = GameArt.Outfitted("Figures/", key);   // 입고 있는 의상(개화 등) → 기본
+                // 입고 있는 의상(개화 등) → 기본. 적 팀(결투장 상대)의 캐릭터는 내 옷장 선택이 아니라 기본 의상
+                string sfx = GameArt.SuffixFor(_unit.character, _unit.team == Team.Ally);
+                var full = GameArt.Outfitted("Figures/", key, sfx);
                 if (full != null) return full;
-                var cut = GameArt.Outfitted("Cutouts/", key);
+                var cut = GameArt.Outfitted("Cutouts/", key, sfx);
                 if (cut != null) { fadeBottom = true; return cut; }
-                return GameArt.Portrait(_unit.character) ?? GameArt.Thumb(_unit.character);
+                return GameArt.Portrait(_unit.character, sfx) ?? GameArt.Thumb(_unit.character, sfx);
             }
             return GameArt.Enemy(_unit.Name);
         }
@@ -335,6 +337,7 @@ namespace SubcultureRPG.Battle.UI
             _group.alpha = unit.IsAlive ? 1f : 0f;
             _infoGroup.alpha = 1f;
             SetFlash(Color.white, 0f);
+            SetTint(Color.black, 0f);
             // 역광 색: 적은 붉은 기운(보스는 더 진하게), 아군은 아주 옅은 흰빛
             _backGlow.color = unit.team == Team.Enemy ? new Color(1f, 0.45f, 0.4f, 0.3f) : new Color(1f, 0.95f, 0.85f, 0.1f);
             _statusKey = "?";   // 새 유닛 → 아이콘 다시 만들기
@@ -384,10 +387,25 @@ namespace SubcultureRPG.Battle.UI
             {
                 // 차례인 유닛은 앞으로 한 발
                 _step = Mathf.MoveTowards(_step, _current && _unit.IsAlive ? 1f : 0f, Time.unscaledDeltaTime * 5f);
-                // 대기: 숨쉬기(위아래 · 세로로 아주 살짝)
-                float breath = _unit.IsAlive ? Mathf.Sin(t * 1.7f + _phase) : 0f;
-                _figureRT.localScale = new Vector3(1f, 1f + 0.012f * breath, 1f);
-                _figureRT.anchoredPosition = new Vector2(0, (_fadeBottom ? -_rt.sizeDelta.y * 0.02f : 200f) + 3f * breath);
+                // 대기 동작: 숨쉬기(세로로 살짝 늘었다 줄었다) + 무게 중심 옮기기(발을 축으로 아주 살짝 기울기 · 좌우).
+                // 보스는 몸이 커서 기울이지 않고 천천히 위아래로 떠오름
+                bool alive = _unit.IsAlive;
+                float breath = alive ? Mathf.Sin(t * 1.7f + _phase) : 0f;
+                float sway = alive ? Mathf.Sin(t * 0.85f + _phase * 1.7f) : 0f;
+                float baseY = _fadeBottom ? -_rt.sizeDelta.y * 0.02f : 200f;
+                if (_boss)
+                {
+                    float hover = alive ? Mathf.Sin(t * 1.1f + _phase) : 0f;
+                    _figureRT.localScale = new Vector3(1f + 0.006f * breath, 1f + 0.014f * breath, 1f);
+                    _figureRT.anchoredPosition = new Vector2(0, baseY + 10f * hover);
+                    _figureRT.localEulerAngles = Vector3.zero;
+                }
+                else
+                {
+                    _figureRT.localScale = new Vector3(1f - 0.004f * breath, 1f + 0.02f * breath, 1f);
+                    _figureRT.anchoredPosition = new Vector2(3f * sway, baseY + 3f * breath);
+                    _figureRT.localEulerAngles = new Vector3(0, 0, 0.7f * sway * -Forward);
+                }
             }
             _body.anchoredPosition = _moveOffset + new Vector2(Forward * 46f * Mathf.SmoothStep(0, 1, _step), 0f);
 
@@ -486,7 +504,9 @@ namespace SubcultureRPG.Battle.UI
             for (float t = 0; t < dur; t += Time.unscaledDeltaTime)
             {
                 float e = t / dur;
-                SetFlash(enemy ? new Color(1f, 0.95f, 0.9f) : new Color(0.2f, 0.2f, 0.25f), enemy ? Mathf.Sin(e * Mathf.PI) * 0.8f : e * 0.5f);
+                // 적: 하얗게 빛나며 사라짐(번쩍임) · 아군: 어둡게 가라앉음(물들이기)
+                if (enemy) SetFlash(new Color(1f, 0.95f, 0.9f), Mathf.Sin(e * Mathf.PI) * 0.8f);
+                else SetTint(new Color(0.2f, 0.2f, 0.25f), e * 0.5f);
                 _group.alpha = enemy ? 1f - e : Mathf.Lerp(1f, 0.4f, e);
                 _infoGroup.alpha = 1f - e;
                 _body.localScale = new Vector3(1f + (enemy ? 0.08f * e : 0f), 1f - (enemy ? 0.06f * e : 0f), 1f);
@@ -540,6 +560,19 @@ namespace SubcultureRPG.Battle.UI
             _flashAnim = null;
         }
 
+        /// <summary>물들이기(쓰러질 때 어둡게 등) — 번쩍임과 따로.</summary>
+        private void SetTint(Color c, float amount)
+        {
+            if (_flashMat != null)
+            {
+                _flashMat.SetColor("_TintColor", c);
+                _flashMat.SetFloat("_TintAmount", amount);
+            }
+            else if (_figure != null && amount > 0f)
+                _figure.color = Color.Lerp(Color.white, c, amount);
+        }
+
+        /// <summary>피격 번쩍임: 몸은 그 색으로 밝아지고(무늬 유지) 테두리가 빛남(UIFlash 셰이더).</summary>
         private void SetFlash(Color c, float amount)
         {
             _flashColor = c; _flashAmount = amount;

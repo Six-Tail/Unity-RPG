@@ -52,24 +52,31 @@ namespace SubcultureRPG.Meta.UI
             w.Text(w.Panel, "<b>계정</b>", 24, Color.white, TextAlignmentOptions.Left, 64, -470, 200, 40);
             var status = w.Text(w.Panel, "", 20, new Color(0.85f, 0.88f, 0.95f), TextAlignmentOptions.Left, 64, -512, 772, 56);
             status.textWrappingMode = TextWrappingModes.Normal;
+            // 오른쪽 위: 마지막으로 서버에 저장된 날짜 · 시간(로그인 중일 때)
+            var saved = w.Text(w.Panel, "", 19, new Color(0.72f, 0.76f, 0.84f), TextAlignmentOptions.Right, 436, -474, 400, 32);
             void RefreshStatus(string extra = null)
             {
                 status.text = (signed
                     ? $"<color=#7FE3D6>로그인됨</color>  {SubcultureRPG.Meta.Cloud.CloudAccount.LastUsername}   <color=#9AA3B5>{(acc.HasPending ? "· 저장 대기 중" : "· 서버에 저장됨")}</color>"
                     : "<color=#FFD36B>게스트</color>  <color=#9AA3B5>이 PC에만 저장 중 · 로그인하면 서버에 올립니다</color>")
                     + (extra != null ? "\n" + extra : "");
+                var last = SubcultureRPG.Meta.Cloud.CloudAccount.LastSavedLocal;
+                saved.text = !signed ? ""
+                    : last.HasValue ? $"마지막 서버 저장  <color=#FFFFFF>{last.Value:yyyy-MM-dd HH:mm:ss}</color>"
+                    : "마지막 서버 저장  <color=#FF8A8A>아직 없음</color>";
             }
             RefreshStatus();
 
             if (signed)
             {
-                w.Btn(w.Panel, "지금 서버에 저장", 22, OverlayWindow.Blue, 64, -574, 380, 58, async () =>
+                w.Btn(w.Panel, "지금 서버에 저장", 22, OverlayWindow.Blue, 64, -574, 248, 58, async () =>
                 {
                     RefreshStatus("<color=#C8D0E0>저장하는 중...</color>");
                     bool ok = await acc.UploadAsync();
                     if (w.IsOpen) RefreshStatus(ok ? "<color=#7FE3D6>저장했습니다.</color>" : "<color=#FF8A8A>저장하지 못했습니다. 잠시 뒤 자동으로 다시 시도합니다.</color>");
                 });
-                w.Btn(w.Panel, "로그아웃", 22, OverlayWindow.Dim, 456, -574, 380, 58, () =>
+                w.Btn(w.Panel, "비밀번호 변경", 22, new Color(0.45f, 0.4f, 0.6f, 0.95f), 326, -574, 248, 58, () => SubcultureRPG.Meta.Cloud.PasswordWindow.Open(w.Font));
+                w.Btn(w.Panel, "로그아웃", 22, OverlayWindow.Dim, 588, -574, 248, 58, () =>
                     Popups.Show("로그아웃", "서버에 저장한 뒤 로그아웃하고 타이틀로 돌아갑니다.", "로그아웃", () => { w.Close(); _ = acc.SignOutAsync(); }, "취소"));
             }
             else
