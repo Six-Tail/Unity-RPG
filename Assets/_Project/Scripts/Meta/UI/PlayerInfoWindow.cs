@@ -141,8 +141,28 @@ namespace SubcultureRPG.Meta.UI
             if (cards.Count == 0)
                 w.Text(p, "<color=#6B7280>정보 없음</color>", 22, Color.white, TextAlignmentOptions.Left, 44, -360, 400, 34);
 
-            // 친구 추가(가상 지휘관만 — 실제 플레이어 친구는 아직 준비 중)
-            if (!s.real && s.seed >= 0)
+            // 친선 전투(나 말고 · 캐릭터 정보가 있으면)
+            bool me = s.real && s.pid == CloudAccount.PlayerId;
+            if (!me && cards.Count > 0)
+                w.Btn(p, "친선 전투", 24, OverlayWindow.Gold, 1100 - 44 - 240 - 20 - 240, -710, 240, 64, () =>
+                {
+                    w.Close();
+                    if (!FriendlyBattle.Request(s)) Popups.Show("친선 전투", "지금은 친선 전투를 시작할 수 없습니다.");
+                });
+
+            // 친구 추가: 실제 플레이어 · 가상 지휘관
+            if (s.real && !me && !string.IsNullOrEmpty(s.pid))
+            {
+                var social = PlayerSocial.Instance;
+                bool friend = social.IsRealFriend(s.pid), pending = social.IsPending(s.pid);
+                w.Btn(p, friend ? "친구" : pending ? "신청함" : "친구 신청", 24, friend || pending ? OverlayWindow.Dim : OverlayWindow.Blue, 1100 - 44 - 240, -710, 240, 64, () =>
+                {
+                    string err = social.SendRequest(s.pid, s.uid, s.name);
+                    w.Close();
+                    Popups.Show("친구", err ?? $"{s.name} 님에게 친구 신청을 보냈습니다.\n상대가 '받은 신청'에서 수락하면 친구가 됩니다.");
+                }, !friend && !pending);
+            }
+            else if (!s.real && s.seed >= 0)
             {
                 var social = PlayerSocial.Instance;
                 bool friend = social.IsFriend(s.seed);
@@ -155,7 +175,7 @@ namespace SubcultureRPG.Meta.UI
             }
         }
 
-        private static string Ago(long ticksUtc)
+        internal static string Ago(long ticksUtc)
         {
             var d = System.DateTime.UtcNow - new System.DateTime(ticksUtc, System.DateTimeKind.Utc);
             if (d.TotalMinutes < 1) return "방금";

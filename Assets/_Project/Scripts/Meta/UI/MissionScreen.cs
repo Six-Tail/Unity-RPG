@@ -189,10 +189,9 @@ namespace SubcultureRPG.Meta.UI
             row.gameObject.AddComponent<LayoutElement>().preferredHeight = 112;
             row.gameObject.AddComponent<CanvasGroup>().alpha = done ? 0.55f : 1f;
 
-            var dots = new System.Text.StringBuilder();
-            for (int i = 0; i < a.Tiers; i++)
-                dots.Append(i < claimed ? "<color=#FFD36B>●</color>" : i < reached ? "<color=#FF9EC0>●</color>" : "<color=#4A4F5C>●</color>");
-            var t = Label(row.transform, $"{a.name}   <size=70%>{dots}</size>", 25, FontStyles.Bold, TextAlignmentOptions.Left);
+            // 단계: 받은 단계 / 전체 단계(숫자)
+            string stage = $"<color=#9AA3B5>단계</color> <color={(done ? "#FFD36B" : "#FFFFFF")}>{claimed}</color><color=#9AA3B5> / {a.Tiers}</color>";
+            var t = Label(row.transform, $"{a.name}   <size=72%>{stage}</size>", 25, FontStyles.Bold, TextAlignmentOptions.Left);
             UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
             t.rectTransform.sizeDelta = new Vector2(700, 36); t.rectTransform.anchoredPosition = new Vector2(28, -12);
             var goal = Label(row.transform, done ? "<color=#9AA3B5>모든 단계 완료</color>" : $"<color=#C8CEDC>{next + 1}단계 · {a.Goal(next)}</color>",

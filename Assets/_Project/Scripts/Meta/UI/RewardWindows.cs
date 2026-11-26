@@ -209,7 +209,17 @@ namespace SubcultureRPG.Meta.UI
                 int stars = ChapterStarRewards.Stars(db, progress, d, chapter);
                 int max = db.InChapter(chapter, d).Count * 3;
                 string diff = d == StageDifficulty.Easy ? "" : $"<color={Difficulties.Hex(d)}>{Difficulties.Name(d)}</color>  ";
-                w.Text(body, $"{diff}{db.ChapterName(chapter)}    <color=#FFD36B>★</color> <b>{stars}</b> / {max}", 24, Color.white, TextAlignmentOptions.Left, 36, -84, 880, 36);
+                w.Text(body, $"{diff}{db.ChapterName(chapter)}    <color=#FFD36B>★</color> <b>{stars}</b> / {max}", 24, Color.white, TextAlignmentOptions.Left, 36, -84, 620, 36);
+                // 모두 받기: 모든 난이도 · 챕터의 받을 수 있는 별 보상
+                int all = ChapterStarRewards.ClaimableTotal(db, progress);
+                w.Btn(body, all > 0 ? $"모두 받기 ({all})" : "모두 받기", 22, OverlayWindow.Green, 690, -76, 240, 50, () =>
+                {
+                    var got = ChapterStarRewards.ClaimAll(db, progress, out int n);
+                    if (got == null) return;
+                    Rebuild();
+                    onChanged?.Invoke();
+                    Popups.Reward($"별 보상 {n}개 모두 받기", got);
+                }, all > 0);
                 for (int t = 0; t < ChapterStarRewards.Thresholds.Length; t++)
                 {
                     int tier = t, need = ChapterStarRewards.Thresholds[t];

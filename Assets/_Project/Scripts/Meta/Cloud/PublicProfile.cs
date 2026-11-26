@@ -55,15 +55,26 @@ namespace SubcultureRPG.Meta.Cloud
 
         private static BattleConfig _cfg;
 
-        public static Result Evaluate(CharSnap s, GameDatabase db)
+        /// <summary>실제 적용 스킬 레벨(재료로 올린 레벨 + 초월 보너스).</summary>
+        private static int[] Levels(CharSnap s)
         {
-            var ch = db != null && s != null ? db.GetCharacter(s.id) : null;
-            if (ch == null) return null;
-            if (_cfg == null) _cfg = BattleConfig.CreateDefault();
             int tr = s.star >= Transcendence.MaxStar ? s.transcend : 0;
             var levels = new int[3];
             for (int i = 0; i < 3; i++)
                 levels[i] = Mathf.Clamp(s.skills != null && i < s.skills.Length ? s.skills[i] : 1, 1, Leveling.MaxSkillLevel) + Leveling.SkillBonus(tr, (SkillSlot)i);
+            return levels;
+        }
+
+        /// <summary>
+        /// 스냅숏 캐릭터를 전투 유닛 데이터로(친선 전투의 적). 내 캐릭터와 같은 계산 — 레벨 · 성급 · 초월 · 스킬 · 장비 · 호감도.
+        /// 다 쓰면 호출한 쪽이 data와 data.skills를 Destroy.
+        /// </summary>
+        public static BattleUnitData BuildUnit(CharSnap s, GameDatabase db)
+        {
+            var ch = db != null && s != null ? db.GetCharacter(s.id) : null;
+            if (ch == null) return null;
+            int tr = s.star >= Transcendence.MaxStar ? s.transcend : 0;
+            var levels = Levels(s);
             int maxSkill = Mathf.Max(levels[0], Mathf.Max(levels[1], levels[2]));
             var data = RuntimeUnits.FromCharacter(ch, Mathf.Max(1, s.level), null, maxSkill, s.star, tr, levels);
             var b = new StatBonus();
@@ -71,6 +82,16 @@ namespace SubcultureRPG.Meta.Cloud
             float p = (Mathf.Clamp(s.bond, 1, PlayerBond.MaxLevel) - 1) * PlayerBond.StatPerLevel;
             b.hpPct += p; b.atkPct += p; b.defPct += p;
             data.bonus = b;
+            return data;
+        }
+
+        public static Result Evaluate(CharSnap s, GameDatabase db)
+        {
+            var data = BuildUnit(s, db);
+            if (data == null) return null;
+            var ch = db.GetCharacter(s.id);
+            if (_cfg == null) _cfg = BattleConfig.CreateDefault();
+            var levels = Levels(s);
             var u = new BattleUnit(data, Team.Ally, _cfg);
             var r = new Result
             {
@@ -104,7 +125,7 @@ namespace SubcultureRPG.Meta.Cloud
     /// </summary>
     public class PublicProfile : MonoBehaviour
     {
-        public const string KProfile = "pp", KSeason = "ar_season", KPoints = "ar_pts";
+        public const string KProfile = "pp", KSeason = "ar_season", KPoints = "ar_pts", KUid = "uid";
         private const string SaveKey = "pubprof";
         private const float PublishEvery = 120f, ArenaRefreshEvery = 120f;
 
@@ -224,6 +245,7 @@ namespace SubcultureRPG.Meta.Cloud
                 var data = new Dictionary<string, object>
                 {
                     { KProfile, JsonUtility.ToJson(snap) }, { KSeason, SeasonKey }, { KPoints, PlayerArena.Instance.Points },
+                    { KUid, snap.uid ?? "" },   // 친구 찾기(UID 검색) — 대시보드 인덱스 uid
                 };
                 await CloudSaveService.Instance.Data.Player.SaveAsync(data, new PlayerSaveOptions(new PublicWrite()));
                 _lastPublished = json;
@@ -256,6 +278,53 @@ namespace SubcultureRPG.Meta.Cloud
             catch (Exception e) { Debug.LogWarning($"[PublicProfile] {pid} 프로필을 읽지 못했습니다: {e.Message}"); }
             return null;
         }
+
+        /// <summary>불러 둔 프로필(1분 넘어도 그대로 돌려줌 — 목록 표시용).</summary>
+        public bool TryCached(string pid, out ProfileSnap snap)
+        {
+            snap = null;
+            if (string.IsNullOrEmpty(pid)) return false;
+            if (_cache.TryGetValue(pid, out var c)) snap = c.snap;
+            return snap != null;
+        }
+
+        /// <summary>
+        /// UID로 실제 플레이어 찾기(서버 인덱스 uid 필요). 못 찾으면 snap = null,
+        /// 서버 오류면 error에 사유(인덱스가 없으면 그렇다고 알려 줌).
+        /// </summary>
+        public async Task<(ProfileSnap snap, string error)> FindByUidAsync(string uid)
+        {
+            if (!Online || string.IsNullOrEmpty(uid)) return (null, null);
+            try
+            {
+                var q = new Query(new List<FieldFilter> { new FieldFilter(KUid, uid, FieldFilter.OpOptions.EQ, true) },
+                    new HashSet<string> { KProfile }, 0, 5);
+                var rows = await CloudSaveService.Instance.Data.Player.QueryAsync(q, new PlayerQueryOptions());
+                if (rows != null)
+                    foreach (var row in rows)
+                    {
+                        if (row.Id == CloudAccount.PlayerId || row.Data == null) continue;
+                        foreach (var it in row.Data)
+                        {
+                            if (it?.Value == null || it.Key != KProfile) continue;
+                            ProfileSnap s = null;
+                            try { s = Parse(it.Value.GetAs<string>(), row.Id); } catch { }
+                            if (s == null) continue;
+                            _cache[row.Id] = (s, Time.unscaledTime);
+                            return (s, null);
+                        }
+                    }
+                return (null, null);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[PublicProfile] UID {uid} 검색 실패: {e.Message}");
+                bool index = e.Message != null && e.Message.ToLowerInvariant().Contains("index");
+                return (null, index ? "서버 검색 설정(인덱스 uid)이 없어 실제 플레이어를 찾지 못했습니다" : "서버에서 검색하지 못했습니다");
+            }
+        }
+
+        internal static ProfileSnap ParseSnap(string json, string pid) => Parse(json, pid);
 
         private static ProfileSnap Parse(string json, string pid)
         {

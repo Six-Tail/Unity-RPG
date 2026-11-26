@@ -24,6 +24,9 @@ namespace SubcultureRPG.Meta
     ///   1 · 2 · 3위 = 칭호 · 테두리 + 개별 보상, 4~10위 · 11~30위 · 31~50위 · 51~100위 = 차등 보상
     /// · 도전: 하루 2회(05:00 충전), 로그인해야 함. 전투 틀(5분 · 격노)은 주간 보스와 같고 극악 배율
     /// · 지난주 기록이 사라지지 않도록, 새 주에 처음 올릴 때 이전 값을 wr_pweek · wr_pdmg · wr_pname으로 옮겨 둠
+    /// · 가상 지휘관 60명도 함께 싸움(<see cref="VirtualEntries"/>): 주마다 같은 명단 · 같은 기록(모든 PC에서 똑같이 계산),
+    ///   하루 2번씩 도전한 것처럼 기록이 계단식으로 늘어 주가 끝날 때 최대 체력의 92%를 깎음 → 실제 플레이어가 적거나 약해도
+    ///   공유 보상 4단계까지는 받고, 마지막 100%는 실제 플레이어가 보태야 함. 순위표 · 공유 체력 · 지난주 순위 정산에 모두 포함
     /// </summary>
     public class ServerRaid : MonoBehaviour
     {
@@ -36,6 +39,10 @@ namespace SubcultureRPG.Meta
         /// </summary>
         public const long MaxHp = 10_000_000_000;
         public const int RankLimit = 100;
+
+        /// <summary>함께 싸우는 가상 지휘관 수와, 주가 끝날 때까지 그들이 깎는 몫(최대 체력 대비) — 튜닝 지점.</summary>
+        public const int VirtualCount = 60;
+        public const float VirtualShare = 0.92f;
         private const string SaveKey = "wraid";
 
         // 클라우드 공개 데이터 키(대시보드 인덱스와 같아야 함)
@@ -191,6 +198,85 @@ namespace SubcultureRPG.Meta
             public string id, name;
             public long damage;
             public bool me;
+            public int seed = -1;   // 가상 지휘관 번호(실제 플레이어는 -1)
+            public bool Virtual => seed >= 0;
+        }
+
+        // ---------------- 가상 지휘관 ----------------
+
+        /// <summary>문자열 → 늘 같은 수(PC · 실행마다 같아야 해서 string.GetHashCode 대신).</summary>
+        private static int StableHash(string s)
+        {
+            unchecked
+            {
+                uint h = 2166136261;
+                foreach (char ch in s ?? "") h = (h ^ ch) * 16777619;
+                return (int)(h & 0x7fffffff);
+            }
+        }
+
+        /// <summary>이번 주가 지난 비율(월요일 05:00 = 0 → 다음 월요일 05:00 = 1).</summary>
+        public static float WeekProgress => Mathf.Clamp01(1f - (float)(WorldRaid.UntilWeekReset.TotalDays / 7.0));
+
+        /// <summary>
+        /// 그 주에 함께 싸우는 가상 지휘관들의 기록(progress = 주가 지난 비율, 1이면 한 주 전부).
+        /// 주 키로 명단 · 몫을 정하므로 모든 PC에서 같음. 위로 갈수록 몫이 크고(1위 ≈ 몫의 17%) 레벨도 높음.
+        /// 하루 2번 도전하는 것처럼 14단계로 늘고, 몇 명은 주 중간부터 참여.
+        /// </summary>
+        public static List<Entry> VirtualEntries(string week, float progress)
+        {
+            var list = new List<Entry>();
+            var rng = new System.Random(StableHash("wr_virtual_" + week));
+            var weight = new double[VirtualCount];
+            var start = new double[VirtualCount];
+            var phase = new double[VirtualCount];
+            var seeds = new int[VirtualCount];
+            var used = new HashSet<int>();
+            double sum = 0;
+            for (int i = 0; i < VirtualCount; i++)
+            {
+                weight[i] = Math.Pow(i + 2, -1.15) * (0.85 + 0.3 * rng.NextDouble());
+                start[i] = rng.NextDouble() < 0.75 ? 0 : rng.NextDouble() * 0.35;
+                phase[i] = rng.NextDouble();
+                // 순위가 높을수록 높은 레벨의 지휘관(정보창의 육성 상태가 기록과 어울리게)
+                int minLevel = Mathf.Clamp(80 - i, 20, 78), seed = 0;
+                for (int tries = 0; tries < 300; tries++)
+                {
+                    seed = rng.Next(0, Commanders.MaxSeed);
+                    if (!used.Contains(seed) && Commanders.FromSeed(seed, null).level >= minLevel) break;
+                }
+                used.Add(seed);
+                seeds[i] = seed;
+                sum += weight[i];
+            }
+            var db = FindAnyObjectByType<PlayerRoster>()?.Database;
+            progress = Mathf.Clamp01(progress);
+            for (int i = 0; i < VirtualCount; i++)
+            {
+                double p = progress >= 1f ? 1.0 : Math.Clamp((progress - start[i]) / (1.0 - start[i]), 0.0, 1.0);
+                p = Math.Floor(p * 14.0 + phase[i] * (p > 0 ? 1 : 0)) / 14.0;   // 하루 2번(주 14번) 계단식
+                p = Math.Clamp(p, 0.0, 1.0);
+                long dmg = (long)(MaxHp * (double)VirtualShare * weight[i] / sum * p);
+                if (dmg <= 0) continue;
+                var c = Commanders.FromSeed(seeds[i], db);
+                list.Add(new Entry { id = "v" + seeds[i], name = c.name, damage = dmg, seed = seeds[i] });
+            }
+            return list;
+        }
+
+        /// <summary>실제 플레이어 기록 + 이번 주 가상 지휘관 기록 → 순위표 · 공유 체력.</summary>
+        private void Combine(List<Entry> real)
+        {
+            var list = new List<Entry>();
+            if (real != null) foreach (var e in real) if (!e.Virtual) list.Add(e);
+            list.AddRange(VirtualEntries(CurrentWeek, WeekProgress));
+            list.Sort((a, b) => b.damage.CompareTo(a.damage));
+            Ranking = list;
+            long sum = 0;
+            foreach (var e in list) sum += e.damage;
+            var mine = list.Find(e => e.me);
+            sum += Math.Max(0, _d.damage - (mine != null ? mine.damage : 0));   // 아직 서버에 안 올라간 내 피해도 반영
+            ServerDamage = sum;
         }
 
         /// <summary>이번 주 참여자(피해 순). 마지막으로 불러온 값.</summary>
@@ -240,16 +326,14 @@ namespace SubcultureRPG.Meta
             {
                 await PublishAsync();   // 새 주 이월 · 내 최신 값
                 var list = await QueryWeekAsync(CurrentWeek, false);
-                Ranking = list;
-                long sum = 0;
-                foreach (var e in list) sum += e.damage;
-                ServerDamage = Math.Max(sum, _d.damage);
+                Combine(list);
                 FetchedAt = DateTime.Now;
                 await SettleLastWeekAsync();
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[ServerRaid] 서버 기록을 불러오지 못했습니다: {e.Message}");
+                Combine(Ranking);   // 서버를 못 읽어도 가상 지휘관 기록 · 공유 체력은 지금 시각으로
                 LastError = e.Message != null && e.Message.ToLowerInvariant().Contains("index")
                     ? "서버 검색 설정(인덱스)이 없습니다 — docs/world-raid.md 참고"
                     : "서버 기록을 불러오지 못했습니다.";
@@ -324,6 +408,7 @@ namespace SubcultureRPG.Meta
             foreach (var e in a) merged[e.id] = e;
             foreach (var e in b) if (!merged.TryGetValue(e.id, out var x) || x.damage < e.damage) merged[e.id] = e;
             var list = new List<Entry>(merged.Values);
+            list.AddRange(VirtualEntries(last, 1f));   // 지난주 가상 지휘관의 최종 기록
             list.Sort((x, y) => y.damage.CompareTo(x.damage));
 
             int rank = 0;

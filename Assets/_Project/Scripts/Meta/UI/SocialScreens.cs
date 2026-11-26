@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using TMPro;
 using SubcultureRPG.UI;
 using SubcultureRPG.Characters;
+using SubcultureRPG.Meta.Cloud;
 
 namespace SubcultureRPG.Meta.UI
 {
@@ -74,6 +75,40 @@ namespace SubcultureRPG.Meta.UI
             return row;
         }
 
+        /// <summary>실제 플레이어 한 줄(서버 공개 프로필). 누르면 지휘관 정보창.</summary>
+        protected Image SnapRow(Transform list, ProfileSnap s, string tag = "", string note = "")
+        {
+            var db = Db();
+            var row = Row(list, new Color(0.07f, 0.1f, 0.12f, 0.9f));
+            var av = new ProfileAvatar(row.transform, 92);
+            Place(av.Rect, 18, -10, 92, 92);
+            av.Set(db != null && !string.IsNullOrEmpty(s.avatarId) ? db.GetCharacter(s.avatarId) : null, s.frameId, s.avatarOutfit ?? "");
+
+            var title = ProfileRewards.Title(s.titleId);
+            var t1 = Text(row.transform, $"<b>{s.name}</b>   <size=70%><color=#7CFF9A>● 플레이어</color>" + (tag != "" ? $"   {tag}" : "") + "</size>",
+                28, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t1.rectTransform, 128, -12, 520, 40);
+            string line2 = s.level > 0
+                ? $"<color=#{ColorUtility.ToHtmlStringRGB(title.color)}>{title.name}</color>   Lv.{s.level}   <color=#FFB347>전투력 {SnapStats.TotalPower(s, db):N0}</color>"
+                : "<color=#9AA3B5>정보를 불러오는 중...</color>";
+            var t2 = Text(row.transform, line2, 20, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t2.rectTransform, 128, -56, 620, 30);
+            string third = note != "" ? note
+                : (string.IsNullOrEmpty(s.greeting) ? "" : $"\"{s.greeting}\"   ") + (s.updated > 0 ? $"<color=#9AA3B5>{PlayerInfoWindow.Ago(s.updated)} 갱신</color>" : "");
+            var t3 = Text(row.transform, third, 18, new Color(0.72f, 0.75f, 0.82f), FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t3.rectTransform, 660, -14, 300, 84);
+            t3.textWrappingMode = TextWrappingModes.Normal;
+            if (s.level > 0)
+            {
+                row.raycastTarget = true;
+                var open = row.gameObject.AddComponent<Button>();
+                open.transition = Selectable.Transition.None;
+                var who = s;
+                open.onClick.AddListener(() => PlayerInfoWindow.Open(who, font));
+            }
+            return row;
+        }
+
         protected static long MyPower()
         {
             long sum = 0; int n = 0;
@@ -117,6 +152,9 @@ namespace SubcultureRPG.Meta.UI
         private GameObject _findBar, _greetAll;
         private TMP_InputField _uid;
         private int _found = -1;
+        private ProfileSnap _foundSnap;       // 검색으로 찾은 실제 플레이어
+        private bool _searching;
+        private readonly HashSet<string> _loading = new();
 
         private void Awake()
         {
@@ -127,7 +165,7 @@ namespace SubcultureRPG.Meta.UI
             for (int i = 0; i < 3; i++)
             {
                 int idx = i;
-                _tabs[i] = TopButton(names[i], -620 + i * 250, -104, 236, Dim, () => { _tab = idx; _found = -1; Refresh(); });
+                _tabs[i] = TopButton(names[i], -620 + i * 250, -104, 236, Dim, () => { _tab = idx; _found = -1; _foundSnap = null; Refresh(); });
             }
             _info = Text(_frame, "", 20, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.Right);
             Top(_info.rectTransform, 90, -186, 920, 32, new Vector2(0.5f, 1));    // 탭 줄 아래, '모두 인사' 버튼 왼쪽
@@ -150,7 +188,7 @@ namespace SubcultureRPG.Meta.UI
             search.onClick.AddListener(Search);
             var re = UIFactory.AddButton("Re", bar, "추천 새로고침", 22, font, Dim, Color.white);
             Place((RectTransform)re.transform, 588, 0, 200, 56);
-            re.onClick.AddListener(() => { _found = -1; PlayerSocial.Instance.RefreshRecommend(); });
+            re.onClick.AddListener(() => { _found = -1; _foundSnap = null; PlayerSocial.Instance.RefreshRecommend(); });
             var mine = Text(bar, "", 22, new Color(0.8f, 0.83f, 0.9f), FontStyles.Normal, TextAlignmentOptions.Right);
             Place(mine.rectTransform, 880, -8, 600, 40);
             mine.text = $"내 UID  <color=#FFFFFF><b>{PlayerProfile.Instance.Uid}</b></color>";
@@ -158,23 +196,63 @@ namespace SubcultureRPG.Meta.UI
             _list = MakeList(-244, 760);
             _root.SetActive(false);
             PlayerSocial.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
+            FriendLink.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
         }
 
-        private void Search()
+        private float _syncAsked = -999f;
+
+        /// <summary>
+        /// UID 검색: 먼저 서버에서 실제 플레이어를 찾고(로그인 중), 없으면 그 UID의 가상 지휘관.
+        /// (실제 플레이어 UID와 가상 지휘관 UID가 같은 8자리 범위라, 서버를 먼저 봐야 다른 지휘관이 나오지 않음)
+        /// </summary>
+        private async void Search()
         {
+            if (_searching) return;
             string uid = _uid.text.Trim();
             if (uid == PlayerProfile.Instance.Uid) { Toast("내 UID입니다"); return; }
             int seed = Commanders.SeedOfUid(uid);
             if (seed < 0) { Toast("UID 8자리를 정확히 입력해 주세요"); return; }
+            _found = -1; _foundSnap = null;
+
+            if (PublicProfile.Online)
+            {
+                _searching = true;
+                Toast("검색 중...");
+                var (snap, err) = await PublicProfile.Instance.FindByUidAsync(uid);
+                _searching = false;
+                if (this == null) return;
+                if (snap != null) { _foundSnap = snap; Toast($"{snap.name} 님을 찾았습니다"); Refresh(); return; }
+                if (err != null) Toast(err);
+            }
             _found = seed;
             Refresh();
+        }
+
+        /// <summary>실제 플레이어 친구의 공개 프로필(없으면 불러오고 끝나면 다시 그림). 불러오기 전엔 저장된 이름만.</summary>
+        private ProfileSnap FriendSnap(PlayerSocial.RealFriend f)
+        {
+            if (PublicProfile.Instance.TryCached(f.pid, out var snap)) return snap;
+            if (PublicProfile.Online && _loading.Add(f.pid)) LoadFriend(f.pid);
+            return new ProfileSnap { pid = f.pid, uid = f.uid, name = f.name, real = true, level = 0 };
+        }
+
+        private async void LoadFriend(string pid)
+        {
+            var snap = await PublicProfile.Instance.LoadAsync(pid);
+            if (this == null) return;
+            if (snap != null) PlayerSocial.Instance.UpdateReal(pid, snap.uid, snap.name);
+            if (_root != null && _root.activeSelf && _tab == 0 && snap != null) Refresh();
         }
 
         protected override void Refresh()
         {
             var s = PlayerSocial.Instance;
             var db = Db();
-            string[] names = { $"친구 {s.Friends.Count}/{PlayerSocial.MaxFriends}", $"받은 신청 {s.Requests.Count}", "친구 찾기" };
+            var link = FriendLink.Instance;
+            // 화면을 보는 동안 30초마다 서버와 친구 신청 · 수락을 맞춤
+            if (FriendLink.Online && Time.unscaledTime - _syncAsked > 30f) { _syncAsked = Time.unscaledTime; link.RequestSync(); }
+            if (link.Notices.Count > 0) { Toast(string.Join("  ·  ", link.Notices)); link.Notices.Clear(); }
+            string[] names = { $"친구 {s.FriendCount}/{PlayerSocial.MaxFriends}", $"받은 신청 {s.Requests.Count + link.Incoming.Count}", "친구 찾기" };
             for (int i = 0; i < 3; i++)
             {
                 _tabs[i].image.color = i == _tab ? Blue : Dim;
@@ -189,7 +267,24 @@ namespace SubcultureRPG.Meta.UI
             Clear(_list);
             if (_tab == 0)
             {
-                if (s.Friends.Count == 0) Empty("아직 친구가 없습니다. '친구 찾기'에서 추천 지휘관을 추가해 보세요.");
+                if (s.FriendCount == 0) Empty("아직 친구가 없습니다. '친구 찾기'에서 추천 지휘관을 추가하거나 UID로 찾아 보세요.");
+                foreach (var f in new List<PlayerSocial.RealFriend>(s.RealFriends))
+                {
+                    string pid = f.pid, fname = f.name;
+                    var row = SnapRow(_list, FriendSnap(f), $"<color=#9AA3B5>UID {f.uid}</color>");
+                    bool done = s.GreetedReal(pid);
+                    RowButton(row, 1, done ? "인사 완료" : "인사", Green, () =>
+                    {
+                        if (PlayerSocial.Instance.GreetReal(pid)) Toast($"인사를 보냈습니다 — 행동력 +{PlayerSocial.GreetStamina} · 금화 +{PlayerSocial.GreetGold}");
+                    }, !done);
+                    RowButton(row, 0, "삭제", Red, () => Confirm($"{fname} 님을 친구에서 삭제할까요?", "삭제", () => PlayerSocial.Instance.RemoveReal(pid)));
+                    var rf = f;
+                    RowButton(row, 2, "친선 전투", Gold, () =>
+                    {
+                        var snap = FriendSnap(rf);
+                        if (snap.level <= 0 || !FriendlyBattle.Request(snap)) Toast("상대 정보를 불러오는 중입니다. 잠시 뒤 다시 눌러 주세요");
+                    });
+                }
                 foreach (int seed in new List<int>(s.Friends))
                 {
                     int id = seed;
@@ -200,11 +295,25 @@ namespace SubcultureRPG.Meta.UI
                         if (PlayerSocial.Instance.Greet(id)) Toast($"인사를 보냈습니다 — 행동력 +{PlayerSocial.GreetStamina} · 금화 +{PlayerSocial.GreetGold}");
                     }, !done);
                     RowButton(row, 0, "삭제", Red, () => Confirm($"{Commanders.FromSeed(id, Db()).name} 님을 친구에서 삭제할까요?", "삭제", () => PlayerSocial.Instance.Remove(id)));
+                    RowButton(row, 2, "친선 전투", Gold, () =>
+                    {
+                        var dbx = Db();
+                        if (!FriendlyBattle.Request(PublicProfile.FromCommander(Commanders.FromSeed(id, dbx), dbx))) Toast("지금은 친선 전투를 시작할 수 없습니다");
+                    });
                 }
             }
             else if (_tab == 1)
             {
-                if (s.Requests.Count == 0) Empty("받은 친구 신청이 없습니다. 신청은 날마다 조금씩 들어옵니다.");
+                if (!string.IsNullOrEmpty(link.Error)) Empty($"<color=#FF8A8A>{link.Error}</color>");
+                // 실제 플레이어의 신청
+                foreach (var snap in new List<ProfileSnap>(link.Incoming))
+                {
+                    var sn = snap;
+                    var row = SnapRow(_list, sn, $"<color=#FFE08A>친구 신청</color>  <color=#9AA3B5>UID {sn.uid}</color>");
+                    RowButton(row, 1, "수락", Blue, () => { string err = PlayerSocial.Instance.AcceptReal(sn.pid, sn.uid, sn.name); Toast(err ?? $"{sn.name} 님과 친구가 되었습니다"); });
+                    RowButton(row, 0, "거절", Dim, () => PlayerSocial.Instance.DeclineReal(sn.pid));
+                }
+                if (s.Requests.Count == 0 && link.Incoming.Count == 0 && s.Outgoing.Count == 0) Empty("받은 친구 신청이 없습니다. 신청은 날마다 조금씩 들어옵니다.");
                 foreach (int seed in new List<int>(s.Requests))
                 {
                     int id = seed;
@@ -212,11 +321,32 @@ namespace SubcultureRPG.Meta.UI
                     RowButton(row, 1, "수락", Blue, () => { string err = PlayerSocial.Instance.Add(id); Toast(err ?? "친구가 되었습니다"); });
                     RowButton(row, 0, "거절", Dim, () => PlayerSocial.Instance.Decline(id));
                 }
+                // 내가 보낸 신청(수락 대기)
+                foreach (var o in new List<PlayerSocial.RealFriend>(s.Outgoing))
+                {
+                    string pid = o.pid;
+                    var row = SnapRow(_list, FriendSnap(o), $"<color=#9AD4FF>보낸 신청 · 수락 대기 중</color>",
+                        $"<color=#9AA3B5>상대가 '받은 신청'에서 수락하면 친구가 됩니다 (보낸 신청 {s.Outgoing.Count}/{FriendLink.Slots})</color>");
+                    RowButton(row, 0, "신청 취소", Dim, () => PlayerSocial.Instance.CancelRequest(pid));
+                }
             }
             else
             {
+                if (_foundSnap != null)
+                {
+                    var fs = _foundSnap;
+                    var row = SnapRow(_list, fs, $"<color=#9AD4FF>검색 결과</color>  <color=#9AA3B5>UID {fs.uid}</color>");
+                    bool friend = PlayerSocial.Instance.IsRealFriend(fs.pid), pending = PlayerSocial.Instance.IsPending(fs.pid);
+                    RowButton(row, 0, friend ? "친구" : pending ? "신청함" : "친구 신청", Blue, () =>
+                    {
+                        string err = PlayerSocial.Instance.SendRequest(fs.pid, fs.uid, fs.name);
+                        Toast(err ?? $"{fs.name} 님에게 친구 신청을 보냈습니다 — 상대가 수락하면 친구가 됩니다");
+                    }, !friend && !pending);
+                }
                 if (_found >= 0) AddRow(_found, "<color=#9AD4FF>검색 결과</color>", db);
-                foreach (int seed in new List<int>(s.Recommended)) if (seed != _found) AddRow(seed, "<color=#9AA3B5>추천</color>", db);
+                // 검색했으면 검색 결과만(추천은 숨김 — 추천 새로고침 · 탭 전환으로 다시 보임)
+                if (_foundSnap == null && _found < 0)
+                    foreach (int seed in new List<int>(s.Recommended)) AddRow(seed, "<color=#9AA3B5>추천</color>", db);
             }
         }
 

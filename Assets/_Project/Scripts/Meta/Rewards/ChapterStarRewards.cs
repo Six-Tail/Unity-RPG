@@ -87,6 +87,30 @@ namespace SubcultureRPG.Meta
             return r;
         }
 
+        /// <summary>모든 난이도 · 챕터에서 받을 수 있는 별 보상을 한 번에 받음. 반환 = 합친 보상(없으면 null), count = 받은 단계 수.</summary>
+        public static RewardBundle ClaimAll(StageDatabase db, StageProgress progress, out int count)
+        {
+            count = 0;
+            if (db == null || progress == null) return null;
+            var total = new RewardBundle();
+            foreach (var d in Difficulties.All)
+                foreach (int ch in db.Chapters(d))
+                    for (int t = 0; t < Thresholds.Length; t++)
+                    {
+                        if (!CanClaim(db, progress, d, ch, t)) continue;
+                        Claimed.Add(Key(d, ch, t));
+                        var r = Reward(d, ch, t);
+                        r.Grant();
+                        total.Crystals(r.crystals).Gold(r.gold).Pickup(r.pickup).Standard(r.standard);
+                        if (r.mats != null) foreach (var m in r.mats) total.Mat(m.Type, m.count);
+                        count++;
+                    }
+            if (count == 0) return null;
+            Save();
+            OnChanged?.Invoke();
+            return total;
+        }
+
         /// <summary>그 챕터에서 지금 받을 수 있는 단계 수.</summary>
         public static int ClaimableIn(StageDatabase db, StageProgress progress, StageDifficulty d, int chapter)
         {

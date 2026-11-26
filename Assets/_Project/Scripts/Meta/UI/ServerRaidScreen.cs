@@ -205,6 +205,7 @@ namespace SubcultureRPG.Meta.UI
             btn.onClick.AddListener(() =>
             {
                 if (e.me) PlayerInfoWindow.Open(SubcultureRPG.Meta.Cloud.PublicProfile.BuildMine(), font, line);
+                else if (e.Virtual) PlayerInfoWindow.Open(Commanders.FromSeed(e.seed, FindAnyObjectByType<PlayerRoster>()?.Database), font, line);
                 else PlayerInfoWindow.OpenPlayer(e.id, font, line);
             });
         }

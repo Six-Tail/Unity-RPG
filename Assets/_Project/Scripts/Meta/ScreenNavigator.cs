@@ -218,12 +218,30 @@ namespace SubcultureRPG.Meta
                 stage.OnSortie += OnStageSortie;
             }
             if (battleHud != null) battleHud.SetExitAction(ExitBattle);
+            FriendlyBattle.Requested += OnFriendlyRequested;
 
             Go(startScreen);
         }
 
+        /// <summary>친선 전투: 편성 화면 → 대결. 끝나면 요청한 화면(친구 · 결투장 · 길드 등)으로.</summary>
+        private void OnFriendlyRequested(SubcultureRPG.Meta.Cloud.ProfileSnap s)
+        {
+            var back = Current == HubScreen.Party || Current == HubScreen.Battle ? HubScreen.Friends : Current;
+            string label = back switch
+            {
+                HubScreen.Friends => "← 친구", HubScreen.Arena => "← 결투장", HubScreen.Guild => "← 길드",
+                HubScreen.WorldRaid => "← 월드 레이드", HubScreen.Raid => "← 주간 보스", HubScreen.Home => "← 홈", _ => "← 돌아가기",
+            };
+            long power = FriendlyBattle.LineupPower(s, FindAnyObjectByType<PlayerRoster>()?.Database);
+            string who = s.real ? "  <color=#7CFF9A>● 플레이어</color>" : "";
+            OpenModeParty($"친선 전투  ·  {s.name}{who}  <size=60%><color=#FFB347>상대 전투력 {power:N0}</color>  <color=#9AA3B5>상위 {FriendlyBattle.TeamSize}명 · 점수 · 보상 없음</color></size>", "대결!",
+                team => { if (!FriendlyBattle.Instance.Fight(s, team)) Popups.Show("친선 전투", "상대 정보를 불러오지 못해 대결을 시작할 수 없습니다."); },
+                back, label);
+        }
+
         private void OnDestroy()
         {
+            FriendlyBattle.Requested -= OnFriendlyRequested;
             if (party != null) party.OnLaunched -= OnPartyLaunched;
             if (stage != null) stage.OnSortie -= OnStageSortie;
         }
@@ -260,13 +278,14 @@ namespace SubcultureRPG.Meta
             }
 
             // 홈/스테이지 목록으로 돌아오면 스테이지 출격 모드 해제
-            if (screen == HubScreen.Home || screen == HubScreen.Stage || screen == HubScreen.Arena || screen == HubScreen.Raid || screen == HubScreen.Event || screen == HubScreen.Tower || screen == HubScreen.WorldRaid)
+            if (screen == HubScreen.Home || screen == HubScreen.Stage || screen == HubScreen.Arena || screen == HubScreen.Raid || screen == HubScreen.Event || screen == HubScreen.Tower || screen == HubScreen.WorldRaid || screen == HubScreen.Friends || screen == HubScreen.Guild)
             {
                 _modeReturn = null;
                 PlayerArena.Instance.Leave();   // 끝나지 않은 전투에서 나오면 도전권 · 도전 횟수 반환
                 WorldRaid.Instance.Leave();
                 LimitedEvent.Instance.Leave();
                 PlayerTower.Instance.Leave();
+                FriendlyBattle.Instance.Leave();
                 if (stageRunner != null) stageRunner.Clear();
                 if (party != null)
                 {
