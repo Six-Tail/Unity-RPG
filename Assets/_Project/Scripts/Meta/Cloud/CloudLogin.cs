@@ -219,6 +219,7 @@ namespace SubcultureRPG.Meta.Cloud
                 _pass2.onSubmit.AddListener(s => { if (!_busy) _ = Submit(true); });
             }
             else _pass.onSubmit.AddListener(s => { if (!_busy) _ = Submit(false); });
+            TabOrder.Attach(p.gameObject, _user, _pass, _pass2);   // Tab = 다음 칸 · Shift+Tab = 이전 칸
             if (string.IsNullOrEmpty(_user.text)) _user.ActivateInputField(); else _pass.ActivateInputField();
         }
 
@@ -363,6 +364,9 @@ namespace SubcultureRPG.Meta.Cloud
             ok = w.Btn(p, "변경하기", 26, OverlayWindow.Blue, 44, -480, 520, 70, Submit);
             w.Btn(p, "취소", 24, OverlayWindow.Dim, 580, -480, 276, 70, () => { if (!busy) w.Close(); });
             nw2.onSubmit.AddListener(s => Submit());
+            cur.onSubmit.AddListener(s => nw.ActivateInputField());
+            nw.onSubmit.AddListener(s => nw2.ActivateInputField());
+            TabOrder.Attach(p.gameObject, cur, nw, nw2);   // Tab = 다음 칸 · Shift+Tab = 이전 칸
             cur.ActivateInputField();
         }
     }

@@ -27,6 +27,7 @@ UGS 설정(완료): 프로젝트 연결 `subculture-rpg` · Identity Provider **
    - `회원가입` → 회원가입 창(아이디 · 비밀번호 · 비밀번호 확인, `가입하기` · `뒤로`) → 가입이 끝나면 **아이디를 채운 로그인 창**으로 넘어감(가입하며 된 자동 로그인은 풂)
    - 아이디 3 ~ 20자(영문 · 숫자 · `. - @ _`), 비밀번호 8 ~ 26자(영문 · 숫자 · 기호 각 1개 이상, 대문자 필요 없음 — UGS 규칙은 서버로 보낼 때 고정 글자를 붙여 채움)
    - 로그인 · 회원가입 · 비밀번호 변경 창 오른쪽 위에 **Caps Lock이 켜져 있으면 안내**(`CapsLockHint`, Windows — 켜고 끌 때 바로 바뀜)
+   - 입력칸 이동: **Tab = 다음 칸 · Shift+Tab = 이전 칸**(마지막 칸에서 Tab이면 처음 칸으로), Enter = 다음 칸 → 마지막 칸이면 로그인 · 가입 · 변경(`TabOrder`, PC · 에디터. 칸에 Tab 글자는 들어가지 않음)
 3. 세이브 맞추기([CloudAccount.cs](../Assets/_Project/Scripts/Meta/Cloud/CloudAccount.cs) `SyncAsync`)
 
 | 이 PC 세이브 | 서버 세이브 | 결과 |
