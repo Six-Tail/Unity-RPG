@@ -20,7 +20,7 @@ MonoBehaviour:
     \uC218\uD638\uC790."
   isBoss: 1
   difficulty: 2
-  enemyStatMultiplier: 1.6
+  enemyStatMultiplier: 1.84
   kind: 0
   dungeonElement: 0
   dungeonTier: 1
@@ -30,18 +30,18 @@ MonoBehaviour:
   unlockAfter: {fileID: 0}
   enemies:
   - unit: {fileID: 11400000, guid: 24d54f7b5de1f9a41932029e77ebceed, type: 2}
-    level: 54
+    level: 88
   - unit: {fileID: 11400000, guid: 30cc43eb297170e4381f7c3d62b2ebea, type: 2}
-    level: 56
+    level: 90
   - unit: {fileID: 11400000, guid: cf9c87a8e2b29274c88135f8c7f824ff, type: 2}
-    level: 54
-  recommendedLevel: 56
+    level: 88
+  recommendedLevel: 90
   turnLimit: 18
   firstClearCrystals: 480
   rewards:
+  - type: 1
+    count: 18
   - type: 5
-    count: 47
-  - type: 0
-    count: 1
-  characterExp: 6190
-  gold: 31000
+    count: 2
+  characterExp: 11650
+  gold: 57000

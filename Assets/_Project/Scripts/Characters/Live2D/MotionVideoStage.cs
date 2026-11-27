@@ -42,11 +42,12 @@ namespace SubcultureRPG.Characters
         }
 
         /// <summary>이 캐릭터의 반복 영상(Resources/Art/Motion/{id}). 없으면 null.</summary>
-        public static VideoClip ClipOf(CharacterData c)
+        /// <param name="baseOutfit">true = 입은 의상과 관계없이 기본 의상 영상(뽑기 화면처럼 '아직 내 것이 아닌' 캐릭터를 보여 줄 때)</param>
+        public static VideoClip ClipOf(CharacterData c, bool baseOutfit = false)
         {
             if (c == null) return null;
             string key = !string.IsNullOrEmpty(c.id) ? c.id : c.name;
-            string sfx = CharacterOutfits.SuffixOf(key);
+            string sfx = baseOutfit ? "" : CharacterOutfits.SuffixOf(key);
             if (sfx != "")
             {
                 var o = Load(key + sfx);   // 입고 있는 의상(개화 등)의 영상
@@ -65,7 +66,7 @@ namespace SubcultureRPG.Characters
             return clip;
         }
 
-        public static bool Has(CharacterData c) => ClipOf(c) != null;
+        public static bool Has(CharacterData c, bool baseOutfit = false) => ClipOf(c, baseOutfit) != null;
 
         /// <summary>에디터에서 영상을 새로 넣은 뒤 다시 찾게 할 때.</summary>
         public static void ClearCache() => Cache.Clear();
@@ -90,9 +91,9 @@ namespace SubcultureRPG.Characters
         /// still = 첫 프레임이 나오기 전까지 보여 줄 정적 일러스트(빈 화면이 깜빡이지 않게).
         /// user = 이 텍스처를 표시하는 RawImage. 표시하는 곳이 모두 꺼지면 재생을 멈춥니다.
         /// </summary>
-        public Texture Show(CharacterData c, RawImage user, Sprite still)
+        public Texture Show(CharacterData c, RawImage user, Sprite still, bool baseOutfit = false)
         {
-            var clip = ClipOf(c);
+            var clip = ClipOf(c, baseOutfit);
             if (clip == null) return null;
 
             bool changed = _current != c || (_player != null && _player.clip != clip);   // 같은 캐릭터라도 의상을 바꾸면 영상이 다름

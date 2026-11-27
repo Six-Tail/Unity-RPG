@@ -21,11 +21,15 @@ namespace SubcultureRPG.Meta.UI
         private RectTransform _hpFill, _rewards, _ranking, _pin;
         private int _rankTab;   // 0 전체 · 1 친구
         private Button[] _tabBtns;
+        private RaidTabs _raidTabs;
 
         private void Awake()
         {
             BuildBase("월드 레이드", "Backgrounds/worldraid", 73);
             CurrencyBar.Create(_frame, font, null, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
+            // 위쪽 가운데: [주간 보스] [월드 레이드] 큰 탭(제목 대신)
+            _titleText.gameObject.SetActive(false);
+            _raidTabs = RaidTabs.Build(_frame, font, false, () => OnWeekly?.Invoke());
 
             // ---- 왼쪽: 보스 · 공유 체력 ----
             var halo = UIFactory.AddImage("Halo", _frame, new Color(1f, 0.45f, 0.3f, 0.32f), ProceduralSprites.Glow);
@@ -67,13 +71,10 @@ namespace SubcultureRPG.Meta.UI
             _left.textWrappingMode = TextWrappingModes.Normal;
             Top(_left.rectTransform, -480, -878, 780, 56, new Vector2(0.5f, 1));
 
-            var weekly = UIFactory.AddButton("Weekly", _frame, "주간 보스로 ▶", 22, font, new Color(0.45f, 0.3f, 0.7f, 0.95f), Color.white);
-            Top((RectTransform)weekly.transform, -480, -946, 300, 56, new Vector2(0.5f, 1));
-            weekly.onClick.AddListener(() => OnWeekly?.Invoke());
 
             // ---- 오른쪽: 내 기록 · 도전 ----
             var info = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.9f));
-            Top(info.rectTransform, 420, -104, 860, 186, new Vector2(0.5f, 1));
+            Top(info.rectTransform, 420, -122, 860, 186, new Vector2(0.5f, 1));
             _summary = Text(info.transform, "", 23, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
             _summary.lineSpacing = 10f;
             UIFactory.Stretch(_summary.rectTransform, 28, 16, 310, 16);
@@ -94,15 +95,15 @@ namespace SubcultureRPG.Meta.UI
 
             // ---- 공유 체력 보상(5단계) ----
             var rt = Text(_frame, "<b>공유 체력 보상</b>  <size=75%><color=#9AA3B5>서버 전체가 20% 깎을 때마다 · 참여하지 않아도 모두 받음</color></size>", 25, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Top(rt.rectTransform, 420, -300, 860, 38, new Vector2(0.5f, 1));
+            Top(rt.rectTransform, 420, -318, 860, 38, new Vector2(0.5f, 1));
             _rewards = UIFactory.NewRect("Rewards", _frame);
-            Top(_rewards, 420, -342, 860, 300, new Vector2(0.5f, 1));
+            Top(_rewards, 420, -360, 860, 300, new Vector2(0.5f, 1));
             var vl = _rewards.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 6; vl.childControlWidth = true; vl.childControlHeight = true; vl.childForceExpandHeight = false;
 
             // ---- 순위 ----
             _rankTitle = Text(_frame, "", 25, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Top(_rankTitle.rectTransform, 420 - 215, -654, 430, 38, new Vector2(0.5f, 1));
+            Top(_rankTitle.rectTransform, 420 - 215, -672, 430, 38, new Vector2(0.5f, 1));
             // 탭: 전체 · 친구
             _tabBtns = new Button[2];
             string[] tabNames = { "전체", "친구" };
@@ -110,17 +111,17 @@ namespace SubcultureRPG.Meta.UI
             {
                 int idx = i;
                 _tabBtns[i] = UIFactory.AddButton("Tab", _frame, tabNames[i], 19, font, new Color(1, 1, 1, 0.12f), Color.white);
-                Top((RectTransform)_tabBtns[i].transform, 470 + i * 104, -652, 96, 42, new Vector2(0.5f, 1));
+                Top((RectTransform)_tabBtns[i].transform, 470 + i * 104, -670, 96, 42, new Vector2(0.5f, 1));
                 _tabBtns[i].onClick.AddListener(() => { _rankTab = idx; Refresh(); });
             }
             var tiers = UIFactory.AddButton("Tiers", _frame, "순위 보상 보기", 19, font, new Color(0.8f, 0.58f, 0.22f, 0.95f), Color.white);
-            Top((RectTransform)tiers.transform, 420 + 320, -652, 210, 42, new Vector2(0.5f, 1));
+            Top((RectTransform)tiers.transform, 420 + 320, -670, 210, 42, new Vector2(0.5f, 1));
             tiers.onClick.AddListener(ShowTiers);
             var view = UIFactory.NewRect("RankView", _frame);
-            Top(view, 420, -698, 860, 244, new Vector2(0.5f, 1));
+            Top(view, 420, -716, 860, 244, new Vector2(0.5f, 1));
             // 아래에 내 순위 고정
             _pin = UIFactory.NewRect("MyRank", _frame);
-            Top(_pin, 420, -948, 860, 44, new Vector2(0.5f, 1));
+            Top(_pin, 420, -966, 860, 44, new Vector2(0.5f, 1));
             var pl = _pin.gameObject.AddComponent<VerticalLayoutGroup>();
             pl.childControlWidth = true; pl.childControlHeight = true; pl.childForceExpandHeight = false;
             _ranking = UIFactory.NewRect("Ranking", view);
@@ -134,10 +135,12 @@ namespace SubcultureRPG.Meta.UI
 
             _root.SetActive(false);
             ServerRaid.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
+            WorldRaid.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) _raidTabs.Refresh(); };
         }
 
         protected override void Refresh()
         {
+            _raidTabs?.Refresh();
             var r = ServerRaid.Instance;
             // 열 때마다(30초 넘게 지났으면) 서버에서 다시 불러옴
             if (ServerRaid.Online && !r.Fetching && (System.DateTime.Now - r.FetchedAt).TotalSeconds > 30) { _ = r.RefreshAsync(); }

@@ -14,6 +14,7 @@
 //   --studio <폴더>    이미지 스튜디오 폴더(sharp 를 여기서 불러옴). 환경변수 AI_IMAGE_STUDIO_DIR 로도 지정
 //   --server <주소>    스튜디오 서버 주소 (기본 http://127.0.0.1:3000)
 //   --model <이름>     편집 모델 (기본 gpt-image-2.6-sunburst — 유료). 끝나면 원래 모델로 되돌립니다
+//   --group <이름>     characters(기본) | bloom(개화 의상) | festival(축제 스킨) — 결과는 {원본 파일 이름}.png (예: c_ciel_bloom.png)
 //   --key <id,...>     특정 캐릭터만
 //   --force            이미 있는 것도 다시 생성
 //   --quality <값>     low | medium | high (기본 medium)
@@ -35,13 +36,14 @@ const W = 1024, H = 1536;                                            // 편집 �
 function fail(msg) { console.error('오류: ' + msg); process.exit(1); }
 
 function parseArgs(argv) {
-  const a = { key: null, force: false, quality: 'medium', chroma: 'auto', list: false, yes: false, rekey: false, model: 'gpt-image-2.6-sunburst' };
+  const a = { group: 'characters', key: null, force: false, quality: 'medium', chroma: 'auto', list: false, yes: false, rekey: false, model: 'gpt-image-2.6-sunburst' };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     const next = () => { if (i + 1 >= argv.length) fail(`${k} 뒤에 값이 필요합니다.`); return argv[++i]; };
     if (k === '--studio') a.studio = next();
     else if (k === '--server') a.server = next();
     else if (k === '--model') a.model = next();
+    else if (k === '--group') a.group = next();
     else if (k === '--key') a.key = next().split(',').map((s) => s.trim()).filter(Boolean);
     else if (k === '--force') a.force = true;
     else if (k === '--quality') a.quality = next();
@@ -73,10 +75,11 @@ async function api(method, route, body) {
   return json;
 }
 
-function promptFor(key) {
+function promptFor(key, e) {
   const k = KEYS[key];
   return 'Redraw this exact illustration with only the background changed. ' +
     'Keep the character completely identical: same pose, same face and eyes, same hair, same outfit, same weapon and held items, ' +
+    (e && e.weapon ? `Weapon details (follow exactly): ${e.weapon}. ` : '') +
     'same colors, same line art and anime cel shading, same size and same position in the frame. ' +
     `Remove the whole background, scenery, sky, floor, glow, light rays, sparkles and floating particles, and fill everything that is not the character with one perfectly flat, uniform, solid ${k.name} chroma key color. ` +
     `No gradient, no texture, no vignette, no shadow and no ground on the background. No ${k.other} tint, rim light or reflection on the character. ` +
@@ -98,7 +101,7 @@ async function makeOne(e, key) {
     const input = await sharp({ create: { width: W, height: H, channels: 3, background: KEYS[key].rgb } })
       .composite([{ input: await sharp(src).resize(W, sh).removeAlpha().toBuffer(), left: 0, top }]).png().toBuffer();
     const form = new FormData();
-    form.append('prompt', promptFor(key));
+    form.append('prompt', promptFor(key, e));
     form.append('size', `${W}x${H}`);
     form.append('quality', args.quality);
     form.append('n', '1');
@@ -130,7 +133,7 @@ async function makeOne(e, key) {
 }
 
 (async () => {
-  let list = entries.filter((e) => e.group === 'characters' && /^Characters[/]/.test(e.out) && fs.existsSync(path.join(ART_ROOT, e.out)));
+  let list = entries.filter((e) => e.group === args.group && /^Characters[/]/.test(e.out) && fs.existsSync(path.join(ART_ROOT, e.out)));
   if (args.key) list = list.filter((e) => args.key.includes(path.basename(e.out, path.extname(e.out))));
   const todo = list.filter((e) => args.force || args.rekey || !fs.existsSync(path.join(ART_ROOT, 'Cutouts', path.basename(e.out))));
   for (const e of list) {

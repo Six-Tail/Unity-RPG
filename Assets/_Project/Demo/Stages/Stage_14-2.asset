@@ -30,7 +30,7 @@ MonoBehaviour:
   enemies:
   - unit: {fileID: 11400000, guid: 301040ca24121c04c99c5801c3af3adf, type: 2}
     level: 72
-  - unit: {fileID: 11400000, guid: eac91cfbc7ac0594a9460abc59559be1, type: 2}
+  - unit: {fileID: 11400000, guid: a0a5be38820a7e341adb041866c9d851, type: 2}
     level: 72
   - unit: {fileID: 11400000, guid: 301040ca24121c04c99c5801c3af3adf, type: 2}
     level: 72

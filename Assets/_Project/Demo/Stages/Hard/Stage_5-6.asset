@@ -30,18 +30,18 @@ MonoBehaviour:
   unlockAfter: {fileID: 0}
   enemies:
   - unit: {fileID: 11400000, guid: 2ab082b95980b8c4aaf95e1151656fca, type: 2}
-    level: 36
+    level: 53
   - unit: {fileID: 11400000, guid: 14babb2f2c69afd47bea05003247ffe8, type: 2}
-    level: 38
+    level: 55
   - unit: {fileID: 11400000, guid: 301040ca24121c04c99c5801c3af3adf, type: 2}
-    level: 36
-  recommendedLevel: 38
+    level: 53
+  recommendedLevel: 55
   turnLimit: 16
   firstClearCrystals: 240
   rewards:
+  - type: 1
+    count: 8
   - type: 5
-    count: 21
-  - type: 0
-    count: 2
-  characterExp: 2880
-  gold: 14700
+    count: 1
+  characterExp: 5270
+  gold: 26100

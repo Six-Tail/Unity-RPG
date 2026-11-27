@@ -30,12 +30,14 @@ namespace SubcultureRPG.Meta.UI
                 int level = roster != null ? roster.LevelOf(c) : 1;
                 var cur = CharacterOutfits.Current(c);
                 float x = 40;
-                foreach (var o in CharacterOutfits.All)
+                var outfits = CharacterOutfits.For(c);
+                foreach (var o in outfits)
                 {
                     bool unlocked = CharacterOutfits.Unlocked(c, o, level);
                     bool hasArt = CharacterOutfits.HasArt(c, o);
                     bool wearing = cur.id == o.id;
-                    Color frame = wearing ? new Color(1f, 0.82f, 0.35f, 1f) : o.id == CharacterOutfits.BloomId ? new Color(0.78f, 0.6f, 1f, 0.9f) : new Color(1, 1, 1, 0.25f);
+                    Color frame = wearing ? new Color(1f, 0.82f, 0.35f, 1f) : o.id == CharacterOutfits.BloomId ? new Color(0.78f, 0.6f, 1f, 0.9f)
+                        : o.id == CharacterOutfits.FestivalId ? new Color(1f, 0.55f, 0.35f, 0.9f) : new Color(1, 1, 1, 0.25f);
                     var rim = w.Box(body, frame, x - 3, -87, CardW + 6, CardH + 6);
                     var card = w.Box(body, new Color(0.06f, 0.07f, 0.1f, 1f), x, -90, CardW, CardH);
 
@@ -71,11 +73,14 @@ namespace SubcultureRPG.Meta.UI
                     x += CardW + 30;
                 }
 
-                // 추후 스킨 자리
-                var more = w.Box(body, new Color(1, 1, 1, 0.04f), x, -90, CardW, CardH);
-                w.Text(more.transform, "<color=#6B7280><b>?</b></color>", 90, Color.white, TextAlignmentOptions.Center, 0, -200, CardW, 120);
-                w.Text(more.transform, "<color=#6B7280>새 의상 준비 중\n<size=80%>추후 스킨이 이곳에 추가됩니다</size></color>", 22, Color.white,
-                    TextAlignmentOptions.Center, 10, -380, CardW - 20, 80).textWrappingMode = TextWrappingModes.Normal;
+                // 추후 스킨 자리(칸이 남을 때만)
+                if (outfits.Count < 3)
+                {
+                    var more = w.Box(body, new Color(1, 1, 1, 0.04f), x, -90, CardW, CardH);
+                    w.Text(more.transform, "<color=#6B7280><b>?</b></color>", 90, Color.white, TextAlignmentOptions.Center, 0, -200, CardW, 120);
+                    w.Text(more.transform, "<color=#6B7280>새 의상 준비 중\n<size=80%>추후 스킨이 이곳에 추가됩니다</size></color>", 22, Color.white,
+                        TextAlignmentOptions.Center, 10, -380, CardW - 20, 80).textWrappingMode = TextWrappingModes.Normal;
+                }
 
                 w.Text(body, "<color=#9AA3B5>고른 의상은 일러스트 · 썸네일 · 전투 그림 · 움직이는 일러스트에 모두 적용됩니다.</color>", 18, Color.white,
                     TextAlignmentOptions.Left, 40, -716, 1100, 30);

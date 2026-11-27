@@ -28,13 +28,11 @@ MonoBehaviour:
   equipmentRarityWeights: 
   unlockAfter: {fileID: 0}
   enemies:
-  - unit: {fileID: 11400000, guid: eac91cfbc7ac0594a9460abc59559be1, type: 2}
+  - unit: {fileID: 11400000, guid: 0f17d5cf2279ad44f963324bd6caccf3, type: 2}
     level: 37
-  - unit: {fileID: 11400000, guid: 24d54f7b5de1f9a41932029e77ebceed, type: 2}
-    level: 37
+  - unit: {fileID: 11400000, guid: cdca2e99d214dc842ac3bc3729c302e0, type: 2}
+    level: 38
   - unit: {fileID: 11400000, guid: cf9c87a8e2b29274c88135f8c7f824ff, type: 2}
-    level: 37
-  - unit: {fileID: 11400000, guid: 24d54f7b5de1f9a41932029e77ebceed, type: 2}
     level: 37
   recommendedLevel: 37
   turnLimit: 12

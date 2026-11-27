@@ -37,15 +37,17 @@ namespace SubcultureRPG.EditorTools
             new("폭풍의 고원", "고원", "질풍 수호자", "바람 정령", "폭풍정령"),
             new("뇌명의 탑", "탑", "뇌광 수호자", "번개 정령", "그림자궁수"),
             new("강철 요새", "요새", "강철 골렘", "강철 병정", "얼음망령"),
-            new("서리 심연", "심연", "서리 수호자", "서리 정령", "얼음망령", "바람 정령"),
-            new("잿빛 폐허", "폐허", "어둠군주", "그림자병", "불꽃 정령", "그림자궁수"),
-            new("하늘 균열", "균열", "질풍 수호자", "바람 정령", "번개 정령", "폭풍정령"),
-            new("영겁의 빙원", "빙원", "빙결거인", "서리 정령", "얼음망령", "강철 병정"),
-            new("홍염 화산", "화산", "화염 수호자", "불꽃 정령", "강철 병정", "그림자병"),
-            new("천둥 왕좌", "왕좌", "뇌광 수호자", "번개 정령", "그림자궁수", "바람 정령"),
-            new("무너진 신전", "신전", "강철 골렘", "강철 병정", "그림자병", "서리 정령"),
-            new("황혼의 경계", "경계", "어둠군주", "그림자궁수", "바람 정령", "불꽃 정령"),
-            new("종말의 제단", "제단", "종말의 군주", "얼음망령", "번개 정령", "강철 병정"),
+            // 장 보스 · 앞 3종 잡몹은 스토리 대사와 맞물림(되살아난 수호자 · 어둠군주 등) — 그대로 두고,
+            // 7장부터 4번째 잡몹(새 적)을 더해 2 · 4 · 5스테이지에 섞음. 5스테이지에는 정예 적(Elites)
+            new("서리 심연", "심연", "서리 수호자", "서리 정령", "얼음망령", "바람 정령", "심연 해파리"),
+            new("잿빛 폐허", "폐허", "어둠군주", "그림자병", "불꽃 정령", "그림자궁수", "잿빛 해골병"),
+            new("하늘 균열", "균열", "질풍 수호자", "바람 정령", "번개 정령", "폭풍정령", "균열 하피"),
+            new("영겁의 빙원", "빙원", "빙결거인", "서리 정령", "얼음망령", "강철 병정", "빙원 늑대"),
+            new("홍염 화산", "화산", "화염 수호자", "불꽃 정령", "강철 병정", "그림자병", "용암 도마뱀"),
+            new("천둥 왕좌", "왕좌", "뇌광 수호자", "번개 정령", "그림자궁수", "바람 정령", "뇌운 기사"),
+            new("무너진 신전", "신전", "강철 골렘", "강철 병정", "그림자병", "서리 정령", "석상 파수병"),
+            new("황혼의 경계", "경계", "어둠군주", "그림자궁수", "바람 정령", "불꽃 정령", "황혼 마녀"),
+            new("종말의 제단", "제단", "종말의 군주", "얼음망령", "번개 정령", "강철 병정", "종말의 기수"),
         };
 
         // 챕터 1·2는 기존 이름 유지, 3챕터부터는 장소 이름으로 생성
@@ -55,6 +57,66 @@ namespace SubcultureRPG.EditorTools
             new[] { "설원의 길", "폭풍의 계곡", "성채 외벽", "얼어붙은 회랑", "성채 안뜰", "빙결거인의 옥좌" },
         };
         private static readonly string[] NameTemplate = { "{0} 입구", "{0} 외곽", "{0} 깊은 곳", "{0} 전초기지", "{0} 심장부", "{1}의 거처" };
+
+        /// <summary>5스테이지(심장부) 정예 적 — 장마다 고유한 보스급 몬스터(장 보스는 스토리대로 6스테이지).</summary>
+        private static readonly Dictionary<int, string> Elites = new()
+        {
+            { 7, "심연의 서리여왕" }, { 8, "잿빛 망령기사" }, { 9, "균열의 그리폰" }, { 10, "영겁의 빙룡" },
+            { 11, "용암 거수" }, { 12, "천둥의 왕" }, { 13, "타락한 수호상" }, { 14, "황혼의 사도" },
+        };
+
+        // ---------------- 새 적(7장부터) ----------------
+
+        /// <summary>
+        /// 7 ~ 15장 고유 보스 · 잡몹(이름 · 속성 · 약점 · 기본 능력치). 에셋(Demo/Unit_메인_{이름})이 없으면 만들고, 있으면 수치만 맞춤.
+        /// 능력치는 Lv.1 기준, 레벨당 +7% (기존 적과 같은 규칙 — MainSceneGenerator.Enemy). 그림: Resources/Art/Enemies/{이름}.png
+        /// </summary>
+        private static readonly (string name, Element el, Element[] weak, int spd, int hp, int atk, int def, int tough)[] NewEnemies =
+        {
+            // 잡몹
+            ("심연 해파리", Element.Ice, new[] { Element.Lightning, Element.Fire }, 100, 780, 108, 45, 45),
+            ("잿빛 해골병", Element.Physical, new[] { Element.Fire, Element.Lightning }, 98, 880, 112, 60, 50),
+            ("균열 하피", Element.Wind, new[] { Element.Ice, Element.Physical }, 124, 700, 118, 40, 40),
+            ("빙원 늑대", Element.Ice, new[] { Element.Fire, Element.Wind }, 120, 760, 120, 45, 40),
+            ("용암 도마뱀", Element.Fire, new[] { Element.Ice, Element.Wind }, 102, 860, 116, 58, 50),
+            ("뇌운 기사", Element.Lightning, new[] { Element.Wind, Element.Physical }, 104, 900, 118, 62, 55),
+            ("석상 파수병", Element.Physical, new[] { Element.Lightning, Element.Ice }, 88, 1000, 110, 80, 60),
+            ("황혼 마녀", Element.Wind, new[] { Element.Fire, Element.Ice }, 118, 720, 126, 40, 40),
+            ("종말의 기수", Element.Lightning, new[] { Element.Ice, Element.Physical }, 110, 950, 124, 65, 55),
+            // 보스
+            ("심연의 서리여왕", Element.Ice, new[] { Element.Fire, Element.Lightning }, 96, 1750, 118, 75, 115),
+            ("잿빛 망령기사", Element.Physical, new[] { Element.Fire, Element.Wind }, 94, 1850, 120, 85, 120),
+            ("균열의 그리폰", Element.Wind, new[] { Element.Ice, Element.Lightning }, 112, 1650, 124, 70, 110),
+            ("영겁의 빙룡", Element.Ice, new[] { Element.Fire, Element.Physical }, 92, 2000, 122, 85, 130),
+            ("용암 거수", Element.Fire, new[] { Element.Ice, Element.Wind }, 84, 2150, 120, 95, 140),
+            ("천둥의 왕", Element.Lightning, new[] { Element.Wind, Element.Ice }, 102, 1900, 126, 80, 125),
+            ("타락한 수호상", Element.Physical, new[] { Element.Lightning, Element.Fire }, 86, 2200, 118, 100, 145),
+            ("황혼의 사도", Element.Wind, new[] { Element.Physical, Element.Lightning }, 108, 1950, 128, 80, 130),
+        };
+
+        private static void EnsureNewEnemies()
+        {
+            var basic = AssetDatabase.LoadAssetAtPath<BattleSkill>(Root + "/Skill_메인_적_기본공격.asset");
+            foreach (var (name, el, weak, spd, hp, atk, def, tough) in NewEnemies)
+            {
+                string path = Root + "/Unit_메인_" + name + ".asset";
+                var u = AssetDatabase.LoadAssetAtPath<BattleUnitData>(path);
+                if (u == null) { u = ScriptableObject.CreateInstance<BattleUnitData>(); AssetDatabase.CreateAsset(u, path); }
+                u.character = null;
+                u.displayName = name;
+                u.level = 1;
+                u.element = el;
+                u.maxToughness = tough;
+                u.weaknesses = new List<Element>(weak);
+                u.baseStats = new BattleStats
+                {
+                    maxHP = hp, atk = atk, def = def, spd = spd, critRate = 0.05f, critDmg = 0.5f,
+                    hpGrowth = Mathf.RoundToInt(hp * 0.07f), atkGrowth = Mathf.RoundToInt(atk * 0.07f), defGrowth = Mathf.RoundToInt(def * 0.07f),
+                };
+                u.skills = basic != null ? new List<BattleSkill> { basic } : new List<BattleSkill>();
+                EditorUtility.SetDirty(u);
+            }
+        }
 
         // ---------------- 난이도 ----------------
 
@@ -67,30 +129,46 @@ namespace SubcultureRPG.EditorTools
 
         private static Diff DiffOf(StageDifficulty d) => d switch
         {
-            StageDifficulty.Hard => new Diff { levelAdd = 8, turnAdd = 1, statMul = 1.25f, rewardMul = 1.6f, crystalMul = 1.5f, folder = "Hard/", idPrefix = "stage_hard_" },
-            StageDifficulty.Hell => new Diff { levelAdd = 16, turnAdd = 2, statMul = 1.6f, rewardMul = 2.5f, crystalMul = 2f, folder = "Hell/", idPrefix = "stage_hell_" },
+            // 보상 배율은 '적 레벨에 맞는 챕터'(EffChapter) 보상에 곱함 — 행동력(쉬움 6 · 하드 8 · 극악 10)당 쉬움보다 조금 낫게
+            StageDifficulty.Hard => new Diff { levelAdd = 0, turnAdd = 1, statMul = 1.25f, rewardMul = 1.5f, crystalMul = 1.5f, folder = "Hard/", idPrefix = "stage_hard_" },
+            StageDifficulty.Hell => new Diff { levelAdd = 0, turnAdd = 2, statMul = 1.6f, rewardMul = 2.0f, crystalMul = 2f, folder = "Hell/", idPrefix = "stage_hell_" },
             _ => new Diff { levelAdd = 0, turnAdd = 0, statMul = 1f, rewardMul = 1f, crystalMul = 1f, folder = "", idPrefix = "stage_" },
         };
 
         // ---------------- 공식 (튜닝 지점) ----------------
 
-        /// <summary>적 레벨: 쉬움 1-1 Lv.1 → 15-6 Lv.82 (챕터당 +5.4, 스테이지당 +1). 난이도 가산, 최대 100.</summary>
-        public static int EnemyLevel(int c, int s, StageDifficulty d) =>
-            Mathf.Clamp(Mathf.RoundToInt(1 + (c - 1) * 5.4f + (s - 1)) + DiffOf(d).levelAdd, 1, 100);
+        /// <summary>
+        /// 적 레벨. 쉬움: 1-1 Lv.1 → 15-6 Lv.82 (챕터당 +5.4, 스테이지당 +1).
+        /// 하드 · 극악은 '열리는 시점의 지휘관 레벨'부터 시작해 끝까지 올라감(쉬움 레벨 + 가산이면 열자마자 너무 쉬웠음):
+        ///   하드(쉬움 7장 클리어 · 지휘관 약 Lv.40) 1-1 Lv.36 → 15-6 Lv.89 · 극악(쉬움 15장 클리어 · 약 Lv.80~) 1-1 Lv.78 → 15-6 Lv.98
+        /// </summary>
+        public static int EnemyLevel(int c, int s, StageDifficulty d) => d switch
+        {
+            StageDifficulty.Hard => Mathf.Clamp(Mathf.RoundToInt(36 + (c - 1) * 3.6f + (s - 1) * 0.6f), 1, 98),
+            StageDifficulty.Hell => Mathf.Clamp(Mathf.RoundToInt(78 + (c - 1) * 1.45f + (s - 1) * 0.3f), 1, 98),
+            _ => Mathf.Clamp(Mathf.RoundToInt(1 + (c - 1) * 5.4f + (s - 1)), 1, 100),
+        };
+
+        /// <summary>적 능력치 배율: 하드 1.25 · 극악 1.6 → 15장 2.16(극악은 장마다 +0.04, 최종 도전).</summary>
+        public static float StatMul(int c, StageDifficulty d) => d == StageDifficulty.Hell ? 1.6f + 0.04f * (c - 1) : DiffOf(d).statMul;
+
+        /// <summary>보상 계산용 챕터: 쉬움 = 그 챕터, 하드 · 극악 = 그 적 레벨을 쉬움에서 만나는 챕터(1-1 기준).</summary>
+        private static float EffChapter(int c, StageDifficulty d) =>
+            d == StageDifficulty.Easy ? c : 1f + (EnemyLevel(c, 1, d) - 1) / 5.4f;
 
         private static float StageScale(int s, bool boss) => (1f + 0.1f * (s - 1)) * (boss ? 1.8f : 1f);
 
         /// <summary>매 클리어 금화: 챕터 1 1,000 → 챕터 15 9,400 (스테이지당 +10%, 보스 ×1.8).</summary>
         public static int Gold(int c, int s, bool boss, StageDifficulty d) =>
-            Round(100, (1000 + 600 * (c - 1)) * StageScale(s, boss) * DiffOf(d).rewardMul);
+            Round(100, (1000 + 600 * (EffChapter(c, d) - 1)) * StageScale(s, boss) * DiffOf(d).rewardMul);
 
         /// <summary>매 클리어 경험치 재료 총량: 챕터 1 1,000 → 챕터 15 15,000 EXP.</summary>
         public static int ExpReward(int c, int s, bool boss, StageDifficulty d) =>
-            Round(100, (1000 + 1000 * (c - 1)) * StageScale(s, boss) * DiffOf(d).rewardMul);
+            Round(100, (1000 + 1000 * (EffChapter(c, d) - 1)) * StageScale(s, boss) * DiffOf(d).rewardMul);
 
         /// <summary>출전 캐릭터 경험치.</summary>
         private static int CharExp(int c, int s, bool boss, StageDifficulty d) =>
-            Round(10, (200 + 150 * (c - 1)) * (1f + 0.1f * (s - 1)) * (boss ? 1.5f : 1f) * DiffOf(d).rewardMul);
+            Round(10, (200 + 150 * (EffChapter(c, d) - 1)) * (1f + 0.1f * (s - 1)) * (boss ? 1.5f : 1f) * DiffOf(d).rewardMul);
 
         /// <summary>첫 클리어 크리스탈: 챕터 1~5 60 · 6~10 80 · 11~15 100 (보스 160/240/300).</summary>
         private static int Crystals(int c, bool boss, StageDifficulty d)
@@ -127,6 +205,7 @@ namespace SubcultureRPG.EditorTools
             EnsureFolder(Root + "/Stages", "Hard");
             EnsureFolder(Root + "/Stages", "Hell");
 
+            EnsureNewEnemies();
             var main = new List<StageData>();
             foreach (var d in Difficulties.All)
                 for (int c = 1; c <= ChapterCount; c++)
@@ -156,6 +235,25 @@ namespace SubcultureRPG.EditorTools
             Debug.Log($"[StageContent] 특수 던전 {db.dungeons.Count}개 생성 완료 (장비 · 금화 · 스킬 교본 · 경험치 {TierUnlockChapters.Length}단계)");
         }
 
+        /// <summary>메인 스테이지(3난이도) + 던전 다시 생성 — 씬은 그대로, 진행도(스테이지 id)도 그대로.</summary>
+        [MenuItem("SubcultureRPG/메인 스테이지 데이터 다시 생성", false, 21)]
+        public static void RebuildMainStages()
+        {
+            var db = AssetDatabase.LoadAssetAtPath<StageDatabase>(Root + "/StageDatabase.asset");
+            if (db == null) { Debug.LogWarning("[StageContent] StageDatabase가 없습니다 — 먼저 '메인 씬 생성'을 실행하세요."); return; }
+            EnsureNewEnemies();
+            var main = new List<StageData>();
+            foreach (var d in Difficulties.All)
+                for (int c = 1; c <= ChapterCount; c++)
+                    for (int s = 1; s <= StagesPerChapter; s++)
+                        main.Add(MainStage(c, s, d));
+            db.stages = main;
+            db.dungeons = BuildDungeons(main);
+            EditorUtility.SetDirty(db);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[StageContent] 메인 스테이지 {main.Count}개 · 특수 던전 {db.dungeons.Count}개 다시 생성 (하드 1-1 Lv.{EnemyLevel(1, 1, StageDifficulty.Hard)} · 극악 1-1 Lv.{EnemyLevel(1, 1, StageDifficulty.Hell)})");
+        }
+
         /// <summary>에디터를 열었을 때 던전 단계 수가 코드와 다르면(예: 5 → 10단계) 한 번 자동으로 다시 생성.</summary>
         [InitializeOnLoadMethod]
         private static void AutoUpgradeDungeons()
@@ -165,6 +263,14 @@ namespace SubcultureRPG.EditorTools
                 if (EditorApplication.isPlayingOrWillChangePlaymode) return;
                 var db = AssetDatabase.LoadAssetAtPath<StageDatabase>(Root + "/StageDatabase.asset");
                 if (db == null || db.stages == null || db.stages.Count == 0) return;
+                // 하드 · 극악 적 레벨 공식이 바뀌었으면 메인 스테이지부터 다시
+                var hard1 = db.Ordered(StageDifficulty.Hard);
+                if (hard1.Count > 0 && hard1[0].enemies != null && hard1[0].enemies.Count > 0 && hard1[0].enemies[0].level != EnemyLevel(1, 1, StageDifficulty.Hard))
+                { RebuildMainStages(); return; }
+                // 7장부터 새 적이 들어갔는지(쉬움 7-5에 정예 적) — 없으면 메인 스테이지 다시
+                var ch7 = db.InChapter(7, StageDifficulty.Easy);
+                if (ch7.Count >= 5 && !ch7[4].enemies.Exists(e => e != null && e.unit != null && e.unit.displayName == Elites[7]))
+                { RebuildMainStages(); return; }
                 bool ok = db.Dungeons(StageKind.GoldDungeon).Count == TierUnlockChapters.Length
                           && db.Dungeons(StageKind.EquipmentDungeon).Count == EquipPairs.Length * EquipTierChapters.Length;
                 var eq = db.Dungeons(StageKind.EquipmentDungeon);
@@ -215,7 +321,7 @@ namespace SubcultureRPG.EditorTools
             st.id = $"{diff.idPrefix}{c}_{s}";      // 쉬움은 기존 세이브 키(stage_1_1) 유지
             st.kind = StageKind.Main;
             st.difficulty = d;
-            st.enemyStatMultiplier = diff.statMul;
+            st.enemyStatMultiplier = StatMul(c, d);
             st.unlockAfter = null;
             st.chapter = c;
             st.number = s;
@@ -228,24 +334,29 @@ namespace SubcultureRPG.EditorTools
             st.firstClearCrystals = Crystals(c, boss, d);
             st.gold = Gold(c, s, boss, d);
             st.characterExp = CharExp(c, s, boss, d);
-            st.rewards = new List<MaterialReward>(ExpMaterials(ExpReward(c, s, boss, d), c));
-            st.enemies = Enemies(def, s, lv);
+            st.rewards = new List<MaterialReward>(ExpMaterials(ExpReward(c, s, boss, d), Mathf.RoundToInt(EffChapter(c, d))));
+            st.enemies = Enemies(def, s, lv, c);
             EditorUtility.SetDirty(st);
             return st;
         }
 
-        /// <summary>적 구성: 1~2 = 2~3명, 3~4 = 3~4명, 5 = 4명, 6 = 보스(+2레벨) + 호위 2.</summary>
-        private static List<StageEnemy> Enemies(Chapter def, int s, int lv)
+        /// <summary>적 구성: 1~2 = 2~3명, 3~4 = 3~4명, 5 = 4명(7 ~ 14장은 정예 적 + 호위 2), 6 = 보스(+2레벨) + 호위 2. 7장부터 2 · 4 · 5스테이지에 새 잡몹.</summary>
+        private static List<StageEnemy> Enemies(Chapter def, int s, int lv, int c)
         {
             string Mob(int i) => def.mobs[i % def.mobs.Length];
+            bool fresh = def.mobs.Length >= 4;   // 7장부터: 4번째 = 새 잡몹
+            Elites.TryGetValue(c, out var elite);
             var list = new List<StageEnemy>();
             switch (s)
             {
                 case 1: list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); break;
-                case 2: list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); list.Add(E(Mob(0), lv)); break;
+                case 2: list.Add(E(Mob(0), lv)); list.Add(E(fresh ? Mob(3) : Mob(1), lv)); list.Add(E(Mob(0), lv)); break;
                 case 3: list.Add(E(Mob(1), lv)); list.Add(E(Mob(2), lv)); list.Add(E(Mob(0), lv)); break;
-                case 4: list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); list.Add(E(Mob(2), lv)); list.Add(E(Mob(1), lv)); break;
-                case 5: list.Add(E(Mob(2), lv)); list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); list.Add(E(Mob(0), lv)); break;
+                case 4: list.Add(E(Mob(0), lv)); list.Add(E(fresh ? Mob(3) : Mob(1), lv)); list.Add(E(Mob(2), lv)); list.Add(E(fresh ? Mob(3) : Mob(1), lv)); break;
+                case 5:
+                    if (elite != null) { list.Add(E(Mob(3), lv)); list.Add(E(elite, lv + 1)); list.Add(E(Mob(1), lv)); }   // 정예 + 호위 2
+                    else { list.Add(E(Mob(2), lv)); list.Add(E(Mob(0), lv)); list.Add(E(Mob(1), lv)); list.Add(E(Mob(0), lv)); }
+                    break;
                 default: list.Add(E(Mob(0), lv)); list.Add(E(def.boss, lv + 2)); list.Add(E(Mob(1), lv)); break;
             }
             return list;

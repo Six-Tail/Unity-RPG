@@ -15,6 +15,7 @@ namespace SubcultureRPG.Meta.UI
         protected GameObject _root;
         protected RectTransform _frame;
         protected Button _backBtn;
+        protected TextMeshProUGUI _titleText;
         private System.Action _onBack;
         private TextMeshProUGUI _toast;
 
@@ -156,6 +157,7 @@ namespace SubcultureRPG.Meta.UI
 
             var t = Text(_frame, title, 40, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
             Top(t.rectTransform, 0, -30, 600, 56, new Vector2(0.5f, 1));
+            _titleText = t;
 
             _backBtn = UIFactory.AddButton("Back", _frame, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
             Top((RectTransform)_backBtn.transform, 30, -30, 150, 44, new Vector2(0, 1));
@@ -649,33 +651,38 @@ namespace SubcultureRPG.Meta.UI
         private TextMeshProUGUI _summary, _weak, _left, _rewardTitle;
         private RectTransform _rewards, _featured;
         private readonly List<(Image bg, TextMeshProUGUI label, NotifyBadge badge)> _tabs = new();
+        private RaidTabs _raidTabs;
 
         private void Awake()
         {
             BuildBase("주간 보스", "Backgrounds/raid", 73);
             CurrencyBar.Create(_frame, font, null, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
+            // 위쪽 가운데: [주간 보스] [월드 레이드] 큰 탭(제목 대신)
+            _titleText.gameObject.SetActive(false);
+            _raidTabs = RaidTabs.Build(_frame, font, true, () => OnWorld?.Invoke());
 
             // 왼쪽: 보스
             var boss = GameArt.Enemy(WorldRaid.BossName);
             var halo = UIFactory.AddImage("Halo", _frame, new Color(0.7f, 0.45f, 1f, 0.35f), ProceduralSprites.Glow);
             halo.preserveAspect = false;
-            Top(halo.rectTransform, -480, -140, 820, 820, new Vector2(0.5f, 1));
+            Top(halo.rectTransform, -480, -150, 860, 860, new Vector2(0.5f, 1));
             if (boss != null)
             {
                 var img = UIFactory.AddImage("Boss", _frame, Color.white, boss);
                 img.preserveAspect = true;
-                Top(img.rectTransform, -480, -150, 700, 700, new Vector2(0.5f, 1));
+                Top(img.rectTransform, -480, -170, 760, 740, new Vector2(0.5f, 1));
             }
             var name = Text(_frame, $"<b>{WorldRaid.BossName}</b>", 44, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
-            Top(name.rectTransform, -480, -112, 700, 56, new Vector2(0.5f, 1));
-            _weak = Text(_frame, "", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
-            Top(_weak.rectTransform, -480, -846, 760, 40, new Vector2(0.5f, 1));
-            _left = Text(_frame, "", 20, new Color(0.75f, 0.78f, 0.86f), FontStyles.Normal, TextAlignmentOptions.Center);
-            Top(_left.rectTransform, -480, -888, 760, 30, new Vector2(0.5f, 1));
-            var world = UIFactory.AddButton("World", _frame, "월드 레이드 ▶  <size=70%>서버 공유 보스</size>", 22, font, new Color(0.8f, 0.32f, 0.28f, 0.95f), Color.white);
-            world.GetComponentInChildren<TextMeshProUGUI>().richText = true;
-            Top((RectTransform)world.transform, -480, -940, 380, 58, new Vector2(0.5f, 1));
-            world.onClick.AddListener(() => OnWorld?.Invoke());
+            Top(name.rectTransform, -480, -116, 700, 56, new Vector2(0.5f, 1));
+            TextOutline.Apply(name, 0.2f, new Color32(8, 10, 18, 230));
+            // 보스 아래: 약점 · 교체 · 격노 안내(어두운 판 위)
+            var foot = Panel(_frame, new Color(0.05f, 0.05f, 0.09f, 0.78f));
+            Top(foot.rectTransform, -480, -900, 820, 110, new Vector2(0.5f, 1));
+            _weak = Text(foot.transform, "", 25, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            Place(_weak.rectTransform, 10, -10, 800, 40);
+            _left = Text(foot.transform, "", 18, new Color(0.75f, 0.78f, 0.86f), FontStyles.Normal, TextAlignmentOptions.Center);
+            _left.textWrappingMode = TextWrappingModes.Normal;
+            Place(_left.rectTransform, 14, -52, 792, 52);
 
             // 오른쪽 맨 위: 난이도 탭
             for (int d = 0; d < WorldRaid.DifficultyCount; d++)
@@ -683,7 +690,7 @@ namespace SubcultureRPG.Meta.UI
                 int dd = d;
                 var df = WorldRaid.Diff(d);
                 var tab = UIFactory.AddButton("Diff" + d, _frame, "", 22, font, new Color(1, 1, 1, 0.1f), Color.white);
-                Top((RectTransform)tab.transform, 420 - 323 + d * 215, -104, 205, 58, new Vector2(0.5f, 1));
+                Top((RectTransform)tab.transform, 420 - 323 + d * 215, -122, 205, 58, new Vector2(0.5f, 1));
                 var lbl = tab.GetComponentInChildren<TextMeshProUGUI>();
                 lbl.richText = true;
                 lbl.text = $"<color={df.hex}><b>{df.name}</b></color>  <size=75%><color=#C8CEDA>Lv.{df.level}</color></size>";
@@ -694,7 +701,7 @@ namespace SubcultureRPG.Meta.UI
 
             // 오른쪽: 기록 · 도전
             var info = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.9f));
-            Top(info.rectTransform, 420, -174, 860, 196, new Vector2(0.5f, 1));
+            Top(info.rectTransform, 420, -192, 860, 196, new Vector2(0.5f, 1));
             _summary = Text(info.transform, "", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
             _summary.lineSpacing = 12f;
             UIFactory.Stretch(_summary.rectTransform, 30, 20, 330, 20);
@@ -709,7 +716,7 @@ namespace SubcultureRPG.Meta.UI
 
             // 이번 주 보너스 캐릭터
             var fp = Panel(_frame, new Color(0.12f, 0.08f, 0.18f, 0.9f));
-            Top(fp.rectTransform, 420, -382, 860, 156, new Vector2(0.5f, 1));
+            Top(fp.rectTransform, 420, -400, 860, 156, new Vector2(0.5f, 1));
             var ft = Text(fp.transform, $"<b>이번 주 보너스 캐릭터</b>   <size=80%><color=#7CFF9A>파티에 1명당 점수 +{WorldRaid.FeaturedBonus * 100f:0}%  (최대 {WorldRaid.FeaturedMax}명, +{WorldRaid.FeaturedBonus * WorldRaid.FeaturedMax * 100f:0}%)</color></size>",
                 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(ft.rectTransform, 24, -10, 820, 34);
@@ -718,9 +725,9 @@ namespace SubcultureRPG.Meta.UI
 
             // 누적 보상
             _rewardTitle = Text(_frame, "", 26, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Top(_rewardTitle.rectTransform, 420, -550, 860, 40, new Vector2(0.5f, 1));
+            Top(_rewardTitle.rectTransform, 420, -568, 860, 40, new Vector2(0.5f, 1));
             var view = UIFactory.NewRect("RewardView", _frame);
-            Top(view, 420, -594, 860, 392, new Vector2(0.5f, 1));
+            Top(view, 420, -612, 860, 392, new Vector2(0.5f, 1));
             _rewards = UIFactory.NewRect("Rewards", view);
             var vl = _rewards.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 8; vl.padding = new RectOffset(4, 4, 4, 4);
@@ -729,10 +736,12 @@ namespace SubcultureRPG.Meta.UI
 
             _root.SetActive(false);
             WorldRaid.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
+            ServerRaid.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) _raidTabs.Refresh(); };
         }
 
         protected override void Refresh()
         {
+            _raidTabs?.Refresh();
             var r = WorldRaid.Instance;
             int sel = r.Selected;
             var df = WorldRaid.Diff(sel);

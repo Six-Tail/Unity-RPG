@@ -331,7 +331,7 @@ namespace SubcultureRPG.Meta.UI
             var thumbBg = UIFactory.AddImage("ThumbBg", rt, new Color(0, 0, 0, 0.45f));
             UIFactory.Anchor(thumbBg.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
             thumbBg.rectTransform.sizeDelta = new Vector2(60, 60); thumbBg.rectTransform.anchoredPosition = new Vector2(10, 0);
-            var sprite = feat != null ? GameArt.Thumb(feat) : null;
+            var sprite = feat != null ? GameArt.Thumb(feat, "") : null;   // 뽑기는 항상 기본 의상
             if (sprite != null)
             {
                 var th = UIFactory.AddImage("Thumb", thumbBg.transform, Color.white, sprite);
@@ -384,7 +384,7 @@ namespace SubcultureRPG.Meta.UI
             var thumbBg = UIFactory.AddImage("ThumbBg", rt, new Color(0, 0, 0, 0.45f));
             UIFactory.Anchor(thumbBg.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
             thumbBg.rectTransform.sizeDelta = new Vector2(60, 60); thumbBg.rectTransform.anchoredPosition = new Vector2(10, 0);
-            var sprite = GameArt.Thumb(c);
+            var sprite = GameArt.Thumb(c, "");
             if (sprite != null)
             {
                 var th = UIFactory.AddImage("Thumb", thumbBg.transform, Color.white, sprite);
@@ -483,10 +483,10 @@ namespace SubcultureRPG.Meta.UI
             if (feat != null)
             {
                 // 가운데 액자: 픽업 캐릭터 일러스트(Live2D 모델이 있으면 움직이는 모델)
-                var sprite = GameArt.Portrait(feat);
+                var sprite = GameArt.Portrait(feat, "");   // 뽑기는 항상 기본 의상(개화 · 스킨 미리 보기 X)
                 var starColor = StarText.ColorOf((int)feat.rarity);
                 _frame.color = new Color(starColor.r, starColor.g, starColor.b, 1f);
-                bool live = Live2DUI.Show(_portrait, feat);
+                bool live = Live2DUI.Show(_portrait, feat, baseOutfit: true);
                 _portrait.sprite = sprite;
                 _portrait.enabled = !live && sprite != null;
                 _portrait.color = Color.white;

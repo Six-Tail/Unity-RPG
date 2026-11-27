@@ -15,6 +15,7 @@
 //   --studio <폴더>    이미지 스튜디오 폴더(sharp 를 여기서 불러옴). 환경변수 AI_IMAGE_STUDIO_DIR 로도 지정
 //   --server <주소>    스튜디오 서버 주소 (기본 http://127.0.0.1:3000)
 //   --model <이름>     편집 모델 (기본 gpt-image-2.6-sunburst — 유료). 끝나면 원래 모델로 되돌립니다
+//   --group <이름>     characters(기본) | bloom(개화 의상) | festival(축제 스킨) — 결과는 {원본 파일 이름}.png (예: c_ciel_bloom.png)
 //   --key <id,...>     특정 캐릭터만
 //   --force            이미 있는 것도 다시 생성
 //   --quality <값>     low | medium | high (기본 medium)
@@ -36,13 +37,14 @@ const W = 1024, H = 1536;                                            // 편집 �
 function fail(msg) { console.error('오류: ' + msg); process.exit(1); }
 
 function parseArgs(argv) {
-  const a = { key: null, force: false, quality: 'medium', chroma: 'auto', list: false, yes: false, rekey: false, model: 'gpt-image-2.6-sunburst' };
+  const a = { group: 'characters', key: null, force: false, quality: 'medium', chroma: 'auto', list: false, yes: false, rekey: false, model: 'gpt-image-2.6-sunburst' };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     const next = () => { if (i + 1 >= argv.length) fail(`${k} 뒤에 값이 필요합니다.`); return argv[++i]; };
     if (k === '--studio') a.studio = next();
     else if (k === '--server') a.server = next();
     else if (k === '--model') a.model = next();
+    else if (k === '--group') a.group = next();
     else if (k === '--key') a.key = next().split(',').map((s) => s.trim()).filter(Boolean);
     else if (k === '--force') a.force = true;
     else if (k === '--quality') a.quality = next();
@@ -80,9 +82,10 @@ function promptFor(key, e) {
     'Keep the character design completely identical: same face and eyes, same hair style and color, same outfit with all details, same weapon or held item, ' +
     'same colors, same anime cel shading and line art quality. ' +
     (e && e.look ? `Character description: ${e.look}. ` : '') +
+    (e && e.weapon ? `Weapon details (follow exactly): ${e.weapon}. ` : '') +
     'Weapons and held items must keep exactly the same type, shape, length, width and size relative to the body as in the reference image, with the same effects (flames, ice, lightning, glow): ' +
     'a greatsword stays a huge heavy two-handed greatsword with a very wide blade nearly as tall as the character, a large shield stays just as large, a long staff or spear stays just as long. ' +
-    'Never shrink, thin out, simplify or replace any weapon. ' +
+    'Never shrink, thin out, simplify or replace any weapon. Weapons and solid objects stay perfectly rigid and straight — never bent, curved or warped. ' +
     'Show the whole body from the top of the head down to the feet and shoes, both feet fully visible standing on the ground, with a small empty margin above the head and below the feet. ' +
     'The pose does NOT need to match the reference: choose a fresh, dynamic battle-ready pose that suits the weapon and role of the character ' +
     '(e.g. sword raised or held low ready to strike, shield braced forward, staff or book raised casting, bow drawn), ' +
@@ -138,7 +141,7 @@ async function makeOne(e, key) {
 }
 
 (async () => {
-  let list = entries.filter((e) => e.group === 'characters' && /^Characters[/]/.test(e.out) && fs.existsSync(path.join(ART_ROOT, e.out)));
+  let list = entries.filter((e) => e.group === args.group && /^Characters[/]/.test(e.out) && fs.existsSync(path.join(ART_ROOT, e.out)));
   if (args.key) list = list.filter((e) => args.key.includes(path.basename(e.out, path.extname(e.out))));
   const todo = list.filter((e) => args.force || args.rekey || !fs.existsSync(path.join(ART_ROOT, 'Figures', path.basename(e.out))));
   for (const e of list) {

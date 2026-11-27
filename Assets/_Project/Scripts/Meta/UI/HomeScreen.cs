@@ -801,7 +801,8 @@ namespace SubcultureRPG.Meta.UI
             if (_summonArt == null) return;
             if (c == _summonShown && _summonArt.sprite != null) return;
             _summonShown = c;
-            var sp = c != null ? (GameArt.Cutout(c) ?? GameArt.Portrait(c)) : null;
+            // 소환(뽑기) 미리보기는 항상 기본 의상(개화 · 스킨을 미리 보여 주지 않게)
+            var sp = c != null ? (GameArt.Outfitted("Cutouts/", !string.IsNullOrEmpty(c.id) ? c.id : c.name, "") ?? GameArt.Portrait(c, "")) : null;
             _summonArt.sprite = sp;
             _summonArt.enabled = sp != null;
             if (sp != null)

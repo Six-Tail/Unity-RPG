@@ -257,6 +257,14 @@ namespace SubcultureRPG.Battle.UI
                 string key = !string.IsNullOrEmpty(_unit.character.id) ? _unit.character.id : _unit.character.name;
                 // 입고 있는 의상(개화 등) → 기본. 적 팀(결투장 상대)의 캐릭터는 내 옷장 선택이 아니라 기본 의상
                 string sfx = GameArt.SuffixFor(_unit.character, _unit.team == Team.Ally);
+                if (sfx != "")
+                {
+                    // 스킨을 입었으면 그 스킨의 그림을 먼저(스킨 전신 → 스킨 배경 없는 그림) — 기본 의상 전신 그림으로 돌아가지 않게
+                    var skinFull = GameArt.Load("Figures/" + key + sfx);
+                    if (skinFull != null) return skinFull;
+                    var skinCut = GameArt.Load("Cutouts/" + key + sfx);
+                    if (skinCut != null) { fadeBottom = true; return skinCut; }
+                }
                 var full = GameArt.Outfitted("Figures/", key, sfx);
                 if (full != null) return full;
                 var cut = GameArt.Outfitted("Cutouts/", key, sfx);

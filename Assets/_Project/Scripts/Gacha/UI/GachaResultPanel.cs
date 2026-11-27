@@ -511,7 +511,7 @@ namespace SubcultureRPG.Gacha.UI
                 UIFactory.Stretch(inner.rectTransform, 4, 4, 4, 4);
 
                 // 일러스트
-                var sprite = GameArt.Portrait(r.character);
+                var sprite = GameArt.Portrait(r.character, "");   // 뽑기 결과는 항상 기본 의상
                 var art = UIFactory.AddImage("Art", inner.transform, Color.white, sprite);
                 UIFactory.Stretch(art.rectTransform, 2, 2, 2, 2);
                 art.enabled = sprite != null;
@@ -611,8 +611,8 @@ namespace SubcultureRPG.Gacha.UI
             _cutLine.alpha = 0f;
             _cutName.alpha = 0f;
             foreach (var s in _cutStars) { s.alpha = 0f; s.rectTransform.localScale = Vector3.one; }
-            var sprite = GameArt.Portrait(c);
-            bool live = SubcultureRPG.UI.Live2DUI.Show(_cutArtImg, c);   // Live2D 모델이 있으면 움직이는 모델로 등장
+            var sprite = GameArt.Portrait(c, "");
+            bool live = SubcultureRPG.UI.Live2DUI.Show(_cutArtImg, c, baseOutfit: true);   // Live2D 모델이 있으면 움직이는 모델로 등장
             SubcultureRPG.UI.Live2DUI.SetAlpha(_cutArtImg, 0f);
             _cutArtImg.sprite = sprite;
             _cutArtImg.enabled = !live && sprite != null;

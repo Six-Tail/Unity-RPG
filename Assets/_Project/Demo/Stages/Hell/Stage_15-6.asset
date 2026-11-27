@@ -20,7 +20,7 @@ MonoBehaviour:
     \uAD70\uC8FC."
   isBoss: 1
   difficulty: 2
-  enemyStatMultiplier: 1.6
+  enemyStatMultiplier: 2.16
   kind: 0
   dungeonElement: 0
   dungeonTier: 1
@@ -42,6 +42,6 @@ MonoBehaviour:
   - type: 1
     count: 20
   - type: 5
-    count: 2
-  characterExp: 12940
-  gold: 63400
+    count: 3
+  characterExp: 13020
+  gold: 63600

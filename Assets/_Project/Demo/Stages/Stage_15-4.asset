@@ -30,11 +30,11 @@ MonoBehaviour:
   enemies:
   - unit: {fileID: 11400000, guid: cf9c87a8e2b29274c88135f8c7f824ff, type: 2}
     level: 80
-  - unit: {fileID: 11400000, guid: 2ab082b95980b8c4aaf95e1151656fca, type: 2}
+  - unit: {fileID: 11400000, guid: 4334d0d33ebc81c4d97ceb2675fab795, type: 2}
     level: 80
   - unit: {fileID: 11400000, guid: b6abdcc1684e5074fabb191bdb031815, type: 2}
     level: 80
-  - unit: {fileID: 11400000, guid: 2ab082b95980b8c4aaf95e1151656fca, type: 2}
+  - unit: {fileID: 11400000, guid: 4334d0d33ebc81c4d97ceb2675fab795, type: 2}
     level: 80
   recommendedLevel: 80
   turnLimit: 13

@@ -18,7 +18,10 @@ const STYLE = {
     'lively charming pose and expression, light airy background with soft glow and simple geometric accents, ' +
     'original character design, single character, knee-up portrait, camera pulled back so the entire head and all of the hair ' +
     'are fully inside the frame with clear empty space above the head, face in the upper third of the frame, ' +
-    'vertical composition, high quality',
+    'vertical composition, high quality, ' +
+    // 무기 · 지팡이 · 창 · 활 · 방패 같은 단단한 물건이 휘어 그려지는 것을 막음
+    'all weapons and solid objects (swords, spears, staffs, poles, bows, shields, goblets, lanterns) are perfectly rigid with straight undistorted shafts and blades, ' +
+    'never bent, curved, warped, wavy or melted, correct proportions; a long weapon shaft is one continuous straight line from grip to tip, and if part of it is hidden behind the body the visible parts line up exactly on the same line',
   enemy:
     'fantasy monster illustration for a turn-based RPG, original creature design, single enemy centered, full body visible, ' +
     'anime game art style, clean line art, soft cel shading, %BG%, square composition',
@@ -49,7 +52,7 @@ const LOOK_KIND = (look) => (/\bwoman\b/.test(look)
 // 피할 것. Flux 계열(로컬)은 프롬프트에 "no text" 같은 말을 넣으면 오히려 글자가 생기므로,
 // AVOID 는 OpenAI 모델로 생성할 때만 프롬프트 끝에 붙이고, NEGATIVE 는 네거티브 프롬프트를 쓰는 로컬 모델에 전달합니다.
 const AVOID = 'no text, no letters, no watermark, no logo, no signature';
-const NEGATIVE = 'text, letters, watermark, logo, signature, frame, border, extra limbs, deformed hands, blurry, low quality, nsfw';
+const NEGATIVE = 'text, letters, watermark, logo, signature, frame, border, extra limbs, deformed hands, bent weapon, curved spear shaft, warped sword, wavy staff, distorted objects, blurry, low quality, nsfw';
 
 // 성급별 묘사 수준
 const RARITY = {
@@ -142,6 +145,24 @@ const ENEMIES = [
   ['금서의 파수꾼', 'the forbidden library sentinel boss, tall robed figure made of chained books and scrolls, lantern head, floating tomes around it'],
   ['경험의 정령', 'a small spirit of wisdom, glowing green wisp shaped like a leaf sprite with bright eyes'],
   ['지혜의 고목', 'the ancient tree of wisdom boss, giant gnarled tree creature with a calm face in the bark, glowing green fruit and hanging lanterns'],
+  // 7 ~ 15장 새 잡몹 · 고유 보스 (StageContent.NewEnemies)
+  ['심연 해파리', 'an abyssal ice jellyfish, translucent pale-blue bell with frost crystals, long glowing icy tentacles, floating'],
+  ['잿빛 해골병', 'an ash skeleton soldier, grey bones covered in ash and embers, broken rusted armor, notched sword and round shield'],
+  ['균열 하피', 'a rift harpy, bird-woman monster with tattered storm-grey wings, sharp talons, glowing green eyes, torn sky fragments around her'],
+  ['빙원 늑대', 'a frost wolf, large white-blue wolf with ice crystal spikes along its spine, frosty breath, glowing pale eyes'],
+  ['용암 도마뱀', 'a lava salamander, black rocky lizard with cracks of glowing molten lava, fiery tail, smoke rising'],
+  ['뇌운 기사', 'a thundercloud knight, armored knight made of dark storm clouds and steel plates, violet lightning lance, glowing visor'],
+  ['석상 파수병', 'a temple stone sentinel, ancient moss-covered stone statue warrior come to life, cracked body, stone spear, glowing rune eyes'],
+  ['황혼 마녀', 'a twilight witch, hooded sorceress in tattered orange and violet robes, floating, holding a crooked staff with a dusk-colored orb'],
+  ['종말의 기수', 'an apocalypse rider, skeletal black horse ridden by an armored herald in black and gold with a lightning-charged war lance'],
+  ['심연의 서리여왕', 'the abyssal frost queen boss, regal ice sorceress with a crown of jagged ice, long gown of frozen water, cold mist and floating ice shards'],
+  ['잿빛 망령기사', 'the ashen revenant knight boss, huge undead knight in scorched black armor, tattered grey cape, ghostly blue flames inside the helmet, massive greatsword'],
+  ['균열의 그리폰', 'the rift griffon boss, huge griffon with storm-grey feathers and glowing green cracks of torn sky on its wings, screeching'],
+  ['영겁의 빙룡', 'the eternal ice dragon boss, colossal dragon of blue ice and snow, crystal horns, frozen wings, freezing breath'],
+  ['용암 거수', 'the lava behemoth boss, gigantic hulking beast of black volcanic rock with rivers of molten lava, horns, fiery maw'],
+  ['천둥의 왕', 'the thunder king boss, majestic armored monarch on a floating throne fragment, crown of lightning, violet storm cape, scepter crackling with lightning'],
+  ['타락한 수호상', 'the corrupted guardian colossus boss, giant ancient temple guardian statue corrupted by dark purple veins, cracked stone wings, huge stone halberd'],
+  ['황혼의 사도', 'the apostle of twilight boss, tall winged figure in orange and violet robes, half-light half-shadow mask, wind blades of dusk light swirling around'],
 ];
 
 // ---------------------------------------------------------------- 재료 아이콘 (파일명 = MaterialType 이름)
@@ -552,6 +573,41 @@ function build() {
     });
   }
 
+  // 개화 · 축제 일러스트는 캐릭터마다 다른 포즈 · 카메라 구도(참고 이미지는 인물 생김새용 — 기본 일러스트 포즈를 따라 하면 모두 비슷해짐)
+  const SAME_PERSON = 'the reference image is ONLY for the character identity (face, hair, eyes, body type, weapon design); ' +
+    'the pose, camera angle, framing and composition must be completely different from the reference image';
+  // 무기를 자주 이상하게 그리는 캐릭터: 무기 생김새를 자세히(일러스트 · 전투 그림 · 배경 없는 그림 모두에 들어감)
+  const WEAPON = {
+    c_violet: 'her weapon is a proper long Japanese katana: a long single-edged blade about as long as her arm span, with a gentle smooth uniform curve along the whole length (not bent or kinked), a round gold-trimmed tsuba guard set exactly perpendicular to the blade, the blade continuing in one clean line straight out of the tsuba and the long black wrapped handle, ending in a long tapering sharp point; the scabbard (saya) is a slim glossy black lacquered sheath of the same length and curve as the blade',
+  };
+  const BLOOM_POSE = {
+    c_seraphine: 'low-angle dynamic shot, mid-swing of the flaming greatsword raised high over her head in both hands, body twisted diagonally, hair and dress whipping in the fire wind',
+    c_ciel: 'side view, elegant deep lunge with the twin ice rapiers crossed in front of her, coat tails flaring behind, cold focused gaze along the blades',
+    c_ark: 'kneeling on one knee and planting the huge tower shield into the cracked ground, a dome of lightning spreading from it, looking up at the viewer, wide low shot',
+    c_aurora: 'floating in the air seen from below, arms spread wide, crystal staff raised high, robe and aurora ribbons spiraling around her',
+    c_kael: 'mid-air leap seen from slightly above, twin daggers trailing curved wind arcs, scarf streaming, glancing back over his shoulder with a grin',
+    c_violet: 'low crouched stance just after a swift draw-cut, the fully drawn long katana held out to the side in her right hand with the blade pointing away, the empty black scabbard held at her left hip, three-quarter view, cool sideways glance at the viewer, falling petals sliced in half around her',
+    c_estelle: 'close upper-body shot, kneeling in prayer with eyes closed, cradling the lantern staff against her chest with both hands, warm light rising from the flame',
+    c_luna: 'side view, drawing the ice bow and aiming high into the night sky, a huge crescent moon behind her, an arrow of light about to fly',
+    c_rio: 'sitting cross-legged on a giant floating flower playing the flute, eyes closed, relaxed, swirls of wind like music around him',
+    c_selene: 'standing ankle-deep in shallow glowing water, a water orb rising between her hands, gentle downward gaze, her reflection below',
+    c_haru: 'running toward the viewer waving the flame banner over his head, huge grin, exaggerated wide-angle perspective',
+    c_rena: 'jumping in the air spinning the lightning spear above her head, twin-tails flying, streaks of lightning circling her',
+    c_grey: 'back view standing on a cliff edge, wolf-fur cloak billowing, war hammer resting on his shoulder, looking back over his shoulder',
+    c_mina: 'sitting on a giant floating spellbook, pointing her fire wand straight at the viewer with strong foreshortening, casting a burst of flame, playful wink',
+    c_coco: 'charging forward behind the oversized shield, shouting with determination, dust and petals kicked up, dynamic low angle',
+    c_bella: 'standing on her hovering lightning drone, one hand adjusting her round glasses, seen from above',
+    c_sora: 'profile view standing guard with the frost kite shield raised against a swirling snowstorm, cape blown sideways',
+    c_yuna: 'mid-run firing the short bow sideways, ponytail and scarf flying, motion lines, balanced on one foot',
+    c_teo: 'kneeling, gauntlets pressed together releasing a gentle healing light, hands large in the foreground, calm face behind them',
+    c_riri: 'chest-up portrait sitting among blooming herbs, holding a single glowing flower up near her face, shy smile',
+    c_pin: 'dramatic thrust of the short sword straight toward the viewer with strong foreshortening, confident grin behind the blade',
+    c_momo: 'waist-up shot walking forward at night holding a torch high above her head, round shield on her back',
+    c_dodo: 'crouched on top of a frozen rock, ice throwing knives fanned between his fingers, hood shadowing his eyes, sly smile',
+    c_ruru: 'leaping through the air holding out a glowing letter toward the viewer, satchel flying behind her',
+    c_kiki: 'sitting on a mossy stone leaning on his large wooden shield, laughing with eyes closed, leaves blowing past',
+  };
+
   // 개화 일러스트(Lv.100 숨겨진 특성 개화 · 의상 'bloom') — 기본 일러스트를 참고 이미지로 넣어 같은 인물로 그림.
   // Characters/{id}_bloom.png + Thumbs/{id}_bloom.png (CharacterOutfits 의 접미사 '_bloom')
   for (const [id, name, star, el, role, look] of CHARACTERS) {
@@ -559,11 +615,46 @@ function build() {
       group: 'bloom', key: `bloom_${id}`, label: `${name} — 개화 일러스트 (${star}★ ${ELEMENT[el].name} ${role})`, name, star, look, charId: id,
       out: `Characters/${id}_bloom.png`, aspect: '3:4', resolution: '1K', width: 768, height: 1024, format: 'png',
       thumb: `Thumbs/${id}_bloom.png`, ref: `Characters/${id}.png`,
-      prompt: `the same character as in the reference image (same face, same hair style and hair color, same eye color, same weapon), ` +
+      prompt: `the same character as in the reference image (same face, same hair style and hair color, same eye color, same weapon), ${SAME_PERSON}, ` +
               `${LOOK_KIND(look)}, ${look.split(',').slice(0, 3).join(',')}, ` +
               `in an awakened "full bloom" form: a more ornate and majestic evolved version of the same outfit with ${BLOOM[el]}, ` +
               `a radiant glowing aura around the body, softly glowing eyes, countless flower petals and light particles swirling around, ` +
-              `dynamic confident pose, ${BLOOM_RARITY[star]}, ${ELEMENT[el].mood}. ${STYLE.character}`,
+              `pose and composition: ${BLOOM_POSE[id] || 'a fresh dynamic pose different from the reference'}, ${WEAPON[id] ? WEAPON[id] + ', ' : ''}${BLOOM_RARITY[star]}, ${ELEMENT[el].mood}. ${STYLE.character}`,
+      weapon: WEAPON[id],
+      negative: NEGATIVE,
+    });
+  }
+
+  // 한정 축제 스킨(기간 한정 이벤트 상점 · 의상 'festival', 접미사 '_fest') — 기본 일러스트를 참고 이미지로 넣어 같은 인물로 그림.
+  // 테마마다 2명, 태생 성급이 고르게(6★ 1 · 5★ 2 · 4★ 2 · 3★ 1). CharacterOutfits.FestivalChars · LimitedEvent.Theme.skins 와 같게
+  const FEST = {
+    ember: 'a festive fire-festival outfit: a red and white festival robe with gold trim and flame patterns and a flower hair ornament, ' +
+           'set in a night fire festival with red paper lanterns strung overhead, a bonfire and fireworks',
+    frost: 'a festive winter ice-festival outfit: a white fur-trimmed cape over pale blue festival clothes with snowflake ornaments and silver embroidery, ' +
+           'set at a frozen lake festival with glowing ice lanterns, ice sculptures and an aurora in the night sky',
+    thunder: 'a festive storm-festival party outfit: a black and violet jacket with gold lightning-bolt embroidery over elegant party clothes, ' +
+             'set on a mountaintop palace banquet terrace with violet crystal lamps and lightning in the storm clouds',
+  };
+  const FEST_POSE = {
+    c_estelle: 'waist-up side view, sitting on a festival bench and gently lighting a small red paper lantern from the flame of her lantern staff, soft smile, warm glow on her face',
+    c_mina: 'jumping high in the air and tossing her witch hat upward, a sparkler in the other hand, fireworks bursting behind, dynamic low angle, laughing',
+    c_luna: 'full-body side profile on the frozen lake, releasing a glowing arrow of light straight up that bursts into ice fireworks, calm expression, hair flowing',
+    c_dodo: 'sitting on top of a tall ice sculpture seen from below, juggling three small glowing ice lanterns, mischievous grin, hood thrown back',
+    c_rena: 'close upper-body shot leaning against a marble pillar, raising a golden goblet in a toast toward the viewer with one hand, her other hand loosely holding the lightning spear that stands perfectly vertical with its butt planted on the floor beside her, the whole spear visible as one single straight vertical line from the floor to the blade tip, not crossing behind her head or body, winking',
+    c_bella: 'three-quarter back view sitting at a banquet table, tinkering with a small drone that launches violet lightning fireworks, looking up at them with delight',
+  };
+  const FEST_CHARS = [['c_estelle', 'ember'], ['c_mina', 'ember'], ['c_luna', 'frost'], ['c_dodo', 'frost'], ['c_rena', 'thunder'], ['c_bella', 'thunder']];
+  for (const [id, theme] of FEST_CHARS) {
+    const row = CHARACTERS.find((r) => r[0] === id);
+    if (!row) continue;
+    const [, name, star, el, role, look] = row;
+    list.push({
+      group: 'festival', key: `fest_${id}`, label: `${name} — 한정 축제 스킨 (${star}★ ${ELEMENT[el].name} ${role})`, name, star, look, charId: id,
+      out: `Characters/${id}_fest.png`, aspect: '3:4', resolution: '1K', width: 768, height: 1024, format: 'png',
+      thumb: `Thumbs/${id}_fest.png`, ref: `Characters/${id}.png`,
+      prompt: `the same character as in the reference image (same face, same hair style and hair color, same eye color), ${SAME_PERSON}, ` +
+              `${LOOK_KIND(look)}, ${look.split(',').slice(0, 3).join(',')}, ` +
+              `wearing ${FEST[theme]}, pose and composition: ${FEST_POSE[id]}, ${ELEMENT[el].mood}. ${STYLE.character}`,
       negative: NEGATIVE,
     });
   }
@@ -665,4 +756,4 @@ function build() {
   return list;
 }
 
-module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'bloom', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'events', 'backgrounds', 'banners'] };
+module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'bloom', 'festival', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'events', 'backgrounds', 'banners'] };

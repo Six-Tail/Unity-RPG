@@ -11,10 +11,11 @@ namespace SubcultureRPG.Meta
 {
     /// <summary>
     /// 기간 한정 이벤트(오프라인 순환): 2주마다 테마가 바뀌는 축제.
-    /// · 이벤트 전투(초급 · 중급 · 상급) 승리 → 축제 코인. 테마 속성 캐릭터를 데려가면 1명당 +10%(최대 +40%)
+    /// · 이벤트 전투 7단계(입문 Lv.10 → 심연 Lv.98, 레벨 고정) 승리 → 축제 코인. 앞 단계를 한 번 깨면 다음 단계가 열림(계정에 기억)
+    ///   테마 속성 캐릭터를 데려가면 1명당 +10%(최대 +40%)
     /// · 하루 도전 5회(05:00 충전, 끝나기 전에 나가면 반환)
     /// · 누적 획득 코인 단계 보상(이벤트 기간 동안, 수동 수령)
-    /// · 이벤트 상점: 코인으로 교환(이벤트마다 구매 한도 초기화). 이벤트가 끝나면 남은 코인은 사라짐
+    /// · 이벤트 상점: 코인으로 교환(이벤트마다 구매 한도 초기화) + 그 테마의 한정 축제 스킨 2벌(영구 보유). 이벤트가 끝나면 남은 코인은 사라짐
     /// 씬에 없어도 처음 쓸 때 스스로 만들어짐(LimitedEvent.Instance).
     /// </summary>
     public class LimitedEvent : MonoBehaviour
@@ -34,6 +35,7 @@ namespace SubcultureRPG.Meta
             public string minion, guardian;   // 적 이름(스테이지 데이터의 같은 이름 유닛을 빌려 씀)
             public string background;         // 전투 배경(Resources/Art/Backgrounds/…) — 이벤트 전용 그림이 없을 때 화면 배경으로도 씀
             public string host;               // 축제 진행 캐릭터(일러스트의 주인공) 이름
+            public string[] skins;            // 이 축제 상점에서 교환하는 축제 스킨(캐릭터 id) — 태생 성급이 고르게
             public Color color;
 
             // 이벤트 전용 그림(Resources/Art/Events/…): 화면 배경 · 진행 캐릭터 일러스트 · 엠블럼
@@ -45,11 +47,11 @@ namespace SubcultureRPG.Meta
         public static readonly Theme[] Themes =
         {
             new() { id = "ember", name = "홍염 축제", tagline = "꺼지지 않는 불꽃의 밤", element = Element.Fire,
-                    minion = "불꽃 정령", guardian = "화염 수호자", background = "battle_ch11", host = "에스텔", color = new Color(1f, 0.5f, 0.3f) },
+                    minion = "불꽃 정령", guardian = "화염 수호자", background = "battle_ch11", host = "에스텔", skins = new[] { "c_estelle", "c_mina" }, color = new Color(1f, 0.5f, 0.3f) },
             new() { id = "frost", name = "서리 축제", tagline = "얼어붙은 별빛 아래에서", element = Element.Ice,
-                    minion = "서리 정령", guardian = "서리 수호자", background = "battle_ch10", host = "오로라", color = new Color(0.55f, 0.8f, 1f) },
+                    minion = "서리 정령", guardian = "서리 수호자", background = "battle_ch10", host = "오로라", skins = new[] { "c_luna", "c_dodo" }, color = new Color(0.55f, 0.8f, 1f) },
             new() { id = "thunder", name = "뇌명 축제", tagline = "천둥이 울리는 왕좌의 연회", element = Element.Lightning,
-                    minion = "번개 정령", guardian = "뇌광 수호자", background = "battle_ch12", host = "레나", color = new Color(0.78f, 0.6f, 1f) },
+                    minion = "번개 정령", guardian = "뇌광 수호자", background = "battle_ch12", host = "레나", skins = new[] { "c_rena", "c_bella" }, color = new Color(0.78f, 0.6f, 1f) },
         };
 
         // ---------------- 난이도 ----------------
@@ -57,7 +59,7 @@ namespace SubcultureRPG.Meta
         public class Difficulty
         {
             public string name;
-            public int levelOffset, coins;
+            public int level, coins;
             public float statMul;
             public bool guardian;   // 수호자(보스) 포함
             public int minions;
@@ -65,9 +67,14 @@ namespace SubcultureRPG.Meta
 
         public static readonly Difficulty[] Difficulties =
         {
-            new() { name = "초급", levelOffset = -6, statMul = 1.0f, minions = 2, guardian = false, coins = 60 },
-            new() { name = "중급", levelOffset = 0, statMul = 1.0f, minions = 2, guardian = true, coins = 120 },
-            new() { name = "상급", levelOffset = 8, statMul = 1.25f, minions = 2, guardian = true, coins = 200 },
+            // 레벨 고정(내 레벨을 따라가지 않음) — 신규부터 개화(Lv.100)까지 각자 맞는 단계가 있게. 앞 단계를 깨야 다음 단계가 열림
+            new() { name = "입문", level = 10, statMul = 1.0f, minions = 2, guardian = false, coins = 40 },
+            new() { name = "초급", level = 25, statMul = 1.0f, minions = 2, guardian = true, coins = 60 },
+            new() { name = "중급", level = 40, statMul = 1.05f, minions = 2, guardian = true, coins = 85 },
+            new() { name = "상급", level = 55, statMul = 1.1f, minions = 2, guardian = true, coins = 110 },
+            new() { name = "최상급", level = 70, statMul = 1.2f, minions = 2, guardian = true, coins = 140 },
+            new() { name = "악몽", level = 85, statMul = 1.35f, minions = 2, guardian = true, coins = 175 },
+            new() { name = "심연", level = 96, statMul = 1.6f, minions = 2, guardian = true, coins = 220 },
         };
 
         // ---------------- 누적 보상 ----------------
@@ -86,6 +93,8 @@ namespace SubcultureRPG.Meta
             new() { coins = 5000, reward = new RewardBundle().Mat(MaterialType.SkillLegend, 1) },
             new() { coins = 8000, reward = new RewardBundle().Pickup(2) },
             new() { coins = 12000, reward = new RewardBundle().Crystals(300).Mat(MaterialType.StaminaLarge, 2) },
+            new() { coins = 16000, reward = new RewardBundle().Pickup(1).Mat(MaterialType.SkillBookPurple, 5) },
+            new() { coins = 20000, reward = new RewardBundle().Crystals(300).Mat(MaterialType.SkillLegend, 1) },
         };
 
         // ---------------- 상점 ----------------
@@ -94,6 +103,24 @@ namespace SubcultureRPG.Meta
         {
             public RewardBundle reward;
             public int price, limit;
+            public string skinChar;   // 축제 스킨(캐릭터 id) — 보상 대신 의상 지급, 영구 보유
+            public bool IsSkin => !string.IsNullOrEmpty(skinChar);
+        }
+
+        public const int SkinPrice = 2500;
+
+        /// <summary>이번 이벤트 상점: 공통 상품 + 이번 테마의 축제 스킨 2벌(맨 위).</summary>
+        public static List<ShopEntry> CurrentShop
+        {
+            get
+            {
+                var l = new List<ShopEntry>(ShopItems);
+                var skins = CurrentTheme.skins;
+                if (skins != null)
+                    for (int i = skins.Length - 1; i >= 0; i--)
+                        l.Insert(0, new ShopEntry { skinChar = skins[i], price = SkinPrice, limit = 1 });
+                return l;
+            }
         }
 
         public static readonly List<ShopEntry> ShopItems = new()
@@ -116,6 +143,7 @@ namespace SubcultureRPG.Meta
             public int cycle = -1;
             public string day = "";
             public int coins, earned, used, claimed;   // claimed: 누적 보상 단계 비트
+            public int best = -1;                      // 깬 가장 높은 난이도(계정 전체 — 이벤트가 바뀌어도 유지)
             public List<int> bought = new();           // 상점 항목별 구매 수(이번 이벤트)
         }
 
@@ -188,7 +216,8 @@ namespace SubcultureRPG.Meta
             }
             if (_d.day != day) { _d.day = day; _d.used = 0; dirty = true; }
             _d.bought ??= new List<int>();
-            while (_d.bought.Count < ShopItems.Count) { _d.bought.Add(0); dirty = true; }
+            int shopCount = ShopItems.Count + (CurrentTheme.skins != null ? CurrentTheme.skins.Length : 0);
+            while (_d.bought.Count < shopCount) { _d.bought.Add(0); dirty = true; }
             if (dirty) Save();
         }
 
@@ -218,7 +247,19 @@ namespace SubcultureRPG.Meta
         public bool HasSomethingToDo => ClaimableCount > 0 || AttemptsLeft > 0;
 
         public int Bought(int i) { EnsureLoaded(); return i < _d.bought.Count ? _d.bought[i] : 0; }
-        public int ShopLeft(int i) => Mathf.Max(0, ShopItems[i].limit - Bought(i));
+        public int ShopLeft(int i)
+        {
+            var shop = CurrentShop;
+            if (i < 0 || i >= shop.Count) return 0;
+            if (shop[i].IsSkin) return CharacterOutfits.Owns(shop[i].skinChar, CharacterOutfits.FestivalId) ? 0 : 1;
+            return Mathf.Max(0, shop[i].limit - Bought(i));
+        }
+
+        /// <summary>깬 가장 높은 난이도(-1 = 없음).</summary>
+        public int BestCleared { get { EnsureLoaded(); return _d.best; } }
+
+        /// <summary>이 난이도가 열렸는가(입문은 항상, 그 뒤는 앞 단계를 한 번 깨면).</summary>
+        public bool TierOpen(int i) => i <= 0 || BestCleared >= i - 1;
 
         public bool Claim(int i)
         {
@@ -233,13 +274,16 @@ namespace SubcultureRPG.Meta
         public string Buy(int i)
         {
             EnsureLoaded();
-            if (i < 0 || i >= ShopItems.Count) return "없는 상품입니다";
-            var e = ShopItems[i];
-            if (ShopLeft(i) <= 0) return "이번 이벤트 구매 한도에 도달했습니다";
+            var shop = CurrentShop;
+            if (i < 0 || i >= shop.Count) return "없는 상품입니다";
+            var e = shop[i];
+            if (ShopLeft(i) <= 0) return e.IsSkin ? "이미 가지고 있는 스킨입니다" : "이번 이벤트 구매 한도에 도달했습니다";
             if (_d.coins < e.price) return "축제 코인이 부족합니다";
             _d.coins -= e.price;
+            while (_d.bought.Count <= i) _d.bought.Add(0);
             _d.bought[i]++;
-            e.reward.Grant();
+            if (e.IsSkin) CharacterOutfits.Grant(e.skinChar, CharacterOutfits.FestivalId);
+            else e.reward.Grant();
             Changed();
             return null;
         }
@@ -257,9 +301,8 @@ namespace SubcultureRPG.Meta
         public static int CoinsFor(int difficulty, IList<CharacterData> party) =>
             Mathf.RoundToInt(Difficulties[Mathf.Clamp(difficulty, 0, Difficulties.Length - 1)].coins * (1f + PartyBonus(party)));
 
-        /// <summary>적 레벨(난이도 반영).</summary>
-        public static int EnemyLevel(int difficulty) =>
-            Mathf.Clamp(WorldRaid.BossLevel() + Difficulties[Mathf.Clamp(difficulty, 0, Difficulties.Length - 1)].levelOffset, 1, Leveling.MaxLevel);
+        /// <summary>적 레벨(난이도별 고정).</summary>
+        public static int EnemyLevel(int difficulty) => Difficulties[Mathf.Clamp(difficulty, 0, Difficulties.Length - 1)].level;
 
         // ---------------- 적 ----------------
 
@@ -338,6 +381,7 @@ namespace SubcultureRPG.Meta
             var launcher = FindAnyObjectByType<BattleLauncher>();
             if (launcher == null) return false;
             Refund();
+            if (!TierOpen(difficulty)) return false;
             if (AttemptsLeft <= 0) { _hud?.ShowResultToast("오늘 도전 횟수를 모두 썼습니다 (매일 05:00 충전)"); return false; }
             _d.used++;
             _paid = true;
@@ -353,7 +397,7 @@ namespace SubcultureRPG.Meta
             var enemies = new List<BattleUnitData>();
             for (int i = 0; i < diff.minions; i++)
             {
-                if (diff.guardian && i == 1) enemies.Add(MakeEnemy(theme.guardian, lv + 2, diff.statMul, true));   // 수호자는 가운데
+                if (diff.guardian && i == 1) enemies.Add(MakeEnemy(theme.guardian, Mathf.Min(lv + 2, 100), diff.statMul, true));   // 수호자는 가운데
                 enemies.Add(MakeEnemy(theme.minion, lv, diff.statMul, false));
             }
 
@@ -418,6 +462,8 @@ namespace SubcultureRPG.Meta
             int before = _d.earned;
             _d.coins += coins;
             _d.earned += coins;
+            bool newTier = _difficulty > _d.best;
+            if (newTier) _d.best = _difficulty;
             Changed();
 
             int opened = 0;
@@ -427,6 +473,7 @@ namespace SubcultureRPG.Meta
                 (bonus > 0f ? $"  <size=80%><color=#7CFF9A>({Traits.Name(theme.element)} 보너스 +{bonus * 100f:0}%)</color></size>" : "") + "\n" +
                 $"<color=#9AA3B5>보유 {_d.coins:N0}  ·  이번 이벤트 누적 {_d.earned:N0}</color>" +
                 (opened > 0 ? $"\n<color=#7CFF9A>누적 보상 {opened}단계 달성 — 이벤트 화면에서 받으세요</color>" : "") +
+                (newTier && _difficulty + 1 < Difficulties.Length ? $"\n<color=#FFD36B>{Difficulties[_difficulty + 1].name}(Lv.{Difficulties[_difficulty + 1].level}) 개방!</color>" : "") +
                 $"\n<size=80%><color=#9AA3B5>오늘 남은 도전 {AttemptsLeft} / {AttemptsPerDay}</color></size>");
             CleanupEnemies();
         }

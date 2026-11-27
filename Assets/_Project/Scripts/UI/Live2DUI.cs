@@ -38,7 +38,7 @@ namespace SubcultureRPG.UI
             slot.displaced = true;
             if (slot.host is Image img)
             {
-                var still = GameArt.Portrait(slot.character);
+                var still = slot.baseOutfit ? GameArt.Portrait(slot.character, "") : GameArt.Portrait(slot.character);
                 if (still != null) { img.sprite = still; img.enabled = true; }
             }
         }
@@ -48,7 +48,8 @@ namespace SubcultureRPG.UI
             Live2DStage.Has(c) ? Live2DStage.InUse : MotionVideoStage.InUse;
 
         /// <summary>host(정적 일러스트 Image) 위에 움직이는 일러스트 표시. 표시했으면 true.</summary>
-        public static bool Show(Graphic host, CharacterData c)
+        /// <param name="baseOutfit">true = 옷장에서 고른 의상(개화 · 스킨)이 아니라 기본 의상으로(뽑기 화면 · 결과 연출)</param>
+        public static bool Show(Graphic host, CharacterData c, bool baseOutfit = false)
         {
             if (host == null) return false;
             // 숨겨진 화면이 무대를 가져가지 않도록, 지금 보이는 자리만 표시
@@ -69,13 +70,13 @@ namespace SubcultureRPG.UI
                 material = stage.UIMaterial;   // Live2D 텍스처는 알파가 곱해진 색
                 aspect = stage.Aspect;
             }
-            else if (MotionVideoStage.Has(c))
+            else if (MotionVideoStage.Has(c, baseOutfit))
             {
                 SwayIllustration.Remove(host as Image);
                 var stage = MotionVideoStage.Instance;
                 raw = Ensure(host);
                 Live2DStage.ReleaseUser(raw);
-                tex = stage.Show(c, raw, GameArt.Portrait(c));
+                tex = stage.Show(c, raw, baseOutfit ? GameArt.Portrait(c, "") : GameArt.Portrait(c), baseOutfit);
                 aspect = stage.Aspect;
             }
             else
@@ -83,7 +84,7 @@ namespace SubcultureRPG.UI
                 // 모델 · 영상이 없으면: 셰이더 흔들림 재료가 있는 그림은 정지 그림 자리에서 흔듦(Sway/{일러스트 이름})
                 Hide(host);
                 string key = !string.IsNullOrEmpty(c.id) ? c.id : c.name;
-                if (host is Image img) SwayIllustration.Apply(img, key + CharacterOutfits.SuffixOf(key));
+                if (host is Image img) SwayIllustration.Apply(img, key + (baseOutfit ? "" : CharacterOutfits.SuffixOf(key)));
                 return false;
             }
 
@@ -91,7 +92,7 @@ namespace SubcultureRPG.UI
 
             var slot = raw.GetComponent<Live2DSlot>();
             if (slot == null) slot = raw.gameObject.AddComponent<Live2DSlot>();
-            slot.host = host; slot.character = c; slot.displaced = false;
+            slot.host = host; slot.character = c; slot.displaced = false; slot.baseOutfit = baseOutfit;
 
             raw.texture = tex;
             raw.material = material;
@@ -165,6 +166,7 @@ namespace SubcultureRPG.UI
         public Graphic host;
         public CharacterData character;
         public bool displaced;
+        public bool baseOutfit;   // 기본 의상으로 보여 주는 자리(뽑기)
         private float _poll;
 
         private void Update()
@@ -174,7 +176,7 @@ namespace SubcultureRPG.UI
             if (_poll > 0f) return;
             _poll = 0.25f;
             if (!host.gameObject.activeInHierarchy || Live2DUI.StageBusy(character)) return;
-            if (Live2DUI.Show(host, character)) host.enabled = false;
+            if (Live2DUI.Show(host, character, baseOutfit)) host.enabled = false;
         }
     }
 }

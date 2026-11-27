@@ -1,6 +1,6 @@
 # 월드 레이드 (서버 공유 보스)
 
-서버의 **모든 플레이어가 같은 보스의 체력을 한 주 동안 함께 깎는** 콘텐츠입니다. 주간 보스 화면 왼쪽 아래 `월드 레이드 ▶`(또는 화면 안 `주간 보스로 ▶`로 오감).
+서버의 **모든 플레이어가 같은 보스의 체력을 한 주 동안 함께 깎는** 콘텐츠입니다. 레이드 화면 위쪽 가운데의 큰 탭 `월드 레이드`(옆 `주간 보스` 탭으로 돌아감 — [modes.md](modes.md)).
 
 - 데이터 · 서버 처리: [ServerRaid.cs](../Assets/_Project/Scripts/Meta/Modes/ServerRaid.cs) · 화면: [ServerRaidScreen.cs](../Assets/_Project/Scripts/Meta/UI/ServerRaidScreen.cs)
 - 전투 틀(5분 · 격노 · 결과)은 주간 보스와 같고 **극악 배율**(`WorldRaid.FightWorld`)

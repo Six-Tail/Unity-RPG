@@ -123,7 +123,7 @@ namespace SubcultureRPG.Gacha.UI
 
             _nameText.text = result.character != null ? result.character.displayName : "???";
 
-            var sprite = GameArt.Thumb(result.character);
+            var sprite = GameArt.Thumb(result.character, "");   // 뽑기 결과는 항상 기본 의상
             _portrait.sprite = sprite;
             _portrait.enabled = sprite != null;
 
