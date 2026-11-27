@@ -111,7 +111,7 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Stretch(_dgPins);
             var side = UIFactory.AddImage("Sites", map.transform, new Color(0.07f, 0.08f, 0.12f, 0.97f));
             P(side.rectTransform, 1318, 4, 438, 788);
-            var sideTitle = UIFactory.AddText("Title", side.transform, "장소 선택\n<size=62%><color=#9AA3B5>장소마다 나오는 장비 세트가 다릅니다</color></size>", 28, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            var sideTitle = UIFactory.AddText("Title", side.transform, "장소 선택", 28, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
             sideTitle.richText = true;
             P(sideTitle.rectTransform, 20, 14, 400, 70);
             _dgSites = UIFactory.NewRect("List", side.transform);
@@ -413,9 +413,6 @@ namespace SubcultureRPG.Meta.UI
                     P(pt.rectTransform, 590, y, 70, 26);
                     y += 30;
                 }
-            var cap = UIFactory.AddText("Cap", _dgShow, "<color=#9AA3B5>최대 강화  1★ +3 · 2★ +6 · 3★ +9 · 4★ +12 · 5★ +16 · 6★ +20</color>", 15, font, Color.white, TextAlignmentOptions.Left);
-            cap.richText = true;
-            P(cap.rectTransform, 12, y + 2, 650, 22);
             y += 34;
 
             Section("나오는 세트", y); y += 36;

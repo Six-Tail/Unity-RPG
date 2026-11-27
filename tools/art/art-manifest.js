@@ -232,6 +232,7 @@ const ITEMS = [
   ['GuildTabBoss', '길드 탭 — 길드 보스', 'a menacing purple horned demon skull with glowing red eyes and dark purple flames, sparkles'],
   ['GuildTabWar', '길드 탭 — 길드전', 'two crossed silver swords in front of a red war banner with a golden star emblem, sparkles'],
   ['GuildTabRank', '길드 탭 — 순위', 'a three-step golden winners podium with a small crown on the top step and numbers 1 2 3, sparkles'],
+  ['PartyBadge', '편성 순서 배지(숫자는 코드로 위에)', 'an ornate golden heraldic shield badge emblem with a smooth empty dark navy blue center plate, small golden wings at both sides, completely blank center with no text, no numbers, no symbols'],
   ['ArenaTicket', '결투장 도전권', 'a crimson and gold admission ticket with a perforated edge and two small crossed swords emblem in the center, sparkles'],
   ['ShopTabExchange', '상점 탭 — 교환소', 'two circular golden arrows forming an exchange cycle around a small glowing gem'],
   // 홈 아래 메뉴 바 · 출격/소환 · 메뉴

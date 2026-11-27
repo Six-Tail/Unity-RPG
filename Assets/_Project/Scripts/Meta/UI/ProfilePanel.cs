@@ -269,19 +269,30 @@ namespace SubcultureRPG.Meta.UI
                 b.transition = Selectable.Transition.None;
                 b.onClick.AddListener(CloseSub);
             }
-            var panel = UIFactory.AddImage("Panel", _subLayer, new Color(0.1f, 0.11f, 0.17f, 0.99f), ProceduralSprites.Rounded, raycast: true);
+            var rim = UIFactory.AddImage("Rim", _subLayer, new Color(1f, 0.85f, 0.45f, 0.45f), ProceduralSprites.Rounded);
+            rim.type = Image.Type.Sliced; rim.preserveAspect = false;
+            UIFactory.Anchor(rim.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            rim.rectTransform.sizeDelta = new Vector2(w + 4, h + 4);
+            var panel = UIFactory.AddImage("Panel", _subLayer, new Color(0.07f, 0.08f, 0.12f, 1f), ProceduralSprites.Rounded, raycast: true);
             panel.type = Image.Type.Sliced; panel.preserveAspect = false;
             var rt = panel.rectTransform;
             UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             rt.sizeDelta = new Vector2(w, h);
-            var t = Text(rt, title, 32, Color.white, FontStyles.Bold, TextAlignmentOptions.Left);
-            Place(t.rectTransform, 36, -24, w - 220, 46);
+            var head = UIFactory.AddImage("Header", rt, new Color(0.11f, 0.13f, 0.21f, 1f), ProceduralSprites.Rounded);
+            head.type = Image.Type.Sliced; head.preserveAspect = false;
+            UIFactory.Anchor(head.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            head.rectTransform.sizeDelta = new Vector2(0, 76); head.rectTransform.anchoredPosition = Vector2.zero;
+            var line = UIFactory.AddImage("Line", head.transform, new Color(1f, 0.85f, 0.45f, 0.55f));
+            UIFactory.Anchor(line.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            line.rectTransform.sizeDelta = new Vector2(-40, 2); line.rectTransform.anchoredPosition = Vector2.zero;
+            var t = Text(rt, title, 32, new Color(1f, 0.9f, 0.62f), FontStyles.Bold, TextAlignmentOptions.Left);
+            Place(t.rectTransform, 36, -14, w - 220, 46);
             if (closable)
             {
                 var x = UIFactory.AddButton("Close", rt, "닫기", 20, _font, new Color(1, 1, 1, 0.14f), Color.white);
                 var xr = (RectTransform)x.transform;
                 UIFactory.Anchor(xr, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
-                xr.sizeDelta = new Vector2(110, 44); xr.anchoredPosition = new Vector2(-24, -24);
+                xr.sizeDelta = new Vector2(110, 44); xr.anchoredPosition = new Vector2(-18, -16);
                 x.onClick.AddListener(CloseSub);
             }
             return rt;
@@ -445,11 +456,27 @@ namespace SubcultureRPG.Meta.UI
             dimBtn.transition = Selectable.Transition.None;
             dimBtn.onClick.AddListener(Close);
 
-            var panel = UIFactory.AddImage("Panel", _main.transform, new Color(0.09f, 0.1f, 0.15f, 0.98f), ProceduralSprites.Rounded, raycast: true);
+            var rim = UIFactory.AddImage("Rim", _main.transform, new Color(1f, 0.85f, 0.45f, 0.45f), ProceduralSprites.Rounded);
+            rim.type = Image.Type.Sliced; rim.preserveAspect = false;
+            UIFactory.Anchor(rim.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            rim.rectTransform.sizeDelta = new Vector2(1184, 904);
+            var panel = UIFactory.AddImage("Panel", _main.transform, new Color(0.07f, 0.08f, 0.12f, 1f), ProceduralSprites.Rounded, raycast: true);
             panel.type = Image.Type.Sliced; panel.preserveAspect = false;
             var p = panel.rectTransform;
             UIFactory.Anchor(p, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             p.sizeDelta = new Vector2(1180, 900);
+
+            // 위쪽 머리 배경(이름 · 레벨 · 전투력 영역) + 아바타 뒤 금빛 + 아래 금색 구분선
+            var hero = UIFactory.AddImage("Hero", p, new Color(0.11f, 0.13f, 0.21f, 1f), ProceduralSprites.Rounded);
+            hero.type = Image.Type.Sliced; hero.preserveAspect = false;
+            UIFactory.Anchor(hero.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            hero.rectTransform.sizeDelta = new Vector2(0, 396); hero.rectTransform.anchoredPosition = Vector2.zero;
+            var hglow = UIFactory.AddImage("Glow", hero.transform, new Color(1f, 0.85f, 0.45f, 0.18f), ProceduralSprites.Glow);
+            UIFactory.Anchor(hglow.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0.5f, 0.5f));
+            hglow.rectTransform.sizeDelta = new Vector2(420, 420); hglow.rectTransform.anchoredPosition = new Vector2(131, -125);
+            var hline = UIFactory.AddImage("Line", hero.transform, new Color(1f, 0.85f, 0.45f, 0.5f));
+            UIFactory.Anchor(hline.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            hline.rectTransform.sizeDelta = new Vector2(-40, 2); hline.rectTransform.anchoredPosition = Vector2.zero;
 
             // 왼쪽 위: 아바타 + 변경 버튼
             _avatar = new ProfileAvatar(p, 190);

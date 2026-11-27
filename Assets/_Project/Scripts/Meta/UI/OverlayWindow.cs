@@ -35,6 +35,28 @@ namespace SubcultureRPG.Meta.UI
             return hud != null ? hud.Font : null;
         }
 
+        /// <summary>창 제목에 따라 머리띠 왼쪽에 붙는 아이콘(없으면 글자만).</summary>
+        private static string TitleIcon(string title)
+        {
+            if (string.IsNullOrEmpty(title)) return null;
+            if (title.StartsWith("우편")) return "Items/UiMail";
+            if (title.StartsWith("출석")) return "Items/UiAttendance";
+            if (title.Contains("시즌 패스")) return "Items/UiPass";
+            if (title.StartsWith("설정")) return "Items/UiSettings";
+            if (title.StartsWith("챕터") && title.Contains("별 보상")) return "Items/UiSortie";
+            if (title.Contains("선택권")) return "Items/Select6";
+            if (title.StartsWith("편성")) return "Items/UiParty";
+            if (title.StartsWith("옷장")) return "Items/UiCharacter";
+            if (title.StartsWith("쿠폰")) return "Items/UiMail";
+            if (title.StartsWith("호감도")) return "Items/GiftMedium";
+            if (title.StartsWith("채팅")) return "Items/FriendTabList";
+            if (title.StartsWith("지휘관 정보")) return "Items/FriendTabFind";
+            if (title.StartsWith("장비 선택 제작")) return "Items/EquipEssence";
+            if (title.StartsWith("축제 스킨")) return "Items/EventCoin";
+            if (title.StartsWith("단계 구매")) return "Items/UiPass";
+            return null;
+        }
+
         public static OverlayWindow Open(string title, float w, float h, TMP_FontAsset font = null, bool dimCloses = true, int order = 200, bool closeButton = true)
         {
             var win = new OverlayWindow { Font = font != null ? font : DefaultFont() };
@@ -81,7 +103,25 @@ namespace SubcultureRPG.Meta.UI
 
             if (!string.IsNullOrEmpty(title))
             {
-                var t = win.Text(win.Panel, $"<b>{title}</b>", 34, new Color(1f, 0.9f, 0.62f), TextAlignmentOptions.Left, 34, -20, w - 240, 52);
+                // 머리띠(2026-11): 위쪽 어두운 남색 띠 + 은은한 빛 + 금색 구분선, 왼쪽에 창 아이콘
+                var head = UIFactory.AddImage("Header", win.Panel, new Color(0.11f, 0.13f, 0.21f, 1f), ProceduralSprites.Rounded);
+                head.type = Image.Type.Sliced; head.preserveAspect = false;
+                UIFactory.Anchor(head.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+                head.rectTransform.sizeDelta = new Vector2(0, 76); head.rectTransform.anchoredPosition = Vector2.zero;
+                var glow = UIFactory.AddImage("Glow", head.transform, new Color(1f, 0.85f, 0.45f, 0.12f), ProceduralSprites.Glow);
+                UIFactory.Anchor(glow.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                glow.rectTransform.sizeDelta = new Vector2(520, 150); glow.rectTransform.anchoredPosition = new Vector2(-120, 0);
+                var line = UIFactory.AddImage("Line", head.transform, new Color(1f, 0.85f, 0.45f, 0.55f));
+                UIFactory.Anchor(line.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+                line.rectTransform.sizeDelta = new Vector2(-40, 2); line.rectTransform.anchoredPosition = Vector2.zero;
+                float tx = 34;
+                var isp = GameArt.Load(TitleIcon(title) ?? "");
+                if (isp != null)
+                {
+                    win.Icon(win.Panel, isp, 24, -8, 60);
+                    tx = 94;
+                }
+                var t = win.Text(win.Panel, $"<b>{title}</b>", 34, new Color(1f, 0.9f, 0.62f), TextAlignmentOptions.Left, tx, -12, w - tx - 200, 52);
                 t.enableAutoSizing = true; t.fontSizeMin = 20; t.fontSizeMax = 34;
             }
             if (closeButton)
@@ -89,7 +129,7 @@ namespace SubcultureRPG.Meta.UI
                 var close = UIFactory.AddButton("Close", win.Panel, "닫기", 20, win.Font, new Color(1, 1, 1, 0.14f), Color.white);
                 var crt = (RectTransform)close.transform;
                 UIFactory.Anchor(crt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
-                crt.sizeDelta = new Vector2(120, 46); crt.anchoredPosition = new Vector2(-22, -22);
+                crt.sizeDelta = new Vector2(120, 46); crt.anchoredPosition = new Vector2(-18, -15);
                 close.onClick.AddListener(win.Close);
             }
             PlatformRuntime.RefreshSafeArea();   // 열자마자 안전 영역 · 화면 가운데에 맞춤(0.5초 뒤 밀리는 '움찔' 없음)
@@ -147,6 +187,40 @@ namespace SubcultureRPG.Meta.UI
             img.enabled = sp != null;
             Place(img.rectTransform, x, y, size, size);
             return img;
+        }
+
+        /// <summary>보상 아이콘 칸 줄(왼쪽 위 기준 x, y에서 오른쪽으로). 반환 = 다 그린 오른쪽 끝 x.</summary>
+        public float RewardTiles(Transform parent, RewardBundle r, float x, float y, float size = 72, bool faded = false, int max = 99)
+        {
+            if (r == null) return x;
+            int total = 0, drawn = 0;
+            foreach (var _ in r.Parts()) total++;
+            foreach (var (icon, _, count, hex) in r.Parts())
+            {
+                if (drawn == max - 1 && total > max)
+                {
+                    // 칸이 넘치면 마지막 칸에 '+N'
+                    var more = Box(parent, new Color(1, 1, 1, faded ? 0.04f : 0.08f), x, y, size, size);
+                    var mt = UIFactory.AddText("More", more.transform, $"+{total - drawn}", size * 0.32f, Font, new Color(0.8f, 0.83f, 0.9f), TextAlignmentOptions.Center, FontStyles.Bold);
+                    UIFactory.Stretch(mt.rectTransform);
+                    return x + size + 8;
+                }
+                drawn++;
+                var tile = Box(parent, new Color(1, 1, 1, faded ? 0.04f : 0.08f), x, y, size, size);
+                var sp = GameArt.Load(icon);
+                if (sp != null)
+                {
+                    var im = UIFactory.AddImage("Icon", tile.transform, faded ? new Color(1, 1, 1, 0.4f) : Color.white, sp);
+                    im.preserveAspect = true;
+                    UIFactory.Stretch(im.rectTransform, size * 0.14f, size * 0.24f, size * 0.14f, size * 0.06f);
+                }
+                var c = UIFactory.AddText("Count", tile.transform, count >= 1000 ? count.ToString("N0") : "×" + count, size * 0.22f, Font,
+                    ColorUtility.TryParseHtmlString(hex, out var col) ? col : Color.white, TextAlignmentOptions.Bottom, FontStyles.Bold);
+                UIFactory.Stretch(c.rectTransform, 2, 1, 2, 0);
+                TextOutline.Apply(c, 0.22f, new Color32(8, 10, 18, 240));
+                x += size + 8;
+            }
+            return x;
         }
 
         /// <summary>세로로 쌓이는 스크롤 목록(창 안 여백 = 왼 · 아래 · 오른 · 위). 반환 = 내용 칸.</summary>

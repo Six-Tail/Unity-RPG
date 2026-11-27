@@ -116,7 +116,7 @@ namespace SubcultureRPG.Meta.UI
             _multRow.SetActive(boost);
             _repeatRow.SetActive(boost);
             _boostHint.gameObject.SetActive(!boost);
-            _boostHint.text = "<color=#9AA3B5>★3으로 클리어하면 <color=#FFD36B>보상 배수(x2 · x3)</color>와 <color=#7FE3D6>반복 입장</color>을 쓸 수 있습니다</color>";
+            _boostHint.text = "<color=#9AA3B5>★3 클리어 후 <color=#FFD36B>배수</color> · <color=#7FE3D6>반복 입장</color> 사용 가능</color>";
 
             foreach (var (btn, v) in _multBtns)
             {

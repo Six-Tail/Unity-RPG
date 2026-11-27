@@ -555,8 +555,40 @@ namespace SubcultureRPG.Meta
 
         private void EnsureOpponents()
         {
-            if (_d.opponents != null && _d.opponents.Count == 3) return;
+            if (_d.opponents != null && _d.opponents.Count == 3)
+            {
+                if (!_ordered) { _ordered = true; if (OrderByPower(_d.opponents)) Save(); }   // 예전에 뽑힌 상대도 전투력 순으로
+                return;
+            }
             Refresh(false);
+        }
+
+        private bool _ordered;
+
+        /// <summary>
+        /// 상대 3명을 전투력 낮은 순으로 쉬움 · 보통 · 어려움에 다시 배정(가상 상대는 점수가 아닌 무작위 팀 구성 때문에
+        /// '쉬움'이 가장 강하게 나올 수 있었음). 가상 상대의 점수도 같은 순서로 다시 나눠 티어 표시가 맞게. 바뀌었으면 true.
+        /// </summary>
+        private static bool OrderByPower(List<Opponent> list)
+        {
+            if (list == null || list.Count < 2) return false;
+            bool sorted = true;
+            for (int i = 1; i < list.Count; i++) if (list[i].power < list[i - 1].power) sorted = false;
+            bool labels = true;
+            for (int i = 0; i < list.Count; i++) if (list[i].difficulty != i) labels = false;
+            if (sorted && labels) return false;
+
+            var virtPoints = new List<int>();
+            foreach (var o in list) if (!o.Real) virtPoints.Add(o.points);
+            virtPoints.Sort();
+            list.Sort((a, b) => a.power.CompareTo(b.power));
+            int vp = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                list[i].difficulty = i;
+                if (!list[i].Real) list[i].points = virtPoints[vp++];
+            }
+            return true;
         }
 
         /// <summary>상대 3명을 새로 뽑음(쉬움 · 보통 · 어려움).</summary>
@@ -638,6 +670,8 @@ namespace SubcultureRPG.Meta
                 o.power = PowerOf(o, db);
                 _d.opponents.Add(o);
             }
+            OrderByPower(_d.opponents);   // 쉬움 < 보통 < 어려움(전투력)
+            _ordered = true;
             if (notify) Changed(); else Save();
         }
 

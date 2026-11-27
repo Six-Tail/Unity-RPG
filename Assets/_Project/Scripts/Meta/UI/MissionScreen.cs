@@ -157,7 +157,7 @@ namespace SubcultureRPG.Meta.UI
             {
                 done = _achievements.ClaimedTiers(); total = PlayerAchievements.TotalTiers();
                 _headTitle.text = "업적";
-                _headSub.text = "<color=#9AA3B5>계정 누적 기록 · 초기화 없음 · 마지막 단계는 칭호</color>";
+                _headSub.text = "";
                 _headIcon.sprite = GameArt.Load(TabIcon(true, _tab));
             }
             else
@@ -166,9 +166,8 @@ namespace SubcultureRPG.Meta.UI
                 total = list.Count; done = 0;
                 foreach (var m in list) if (missions.IsClaimed(m)) done++;
                 var left = PlayerMissions.UntilReset(_tab);
-                string when = _tab == MissionPeriod.Daily ? "매일 05:00 초기화" : "매주 월요일 05:00 초기화";
                 _headTitle.text = MissionCatalog.PeriodName(_tab);
-                _headSub.text = $"<color=#9AA3B5>{when}</color>   <color=#FFD36B>초기화까지 {Shop.PlayerShop.FormatSpan(left)}</color>";
+                _headSub.text = $"<color=#9AA3B5>초기화까지</color> <color=#FFD36B>{Shop.PlayerShop.FormatSpan(left)}</color>";
                 _headIcon.sprite = GameArt.Load(TabIcon(false, _tab));
             }
             _headIcon.enabled = _headIcon.sprite != null;

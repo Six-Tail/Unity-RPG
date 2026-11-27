@@ -1089,7 +1089,7 @@ namespace SubcultureRPG.Meta.UI
             else
                 sb.Append($"<color=#6B7280>Lv.{CharacterKits.HiddenLevel} ??? — Lv.{CharacterKits.HiddenLevel}에 도달하면 개화합니다 (지금 Lv.{lvNow})</color>");
             _skStats.text = sb.ToString();
-            _skTable.text = "<color=#9AA3B5>패시브는 레벨이 없고 항상 적용됩니다. 초월 +1 · +3 · +6에서 패시브가 강화되고, +2 · +4 · +5에서는 기본 공격 · 스킬 · 궁극기 레벨이 재료 없이 +3 됩니다.</color>";
+            _skTable.text = "<color=#9AA3B5>패시브는 항상 적용 · 초월 +1 · +3 · +6에서 강화</color>";
             _skCostText.text = "";
             _skUpBtn.gameObject.SetActive(false);
         }
@@ -1153,13 +1153,13 @@ namespace SubcultureRPG.Meta.UI
             {
                 sb.Append($"<color=#9AA3B5>피해 계수</color>   공격력 × {Pair(s.power, s.power + stepPower, max)}" + (s.hits > 1 ? $"  × {s.hits}회" : ""));
                 int est = Mathf.RoundToInt(unit.atk * s.power * s.hits * (1f + unit.allDmg + unit.ElementDmg(s.element)));
-                sb.Append($"\n<color=#9AA3B5>예상 피해</color>   약 <b>{est:N0}</b>  <size=82%><color=#9AA3B5>(현재 공격력 {unit.atk:N0} · 속성 피해 포함 · 적 방어·치명타 적용 전)</color></size>\n");
+                sb.Append($"\n<color=#9AA3B5>예상 피해</color>   약 <b>{est:N0}</b>\n");
             }
             if (s.heal > 0f)
             {
                 sb.Append($"<color=#9AA3B5>회복 계수</color>   공격력 × {Pair(s.heal, s.heal + stepHeal, max)}");
                 int est = Mathf.RoundToInt(unit.atk * s.heal * (1f + unit.healBonus));
-                sb.Append($"\n<color=#9AA3B5>예상 회복</color>   약 <b>{est:N0}</b>  <size=82%><color=#9AA3B5>(현재 공격력 {unit.atk:N0} · 치유량 보너스 포함)</color></size>\n");
+                sb.Append($"\n<color=#9AA3B5>예상 회복</color>   약 <b>{est:N0}</b>\n");
             }
             if (s.effect != StatusType.None)
             {

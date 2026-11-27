@@ -40,13 +40,18 @@ namespace SubcultureRPG.Meta.UI
                     var ic = w.Icon(row.transform, m.reward != null ? m.reward.Icon() : GameArt.Load("Items/UiMail"), 18, -20, 84);
                     if (m.claimed) ic.color = new Color(1, 1, 1, 0.4f);
                     var tc = m.claimed ? new Color(0.6f, 0.63f, 0.7f) : Color.white;
-                    var t1 = w.Text(row.transform, $"<b>{m.title}</b>", 26, tc, TextAlignmentOptions.Left, 118, -10, 760, 38);
+                    // 보상 칸(오른쪽, 최대 4칸이 들어가게) — 칸 수만큼 글자 폭을 줄임
+                    int parts = 0;
+                    if (m.reward != null) foreach (var _ in m.reward.Parts()) parts++;
+                    int shown = Mathf.Min(parts, 4);
+                    float tilesW = shown > 0 ? shown * 80 : 0;
+                    float textW = 960 - 118 - tilesW - 16;
+                    var t1 = w.Text(row.transform, $"<b>{m.title}</b>", 26, tc, TextAlignmentOptions.Left, 118, -14, textW, 38);
                     t1.enableAutoSizing = true; t1.fontSizeMin = 16; t1.fontSizeMax = 26;
-                    var t2 = w.Text(row.transform, m.body, 17, new Color(0.72f, 0.75f, 0.82f), TextAlignmentOptions.Left, 118, -48, 820, 26);
-                    t2.enableAutoSizing = true; t2.fontSizeMin = 12; t2.fontSizeMax = 17;
-                    var t3 = w.Text(row.transform, m.reward != null ? m.reward.Describe() : "", 19, Color.white, TextAlignmentOptions.Left, 118, -80, 840, 32);
-                    t3.enableAutoSizing = true; t3.fontSizeMin = 12; t3.fontSizeMax = 19;
-                    if (m.claimed) t3.alpha = 0.5f;
+                    var t2 = w.Text(row.transform, m.body, 18, new Color(0.72f, 0.75f, 0.82f), TextAlignmentOptions.TopLeft, 118, -54, textW, 56);
+                    t2.textWrappingMode = TextWrappingModes.Normal;
+                    t2.enableAutoSizing = true; t2.fontSizeMin = 12; t2.fontSizeMax = 18;
+                    if (m.reward != null && shown > 0) w.RewardTiles(row.transform, m.reward, 960 - tilesW, -26, 72, m.claimed, 4);
                     w.Text(row.transform, m.SentAt.ToString("yyyy.MM.dd"), 16, new Color(0.6f, 0.63f, 0.7f), TextAlignmentOptions.Right, 960, -10, 200, 24);
                     w.Btn(row.transform, m.claimed ? "받음" : "받기", 24, OverlayWindow.Blue, 984, -48, 176, 58, () =>
                     {

@@ -14,6 +14,7 @@ namespace SubcultureRPG.Meta.UI
         Rarity,
         Level,
         Name,
+        Power,   // 전투력(장비 · 호감도 포함)
     }
 
     /// <summary>필터·정렬을 거친 보유 캐릭터 1명.</summary>
@@ -27,6 +28,8 @@ namespace SubcultureRPG.Meta.UI
     public class RosterFilter
     {
         public RosterSort sort = RosterSort.Rarity;
+        private readonly Dictionary<CharacterData, int> _power = new();
+        private int PowerOf(RosterEntry e) => _power.TryGetValue(e.character, out var p) ? p : 0;
         public bool descending = true;
         public readonly HashSet<Element> elements = new();  // 비어 있으면 전체
         public readonly HashSet<Role> roles = new();        // 비어 있으면 전체
@@ -45,6 +48,13 @@ namespace SubcultureRPG.Meta.UI
             {
                 var c = db.GetCharacter(o.id);
                 if (Matches(c)) list.Add(new RosterEntry { character = c, owned = o });
+            }
+            // 전투력 정렬: 한 번씩만 계산해 두고 비교
+            _power.Clear();
+            if (sort == RosterSort.Power)
+            {
+                var eq = UnityEngine.Object.FindAnyObjectByType<PlayerEquipment>();
+                foreach (var e in list) _power[e.character] = CombatPower.Of(e.character, roster, eq);
             }
             list.Sort(Compare);
             return list;
@@ -67,6 +77,7 @@ namespace SubcultureRPG.Meta.UI
             int r = sort switch
             {
                 RosterSort.Level => a.owned.level.CompareTo(b.owned.level),
+                RosterSort.Power => PowerOf(a).CompareTo(PowerOf(b)),
                 RosterSort.Name => string.Compare(a.character.displayName, b.character.displayName, StringComparison.CurrentCulture),
                 _ => Grade(a).CompareTo(Grade(b)),
             };
@@ -155,7 +166,17 @@ namespace SubcultureRPG.Meta.UI
             {
                 var ee = e;
                 var b = MakeButton(row2, ew, new Color(1, 1, 1, 0.1f), () => Toggle(filter.elements, ee));
-                b.GetComponentInChildren<TextMeshProUGUI>().text = Traits.Name(e);
+                var lbl = b.GetComponentInChildren<TextMeshProUGUI>();
+                lbl.text = Traits.Name(e);
+                var esp = GameArt.Load("Elements/" + e);
+                if (esp != null)
+                {
+                    var ei = UIFactory.AddImage("El", b.transform, Color.white, esp);
+                    ei.preserveAspect = true; ei.raycastTarget = false;
+                    UIFactory.Anchor(ei.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                    ei.rectTransform.sizeDelta = new Vector2(RowH - 10, RowH - 10); ei.rectTransform.anchoredPosition = new Vector2(8, 0);
+                    lbl.rectTransform.offsetMin = new Vector2(RowH - 4, lbl.rectTransform.offsetMin.y);
+                }
                 _elemChips[e] = (Image)b.targetGraphic;
             }
 
@@ -207,7 +228,8 @@ namespace SubcultureRPG.Meta.UI
         {
             filter.sort = filter.sort switch
             {
-                RosterSort.Rarity => RosterSort.Level,
+                RosterSort.Rarity => RosterSort.Power,
+                RosterSort.Power => RosterSort.Level,
                 RosterSort.Level => RosterSort.Name,
                 _ => RosterSort.Rarity,
             };
@@ -246,6 +268,7 @@ namespace SubcultureRPG.Meta.UI
                 {
                     RosterSort.Level => "레벨",
                     RosterSort.Name => "이름",
+                    RosterSort.Power => "전투력",
                     _ => "성급",
                 });
             if (_orderLabel != null)

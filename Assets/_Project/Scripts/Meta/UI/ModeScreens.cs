@@ -314,14 +314,14 @@ namespace SubcultureRPG.Meta.UI
             Place((RectTransform)tierBtn.transform, 236, -656, 202, 66);
             tierBtn.onClick.AddListener(OpenTiers);
 
-            var rule = Text(mt, $"<color=#9AA3B5>도전권은 매일 05:00에 {PlayerArena.MaxTickets}장으로 충전\n모자라면 크리스탈로 구매(하루 {PlayerArena.BuyCosts.Length}장)\n이기면 새 상대 · <color=#7CFF9A>● 플레이어</color>는 실제 지휘관의\n파티(AI 조종)</color>",
+            var rule = Text(mt, $"<color=#9AA3B5>도전권은 매일 05:00에 초기화\n크리스탈로 구매 가능(하루 최대 {PlayerArena.BuyCosts.Length}회)</color>",
                 18, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
             rule.lineSpacing = 6f;
             UIFactory.Anchor(rule.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
             rule.rectTransform.sizeDelta = new Vector2(420, 130); rule.rectTransform.anchoredPosition = new Vector2(0, 14);
 
             // ---- 오른쪽: 상대 선택 ----
-            var head = Text(_frame, "<b>상대 선택</b>  <size=70%><color=#9AA3B5>쉬움 · 보통 · 어려움 — 어려울수록 점수 · 보상이 큼</color></size>", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            var head = Text(_frame, "<b>상대 선택</b>", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(head.rectTransform, RightX, -132, 900, 50);
             var refresh = UIFactory.AddButton("Refresh", _frame, "상대 새로고침", 22, font, new Color(1, 1, 1, 0.16f), Color.white);
             Place((RectTransform)refresh.transform, RightX + 3 * CardW + 2 * CardGap - 260, -128, 260, 56);
@@ -453,7 +453,7 @@ namespace SubcultureRPG.Meta.UI
             _tickets.text = $"<color={(a.Tickets > 0 ? "#7CFF9A" : "#FF8A8A")}>{a.Tickets}</color> <size=60%><color=#9AA3B5>/ {PlayerArena.MaxTickets}</color></size>";
             int nextCost = a.NextBuyCost;
             _ticketSub.text = nextCost < 0 ? $"<color=#9AA3B5>오늘 구매 완료 ({PlayerArena.BuyCosts.Length}/{PlayerArena.BuyCosts.Length})</color>"
-                : $"<color=#9AA3B5>오늘 구매 {a.BoughtToday}/{PlayerArena.BuyCosts.Length} · 다음</color> <color=#8FE9FF>{nextCost:N0}</color>";
+                : $"<color=#9AA3B5>오늘 구매 {a.BoughtToday}/{PlayerArena.BuyCosts.Length}</color>";
 
             Clear(_list);
             int col = 0;
@@ -869,7 +869,7 @@ namespace SubcultureRPG.Meta.UI
             _summary.text = $"<color=#9AA3B5>오늘 남은 도전</color>   <color={(r.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}><b>{r.AttemptsLeft}</b></color> / {WorldRaid.AttemptsPerDay}{(WorldRaid.FreeAttempts ? "  <color=#FFD36B>(최대 육성 테스트 중 · 소모 안 함)</color>" : "")}\n" +
                             $"<color=#9AA3B5>이번 주 누적 점수</color> <size=80%><color={df.hex}>{df.name}</color></size>   <color=#FFD36B><b>{r.TotalDamage(sel):N0}</b></color>\n" +
                             $"<color=#9AA3B5>최고 기록(1회)</color>   {r.BestDamage(sel):N0}";
-            _rewardTitle.text = $"<b><color={df.hex}>{df.name}</color> 누적 점수 보상</b>  <size=75%><color=#9AA3B5>난이도마다 따로 · 월요일 05:00 초기화 · 점수 = 준 피해 × 보너스</color></size>";
+            _rewardTitle.text = $"<b><color={df.hex}>{df.name}</color> 누적 점수 보상</b>  <size=75%><color=#9AA3B5>월요일 05:00 초기화</color></size>";
 
             Clear(_featured);
             var roster = FindAnyObjectByType<PlayerRoster>();

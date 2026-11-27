@@ -41,7 +41,7 @@ namespace SubcultureRPG.Meta.UI
                 float fill = need > 0 ? cur / (float)need : 1f;
                 if (fill > 0f) w.Box(body, Gold, 250, -152, Mathf.Max(22f, 620f * fill), 22);
                 w.Text(body, need > 0 ? $"{cur} / {need}" : "최대 단계", 18, new Color(0.85f, 0.88f, 0.94f), TextAlignmentOptions.Right, 250, -176, 620, 26);
-                w.Text(body, $"<color=#9AA3B5>일일 임무 받기 <color=#FFD36B>+{SeasonPass.DailyExp}</color> · 주간 임무 받기 <color=#FFD36B>+{SeasonPass.WeeklyExp}</color> (보너스 임무 제외)  ·  시즌이 끝나면 받지 않은 보상은 우편으로</color>",
+                w.Text(body, $"<color=#9AA3B5>일일 임무 받기 <color=#FFD36B>+{SeasonPass.DailyExp}</color> · 주간 임무 받기 <color=#FFD36B>+{SeasonPass.WeeklyExp}</color></color>",
                     17, Color.white, TextAlignmentOptions.Left, 36, -204, 1100, 28);
 
                 // 프리미엄
@@ -72,8 +72,13 @@ namespace SubcultureRPG.Meta.UI
 
                 // ---------------- 가운데: 단계 줄 ----------------
                 const float top = -250, rowH = 238, headH = 44;
-                w.Text(body, "<b>무료</b>", 26, new Color(0.85f, 0.88f, 0.94f), TextAlignmentOptions.Center, 36, top - headH - rowH / 2 + 20, LabelW - 20, 40);
-                w.Text(body, "<b><color=#C9B6FF>프리미엄</color></b>", 26, Color.white, TextAlignmentOptions.Center, 36, top - headH - rowH - 8 - rowH / 2 + 20, LabelW - 20, 40);
+                var freeBox = w.Box(body, new Color(1, 1, 1, 0.07f), 36, top - headH, LabelW - 14, rowH);
+                w.Icon(freeBox.transform, GameArt.Load("Items/UiPass"), (LabelW - 14 - 96) / 2f, -40, 96);
+                w.Text(freeBox.transform, "<b>무료</b>", 26, new Color(0.85f, 0.88f, 0.94f), TextAlignmentOptions.Center, 0, -150, LabelW - 14, 40);
+                var premBox = w.Box(body, new Color(0.55f, 0.4f, 0.85f, 0.22f), 36, top - headH - rowH - 8, LabelW - 14, rowH);
+                w.Icon(premBox.transform, GameArt.Load("Items/PassPremium"), (LabelW - 14 - 96) / 2f, -40, 96);
+                w.Text(premBox.transform, "<b><color=#C9B6FF>프리미엄</color></b>", 26, Color.white, TextAlignmentOptions.Center, 0, -150, LabelW - 14, 40);
+                if (!pass.Premium) w.Text(premBox.transform, "<color=#9AA3B5>잠김</color>", 18, Color.white, TextAlignmentOptions.Center, 0, -186, LabelW - 14, 28);
 
                 var view = UIFactory.NewRect("Track", body);
                 OverlayWindow.Place(view, 36 + LabelW, top, 1660 - 72 - LabelW, headH + rowH * 2 + 8);
@@ -92,7 +97,10 @@ namespace SubcultureRPG.Meta.UI
                 {
                     float x = 8 + (l - 1) * ColW;
                     bool reached = l <= lv;
-                    w.Text(content, $"<b>Lv.{l}</b>", 20, reached ? new Color(1f, 0.85f, 0.45f) : new Color(0.55f, 0.58f, 0.66f), TextAlignmentOptions.Center, x, -8, ColW - 10, 30);
+                    if (l == lv) w.Box(content, new Color(1f, 0.83f, 0.42f, 0.18f), x - 4, -2, ColW - 2, headH + rowH * 2 + 4);   // 지금 단계 세로 띠
+                    var pill = w.Box(content, reached ? new Color(0.85f, 0.62f, 0.22f, l == lv ? 1f : 0.7f) : new Color(1, 1, 1, 0.08f), x + 14, -6, ColW - 38, 32);
+                    var pt = w.Text(pill.transform, $"<b>Lv.{l}</b>", 19, reached ? Color.white : new Color(0.55f, 0.58f, 0.66f), TextAlignmentOptions.Center, 0, 0, 0, 0);
+                    UIFactory.Stretch(pt.rectTransform);
                     Cell(content, x, -headH, l, false);
                     Cell(content, x, -headH - rowH - 8, l, true);
                 }
@@ -113,7 +121,7 @@ namespace SubcultureRPG.Meta.UI
                     if (r != null) Popups.Reward("시즌 패스 보상", r);
                 }, n > 0);
                 if (!pass.Premium)
-                    w.Text(body, "<color=#9AA3B5>프리미엄 줄은 '프리미엄 패스 열기' 후 받을 수 있습니다</color>", 18, Color.white, TextAlignmentOptions.Left, 36, -852, 900, 30);
+                    { }
 
                 void Cell(RectTransform parent, float x, float y, int l, bool premium)
                 {
@@ -124,10 +132,32 @@ namespace SubcultureRPG.Meta.UI
                         : premium ? new Color(0.55f, 0.4f, 0.85f, locked ? 0.12f : 0.22f) : new Color(1, 1, 1, locked ? 0.05f : 0.09f),
                         x, y, ColW - 10, rowH, raycast: can);
                     var r = premium ? SeasonPass.PremiumReward(l) : SeasonPass.FreeReward(l);
-                    w.Icon(bg.transform, r.Icon(), (ColW - 10 - 76) / 2f, -18, 76);
-                    var t = w.Text(bg.transform, r.Describe("\n"), 15, Color.white, TextAlignmentOptions.Center, 4, -102, ColW - 18, 92);
-                    t.textWrappingMode = TextWrappingModes.Normal;
-                    t.enableAutoSizing = true; t.fontSizeMin = 11; t.fontSizeMax = 15;
+                    var parts = new System.Collections.Generic.List<(string icon, string name, int count, string hex)>(r.Parts());
+                    float cw = ColW - 10;
+                    if (parts.Count <= 1)
+                    {
+                        w.Icon(bg.transform, parts.Count == 1 ? GameArt.Load(parts[0].icon) : r.Icon(), (cw - 88) / 2f, -18, 88);
+                        if (parts.Count == 1)
+                        {
+                            var (_, name, count, hex) = parts[0];
+                            var ct = w.Text(bg.transform, $"<color={hex}><b>{(count >= 1000 ? count.ToString("N0") : "×" + count)}</b></color>", 24, Color.white, TextAlignmentOptions.Center, 2, -110, cw - 4, 32);
+                            var nt = w.Text(bg.transform, name, 15, new Color(0.8f, 0.83f, 0.9f), TextAlignmentOptions.Center, 4, -144, cw - 8, 44);
+                            nt.textWrappingMode = TextWrappingModes.Normal;
+                            nt.enableAutoSizing = true; nt.fontSizeMin = 11; nt.fontSizeMax = 15;
+                        }
+                    }
+                    else
+                    {
+                        // 2종 이상: 앞 2종을 나란히(작게) + 수량
+                        for (int k = 0; k < 2; k++)
+                        {
+                            var (icon, _, count, hex) = parts[k];
+                            float px = 6 + k * (cw - 12) / 2f;
+                            w.Icon(bg.transform, GameArt.Load(icon), px + ((cw - 12) / 2f - 52) / 2f, -34, 52);
+                            w.Text(bg.transform, $"<color={hex}><b>{(count >= 1000 ? count.ToString("N0") : "×" + count)}</b></color>", 17, Color.white, TextAlignmentOptions.Center, px, -90, (cw - 12) / 2f, 26);
+                        }
+                        var nt = w.Text(bg.transform, parts.Count > 2 ? $"<color=#9AA3B5>외 {parts.Count - 2}종</color>" : "", 15, Color.white, TextAlignmentOptions.Center, 4, -124, cw - 8, 26);
+                    }
                     string state = claimed ? "<color=#7BE39A>받음</color>" : can ? "<color=#FFE08A><b>받기</b></color>" : locked ? "<color=#6B7280>잠김</color>" : "";
                     w.Text(bg.transform, state, 18, Color.white, TextAlignmentOptions.Center, 0, -200, ColW - 10, 30);
                     if (claimed || locked) w.Box(bg.transform, new Color(0, 0, 0, claimed ? 0.4f : 0.3f), 0, 0, ColW - 10, rowH);

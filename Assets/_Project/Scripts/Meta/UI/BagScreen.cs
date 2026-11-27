@@ -500,7 +500,7 @@ namespace SubcultureRPG.Meta.UI
             _descScroll = UIFactory.MakeVerticalScroll(dview, _descContent);
 
             // 바로 가기(획득처 · 사용처로 이동)
-            _srcHead = UIFactory.AddText("SrcHead", prt, "<color=#FFD36B>바로 가기</color>  <size=75%><color=#9AA3B5>획득처 · 사용처로 이동</color></size>", 22, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            _srcHead = UIFactory.AddText("SrcHead", prt, "<color=#FFD36B>바로 가기</color>", 22, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
             _srcHead.richText = true;
             Place(_srcHead.rectTransform, new Vector2(0.5f, 1), new Vector2(480, 30), new Vector2(0, -706));
             _srcGrid = UIFactory.NewRect("Sources", prt);

@@ -136,7 +136,7 @@ namespace SubcultureRPG.Meta.UI
             _emblem.sprite = emblem; _emblem.enabled = emblem != null;
 
             string el = $"<color={Traits.Hex(theme.element)}><b>{Traits.Name(theme.element)}</b></color>";
-            _bonus.text = $"보너스 속성 {el}  <size=80%><color=#9AA3B5>파티 1명당 코인 +{LimitedEvent.BonusPerMember * 100f:0}% (최대 +{LimitedEvent.BonusPerMember * 400f:0}%)</color></size>";
+            _bonus.text = $"보너스 속성 {el}  <size=80%><color=#9AA3B5>1명당 코인 +{LimitedEvent.BonusPerMember * 100f:0}%</color></size>";
             var weak = LimitedEvent.Weaknesses;
             if (weak.Count > 0)
             {
@@ -301,7 +301,7 @@ namespace SubcultureRPG.Meta.UI
             string stars = star > 0 ? $"<color=#{ColorUtility.ToHtmlStringRGB(StarText.ColorOf(star))}>★{star}</color> " : "";
             var label = Text(row.transform,
                 $"<color=#FFD36B><b>한정 축제 스킨</b></color>  {stars}<b>{name}</b>\n" +
-                $"<size=75%><color=#9AA3B5>{theme.name} 상점 한정 · 영구 보유 · 옷장에서 입기(일러스트 · 전투 그림 모두)</color></size>" +
+                $"<size=75%><color=#9AA3B5>영구 보유 · 옷장에서 변경</color></size>" +
                 (!haveChar && !owned ? "\n<size=72%><color=#FFB38A>캐릭터를 아직 보유하지 않았습니다 (교환은 가능)</color></size>" : ""),
                 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             label.enableAutoSizing = true; label.fontSizeMin = 14; label.fontSizeMax = 22;

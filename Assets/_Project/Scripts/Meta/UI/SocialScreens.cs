@@ -316,9 +316,9 @@ namespace SubcultureRPG.Meta.UI
             _greetAll.SetActive(_tab == 0);
             _info.text = _tab switch
             {
-                0 => "<b>친구</b>  <size=70%><color=#9AA3B5>대화 · 인사 · 친선 전투 — 줄을 누르면 지휘관 정보</color></size>",
-                1 => "<b>받은 신청</b>  <size=70%><color=#9AA3B5>수락하면 바로 친구 — 내가 보낸 신청도 여기에</color></size>",
-                _ => "<b>친구 찾기</b>  <size=70%><color=#9AA3B5>UID로 검색하거나 추천 지휘관을 추가</color></size>",
+                0 => "<b>친구</b>",
+                1 => "<b>받은 신청</b>",
+                _ => "<b>친구 찾기</b>",
             };
             ((RectTransform)_list.parent).anchoredPosition = new Vector2(ListX, _tab == 2 ? -262 : -196);
             ((RectTransform)_list.parent).sizeDelta = new Vector2(RowW + 20, _tab == 2 ? 778 : 844);
@@ -619,7 +619,7 @@ namespace SubcultureRPG.Meta.UI
             string online = GuildLink.Online
                 ? "로그인 중이라 만든 길드는 <color=#7CFF9A>다른 플레이어가 찾아 가입하는 플레이어 길드</color>가 됩니다."
                 : "로그인하지 않아 만든 길드는 가상 길드원과 함께하는 길드가 됩니다(플레이어 길드는 설정 → 로그인).";
-            _createTip.text = $"<b>길드에 가입해 보세요</b>{req}\n<size=75%><color=#9AA3B5>출석 · 기부 · 길드 보스 · 길드전으로 보상을 받고 길드를 함께 키웁니다. 직접 만들려면 금화 {PlayerGuild.CreateCost:N0} — {online}</color></size>";
+            _createTip.text = $"<b>길드에 가입해 보세요</b>{req}\n<size=75%><color=#9AA3B5>길드 창설 비용 금화 {PlayerGuild.CreateCost:N0}</color></size>";
             _freeBtn.gameObject.SetActive(GuildLink.Online);
             _freeBtn.GetComponentInChildren<TextMeshProUGUI>().text = _createFree ? "가입: 자유" : "가입: 승인 후";
         }
@@ -960,9 +960,8 @@ namespace SubcultureRPG.Meta.UI
             Place(hpText.rectTransform, 270, -108, 860, 28);
             string kind = g.IsReal ? "길드원 피해의 합" : "나 + 가상 길드원이 날마다 보탠 피해";
             var info = Text(top.transform,
-                $"<color=#9AA3B5>길드 합계</color>  {total:N0}  <size=80%><color=#9AA3B5>({kind})</color></size>\n" +
-                $"<color=#9AA3B5>이번 주 내 피해</color>  {g.MyBossDamage:N0}   <color=#9AA3B5>오늘 남은 도전</color>  <color={(GuildBoss.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}>{GuildBoss.AttemptsLeft}</color> / {GuildBoss.AttemptsPerDay}\n" +
-                $"<size=80%><color=#9AA3B5>제한 {WorldRaid.TimeLimit / 60f:0}분 · 30초마다 격노 · 단계를 깨면 더 강한 다음 단계 · 지난주 길드 순위 보상은 월요일 우편</color></size>",
+                $"<color=#9AA3B5>길드 합계</color>  {total:N0}\n" +
+                $"<color=#9AA3B5>이번 주 내 피해</color>  {g.MyBossDamage:N0}   <color=#9AA3B5>오늘 남은 도전</color>  <color={(GuildBoss.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}>{GuildBoss.AttemptsLeft}</color> / {GuildBoss.AttemptsPerDay}",
                 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(info.rectTransform, 270, -142, 900, 100);
             var go = UIFactory.AddButton("Go", top.transform, done ? "격파 완료" : "도전", 30, font, done || GuildBoss.AttemptsLeft <= 0 ? new Color(1, 1, 1, 0.08f) : Red, Color.white);
@@ -1003,7 +1002,7 @@ namespace SubcultureRPG.Meta.UI
             var top = Row(_list, new Color(0.07f, 0.09f, 0.14f, 0.94f), 170);
             int oppRank = GuildWar.OpponentRank();
             var t1 = Text(top.transform, $"<b>이번 주 상대  {opp.name}</b>   <size=70%><color=#FFD36B>Lv.{opp.level}</color>   <color=#FF9A6B>길드전 점수 {opp.warRating:N0}{(oppRank > 0 ? $" · {oppRank}위" : "")}</color>   " +
-                                         $"<color=#9AA3B5>우리 길드 점수 {g.WarRating:N0} · 결과는 월요일 05:00 (남은 {left.Days}일 {left.Hours}시간)</color></size>",
+                                         $"<color=#9AA3B5>결과까지 {left.Days}일 {left.Hours}시간</color></size>",
                 32, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(t1.rectTransform, 24, -14, 1400, 44);
             string state = ours > theirs ? "<color=#7CFF9A>우세</color>" : ours == theirs ? "<color=#FFD36B>접전</color>" : "<color=#FF8A8A>열세</color>";
@@ -1011,7 +1010,7 @@ namespace SubcultureRPG.Meta.UI
                 34, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(t2.rectTransform, 24, -64, 1100, 50);
             var t3 = Text(top.transform, $"<color=#9AA3B5>오늘 남은 공격</color>  <color={(GuildWar.AttemptsLeft > 0 ? "#7CFF9A" : "#FF8A8A")}>{GuildWar.AttemptsLeft}</color> / {GuildWar.AttemptsPerDay}   " +
-                                         $"<size=85%><color=#9AA3B5>이기면 별(모두 살아남음 ★3 · 절반 이상 ★2 · 그 밖 ★1) · 길드 별 = 상대마다 길드원 최고 별의 합 · 점수가 가까운 가상 길드와 매칭, 이기면 +{GuildWar.WinRating}~200 · 지면 {GuildWar.LoseRating}~−120(별 차이만큼 더)</color></size>",
+                                         $"<size=85%><color=#9AA3B5>모두 생존 ★3 · 절반 이상 ★2 · 그 밖 ★1</color></size>",
                 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Place(t3.rectTransform, 24, -118, 1420, 40);
 
@@ -1056,7 +1055,7 @@ namespace SubcultureRPG.Meta.UI
                 b.onClick.AddListener(() => { _rankTab = tt; Refresh(); });
             }
             string realNote = GuildLink.Online ? (GuildLink.Instance.Error ?? $"플레이어 길드 {GuildLink.Instance.Ranked.Count}곳 포함") : "로그인하면 플레이어 길드도 함께 보입니다";
-            var note = Text(sub.transform, $"<size=80%><color=#9AA3B5>가상 길드 · 플레이어 길드가 한 표에 — {realNote}</color></size>", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
+            var note = Text(sub.transform, GuildLink.Online && GuildLink.Instance.Error != null ? $"<size=80%><color=#FFB347>{GuildLink.Instance.Error}</color></size>" : "", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Right);
             Place(note.rectTransform, 720, -20, 740, 40);
 
             var list = GuildRanking.Build(_rankTab);

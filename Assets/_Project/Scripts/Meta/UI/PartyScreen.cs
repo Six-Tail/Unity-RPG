@@ -9,7 +9,8 @@ using SubcultureRPG.Characters;
 namespace SubcultureRPG.Meta.UI
 {
     /// <summary>
-    /// 파티 편성 화면. 보유 캐릭터를 카드로 보여주고, 최대 N명을 골라 전투를 시작합니다.
+    /// 파티 편성 화면(2026-11 개편). 왼쪽 = 출전 파티 4칸(전신 그림 · 순서 · 레벨 · 별 · 속성 · 전투력, 누르면 빼기) · 프리셋 · 장비 자동 장착 · 출격,
+    /// 오른쪽 = 정렬/필터 바 + 보유 캐릭터 카드(누르면 넣기/빼기). 최대 N명을 골라 전투를 시작합니다.
     /// 코드로 자동 구성 — 빈 GameObject에 추가 → roster/database/launcher 연결(비우면 자동 탐색).
     /// </summary>
     [DisallowMultipleComponent]
@@ -27,6 +28,7 @@ namespace SubcultureRPG.Meta.UI
         private RectTransform _grid;
         private GridLayoutGroup _gridLayout;
         private TextMeshProUGUI _countText, _titleText, _startLabel, _backLabel;
+        private RectTransform _slots;
         private Button _startButton, _backBtn;
         private System.Action _onBack;
         private System.Action<List<CharacterData>> _launchHandler;   // null이면 launcher 기본 전투
@@ -40,7 +42,8 @@ namespace SubcultureRPG.Meta.UI
 
         private readonly Vector2 _cell = new(150, 190);
         private readonly Vector2 _spacing = new(12, 12);
-        private const int Columns = 7;   // 한 줄 칸 수
+        private const int Columns = 6;   // 한 줄 칸 수
+        private const float LeftW = 770f, RightX = 830f, RightW = 1050f;
         private readonly List<CharacterData> _selected = new();
         // 카드별 선택 표시 요소
         private class CardView
@@ -52,7 +55,47 @@ namespace SubcultureRPG.Meta.UI
             public CanvasGroup group;
         }
         private readonly Dictionary<CharacterData, CardView> _cards = new();
-        private static readonly Color SelectColor = new(0.25f, 0.85f, 1f);
+        private static readonly Color SelectColor = new(1f, 0.8f, 0.36f);
+
+        /// <summary>순서 배지(금색 방패 · 날개, Items/PartyBadge) 위에 숫자. 그림이 없으면 금색 원.</summary>
+        private TextMeshProUGUI OrderBadge(Transform parent, float size, Vector2 anchor, Vector2 pos, out GameObject go)
+        {
+            var sp = GameArt.Load("Items/PartyBadge");
+            var img = UIFactory.AddImage("Badge", parent, sp != null ? Color.white : new Color(0.85f, 0.65f, 0.25f, 1f), sp ?? ProceduralSprites.Circle);
+            img.preserveAspect = true; img.raycastTarget = false;
+            UIFactory.Anchor(img.rectTransform, anchor, anchor, anchor);
+            img.rectTransform.sizeDelta = new Vector2(size, size); img.rectTransform.anchoredPosition = pos;
+            // 방패 안쪽 판의 중심(그림 가로 48.7% · 위에서 45.1%)에 맞춰 칸을 잡고, 글자 모양 기준으로 정가운데
+            var t = UIFactory.AddText("No", img.transform, "", size * 0.42f, font, new Color(1f, 0.92f, 0.66f), TextAlignmentOptions.CenterGeoAligned, FontStyles.Bold);
+            UIFactory.Stretch(t.rectTransform, size * 0.2f, size * 0.27f, size * 0.225f, size * 0.17f);
+            t.overflowMode = TextOverflowModes.Overflow;
+            TextOutline.Apply(t, 0.25f, new Color32(40, 24, 6, 255));
+            go = img.gameObject;
+            return t;
+        }
+
+        /// <summary>속성 아이콘을 잘 보이게: 어두운 원 판 + 속성 색 테두리 + 빛.</summary>
+        private void ElementPlate(Transform parent, Element e, float size, Vector2 anchor, Vector2 pos)
+        {
+            var ec = Traits.ColorOf(e);
+            var glow = UIFactory.AddImage("ElGlow", parent, new Color(ec.r, ec.g, ec.b, 0.55f), ProceduralSprites.Glow);
+            glow.raycastTarget = false;
+            UIFactory.Anchor(glow.rectTransform, anchor, anchor, anchor);
+            glow.rectTransform.sizeDelta = new Vector2(size * 1.7f, size * 1.7f);
+            glow.rectTransform.anchoredPosition = pos + new Vector2((anchor.x - 0.5f) * -size * 0.7f, (anchor.y - 0.5f) * -size * 0.7f);
+            var rim = UIFactory.AddImage("ElRim", parent, ec, ProceduralSprites.Circle);
+            rim.raycastTarget = false;
+            UIFactory.Anchor(rim.rectTransform, anchor, anchor, anchor);
+            rim.rectTransform.sizeDelta = new Vector2(size, size); rim.rectTransform.anchoredPosition = pos;
+            var plate = UIFactory.AddImage("ElPlate", rim.transform, new Color(0.05f, 0.06f, 0.1f, 0.95f), ProceduralSprites.Circle);
+            plate.raycastTarget = false;
+            UIFactory.Stretch(plate.rectTransform, 3, 3, 3, 3);
+            var sp = GameArt.Load("Elements/" + e);
+            if (sp == null) return;
+            var im = UIFactory.AddImage("El", rim.transform, Color.white, sp);
+            im.preserveAspect = true; im.raycastTarget = false;
+            UIFactory.Stretch(im.rectTransform, size * 0.12f, size * 0.12f, size * 0.12f, size * 0.12f);
+        }
 
         private void Awake()
         {
@@ -130,19 +173,86 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Stretch((RectTransform)_root.transform);
             BackgroundArt.Create(_root.transform, 0.7f).Set("Backgrounds/party");
 
-            _titleText = UIFactory.AddText("Title", _root.transform, "파티 편성", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var trt = _titleText.rectTransform;
-            UIFactory.Anchor(trt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            trt.sizeDelta = new Vector2(1100, 60); trt.anchoredPosition = new Vector2(0, -40);
+            var frame = UIFactory.Frame(_root.transform);   // 넓은 화면에서도 1920 폭 설계를 가운데에
 
-            // 캐릭터 목록: 필터 바 아래 ~ 하단 바 위 영역에서 스크롤(캐릭터가 많아져도 필터·출격 버튼과 겹치지 않음)
+            _titleText = UIFactory.AddText("Title", frame, "파티 편성", 38, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            _titleText.richText = true;
+            _titleText.enableAutoSizing = true; _titleText.fontSizeMin = 22; _titleText.fontSizeMax = 38;
+            var trt = _titleText.rectTransform;
+            UIFactory.Anchor(trt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            trt.sizeDelta = new Vector2(1500, 56); trt.anchoredPosition = new Vector2(200, -26);
+
+            // ---- 왼쪽: 출전 파티 ----
+            var left = UIFactory.AddImage("PartyPanel", frame, new Color(0.06f, 0.07f, 0.11f, 0.9f), ProceduralSprites.Rounded);
+            left.type = Image.Type.Sliced; left.preserveAspect = false;
+            var lrt = left.rectTransform;
+            UIFactory.Anchor(lrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            lrt.sizeDelta = new Vector2(LeftW, 950); lrt.anchoredPosition = new Vector2(40, -100);
+
+            _countText = UIFactory.AddText("Count", lrt, "", 26, font, Color.white, TextAlignmentOptions.Left);
+            _countText.richText = true;
+            var crt = _countText.rectTransform;
+            UIFactory.Anchor(crt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            crt.sizeDelta = new Vector2(LeftW - 40, 40); crt.anchoredPosition = new Vector2(22, -12);
+
+            _slots = UIFactory.NewRect("Slots", lrt);
+            UIFactory.Anchor(_slots, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            _slots.sizeDelta = new Vector2(LeftW - 36, 680); _slots.anchoredPosition = new Vector2(18, -60);
+            var sg = _slots.gameObject.AddComponent<GridLayoutGroup>();
+            sg.cellSize = new Vector2((LeftW - 36 - 14) / 2f, 333); sg.spacing = new Vector2(14, 14);
+            sg.constraint = GridLayoutGroup.Constraint.FixedColumnCount; sg.constraintCount = 2;
+
+            // 프리셋: 1 ~ 5 불러오기 + 저장
+            var presetTitle = UIFactory.AddText("PresetTitle", lrt, "편성 프리셋", 20, font, new Color(0.8f, 0.83f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UIFactory.Anchor(presetTitle.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            presetTitle.rectTransform.sizeDelta = new Vector2(300, 28); presetTitle.rectTransform.anchoredPosition = new Vector2(22, -752);
+            for (int i = 0; i < PartyPresets.Slots; i++)
+            {
+                int slot = i;
+                var pb = UIFactory.AddButton("Preset", lrt, "", 20, font, new Color(0.3f, 0.42f, 0.62f, 0.95f), Color.white);
+                var prt = (RectTransform)pb.transform;
+                UIFactory.Anchor(prt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+                prt.sizeDelta = new Vector2(112, 60); prt.anchoredPosition = new Vector2(18 + i * 122, -784);
+                var pl = pb.GetComponentInChildren<TextMeshProUGUI>();
+                pl.richText = true; pl.lineSpacing = -12f;
+                _presetLabels.Add(pl);
+                pb.onClick.AddListener(() => LoadPreset(slot));
+            }
+            _saveBtn = UIFactory.AddButton("SavePreset", lrt, "저장", 22, font, new Color(0.25f, 0.6f, 0.55f, 0.96f), Color.white);
+            var svrt = (RectTransform)_saveBtn.transform;
+            UIFactory.Anchor(svrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            svrt.sizeDelta = new Vector2(112, 60); svrt.anchoredPosition = new Vector2(18 + PartyPresets.Slots * 122 + 6, -784);
+            _saveBtn.onClick.AddListener(OpenSavePreset);
+
+            // 장비 자동 장착 · 출격
+            _autoEquipBtn = UIFactory.AddButton("AutoEquip", lrt, "장비 자동 장착\n<size=65%>선택한 파티</size>", 22, font, new Color(0.55f, 0.4f, 0.75f, 0.96f), Color.white);
+            var aert = (RectTransform)_autoEquipBtn.transform;
+            UIFactory.Anchor(aert, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            aert.sizeDelta = new Vector2(260, 80); aert.anchoredPosition = new Vector2(18, 18);
+            var ael = _autoEquipBtn.GetComponentInChildren<TextMeshProUGUI>();
+            ael.richText = true; ael.lineSpacing = -14f;
+            _autoEquipBtn.onClick.AddListener(AutoEquipParty);
+
+            _startButton = UIFactory.AddButton("Start", lrt, "전투 시작", 30, font, new Color(0.85f, 0.45f, 0.25f, 0.96f), Color.white);
+            TutorialTargets.Set("party.start", _startButton);
+            var srt = (RectTransform)_startButton.transform;
+            UIFactory.Anchor(srt, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            srt.sizeDelta = new Vector2(460, 80); srt.anchoredPosition = new Vector2(-18, 18);
+            _startButton.onClick.AddListener(OnStart);
+            _startLabel = _startButton.GetComponentInChildren<TextMeshProUGUI>();
+            _startLabel.richText = true;
+
+            // ---- 오른쪽: 필터 바 + 캐릭터 목록 ----
             const int Pad = 16;
-            var view = UIFactory.NewRect("GridView", _root.transform);
-            UIFactory.Anchor(view, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            float listTop = 112 + RosterFilterBar.Height + 10;   // 필터 바(3줄, -112부터) 아래
-            view.sizeDelta = new Vector2(Columns * _cell.x + (Columns - 1) * _spacing.x + Pad * 2, 898 - listTop);
-            view.anchoredPosition = new Vector2(0, -listTop);
-            view.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.25f);   // 빈 곳을 잡고 끌 수 있도록
+            _filterBar = RosterFilterBar.Build(frame, new Vector2(RightX + RightW / 2f - 960f, -100), RightW - 20, font);
+            _filterBar.OnChanged += Rebuild;
+
+            var view = UIFactory.NewRect("GridView", frame);
+            UIFactory.Anchor(view, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            float listTop = 100 + RosterFilterBar.Height + 10;
+            view.sizeDelta = new Vector2(RightW, 1050 - listTop); view.anchoredPosition = new Vector2(RightX, -listTop);
+            var vbg = view.gameObject.AddComponent<Image>();   // 빈 곳을 잡고 끌 수 있도록
+            vbg.color = new Color(0f, 0f, 0f, 0.25f);
             view.gameObject.AddComponent<RectMask2D>();
 
             _grid = UIFactory.NewRect("Grid", view);
@@ -163,63 +273,100 @@ namespace SubcultureRPG.Meta.UI
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 40f;
 
-            // 정렬/필터 바(타이틀 아래)
-            _filterBar = RosterFilterBar.Build(_root.transform, new Vector2(0, -112), 1000, font);
-            _filterBar.OnChanged += Rebuild;
-
-            // 하단 바: 선택 수 + 전투 시작
-            _countText = UIFactory.AddText("Count", _root.transform, "", 24, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var crt = _countText.rectTransform;
-            UIFactory.Anchor(crt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            crt.sizeDelta = new Vector2(1200, 36); crt.anchoredPosition = new Vector2(0, 130);
-
-            _startButton = UIFactory.AddButton("Start", _root.transform, "전투 시작", 26, font, new Color(0.8f, 0.6f, 0.2f, 0.95f), Color.white);
-            TutorialTargets.Set("party.start", _startButton);
-            var srt = (RectTransform)_startButton.transform;
-            UIFactory.Anchor(srt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            srt.sizeDelta = new Vector2(280, 72); srt.anchoredPosition = new Vector2(0, 60);
-            _startButton.onClick.AddListener(OnStart);
-            _startLabel = _startButton.GetComponentInChildren<TextMeshProUGUI>();
-
-            // 프리셋(왼쪽 아래): 1 ~ 5 불러오기 + 저장
-            var presetTitle = UIFactory.AddText("PresetTitle", _root.transform, "편성 프리셋", 18, font, new Color(0.8f, 0.83f, 0.9f), TextAlignmentOptions.Left, FontStyles.Bold);
-            UIFactory.Anchor(presetTitle.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
-            presetTitle.rectTransform.sizeDelta = new Vector2(300, 28); presetTitle.rectTransform.anchoredPosition = new Vector2(44, 128);
-            for (int i = 0; i < PartyPresets.Slots; i++)
-            {
-                int slot = i;
-                var pb = UIFactory.AddButton("Preset", _root.transform, "", 20, font, new Color(0.3f, 0.42f, 0.62f, 0.95f), Color.white);
-                var prt = (RectTransform)pb.transform;
-                UIFactory.Anchor(prt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
-                prt.sizeDelta = new Vector2(100, 66); prt.anchoredPosition = new Vector2(40 + i * 108, 54);
-                var pl = pb.GetComponentInChildren<TextMeshProUGUI>();
-                pl.richText = true; pl.lineSpacing = -12f;
-                _presetLabels.Add(pl);
-                pb.onClick.AddListener(() => LoadPreset(slot));
-            }
-            _saveBtn = UIFactory.AddButton("SavePreset", _root.transform, "저장", 22, font, new Color(0.25f, 0.6f, 0.55f, 0.96f), Color.white);
-            var svrt = (RectTransform)_saveBtn.transform;
-            UIFactory.Anchor(svrt, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
-            svrt.sizeDelta = new Vector2(100, 66); svrt.anchoredPosition = new Vector2(40 + PartyPresets.Slots * 108 + 8, 54);
-            _saveBtn.onClick.AddListener(OpenSavePreset);
-
-            // 장비 자동 장착(오른쪽 아래)
-            _autoEquipBtn = UIFactory.AddButton("AutoEquip", _root.transform, "장비 자동 장착\n<size=65%>선택한 파티</size>", 22, font, new Color(0.55f, 0.4f, 0.75f, 0.96f), Color.white);
-            var aert = (RectTransform)_autoEquipBtn.transform;
-            UIFactory.Anchor(aert, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
-            aert.sizeDelta = new Vector2(250, 72); aert.anchoredPosition = new Vector2(-40, 52);
-            var ael = _autoEquipBtn.GetComponentInChildren<TextMeshProUGUI>();
-            ael.richText = true; ael.lineSpacing = -14f;
-            _autoEquipBtn.onClick.AddListener(AutoEquipParty);
-
             // 홈 버튼(좌상단) — 내비게이터가 연결할 때만 표시
-            _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            _backBtn = UIFactory.AddButton("BackBtn", frame, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
             var bkrt = (RectTransform)_backBtn.transform;
             UIFactory.Anchor(bkrt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
-            bkrt.sizeDelta = new Vector2(150, 44); bkrt.anchoredPosition = new Vector2(30, -34);
+            bkrt.sizeDelta = new Vector2(150, 44); bkrt.anchoredPosition = new Vector2(30, -32);
             _backBtn.onClick.AddListener(() => _onBack?.Invoke());
             _backLabel = _backBtn.GetComponentInChildren<TextMeshProUGUI>();
             _backBtn.gameObject.SetActive(false);
+        }
+
+        // ---------------- 출전 파티 칸 ----------------
+
+        /// <summary>왼쪽 4칸: 고른 순서대로 전신 그림 · 순서 · 이름 · 레벨 · 별 · 속성 · 전투력(누르면 빼기), 빈 칸은 안내.</summary>
+        private void RebuildSlots()
+        {
+            if (_slots == null) return;
+            for (int i = _slots.childCount - 1; i >= 0; i--)
+            {
+                var ch = _slots.GetChild(i);
+                ch.SetParent(null, false);
+                Destroy(ch.gameObject);
+            }
+            if (_equipment == null) _equipment = FindAnyObjectByType<PlayerEquipment>();
+            for (int i = 0; i < maxParty; i++)
+            {
+                if (i >= _selected.Count)
+                {
+                    var empty = UIFactory.AddImage("Empty", _slots, new Color(1, 1, 1, 0.05f), ProceduralSprites.Rounded);
+                    empty.type = Image.Type.Sliced; empty.preserveAspect = false;
+                    var plus = UIFactory.AddText("Plus", empty.transform, "<color=#4B5262>+</color>", 90, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+                    plus.richText = true;
+                    UIFactory.Stretch(plus.rectTransform, 0, 40, 0, 60);
+                    var et = UIFactory.AddText("T", empty.transform, $"<color=#7B8294><b>출전 {i + 1}</b></color>", 20, font, Color.white, TextAlignmentOptions.Bottom);
+                    et.richText = true;
+                    UIFactory.Stretch(et.rectTransform, 10, 30, 10, 10);
+                    continue;
+                }
+                var c = _selected[i];
+                var owned = roster != null ? roster.GetOwned(c) : null;
+                int star = owned != null ? Transcendence.CurrentStar(c.rarity, owned.star) : (int)c.rarity;
+                int tr = owned != null ? owned.transcend : 0;
+                var ec = Traits.ColorOf(c.element);
+
+                var edge = UIFactory.AddImage("Slot", _slots, StarText.FrameColor(star, tr), ProceduralSprites.Rounded, raycast: true);
+                edge.type = Image.Type.Sliced; edge.preserveAspect = false;
+                var b = edge.gameObject.AddComponent<Button>();
+                b.targetGraphic = edge;
+                var cc = c;
+                b.onClick.AddListener(() => ToggleSelect(cc));
+                edge.gameObject.AddComponent<ButtonFx>();
+                var inner = UIFactory.AddImage("Inner", edge.transform, new Color(0.07f, 0.08f, 0.12f, 1f), ProceduralSprites.Rounded);
+                inner.type = Image.Type.Sliced; inner.preserveAspect = false;
+                UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
+                inner.gameObject.AddComponent<RectMask2D>();
+                var irt = inner.rectTransform;
+
+                var glow = UIFactory.AddImage("Glow", irt, new Color(ec.r, ec.g, ec.b, 0.4f), ProceduralSprites.Glow);
+                UIFactory.Stretch(glow.rectTransform, -40, 20, -40, -40);
+                var sp = GameArt.Cutout(c) ?? GameArt.Portrait(c);
+                if (sp != null)
+                {
+                    var im = UIFactory.AddImage("Art", irt, Color.white, sp);
+                    im.preserveAspect = true; im.raycastTarget = false;
+                    UIFactory.Anchor(im.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+                    im.rectTransform.sizeDelta = new Vector2(360, 520); im.rectTransform.anchoredPosition = new Vector2(0, 4);
+                }
+
+                // 순서 배지 · 속성
+                OrderBadge(irt, 78, new Vector2(0, 1), new Vector2(0, 2), out _).text = (i + 1).ToString();
+                ElementPlate(irt, c.element, 60, new Vector2(1, 1), new Vector2(-8, -8));
+
+                // 아래 정보 띠
+                var shade = UIFactory.AddImage("Shade", irt, new Color(0, 0, 0, 0.72f));
+                UIFactory.Anchor(shade.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+                shade.rectTransform.sizeDelta = new Vector2(0, 96); shade.rectTransform.anchoredPosition = Vector2.zero;
+                var stars = StarRow.Create(shade.transform, 20, TextAnchor.MiddleLeft, font);
+                UIFactory.Anchor(stars.Rect, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+                stars.Rect.sizeDelta = new Vector2(-24, 22); stars.Rect.anchoredPosition = new Vector2(0, -6);
+                stars.Set(star, tr);
+                int lv = roster != null ? roster.LevelOf(c) : 1;
+                var nm = UIFactory.AddText("Name", shade.transform, $"<b>{c.displayName}</b>  <size=75%><color=#C8CEDC>Lv.{lv} · {Traits.Name(c.role)}</color></size>", 22, font, Color.white, TextAlignmentOptions.Left);
+                nm.richText = true; nm.enableAutoSizing = true; nm.fontSizeMin = 14; nm.fontSizeMax = 22;
+                UIFactory.Anchor(nm.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+                nm.rectTransform.sizeDelta = new Vector2(-24, 32); nm.rectTransform.anchoredPosition = new Vector2(0, -30);
+                long pw = roster != null ? CombatPower.Of(c, roster, _equipment) : 0;
+                var pt = UIFactory.AddText("Power", shade.transform, $"<color=#9AA3B5>전투력</color> <color=#FFB347><b>{pw:N0}</b></color>", 19, font, Color.white, TextAlignmentOptions.Left);
+                pt.richText = true;
+                UIFactory.Anchor(pt.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+                pt.rectTransform.sizeDelta = new Vector2(-24, 28); pt.rectTransform.anchoredPosition = new Vector2(0, -62);
+                var x = UIFactory.AddText("X", shade.transform, "<color=#9AA3B5>빼기</color>", 16, font, Color.white, TextAlignmentOptions.Right);
+                x.richText = true;
+                UIFactory.Anchor(x.rectTransform, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+                x.rectTransform.sizeDelta = new Vector2(80, 24); x.rectTransform.anchoredPosition = new Vector2(-10, 8);
+            }
         }
 
         // ---------------- 목록 갱신 ----------------
@@ -316,13 +463,7 @@ namespace SubcultureRPG.Meta.UI
             // 선택 시: 초상화 위 하늘색 덮개 + 가운데 '출전 N' 리본
             view.wash = UIFactory.AddImage("Wash", inner.transform, new Color(SelectColor.r, SelectColor.g, SelectColor.b, 0f));
             UIFactory.Stretch(view.wash.rectTransform);
-            var ribbon = UIFactory.AddImage("Ribbon", inner.transform, new Color(0.05f, 0.45f, 0.65f, 0.95f));
-            var rrt = ribbon.rectTransform;
-            UIFactory.Anchor(rrt, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 0.5f));
-            rrt.sizeDelta = new Vector2(0, 40); rrt.anchoredPosition = new Vector2(0, 14);
-            view.ribbonText = UIFactory.AddText("Text", ribbon.transform, "", 22, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            UIFactory.Stretch(view.ribbonText.rectTransform);
-            view.ribbon = ribbon.gameObject;
+            view.ribbonText = OrderBadge(inner.transform, 58, new Vector2(1, 1), new Vector2(2, 4), out view.ribbon);
 
             RefreshSelection();
         }
@@ -351,11 +492,11 @@ namespace SubcultureRPG.Meta.UI
                 int order = _selected.IndexOf(kv.Key);
                 bool on = order >= 0;
                 v.glow.color = new Color(SelectColor.r, SelectColor.g, SelectColor.b, on ? 1f : 0f);
-                if (v.wash != null) v.wash.color = new Color(SelectColor.r, SelectColor.g, SelectColor.b, on ? 0.22f : 0f);
+                if (v.wash != null) v.wash.color = new Color(SelectColor.r, SelectColor.g, SelectColor.b, on ? 0.12f : 0f);
                 if (v.ribbon != null)
                 {
                     v.ribbon.SetActive(on);
-                    v.ribbonText.text = on ? $"출전 {order + 1}" : "";
+                    v.ribbonText.text = on ? (order + 1).ToString() : "";
                 }
                 v.card.localScale = on ? new Vector3(1.06f, 1.06f, 1f) : Vector3.one;
                 v.group.alpha = on || !full ? 1f : 0.45f;
@@ -366,8 +507,13 @@ namespace SubcultureRPG.Meta.UI
         {
             var names = new List<string>();
             foreach (var c in _selected) names.Add(c.displayName);
-            _countText.text = _selected.Count == 0 ? $"선택 0 / {maxParty}   <size=80%><color=#9AA3B5>캐릭터를 눌러 파티에 넣으세요</color></size>"
-                : $"선택 {_selected.Count} / {maxParty}   <size=80%><color=#7FE3FF>{string.Join(" · ", names)}</color></size>";
+            if (_equipment == null) _equipment = FindAnyObjectByType<PlayerEquipment>();
+            long total = 0;
+            if (roster != null) foreach (var c in _selected) total += CombatPower.Of(c, roster, _equipment);
+            _countText.text = $"<b>출전 파티</b>  <color=#FFD36B>{_selected.Count}</color><color=#9AA3B5> / {maxParty}</color>" +
+                (_selected.Count == 0 ? ""
+                                      : $"   <size=80%><color=#9AA3B5>합계 전투력</color> <color=#FFB347><b>{total:N0}</b></color></size>");
+            RebuildSlots();
             _startButton.interactable = _selected.Count >= 1;
             if (_autoEquipBtn != null) _autoEquipBtn.interactable = _selected.Count >= 1;
             if (_saveBtn != null) _saveBtn.interactable = _selected.Count >= 1;

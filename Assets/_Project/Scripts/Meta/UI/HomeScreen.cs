@@ -1184,7 +1184,7 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(brt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
             brt.sizeDelta = new Vector2(150, 44); brt.anchoredPosition = new Vector2(30, -34);
             back.onClick.AddListener(() => OpenModeHub(false));
-            var title = UIFactory.AddText("Title", root, "출격  <size=50%><color=#9AA3B5>도전할 콘텐츠를 고르세요</color></size>", 44, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            var title = UIFactory.AddText("Title", root, "출격", 44, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
             title.richText = true;
             UIFactory.Anchor(title.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
             title.rectTransform.sizeDelta = new Vector2(900, 60); title.rectTransform.anchoredPosition = new Vector2(204, -26);

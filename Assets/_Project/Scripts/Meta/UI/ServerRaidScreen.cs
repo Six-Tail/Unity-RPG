@@ -94,7 +94,7 @@ namespace SubcultureRPG.Meta.UI
             refresh.onClick.AddListener(() => _ = ServerRaid.Instance.RefreshAsync());
 
             // ---- 공유 체력 보상(5단계) ----
-            var rt = Text(_frame, "<b>공유 체력 보상</b>  <size=75%><color=#9AA3B5>서버 전체가 20% 깎을 때마다 · 참여하지 않아도 모두 받음</color></size>", 25, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            var rt = Text(_frame, "<b>공유 체력 보상</b>", 25, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
             Top(rt.rectTransform, 420, -318, 860, 38, new Vector2(0.5f, 1));
             _rewards = UIFactory.NewRect("Rewards", _frame);
             Top(_rewards, 420, -360, 860, 300, new Vector2(0.5f, 1));

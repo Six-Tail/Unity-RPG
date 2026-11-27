@@ -134,7 +134,7 @@ namespace SubcultureRPG.Meta.UI
             int done = 0;
             foreach (var a in d.Actives) if (a.Done) done++;
             _slotInfo.text = $"<b>파견 중</b>  <color=#FFD36B>{d.Actives.Count}</color> <size=80%><color=#9AA3B5>/ {PlayerDispatch.MaxActive}팀</color></size>" +
-                             (done > 0 ? $"   <size=75%><color=#7CFF9A>완료 {done}팀 — 보상을 받으세요</color></size>" : "   <size=70%><color=#9AA3B5>접속하지 않아도 시간이 흐릅니다</color></size>");
+                             (done > 0 ? $"   <size=75%><color=#7CFF9A>완료 {done}팀</color></size>" : "");
             Clear(_slots);
             for (int i = 0; i < PlayerDispatch.MaxActive; i++)
             {
@@ -145,7 +145,7 @@ namespace SubcultureRPG.Meta.UI
                     Place(empty.rectTransform, x, 0, SlotW, SlotH);
                     var plus = Text(empty.transform, "<color=#4B5262>+</color>", 96, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
                     Top(plus.rectTransform, 0, -90, 200, 110, new Vector2(0.5f, 1));
-                    var e = Text(empty.transform, "<color=#7B8294><b>빈 자리</b>\n<size=85%>아래 게시판에서 의뢰를 골라\n보내세요</size></color>", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Top);
+                    var e = Text(empty.transform, "<color=#7B8294><b>빈 자리</b></color>", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Top);
                     Top(e.rectTransform, 0, -210, 400, 110, new Vector2(0.5f, 1));
                     continue;
                 }
@@ -218,7 +218,7 @@ namespace SubcultureRPG.Meta.UI
         {
             var d = PlayerDispatch.Instance;
             var t = PlayerDispatch.UntilNewDay;
-            _boardInfo.text = $"<b>의뢰 게시판</b>   <size=70%><color=#9AA3B5>새 의뢰까지 {t.Hours}시간 {t.Minutes}분  ·  추천 조건을 모두 맞추면 보상 <color=#7CFF9A>+50%</color></color></size>";
+            _boardInfo.text = $"<b>의뢰 게시판</b>   <size=70%><color=#9AA3B5>새 의뢰까지 {t.Hours}시간 {t.Minutes}분</color></size>";
             Clear(_board);
             if (d.Board.Count == 0)
             {
@@ -454,7 +454,7 @@ namespace SubcultureRPG.Meta.UI
             if (_selected <= 0 || _selected > t.Next) _selected = t.Next;
             int nextBig = ((t.Cleared / 10) + 1) * 10;
             _best.text = $"<color=#9AA3B5><size=70%>최고 기록</size></color>  <color=#FFD36B><b>{t.Cleared}층</b></color>";
-            _bestSub.text = $"<color=#9AA3B5>다음 보스층</color> <color=#FF9A6B>{nextBig}층</color>  <color=#9AA3B5>· 행동력 · 횟수 제한 없음</color>";
+            _bestSub.text = $"<color=#9AA3B5>다음 보스층</color> <color=#FF9A6B>{nextBig}층</color>";
             _bestFill.anchorMax = new Vector2(Mathf.Clamp01((t.Cleared % 10) / 10f), 1f);
 
             // 층 목록: 위가 높은 층(다음 층 + 5층 ~ 깬 층 - 20층)
@@ -634,8 +634,6 @@ namespace SubcultureRPG.Meta.UI
                 rx += 162;
             }
 
-            var hint = Text(_detail, "<color=#9AA3B5>5층마다 크리스탈 · 10층마다 크리스탈과 스킬 교본 · 25층마다 재련석 · 50층마다 픽업 뽑기권</color>", 19, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Place(hint.rectTransform, 32, -770, 1200, 30);
 
             bool can = f <= t.Next;
             var go = UIFactory.AddButton("Fight", _detail, cleared ? $"{f}층 다시 도전" : $"{f}층 도전", 32, font,
