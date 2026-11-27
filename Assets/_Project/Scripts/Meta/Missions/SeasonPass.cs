@@ -10,13 +10,11 @@ namespace SubcultureRPG.Meta.Missions
     /// </summary>
     public class SeasonPass : MonoBehaviour
     {
-        public const int MaxLevel = 30, ExpPerLevel = 150, DailyExp = 25, WeeklyExp = 60, PremiumPrice = 980, SeasonDays = 28;
+        public const int MaxLevel = 30, ExpPerLevel = 150, DailyExp = 25, WeeklyExp = 60, SeasonDays = 28;
         private const string SaveKey = "seasonpass";
 
         /// <summary>단계 1개 건너뛰기 값(크리스탈).</summary>
         public const int LevelPrice = 100;
-        /// <summary>출시 때 프리미엄 패스 인앱 결제 가격(지금은 크리스탈 <see cref="PremiumPrice"/>로 판매).</summary>
-        public const string PremiumRealPrice = "₩11,000";
 
         // 시즌 기준: 2024-01-01(월) 05:00부터 28일씩 (기간 한정 이벤트와 같은 기준 시각)
         private static readonly DateTime Epoch = new(2024, 1, 1, 5, 0, 0);
@@ -234,16 +232,12 @@ namespace SubcultureRPG.Meta.Missions
             return total;
         }
 
-        /// <summary>프리미엄 열기(크리스탈). 이유 문자열을 돌려주고, 성공하면 null.</summary>
-        public string BuyPremium()
+        /// <summary>프리미엄 열기 — 인앱 결제(상품 season_premium)가 끝나면 IapStore 가 부름. 이미 열려 있어도 true(중복 결제는 결제 전에 막음).</summary>
+        public bool GrantPremium()
         {
             CheckSeason();
-            if (_d.premium) return "이미 프리미엄 패스를 열었습니다";
-            var wallet = FindAnyObjectByType<PlayerWallet>();
-            if (wallet == null || !wallet.Spend(PremiumPrice)) return $"크리스탈이 부족합니다 (필요 {PremiumPrice})";
-            _d.premium = true;
-            Changed();
-            return null;
+            if (!_d.premium) { _d.premium = true; Changed(); }
+            return true;
         }
 
         /// <summary>지금 살 수 있는 최대 단계 수(최대 단계까지).</summary>

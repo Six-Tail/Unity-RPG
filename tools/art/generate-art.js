@@ -189,11 +189,23 @@ async function generateOne(args, sharp, e, local, transparent) {
 
 // 캐릭터 썸네일: 일러스트에서 얼굴 쪽(가운데 위)을 정사각형으로 잘라 256×256.
 // 프롬프트가 "머리 위 여백 + 얼굴은 위쪽 1/3"이라 얼굴이 세로 15~40% 사이에 옵니다.
+// 얼굴 위치 표(tools/art/thumb-faces.json): 구도가 제각각인 일러스트(개화 · 축제 스킨 등)는 얼굴을 가운데로 잘라 프로필 아이콘에서 얼굴이 비껴 나지 않게
+let FACES = null;
+function faceOf(e) {
+  if (FACES === null) {
+    try { FACES = JSON.parse(fs.readFileSync(path.join(__dirname, 'thumb-faces.json'), 'utf8')); } catch { FACES = {}; }
+  }
+  return FACES[path.basename(e.out, path.extname(e.out))] || null;
+}
+
 async function makeThumb(sharp, e) {
   const src = outPath(e.out);
-  const side = Math.round(e.width * 0.56);
-  const left = Math.round((e.width - side) / 2);
-  const top = Math.round(e.height * 0.08);
+  const face = faceOf(e);
+  // 표에 있으면 얼굴 중심으로 조금 더 가깝게(폭 48%), 없으면 예전처럼 위쪽 가운데(폭 56%)
+  const side = Math.round(e.width * (face ? 0.48 : 0.56));
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const left = face ? clamp(Math.round(face[0] * e.width - side / 2), 0, e.width - side) : Math.round((e.width - side) / 2);
+  const top = face ? clamp(Math.round(face[1] * e.height - side * 0.48), 0, e.height - side) : Math.round(e.height * 0.08);
   const t = outPath(e.thumb);
   fs.mkdirSync(path.dirname(t), { recursive: true });
   const buf = await sharp(src).extract({ left, top, width: side, height: side }).resize(256, 256).png({ compressionLevel: 9 }).toBuffer();

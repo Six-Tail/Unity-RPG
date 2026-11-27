@@ -52,16 +52,23 @@ namespace SubcultureRPG.Meta.UI
                 if (pass.Premium)
                     w.Text(body, "<color=#C9B6FF><b>프리미엄 패스 사용 중</b></color>", 24, Color.white, TextAlignmentOptions.Center, 1300, -106, 324, 40);
                 else
-                    w.Btn(body, $"프리미엄 패스 열기\n<size=65%>크리스탈 {SeasonPass.PremiumPrice}</size>", 24, Violet, 1300, -84, 324, 84, () =>
+                {
+                    var prod = Shop.IapCatalog.Find(Shop.IapCatalog.SeasonPremiumId);
+                    string price = Shop.IapStore.Instance.PriceOf(prod);
+                    w.Btn(body, $"프리미엄 패스 열기\n<size=65%>{price}</size>", 24, Violet, 1300, -84, 324, 84, () =>
                     {
-                        Popups.Show("프리미엄 패스", $"크리스탈 {SeasonPass.PremiumPrice}개로 이번 시즌 프리미엄 보상 줄을 엽니다.\n이미 지난 단계의 프리미엄 보상도 바로 받을 수 있습니다.",
-                            "열기", () =>
+                        Popups.Show("프리미엄 패스", $"<b>{price}</b>로 이번 시즌 프리미엄 보상 줄을 엽니다.\n이미 지난 단계의 프리미엄 보상도 바로 받을 수 있습니다.\n<size=80%><color=#9AA3B5>이번 시즌({SeasonPass.SeasonDays}일)에만 적용 · 다음 시즌은 새로 구매</color></size>",
+                            "결제", () =>
                             {
-                                string err = pass.BuyPremium();
-                                if (err != null) Popups.Show("프리미엄 패스", err);
-                                Rebuild();
+                                Shop.IapStore.Instance.Buy(prod, err =>
+                                {
+                                    if (err != null) Popups.Show("프리미엄 패스", err);
+                                    else Popups.Show("프리미엄 패스", "프리미엄 패스를 열었습니다!\n프리미엄 보상을 받아 가세요.");
+                                    Rebuild();
+                                });
                             }, "취소");
                     }).GetComponentInChildren<TextMeshProUGUI>().lineSpacing = -14f;
+                }
 
                 // ---------------- 가운데: 단계 줄 ----------------
                 const float top = -250, rowH = 238, headH = 44;

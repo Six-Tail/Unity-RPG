@@ -11,8 +11,9 @@ namespace SubcultureRPG.Meta.Shop
         Crystal,   // 크리스탈 상점 — 크리스탈, 매주 초기화
         Exchange,  // 교환소 — 재료 → 재료
         Guild,     // 길드 상점 — 길드 코인, 매주 초기화(길드 가입해야)
-        Package,   // 패키지 — 출시 때 인앱 결제, 지금은 크리스탈로 임시 판매
+        Package,   // 패키지 — 인앱 결제(IapCatalog · IapStore)
         Monthly,   // 월정액 — MonthlyPass(30일 동안 매일 우편)
+        TopUp,     // 크리스탈 충전 — 인앱 결제(IapCatalog.TopUps)
     }
 
     /// <summary>값을 치르는 수단.</summary>
@@ -47,7 +48,7 @@ namespace SubcultureRPG.Meta.Shop
         public string title;                 // 상품 이름(묶음)
         public Func<RewardBundle> bundle;    // 1회 구매로 받는 묶음
         public string icon;                  // 아이콘 경로(있으면 우선)
-        /// <summary>출시 때 인앱 결제 가격(예: "₩5,900"). 비어 있지 않으면 지금은 크리스탈로 임시 판매 중이라는 표시.</summary>
+        /// <summary>인앱 결제 기본 가격(예: "₩5,900") — 비어 있지 않으면 결제 상품(상품 ID = id). 스토어 가격을 못 불러왔을 때 표시.</summary>
         public string realPrice;
 
         public bool IsBundle => bundle != null;
@@ -127,6 +128,7 @@ namespace SubcultureRPG.Meta.Shop
             ShopTab.Guild => "길드 상점",
             ShopTab.Package => "패키지",
             ShopTab.Monthly => "월정액",
+            ShopTab.TopUp => "크리스탈 충전",
             _ => "교환소",
         };
 
@@ -135,8 +137,9 @@ namespace SubcultureRPG.Meta.Shop
             ShopTab.General => "금화로 육성 재료 보충 · 매일 05:00 초기화",
             ShopTab.Crystal => "크리스탈로 귀한 재료 · 매주 월요일 05:00 초기화",
             ShopTab.Guild => "길드 코인으로 교환 · 길드에 가입해야 이용 · 매주 월요일 05:00 초기화",
-            ShopTab.Package => "묶음 상품 · 지금은 크리스탈로 판매(출시 때 결제 상품으로 바뀜)",
-            ShopTab.Monthly => "30일 동안 매일 05:00에 우편으로 보상 · 지금은 크리스탈로 판매(출시 때 결제 상품으로 바뀜)",
+            ShopTab.Package => "묶음 상품 · 결제 상품",
+            ShopTab.Monthly => "30일 동안 매일 05:00에 우편으로 보상 · 결제 상품 · 다시 사면 30일 연장(최대 180일)",
+            ShopTab.TopUp => "상품마다 첫 구매는 크리스탈 2배 · 뽑기 1회 = 크리스탈 160",
             _ => "남는 재료를 필요한 재료로",
         };
 
@@ -189,7 +192,7 @@ namespace SubcultureRPG.Meta.Shop
                     currency = ShopCurrency.Material, costMaterial = MaterialType.GuildCoin, price = 600, limit = 1, reset = ShopReset.Weekly,
                 },
 
-                // ---- 패키지 (출시 때 인앱 결제 — 지금은 크리스탈) ----
+                // ---- 패키지 (인앱 결제) ----
                 Package("pkg_daily", "일일 특가", "Items/PkgDaily", "₩1,200", 60, 1, ShopReset.Daily,
                     () => new RewardBundle().Mat(MaterialType.StaminaLarge, 2).Mat(MaterialType.SweepTicket, 10)),
                 Package("pkg_growth", "주간 성장 패키지", "Items/PkgGrowth", "₩5,900", 600, 1, ShopReset.Weekly,
@@ -246,7 +249,7 @@ namespace SubcultureRPG.Meta.Shop
             currency = ShopCurrency.Material, costMaterial = MaterialType.GuildCoin, price = coins, limit = weeklyLimit, reset = ShopReset.Weekly,
         };
 
-        /// <summary>패키지: 지금은 크리스탈(crystals)로 판매, realPrice는 출시 때 결제 가격.</summary>
+        /// <summary>패키지: 인앱 결제 상품(상품 ID = id, realPrice = 기본 표시 가격). crystals 는 옛 임시 가격(쓰지 않음).</summary>
         private static ShopItem Package(string id, string title, string icon, string realPrice, int crystals, int limit, ShopReset reset, Func<RewardBundle> bundle) => new()
         {
             id = id, tab = ShopTab.Package, title = title, icon = icon, realPrice = realPrice, bundle = bundle,

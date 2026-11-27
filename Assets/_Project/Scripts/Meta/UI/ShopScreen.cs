@@ -13,7 +13,7 @@ namespace SubcultureRPG.Meta.UI
     /// <summary>
     /// 상점 화면. 왼쪽 세로 탭(패키지 · 월정액 · 일반 · 크리스탈 · 길드 · 교환소, 탭 아이콘 Items/ShopTab*).
     /// 일반 · 크리스탈 · 길드 · 교환소 = 상품 칸(테두리 = 등급 색) + 오른쪽 상세 · 수량 · 구매.
-    /// 패키지 = 넓은 카드(묶음 내용 · 출시 때 결제 가격), 월정액 = 세로 카드 4장(바로 · 매일 보상 · 남은 기간) — 카드에서 바로 구매.
+    /// 크리스탈 충전 · 패키지 = 넓은 카드(인앱 결제 가격 버튼), 월정액 = 세로 카드 4장(바로 · 매일 보상 · 남은 기간) — 카드에서 바로 구매.
     /// 크리스탈 구매는 확인 창을 거칩니다. 코드로 자동 구성 — 참조는 비우면 자동 탐색(PlayerShop이 없으면 지갑 오브젝트에 추가).
     /// </summary>
     [DisallowMultipleComponent]
@@ -43,10 +43,10 @@ namespace SubcultureRPG.Meta.UI
         private string _periodSeen;
         private Coroutine _toastCo;
 
-        private static readonly ShopTab[] Tabs = { ShopTab.Package, ShopTab.Monthly, ShopTab.General, ShopTab.Crystal, ShopTab.Guild, ShopTab.Exchange };
+        private static readonly ShopTab[] Tabs = { ShopTab.TopUp, ShopTab.Package, ShopTab.Monthly, ShopTab.General, ShopTab.Crystal, ShopTab.Guild, ShopTab.Exchange };
 
         private static string TabIcon(ShopTab t) => "Items/ShopTab" + t;
-        private bool Wide => _tab == ShopTab.Package || _tab == ShopTab.Monthly;
+        private bool Wide => _tab == ShopTab.Package || _tab == ShopTab.Monthly || _tab == ShopTab.TopUp;
 
         private void Awake()
         {
@@ -131,11 +131,16 @@ namespace SubcultureRPG.Meta.UI
             _view.sizeDelta = new Vector2(wide ? 1610 : 1060, _view.sizeDelta.y);
             if (_tab == ShopTab.Package) { _grid.cellSize = new Vector2(780, 300); _grid.constraintCount = 2; }
             else if (_tab == ShopTab.Monthly) { _grid.cellSize = new Vector2(380, 740); _grid.constraintCount = 4; }
+            else if (_tab == ShopTab.TopUp) { _grid.cellSize = new Vector2(515, 360); _grid.constraintCount = 3; }
             else { _grid.cellSize = new Vector2(330, 250); _grid.constraintCount = 3; }
 
             if (_tab == ShopTab.Monthly)
             {
                 foreach (var p in MonthlyPass.Passes) BuildPassCard(p);
+            }
+            else if (_tab == ShopTab.TopUp)
+            {
+                foreach (var t in IapCatalog.TopUps) BuildTopUpCard(t);
             }
             else
             {
@@ -153,6 +158,10 @@ namespace SubcultureRPG.Meta.UI
             string hint = ShopCatalog.TabHint(_tab);
             var left = PlayerShop.UntilReset(ShopCatalog.TabReset(_tab), DateTime.Now);
             if (left.HasValue) hint += $"   <color=#FFD36B>초기화까지 {PlayerShop.FormatSpan(left.Value)}</color>";
+            if ((_tab == ShopTab.TopUp || _tab == ShopTab.Package || _tab == ShopTab.Monthly) && IapStore.Instance.Mode == IapStore.StoreMode.Unavailable)
+                hint += $"   <color=#FF8A8A>{IapStore.Instance.UnavailableReason.Replace("\n", " ")}</color>";
+            else if ((_tab == ShopTab.TopUp || _tab == ShopTab.Package || _tab == ShopTab.Monthly) && IapStore.Instance.Mode == IapStore.StoreMode.TestGrant)
+                hint += "   <color=#FFD36B>[테스트 결제 — 결제 없이 바로 지급(개발 환경)]</color>";
             if (_tab == ShopTab.Guild)
                 hint += PlayerGuild.Instance.Joined ? $"   <color=#FFD98A>보유 길드 코인 {Count(MaterialType.GuildCoin):N0}</color>" : "   <color=#FF8A8A>길드에 가입해야 이용할 수 있습니다</color>";
             _hint.text = $"{ShopCatalog.TabName(_tab)}  <size=80%><color=#9AA3B5>{hint}</color></size>";
@@ -371,12 +380,10 @@ namespace SubcultureRPG.Meta.UI
                 ShopReset.Monthly => $"이번 달 {left}/{it.limit}", _ => $"계정당 {left}/{it.limit}",
             };
             Label(inner, $"<color=#9AA3B5>{limit}</color>", 18, FontStyles.Bold, new Vector2(1, 1), new Vector2(-18, -20), new Vector2(200, 26), TextAlignmentOptions.TopRight);
-            if (it.IsIap)
-                Label(inner, $"<color=#9AA3B5>출시 때 {it.realPrice} · 지금은 크리스탈</color>", 16, FontStyles.Normal, new Vector2(1, 0), new Vector2(-18, 88), new Vector2(300, 24), TextAlignmentOptions.BottomRight);
-            string block = shop.BlockReason(it, 1);
-            var item = it;
-            CardButton(inner, soldOut ? "품절" : $"구매  {it.PriceText()}", new Color(0.25f, 0.62f, 0.95f, 0.98f), block == null,
-                () => { _selected = item; _qty = 1; OnBuyClicked(); }, new Vector2(300, 62), new Vector2(-18, 18), new Vector2(1, 0));
+            var prod = IapCatalog.Find(it.id);
+            string block = prod != null ? prod.block() : shop.BlockReason(it, 1);
+            CardButton(inner, soldOut ? "품절" : $"구매  <b>{IapStore.Instance.PriceOf(prod)}</b>", new Color(0.25f, 0.62f, 0.95f, 0.98f), block == null && prod != null,
+                () => BuyIap(prod, $"<color=#7CFF9A>{it.title} 구매!</color> 보상을 확인하세요"), new Vector2(300, 62), new Vector2(-18, 18), new Vector2(1, 0));
         }
 
         /// <summary>월정액 카드: 아이콘 · 이름 · 바로 · 매일(30일) · 총 · 남은 기간 · 구매/연장.</summary>
@@ -405,28 +412,57 @@ namespace SubcultureRPG.Meta.UI
                 ? $"<color=#7CFF9A>사용 중 · 남은 {daysLeft}일</color>" + (mp.ReceivedToday(p) ? "  <size=85%><color=#9AA3B5>오늘 보상 받음(우편)</color></size>" : "")
                 : "<color=#9AA3B5>미사용</color>";
             Label(inner, state, 19, FontStyles.Bold, new Vector2(0.5f, 0), new Vector2(0, 128), new Vector2(350, 52), TextAlignmentOptions.Bottom).textWrappingMode = TextWrappingModes.Normal;
-            Label(inner, $"<color=#9AA3B5>출시 때 {p.realPrice} · 지금은 크리스탈</color>", 15, FontStyles.Normal, new Vector2(0.5f, 0), new Vector2(0, 96), new Vector2(350, 22), TextAlignmentOptions.Bottom);
-            string block = mp.BlockReason(p);
-            var pass = p;
-            CardButton(inner, $"{(daysLeft > 0 ? "30일 연장" : "구매")}  <color=#8FE9FF>크리스탈 {p.crystals:N0}</color>", new Color(0.25f, 0.62f, 0.95f, 0.98f), block == null || block == "크리스탈이 부족합니다",
-                () => ConfirmPass(pass), new Vector2(340, 66), new Vector2(0, 20), new Vector2(0.5f, 0));
+            var prod = IapCatalog.Find(p.id);
+            string block = mp.PaidBlockReason(p);
+            if (block != null)
+                Label(inner, $"<color=#FF8A8A>{block}</color>", 15, FontStyles.Normal, new Vector2(0.5f, 0), new Vector2(0, 96), new Vector2(350, 22), TextAlignmentOptions.Bottom);
+            CardButton(inner, $"{(daysLeft > 0 ? "30일 연장" : "구매")}  <b>{IapStore.Instance.PriceOf(prod)}</b>", new Color(0.25f, 0.62f, 0.95f, 0.98f), block == null && prod != null,
+                () => BuyIap(prod, $"<color=#7CFF9A>{p.name} 구매!</color> 오늘 보상은 우편으로"), new Vector2(340, 66), new Vector2(0, 20), new Vector2(0.5f, 0));
         }
 
-        private void ConfirmPass(PassDef p)
+        /// <summary>크리스탈 충전 카드: 그림 · 개수 · 첫 구매 2배(또는 보너스) · 가격 버튼.</summary>
+        private void BuildTopUpCard(IapCatalog.TopUpDef t)
         {
-            var mp = MonthlyPass.Instance;
-            string block = mp.BlockReason(p);
-            if (block != null) { Toast($"<color=#FF8A8A>{block}</color>"); return; }
-            int have = wallet != null ? wallet.Crystals : 0;
-            ShowConfirm("월정액 구매",
-                $"<b>{p.name}</b>을(를) <color=#8FE9FF>크리스탈 {p.crystals:N0}</color>으로 {(mp.Active(p) ? "30일 연장" : "구매")}할까요?\n" +
-                $"<size=80%><color=#9AA3B5>보유 {have:N0}  →  {have - p.crystals:N0} · 오늘 보상은 바로 우편으로</color></size>",
-                () =>
-                {
-                    string err = MonthlyPass.Instance.Buy(p);
-                    Toast(err == null ? $"<color=#7CFF9A>{p.name} 구매!</color> 보상을 확인하세요" : $"<color=#FF8A8A>{err}</color>");
-                    Refresh();
-                });
+            bool first = IapCatalog.FirstBonusAvailable(t);
+            var inner = Card(new Color(0.45f, 0.85f, 1f), false).transform;
+            var icon = GameArt.Load(t.icon) ?? GameArt.Load("Items/Crystal");
+            if (icon != null)
+            {
+                var im = UIFactory.AddImage("Icon", inner, Color.white, icon);
+                im.preserveAspect = true;
+                UIFactory.Anchor(im.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+                im.rectTransform.sizeDelta = new Vector2(170, 170); im.rectTransform.anchoredPosition = new Vector2(0, -14);
+            }
+            Label(inner, $"<b>크리스탈 {t.crystals:N0}</b>", 32, FontStyles.Normal, new Vector2(0.5f, 1), new Vector2(0, -186), new Vector2(480, 42), TextAlignmentOptions.Top).color = new Color(0.62f, 0.92f, 1f);
+            string bonus = first ? $"<color=#FFD36B><b>첫 구매 2배!</b>  +{t.crystals:N0}</color>"
+                : t.bonus > 0 ? $"<color=#9BE28A>보너스 +{t.bonus:N0}</color>" : "<color=#6B7280>보너스 없음</color>";
+            Label(inner, bonus, 22, FontStyles.Normal, new Vector2(0.5f, 1), new Vector2(0, -230), new Vector2(480, 30), TextAlignmentOptions.Top);
+            if (first)
+            {
+                var tag = UIFactory.AddImage("FirstTag", inner, new Color(0.95f, 0.35f, 0.3f, 1f), ProceduralSprites.Rounded);
+                tag.type = Image.Type.Sliced; tag.preserveAspect = false;
+                UIFactory.Anchor(tag.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+                tag.rectTransform.sizeDelta = new Vector2(110, 36); tag.rectTransform.anchoredPosition = new Vector2(12, -12);
+                Label(tag.transform, "<b>2배</b>", 20, FontStyles.Normal, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(110, 36), TextAlignmentOptions.Center);
+            }
+            var prod = IapCatalog.Find(t.id);
+            int got = IapCatalog.TopUpAmount(t);
+            CardButton(inner, $"<b>{IapStore.Instance.PriceOf(prod)}</b>", new Color(0.25f, 0.62f, 0.95f, 0.98f), prod != null,
+                () => BuyIap(prod, $"<color=#8FE9FF>크리스탈 {got:N0}</color> 충전!"), new Vector2(300, 60), new Vector2(0, 18), new Vector2(0.5f, 0));
+        }
+
+        /// <summary>결제 시작 → 끝나면 알림 · 갱신(결제 창은 스토어가 띄움).</summary>
+        private void BuyIap(IapProduct p, string okMsg)
+        {
+            if (p == null) return;
+            if (IapStore.Instance.Busy) { Toast("<color=#FF8A8A>다른 결제가 진행 중입니다</color>"); return; }
+            Toast("<color=#9AA3B5>결제 창을 여는 중…</color>".Replace("…", "..."));
+            IapStore.Instance.Buy(p, err =>
+            {
+                if (this == null) return;
+                Toast(err == null ? okMsg : $"<color=#FF8A8A>{err}</color>");
+                Refresh();
+            });
         }
 
         private void ShowConfirm(string title, string body, Action ok)

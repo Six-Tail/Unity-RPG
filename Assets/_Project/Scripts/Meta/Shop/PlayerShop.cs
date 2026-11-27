@@ -94,6 +94,32 @@ namespace SubcultureRPG.Meta.Shop
             return null;
         }
 
+        // ---------------- 인앱 결제 상품(IapStore 가 결제 후 부름) ----------------
+
+        /// <summary>결제 상품(패키지)을 지금 살 수 없는 이유 — 결제 창을 띄우기 전에 확인(한도만 봄, 값은 스토어가 받음).</summary>
+        public string PaidBlockReason(ShopItem item)
+        {
+            if (item == null) return "상품을 찾을 수 없습니다";
+            if (Remaining(item) < 1) return "구매 제한에 도달했습니다";
+            return null;
+        }
+
+        /// <summary>결제가 끝난 패키지 지급 + 한도 기록. 값은 이미 스토어에서 받았으므로 재화를 쓰지 않음.</summary>
+        public bool GrantPaid(ShopItem item)
+        {
+            if (item == null) return false;
+            if (item.IsBundle) item.bundle().Grant();
+            if (item.limit > 0)
+            {
+                string period = PeriodKey(item.reset, DateTime.Now);
+                int prev = Bought(item);
+                _bought[item.id] = new Entry { id = item.id, count = prev + 1, period = period };
+                Save();
+            }
+            OnChanged?.Invoke();
+            return true;
+        }
+
         // ---------------- 구매 ----------------
 
         /// <summary>qty회 구매. 성공하면 값 차감 → 보상 지급 → 제한 기록.</summary>

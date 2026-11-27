@@ -8,8 +8,8 @@ namespace SubcultureRPG.Meta.Shop
     public sealed class PassDef
     {
         public string id, name, desc, icon;
-        public int crystals;             // 지금(임시) 크리스탈 가격
-        public string realPrice;         // 출시 때 인앱 결제 가격
+        public int crystals;             // (옛 임시 크리스탈 가격 — 이제 인앱 결제)
+        public string realPrice;         // 인앱 결제 기본 가격(스토어 가격을 못 불러왔을 때 표시)
         public Func<RewardBundle> now;   // 살 때 바로
         public Func<RewardBundle> daily; // 매일 05:00 우편
         public Color color;
@@ -17,7 +17,7 @@ namespace SubcultureRPG.Meta.Shop
 
     /// <summary>
     /// 월정액: 사면 바로 보상 + 30일 동안 매일 05:00(게임 날짜가 바뀔 때) 우편으로 보상. 다시 사면 30일 연장(남은 기간 최대 180일).
-    /// 지금은 크리스탈로 판매 — 출시 때 인앱 결제로 바꿈(<see cref="PassDef.realPrice"/>). 게임을 켜지 않은 날의 보상은 쌓이지 않음.
+    /// 인앱 결제 상품(IapCatalog · IapStore — 상품 ID = PassDef.id). 게임을 켜지 않은 날의 보상은 쌓이지 않음.
     /// 씬에 없어도 처음 쓸 때 스스로 만들어짐(MonthlyPass.Instance).
     /// </summary>
     public class MonthlyPass : MonoBehaviour
@@ -120,24 +120,19 @@ namespace SubcultureRPG.Meta.Shop
         public bool Active(PassDef p) => DaysLeft(p) > 0;
         public bool ReceivedToday(PassDef p) { var e = Get(p); return e != null && e.last == Key(Today); }
 
-        /// <summary>구매 불가 사유(가능하면 null).</summary>
-        public string BlockReason(PassDef p)
+        /// <summary>결제 전에 확인하는 구매 불가 사유(가능하면 null) — 남은 기간 최대 180일.</summary>
+        public string PaidBlockReason(PassDef p)
         {
             if (p == null) return "상품을 찾을 수 없습니다";
             if (DaysLeft(p) + Days > MaxDays) return $"남은 기간은 최대 {MaxDays}일까지입니다";
-            var wallet = FindAnyObjectByType<PlayerWallet>();
-            if (wallet == null || wallet.Crystals < p.crystals) return "크리스탈이 부족합니다";
             return null;
         }
 
-        /// <summary>구매(또는 30일 연장): 크리스탈 차감 → 바로 보상 → 오늘 보상도 바로 우편. 실패 사유(성공이면 null).</summary>
-        public string Buy(PassDef p)
+        /// <summary>결제가 끝난 월정액 시작(또는 30일 연장): 바로 보상 → 오늘 보상도 바로 우편. 값은 스토어에서 받음.</summary>
+        public bool Activate(PassDef p)
         {
             EnsureLoaded();
-            string block = BlockReason(p);
-            if (block != null) return block;
-            var wallet = FindAnyObjectByType<PlayerWallet>();
-            if (!wallet.Spend(p.crystals)) return "크리스탈이 부족합니다";
+            if (p == null) return false;
             var e = Get(p);
             if (e == null) { e = new Entry { id = p.id }; _d.list.Add(e); }
             var start = Active(p) ? Parse(e.end) : Today;
@@ -145,8 +140,7 @@ namespace SubcultureRPG.Meta.Shop
             p.now().Grant();
             Changed();
             Deliver(force: true);
-            MissionEvents.Report(MissionGoal.ShopBuy);
-            return null;
+            return true;
         }
 
         /// <summary>오늘 아직 안 보낸 월정액 보상을 우편으로.</summary>

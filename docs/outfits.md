@@ -67,7 +67,7 @@ node tools/art/generate-art.js --studio "<스튜디오 폴더>" --model gpt-imag
 ```
 
 - 기본 일러스트(`Characters/{id}.png`)를 **참고 이미지**로 넣어 같은 인물 · 같은 구도로 그립니다(연출에서 "같은 자세로 변신"). 속성별 모티프(`BLOOM`) · 성급별 화려함(`BLOOM_RARITY`)은 [art-manifest.js](../tools/art/art-manifest.js).
-- 썸네일(`Thumbs/{id}_bloom.png`)은 일러스트 윗부분을 잘라 자동으로 만듭니다.
+- 썸네일(`Thumbs/{id}_bloom.png` · 프로필 아이콘에도 씀)은 일러스트에서 자동으로 잘라 만듭니다. 개화 · 축제 일러스트는 구도가 제각각이라 **얼굴 위치 표**([tools/art/thumb-faces.json](../tools/art/thumb-faces.json), 일러스트 기준 0~1)를 보고 얼굴을 가운데로 자릅니다. 표에 없는 일러스트는 예전처럼 위쪽 가운데. 새 일러스트를 넣으면 표에 얼굴 위치를 추가하고 `node tools/art/generate-art.js --studio … --only bloom --thumbs`(또는 `--key …`)로 다시 자르세요.
 
 ### 6★ 개화 영상 (움직이는 일러스트)
 

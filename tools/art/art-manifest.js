@@ -194,7 +194,7 @@ const ITEMS = [
   ['Select6', '태생 6성 캐릭터 선택권', 'a luxurious golden ticket card with six small golden stars across the top, a radiant rainbow-gold silhouette of a heroine in the center, sparkling gems on the corners'],
   ['Select6All', '태생 6성 캐릭터 선택권(픽업 포함)', 'a luxurious prismatic rainbow ticket card with six radiant golden stars across the top, a glowing crowned heroine silhouette in the center surrounded by a burst of rainbow light, a small golden crown emblem and sparkling diamonds on the corners'],
   ['GuildCoin', '길드 코인', 'a thick golden coin engraved with a blue heraldic banner and an anchor-and-star guild crest, small sparkles around the rim'],
-  ['PassCrystal', '별빛 크리스탈 월정액', 'a premium membership card made of glowing cyan crystal with a big faceted blue crystal gem in the center and a small calendar ribbon with the number 30, sparkles'],
+  ['PassCrystal', '별빛 크리스탈 월정액', 'a premium membership card made of glowing cyan crystal with the exact same brilliant-cut blue diamond gem as in the reference image in the center and a small calendar ribbon with the number 30, sparkles'],
   ['PassStamina', '행동력 보급 월정액', 'a premium membership card in emerald green with a glowing green lightning-bolt energy potion bottle in the center and a small calendar ribbon, sparkles'],
   ['PassGold', '금화 보급 월정액', 'a premium membership card in rich gold with a stack of shining gold coins in the center and a small calendar ribbon, sparkles'],
   ['PassPremium', '지휘관 특권 월정액', 'a luxurious black and gold premium VIP membership card with a golden crown above an anchor-and-star emblem, rainbow gem accents and a small calendar ribbon'],
@@ -207,8 +207,17 @@ const ITEMS = [
   ['ShopTabPackage', '상점 탭 — 패키지', 'a shiny gift box with a big golden bow and a small star tag, glowing sparkles'],
   ['ShopTabMonthly', '상점 탭 — 월정액', 'a golden calendar page with a big glowing star on it and a small crown, sparkles'],
   ['ShopTabGeneral', '상점 탭 — 일반 상점', 'a merchant leather pouch overflowing with gold coins and a small potion bottle'],
-  ['ShopTabCrystal', '상점 탭 — 크리스탈 상점', 'a cluster of glowing cyan blue crystals with sparkles'],
+  ['ShopTabCrystal', '상점 탭 — 크리스탈 상점', 'a small shop price tag with the exact same brilliant-cut blue diamond gem as in the reference image hanging from it, sparkles'],
   ['ShopTabGuild', '상점 탭 — 길드 상점', 'a blue heraldic guild banner with a golden anchor-and-star crest above a small pile of gold guild coins'],
+  ['ShopTabTopUp', '상점 탭 — 크리스탈 충전', 'the exact same brilliant-cut blue diamond gem as in the reference image with a small round golden plus sign badge at its lower right corner, sparkles, premium top-up icon'],
+  // 크리스탈 충전 상품(작은 것 → 큰 것)
+  // 크리스탈 충전 · 상점 크리스탈 아이콘: 재화 아이콘(Items/Crystal, 파란 브릴리언트 컷 보석)을 참고 이미지로 넣어 같은 보석으로 통일(CRYSTAL_REF)
+  ['TopUp1', '크리스탈 충전 1단계', 'three of the exact same brilliant-cut blue diamond gem as in the reference image, small, slightly overlapping, soft sparkle'],
+  ['TopUp2', '크리스탈 충전 2단계', 'a small neat pile of about eight of the exact same brilliant-cut blue diamond gem as in the reference image, sparkles'],
+  ['TopUp3', '크리스탈 충전 3단계', 'a velvet pouch overflowing with many of the exact same brilliant-cut blue diamond gem as in the reference image, sparkles'],
+  ['TopUp4', '크리스탈 충전 4단계', 'a small wooden treasure chest full of the exact same brilliant-cut blue diamond gem as in the reference image copies with blue light shining out, sparkles'],
+  ['TopUp5', '크리스탈 충전 5단계', 'a large ornate golden treasure chest overflowing with heaps of the exact same brilliant-cut blue diamond gem as in the reference image copies, bright light rays'],
+  ['TopUp6', '크리스탈 충전 6단계', 'a magnificent mountain of the exact same brilliant-cut blue diamond gem as in the reference image copies spilling from a giant royal golden chest with a crown on top, radiant light rays and stars'],
   ['ShopTabExchange', '상점 탭 — 교환소', 'two circular golden arrows forming an exchange cycle around a small glowing gem'],
   // 홈 아래 메뉴 바 · 출격/소환 · 메뉴
   ['UiCharacter', '홈 메뉴 — 캐릭터(육성)', 'a heroine silhouette bust portrait inside a golden circular frame with a small upward green arrow and sparkles'],
@@ -666,11 +675,14 @@ function build() {
       negative: NEGATIVE,
     }, `${look}. ${STYLE.enemy}`));
 
+  // 크리스탈이 들어가는 아이콘은 재화 아이콘(Items/Crystal)을 참고 이미지로 — 보석 모양 · 색을 하나로 통일
+  const CRYSTAL_REF = ['ShopTabCrystal', 'ShopTabTopUp', 'TopUp1', 'TopUp2', 'TopUp3', 'TopUp4', 'TopUp5', 'TopUp6', 'PassCrystal'];
   for (const [key, name, look] of ITEMS)
     list.push(withBackground({
       group: 'items', key, label: name,
       out: `Items/${key}.png`, aspect: '1:1', resolution: '1K', width: 256, height: 256, format: 'png',
       negative: NEGATIVE,
+      ...(CRYSTAL_REF.includes(key) ? { ref: 'Items/Crystal.png' } : {}),
     }, `${look}. ${STYLE.item}`));
 
   for (const [enumName, el, names, material] of ASC_ELEMENT)
