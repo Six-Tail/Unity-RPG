@@ -66,8 +66,8 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Anchor(img.rectTransform, anchor, anchor, anchor);
             img.rectTransform.sizeDelta = new Vector2(size, size); img.rectTransform.anchoredPosition = pos;
             // 방패 안쪽 판의 중심(그림 가로 48.7% · 위에서 45.1%)에 맞춰 칸을 잡고, 글자 모양 기준으로 정가운데
-            var t = UIFactory.AddText("No", img.transform, "", size * 0.42f, font, new Color(1f, 0.92f, 0.66f), TextAlignmentOptions.CenterGeoAligned, FontStyles.Bold);
-            UIFactory.Stretch(t.rectTransform, size * 0.2f, size * 0.27f, size * 0.225f, size * 0.17f);
+            var t = UIFactory.AddText("No", img.transform, "", size * 0.36f, font, new Color(1f, 0.92f, 0.66f), TextAlignmentOptions.CenterGeoAligned, FontStyles.Bold);
+            UIFactory.Stretch(t.rectTransform, size * 0.2f, size * 0.225f, size * 0.225f, size * 0.215f);   // 글꼴이 위로 떠 보여 칸을 판 중심보다 조금 아래로
             t.overflowMode = TextOverflowModes.Overflow;
             TextOutline.Apply(t, 0.25f, new Color32(40, 24, 6, 255));
             go = img.gameObject;
