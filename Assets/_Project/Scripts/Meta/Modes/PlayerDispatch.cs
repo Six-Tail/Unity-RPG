@@ -117,6 +117,8 @@ namespace SubcultureRPG.Meta
         };
 
         public static string PlaceName(Mission m) => Places[Mathf.Abs(m.place) % Places.Length];
+        /// <summary>장소 번호(0~11) — 장소 그림 Resources/Art/Dispatch/place_{번호}.</summary>
+        public static int PlaceIndex(Mission m) => Mathf.Abs(m.place) % Places.Length;
         public static string GradeName(int g) => g switch { 0 => "C", 1 => "B", 2 => "A", _ => "S" };
         public static Color GradeColor(int g) => g switch
         {

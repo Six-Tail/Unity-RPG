@@ -11,7 +11,10 @@ using SubcultureRPG.Meta.Missions;
 namespace SubcultureRPG.Meta.UI
 {
     /// <summary>
-    /// 임무 화면. 위쪽 탭(일일 임무 · 주간 임무), 임무마다 진행도 막대 · 보상 · 받기 버튼, 아래에 '모두 받기'.
+    /// 임무 화면(2026-11 개편 — 상점과 같은 틀).
+    ///  · 왼쪽: 세로 탭(일일 임무 · 주간 임무 · 업적 — 아이콘 · 받을 보상 수 · 빨간 느낌표)
+    ///  · 오른쪽 위 머리띠: 탭 이름 · 완료 진행 막대 · 초기화까지 남은 시간 · '모두 받기'
+    ///  · 목록: 임무 카드(행동 아이콘 · 이름 · 진행 막대 · 보상 아이콘 칸 · 받기). 받을 것 → 진행 중 → 받은 것 순
     /// 코드로 자동 구성 — 참조는 비우면 자동 탐색(PlayerMissions가 없으면 지갑 오브젝트에 추가).
     /// </summary>
     [DisallowMultipleComponent]
@@ -23,8 +26,9 @@ namespace SubcultureRPG.Meta.UI
         [SerializeField] private TMP_FontAsset font;
 
         private GameObject _root;
-        private TextMeshProUGUI _hint, _toast, _claimAllLabel;
-        private RectTransform _tabs, _content;
+        private TextMeshProUGUI _headTitle, _headSub, _headCount, _toast, _claimAllLabel;
+        private RectTransform _tabs, _content, _headFill;
+        private Image _headIcon;
         private Button _backBtn, _claimAllBtn;
         private Action _onBack;
 
@@ -35,8 +39,12 @@ namespace SubcultureRPG.Meta.UI
         private string _periodSeen;
         private Coroutine _toastCo;
         private bool _dirty;
+        private ScrollRect _scroll;
+        private string _shownKey;
 
         private static readonly MissionPeriod[] Tabs = { MissionPeriod.Daily, MissionPeriod.Weekly };
+
+        private static readonly Color Gold = new(0.85f, 0.65f, 0.25f, 0.98f), Blue = new(0.25f, 0.62f, 0.95f, 0.98f), Violet = new(0.58f, 0.42f, 0.9f, 0.98f);
 
         private void Awake()
         {
@@ -94,7 +102,7 @@ namespace SubcultureRPG.Meta.UI
             _timerAcc = 0f;
             // 초기화 시각을 넘기면 목록 갱신
             if (Shop.PlayerShop.PeriodKey(Shop.ShopReset.Daily, DateTime.Now) != _periodSeen) Refresh();
-            else UpdateHint();
+            else UpdateHeader();
         }
 
         // ---------------- 갱신 ----------------
@@ -104,7 +112,6 @@ namespace SubcultureRPG.Meta.UI
             _dirty = false;
             if (_root == null || missions == null) return;
             _periodSeen = Shop.PlayerShop.PeriodKey(Shop.ShopReset.Daily, DateTime.Now);
-
 
             RebuildTabs();
             Clear(_content);
@@ -128,53 +135,200 @@ namespace SubcultureRPG.Meta.UI
                 claimable = missions.ClaimableCount(_tab);
             }
             _claimAllBtn.interactable = claimable > 0;
+            _claimAllBtn.image.color = claimable > 0 ? Gold : new Color(1, 1, 1, 0.12f);
             _claimAllLabel.text = claimable > 0 ? $"모두 받기  <size=75%>({claimable})</size>" : "모두 받기";
-            UpdateHint();
+            UpdateHeader();
+
+            // 탭을 바꾸면 맨 위부터
+            string key = _ach ? "ach" : _tab.ToString();
+            if (_scroll != null && key != _shownKey) { Canvas.ForceUpdateCanvases(); _scroll.verticalNormalizedPosition = 1f; }
+            _shownKey = key;
         }
 
         private int Order(Mission m) => missions.CanClaim(m) ? 0 : missions.IsClaimed(m) ? 2 : 1;
 
         private int AchOrder(Achievement a) => _achievements.CanClaim(a) ? 0 : _achievements.IsComplete(a) ? 2 : 1;
 
-        private void UpdateHint()
+        /// <summary>오른쪽 위 머리띠: 탭 이름 · 설명 · 완료 수와 막대 · 초기화까지.</summary>
+        private void UpdateHeader()
         {
+            int done, total;
             if (_ach)
             {
-                _hint.text = $"업적  <size=80%><color=#9AA3B5>계정 누적 기록 · 초기화 없음 · 마지막 단계는 칭호</color>" +
-                             $"   <color=#FFD36B>달성 {_achievements.ClaimedTiers()} / {PlayerAchievements.TotalTiers()} 단계</color></size>";
-                return;
+                done = _achievements.ClaimedTiers(); total = PlayerAchievements.TotalTiers();
+                _headTitle.text = "업적";
+                _headSub.text = "<color=#9AA3B5>계정 누적 기록 · 초기화 없음 · 마지막 단계는 칭호</color>";
+                _headIcon.sprite = GameArt.Load(TabIcon(true, _tab));
             }
-            var left = PlayerMissions.UntilReset(_tab);
-            string when = _tab == MissionPeriod.Daily ? "매일 05:00 초기화" : "매주 월요일 05:00 초기화";
-            _hint.text = $"{MissionCatalog.PeriodName(_tab)}  <size=80%><color=#9AA3B5>{when}</color>" +
-                         $"   <color=#FFD36B>초기화까지 {Shop.PlayerShop.FormatSpan(left)}</color></size>";
+            else
+            {
+                var list = MissionCatalog.Of(_tab);
+                total = list.Count; done = 0;
+                foreach (var m in list) if (missions.IsClaimed(m)) done++;
+                var left = PlayerMissions.UntilReset(_tab);
+                string when = _tab == MissionPeriod.Daily ? "매일 05:00 초기화" : "매주 월요일 05:00 초기화";
+                _headTitle.text = MissionCatalog.PeriodName(_tab);
+                _headSub.text = $"<color=#9AA3B5>{when}</color>   <color=#FFD36B>초기화까지 {Shop.PlayerShop.FormatSpan(left)}</color>";
+                _headIcon.sprite = GameArt.Load(TabIcon(false, _tab));
+            }
+            _headIcon.enabled = _headIcon.sprite != null;
+            _headCount.text = $"<color=#9AA3B5>{(_ach ? "달성 단계" : "받은 보상")}</color>  <b>{done}</b> <color=#9AA3B5>/ {total}</color>";
+            _headFill.anchorMax = new Vector2(total > 0 ? Mathf.Clamp01(done / (float)total) : 0f, 1f);
         }
 
+        private static string TabIcon(bool ach, MissionPeriod p) => ach ? "Items/MissionTabAch" : p == MissionPeriod.Daily ? "Items/MissionTabDaily" : "Items/MissionTabWeekly";
+
+        /// <summary>왼쪽 세로 탭(아이콘 · 이름 · 받을 수 · 느낌표).</summary>
         private void RebuildTabs()
         {
             Clear(_tabs);
             foreach (var t in Tabs)
             {
                 var tab = t;
-                bool on = _tab == t;
                 int n = missions.ClaimableCount(t);
-                string label = MissionCatalog.PeriodName(t) + (n > 0 ? "  <color=#FF6B6B><b>!</b></color>" : "");
-                var b = UIFactory.AddButton("Tab", _tabs, label, 20, font,
-                    on && !_ach ? new Color(0.78f, 0.58f, 0.22f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
-                var le = b.gameObject.AddComponent<LayoutElement>();
-                le.preferredWidth = 210; le.preferredHeight = 44;
-                b.onClick.AddListener(() => { _tab = tab; _ach = false; Refresh(); });
+                int total = MissionCatalog.Of(t).Count, done = 0;
+                foreach (var m in MissionCatalog.Of(t)) if (missions.IsClaimed(m)) done++;
+                TabButton(TabIcon(false, t), MissionCatalog.PeriodName(t),
+                    n > 0 ? $"<color=#FFD36B>받을 보상 {n}</color>" : $"<color=#9AA3B5>완료 {done}/{total}</color>",
+                    !_ach && _tab == t, Gold, n > 0, () => { _tab = tab; _ach = false; Refresh(); });
             }
-            // 업적 탭
             int an = _achievements != null ? _achievements.ClaimableCount() : 0;
-            var ab = UIFactory.AddButton("Tab", _tabs, "업적" + (an > 0 ? "  <color=#FF6B6B><b>!</b></color>" : ""), 20, font,
-                _ach ? new Color(0.55f, 0.4f, 0.85f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
-            var ale = ab.gameObject.AddComponent<LayoutElement>();
-            ale.preferredWidth = 210; ale.preferredHeight = 44;
-            ab.onClick.AddListener(() => { _ach = true; Refresh(); });
+            TabButton(TabIcon(true, _tab), "업적",
+                an > 0 ? $"<color=#FFD36B>받을 보상 {an}</color>" : $"<color=#9AA3B5>{_achievements.ClaimedTiers()}/{PlayerAchievements.TotalTiers()} 단계</color>",
+                _ach, Violet, an > 0, () => { _ach = true; Refresh(); });
         }
 
-        /// <summary>업적 한 줄: 이름 · 단계 점 · 다음 목표 · 진행 막대 · 보상 · 받기.</summary>
+        private void TabButton(string icon, string name, string sub, bool on, Color accent, bool badge, UnityEngine.Events.UnityAction onClick)
+        {
+            var bg = UIFactory.AddImage("Tab", _tabs, on ? accent : new Color(0.08f, 0.09f, 0.13f, 0.9f), ProceduralSprites.Rounded, raycast: true);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            bg.gameObject.AddComponent<LayoutElement>().preferredHeight = 104;
+            var b = bg.gameObject.AddComponent<Button>();
+            b.targetGraphic = bg;
+            b.onClick.AddListener(onClick);
+            bg.gameObject.AddComponent<ButtonFx>();
+            var rt = bg.rectTransform;
+            var sp = GameArt.Load(icon);
+            if (sp != null)
+            {
+                var im = UIFactory.AddImage("Icon", rt, Color.white, sp);
+                im.preserveAspect = true; im.raycastTarget = false;
+                UIFactory.Anchor(im.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                im.rectTransform.sizeDelta = new Vector2(76, 76); im.rectTransform.anchoredPosition = new Vector2(12, 0);
+            }
+            var t = Label(rt, $"<b>{name}</b>\n<size=72%>{sub}</size>", 25, FontStyles.Normal, TextAlignmentOptions.Left);
+            t.lineSpacing = -4f;
+            t.enableAutoSizing = true; t.fontSizeMin = 14; t.fontSizeMax = 25;
+            UIFactory.Stretch(t.rectTransform, 98, 8, 10, 8);
+            if (badge) NotifyBadge.Attach(rt, font, 4, 4, 26).Set(true);
+        }
+
+        // ---------------- 카드 ----------------
+
+        /// <summary>임무 행동별 아이콘(기존 그림 재사용).</summary>
+        private static string GoalIcon(MissionGoal g) => g switch
+        {
+            MissionGoal.Login => "Items/UiAttendance",
+            MissionGoal.BattleWin => "Items/UiSortie",
+            MissionGoal.DungeonClear => "Items/TowerIcon",
+            MissionGoal.GachaPull => "Items/UiSummon",
+            MissionGoal.Growth => "Items/UiCharacter",
+            MissionGoal.ShopBuy => "Items/UiShop",
+            _ => "Items/UiMission",
+        };
+
+        private static (string icon, string count) RewardIcon(MissionReward r) => r.kind switch
+        {
+            MissionRewardKind.Crystal => ("Items/Crystal", r.amount.ToString("N0")),
+            MissionRewardKind.Gold => ("Items/Gold", r.amount >= 10000 ? $"{r.amount / 1000}K" : r.amount.ToString("N0")),
+            MissionRewardKind.Ticket => (r.ticket == SubcultureRPG.Gacha.GachaBannerType.Pickup ? "Items/PickupTicket" : "Items/StandardTicket", "×" + r.amount),
+            _ => ("Items/" + r.material, "×" + r.amount),
+        };
+
+        /// <summary>카드 바탕: 받을 수 있으면 금색 테두리 · 받은 것은 흐리게.</summary>
+        private RectTransform Card(string name, float height, bool can, bool faded, Color accent)
+        {
+            var edge = UIFactory.AddImage(name, _content, can ? accent : new Color(1, 1, 1, 0.08f), ProceduralSprites.Rounded);
+            edge.type = Image.Type.Sliced; edge.preserveAspect = false;
+            edge.gameObject.AddComponent<LayoutElement>().preferredHeight = height;
+            if (faded) edge.gameObject.AddComponent<CanvasGroup>().alpha = 0.5f;
+            var inner = UIFactory.AddImage("Inner", edge.transform, can ? new Color(0.12f, 0.13f, 0.2f, 0.97f) : new Color(0.07f, 0.08f, 0.12f, 0.94f), ProceduralSprites.Rounded);
+            inner.type = Image.Type.Sliced; inner.preserveAspect = false;
+            UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
+            return inner.rectTransform;
+        }
+
+        private void IconTile(RectTransform card, string icon, float size, Color tint)
+        {
+            var tile = UIFactory.AddImage("Goal", card, new Color(tint.r, tint.g, tint.b, 0.18f), ProceduralSprites.Rounded);
+            tile.type = Image.Type.Sliced; tile.preserveAspect = false;
+            UIFactory.Anchor(tile.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+            tile.rectTransform.sizeDelta = new Vector2(size, size); tile.rectTransform.anchoredPosition = new Vector2(16, 0);
+            var sp = GameArt.Load(icon);
+            if (sp == null) return;
+            var im = UIFactory.AddImage("Icon", tile.rectTransform, Color.white, sp);
+            im.preserveAspect = true;
+            UIFactory.Stretch(im.rectTransform, 8, 8, 8, 8);
+        }
+
+        private void ProgressBar(RectTransform card, float x, float y, float w, float ratio, Color fillColor, string text)
+        {
+            var bg = UIFactory.AddImage("BarBg", card, new Color(1, 1, 1, 0.10f), ProceduralSprites.Rounded);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false; bg.pixelsPerUnitMultiplier = 4f;
+            UIFactory.Anchor(bg.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            bg.rectTransform.sizeDelta = new Vector2(w, 14); bg.rectTransform.anchoredPosition = new Vector2(x, y);
+            if (ratio > 0f)
+            {
+                var fill = UIFactory.AddImage("Fill", bg.rectTransform, ratio >= 1f ? new Color(0.45f, 0.85f, 0.55f) : fillColor, ProceduralSprites.Rounded);
+                fill.type = Image.Type.Sliced; fill.preserveAspect = false; fill.pixelsPerUnitMultiplier = 4f;
+                var frt = fill.rectTransform;
+                frt.anchorMin = Vector2.zero; frt.anchorMax = new Vector2(Mathf.Clamp01(ratio), 1); frt.offsetMin = Vector2.zero; frt.offsetMax = Vector2.zero;
+            }
+            var t = Label(card, text, 19, FontStyles.Bold, TextAlignmentOptions.Left);
+            UIFactory.Anchor(t.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            t.rectTransform.sizeDelta = new Vector2(220, 26); t.rectTransform.anchoredPosition = new Vector2(x + w + 14, y - 6);
+            t.color = ratio >= 1f ? new Color(0.55f, 0.95f, 0.65f) : new Color(0.8f, 0.83f, 0.9f);
+        }
+
+        /// <summary>보상 아이콘 칸 줄(오른쪽 버튼 왼쪽에 오른쪽 정렬).</summary>
+        private void RewardTiles(RectTransform card, List<(string icon, string count, string hex)> parts, float rightEdge)
+        {
+            const float size = 78f, gap = 8f;
+            float x = rightEdge;
+            for (int i = parts.Count - 1; i >= 0; i--)
+            {
+                var (icon, count, hex) = parts[i];
+                var tile = UIFactory.AddImage("Reward", card, new Color(1, 1, 1, 0.07f), ProceduralSprites.Rounded);
+                tile.type = Image.Type.Sliced; tile.preserveAspect = false;
+                UIFactory.Anchor(tile.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
+                tile.rectTransform.sizeDelta = new Vector2(size, size); tile.rectTransform.anchoredPosition = new Vector2(-x, 0);
+                var sp = GameArt.Load(icon);
+                if (sp != null)
+                {
+                    var im = UIFactory.AddImage("Icon", tile.rectTransform, Color.white, sp);
+                    im.preserveAspect = true;
+                    UIFactory.Stretch(im.rectTransform, 10, 18, 10, 4);
+                }
+                var c = Label(tile.rectTransform, count, 17, FontStyles.Bold, TextAlignmentOptions.Bottom);
+                UIFactory.Stretch(c.rectTransform, 2, 2, 2, 0);
+                c.color = ColorUtility.TryParseHtmlString(hex, out var col) ? col : Color.white;
+                TextOutline.Apply(c, 0.22f, new Color32(8, 10, 18, 240));
+                x += size + gap;
+            }
+        }
+
+        private Button ClaimButton(RectTransform card, string label, bool can, Color color)
+        {
+            var btn = UIFactory.AddButton("Claim", card, label, 24, font, can ? color : new Color(1, 1, 1, 0.12f), Color.white);
+            var brt = (RectTransform)btn.transform;
+            UIFactory.Anchor(brt, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
+            brt.sizeDelta = new Vector2(170, 66); brt.anchoredPosition = new Vector2(-22, 0);
+            btn.interactable = can;
+            btn.GetComponentInChildren<TextMeshProUGUI>().richText = true;
+            return btn;
+        }
+
+        /// <summary>업적 카드: 트로피 · 이름 · 단계 점 · 다음 목표 · 진행 막대 · 보상 칸 · 받기.</summary>
         private void BuildAchievementRow(Achievement a)
         {
             int reached = _achievements.Reached(a), claimed = _achievements.Claimed(a);
@@ -183,62 +337,43 @@ namespace SubcultureRPG.Meta.UI
             long cur = _achievements.Value(a.stat);
             int target = a.targets[next];
 
-            var row = UIFactory.AddImage("Achievement", _content,
-                can ? new Color(0.24f, 0.2f, 0.36f, 0.96f) : new Color(0.10f, 0.11f, 0.15f, 0.94f), ProceduralSprites.Rounded);
-            row.type = Image.Type.Sliced; row.preserveAspect = false;
-            row.gameObject.AddComponent<LayoutElement>().preferredHeight = 112;
-            row.gameObject.AddComponent<CanvasGroup>().alpha = done ? 0.55f : 1f;
+            var card = Card("Achievement", 124, can, done, Violet);
+            IconTile(card, "Items/MissionTabAch", 92, new Color(0.75f, 0.6f, 1f));
 
-            // 단계: 받은 단계 / 전체 단계(숫자)
-            string stage = $"<color=#9AA3B5>단계</color> <color={(done ? "#FFD36B" : "#FFFFFF")}>{claimed}</color><color=#9AA3B5> / {a.Tiers}</color>";
-            var t = Label(row.transform, $"{a.name}   <size=72%>{stage}</size>", 25, FontStyles.Bold, TextAlignmentOptions.Left);
+            // 이름 + 단계(점)
+            var pips = new System.Text.StringBuilder();
+            for (int i = 0; i < a.Tiers; i++) pips.Append(i < claimed ? "<color=#FFD36B>●</color>" : "<color=#4B5060>●</color>");
+            var t = Label(card, $"<b>{a.name}</b>   <size=70%>{pips}  <color=#9AA3B5>{claimed}/{a.Tiers}</color></size>", 25, FontStyles.Normal, TextAlignmentOptions.Left);
             UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
-            t.rectTransform.sizeDelta = new Vector2(700, 36); t.rectTransform.anchoredPosition = new Vector2(28, -12);
-            var goal = Label(row.transform, done ? "<color=#9AA3B5>모든 단계 완료</color>" : $"<color=#C8CEDC>{next + 1}단계 · {a.Goal(next)}</color>",
-                19, FontStyles.Normal, TextAlignmentOptions.Left);
+            t.rectTransform.sizeDelta = new Vector2(760, 36); t.rectTransform.anchoredPosition = new Vector2(124, -12);
+            var goal = Label(card, done ? "<color=#9AA3B5>모든 단계 완료</color>" : $"<color=#C8CEDC>{next + 1}단계 · {a.Goal(next)}</color>", 19, FontStyles.Normal, TextAlignmentOptions.Left);
             UIFactory.Anchor(goal.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
-            goal.rectTransform.sizeDelta = new Vector2(700, 28); goal.rectTransform.anchoredPosition = new Vector2(28, -48);
-
-            var barBg = UIFactory.AddImage("BarBg", row.transform, new Color(1, 1, 1, 0.10f));
-            UIFactory.Anchor(barBg.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
-            barBg.rectTransform.sizeDelta = new Vector2(520, 12); barBg.rectTransform.anchoredPosition = new Vector2(28, 18);
+            goal.rectTransform.sizeDelta = new Vector2(760, 28); goal.rectTransform.anchoredPosition = new Vector2(124, -48);
             float ratio = target > 0 ? Mathf.Clamp01((float)cur / target) : 1f;
-            var fill = UIFactory.AddImage("Fill", barBg.transform, ratio >= 1f ? new Color(0.45f, 0.85f, 0.55f) : new Color(0.62f, 0.45f, 0.95f));
-            var frt = fill.rectTransform;
-            frt.anchorMin = new Vector2(0, 0); frt.anchorMax = new Vector2(ratio, 1); frt.pivot = new Vector2(0, 0.5f);
-            frt.offsetMin = Vector2.zero; frt.offsetMax = Vector2.zero;
-            var prog = Label(row.transform, $"{Mathf.Min(cur, target):N0} / {target:N0}", 19, FontStyles.Bold, TextAlignmentOptions.Left);
-            UIFactory.Anchor(prog.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
-            prog.rectTransform.sizeDelta = new Vector2(200, 26); prog.rectTransform.anchoredPosition = new Vector2(564, 9);
-            prog.color = ratio >= 1f ? new Color(0.55f, 0.95f, 0.65f) : new Color(0.8f, 0.83f, 0.9f);
+            ProgressBar(card, 124, 20, 480, done ? 1f : ratio, new Color(0.62f, 0.45f, 0.95f), done ? "완료" : $"{Mathf.Min(cur, target):N0} / {target:N0}");
 
-            // 보상: 받을 단계들(또는 다음 단계) + 마지막 단계 칭호
-            string reward;
-            if (done) reward = "<color=#7BE39A>받음</color>";
-            else
+            // 보상(받을 단계들 또는 다음 단계) + 마지막 단계 칭호
+            if (!done)
             {
-                var r = new SubcultureRPG.Meta.RewardBundle();
+                var r = new RewardBundle();
                 for (int i = claimed; i < Mathf.Max(claimed + 1, reached); i++)
                 {
                     var p = PlayerAchievements.RewardOf(a, i);
                     r.crystals += p.crystals; r.standard += p.standard;
                 }
-                reward = r.Describe("  ·  ");
+                var parts = new List<(string, string, string)>();
+                foreach (var (icon, _, count, hex) in r.Parts()) parts.Add((icon, count >= 1000 ? count.ToString("N0") : "×" + count, hex));
+                RewardTiles(card, parts, 210);
                 if (a.titleId != null && Mathf.Max(claimed + 1, reached) >= a.Tiers)
-                    reward += $"\n<size=85%>칭호 <color=#FFD36B>「{ProfileRewards.Title(a.titleId).name}」</color></size>";
+                {
+                    var title = Label(card, $"<size=80%>칭호</size> <color=#FFD36B>「{ProfileRewards.Title(a.titleId).name}」</color>", 18, FontStyles.Bold, TextAlignmentOptions.Right);
+                    UIFactory.Anchor(title.rectTransform, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+                    title.rectTransform.sizeDelta = new Vector2(360, 24); title.rectTransform.anchoredPosition = new Vector2(-210, 4);
+                }
             }
-            var rew = Label(row.transform, reward, 22, FontStyles.Bold, TextAlignmentOptions.Right);
-            UIFactory.Anchor(rew.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
-            rew.rectTransform.sizeDelta = new Vector2(420, 70); rew.rectTransform.anchoredPosition = new Vector2(-250, 0);
-            rew.enableAutoSizing = true; rew.fontSizeMin = 15; rew.fontSizeMax = 22;
 
-            string label = done ? "완료" : can ? (reached - claimed > 1 ? $"받기 ×{reached - claimed}" : "받기") : "진행 중";
-            var btn = UIFactory.AddButton("Claim", row.transform, label, 24, font,
-                can ? new Color(0.55f, 0.4f, 0.85f, 0.98f) : new Color(1, 1, 1, 0.12f), Color.white);
-            var brt = (RectTransform)btn.transform;
-            UIFactory.Anchor(brt, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
-            brt.sizeDelta = new Vector2(190, 66); brt.anchoredPosition = new Vector2(-28, 0);
-            btn.interactable = can;
+            string label = done ? "완료" : can ? (reached - claimed > 1 ? $"받기 <size=75%>×{reached - claimed}</size>" : "받기") : "진행 중";
+            var btn = ClaimButton(card, label, can, Violet);
             var ach = a;
             btn.onClick.AddListener(() =>
             {
@@ -250,54 +385,36 @@ namespace SubcultureRPG.Meta.UI
             });
         }
 
+        /// <summary>임무 카드: 행동 아이콘 · 이름 · 진행 막대 · 보상 칸 · 받기.</summary>
         private void BuildRow(Mission m)
         {
             int cur = missions.Progress(m);
             bool claimed = missions.IsClaimed(m);
             bool can = missions.CanClaim(m);
+            var accent = m.IsBonus ? Gold : Blue;
 
-            var row = UIFactory.AddImage("Mission", _content,
-                can ? new Color(0.20f, 0.26f, 0.36f, 0.96f) : new Color(0.10f, 0.11f, 0.15f, 0.94f), ProceduralSprites.Rounded);
-            row.type = Image.Type.Sliced; row.preserveAspect = false;
-            row.gameObject.AddComponent<LayoutElement>().preferredHeight = 104;
-            var group = row.gameObject.AddComponent<CanvasGroup>();
-            group.alpha = claimed ? 0.5f : 1f;
+            var card = Card("Mission", 116, can, claimed, accent);
+            IconTile(card, GoalIcon(m.goal), 88, m.IsBonus ? new Color(1f, 0.83f, 0.42f) : new Color(0.45f, 0.7f, 1f));
 
-            // 제목 (+ 보너스 표시)
-            string title = m.IsBonus ? $"<color=#FFD36B>보너스</color>  {m.title}" : m.title;
-            var t = Label(row.transform, title, 25, FontStyles.Bold, TextAlignmentOptions.Left);
+            string title = m.IsBonus ? $"<color=#FFD36B>보너스</color>  <b>{m.title}</b>" : $"<b>{m.title}</b>";
+            var t = Label(card, title, 25, FontStyles.Normal, TextAlignmentOptions.Left);
             UIFactory.Anchor(t.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
-            t.rectTransform.sizeDelta = new Vector2(640, 36); t.rectTransform.anchoredPosition = new Vector2(28, -16);
+            t.rectTransform.sizeDelta = new Vector2(760, 36); t.rectTransform.anchoredPosition = new Vector2(120, -18);
+            t.enableAutoSizing = true; t.fontSizeMin = 16; t.fontSizeMax = 25;
 
-            // 진행도 막대
-            var barBg = UIFactory.AddImage("BarBg", row.transform, new Color(1, 1, 1, 0.10f));
-            UIFactory.Anchor(barBg.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
-            barBg.rectTransform.sizeDelta = new Vector2(520, 14); barBg.rectTransform.anchoredPosition = new Vector2(28, 22);
             float ratio = m.target > 0 ? Mathf.Clamp01((float)cur / m.target) : 1f;
-            var fill = UIFactory.AddImage("Fill", barBg.transform, ratio >= 1f ? new Color(0.45f, 0.85f, 0.55f) : new Color(0.35f, 0.65f, 1f));
-            var frt = fill.rectTransform;
-            frt.anchorMin = new Vector2(0, 0); frt.anchorMax = new Vector2(ratio, 1); frt.pivot = new Vector2(0, 0.5f);
-            frt.offsetMin = Vector2.zero; frt.offsetMax = Vector2.zero;
+            ProgressBar(card, 120, 24, 480, ratio, new Color(0.35f, 0.65f, 1f), $"{Mathf.Min(cur, m.target):N0} / {m.target:N0}");
 
-            var prog = Label(row.transform, $"{cur:N0} / {m.target:N0}", 20, FontStyles.Bold, TextAlignmentOptions.Left);
-            UIFactory.Anchor(prog.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
-            prog.rectTransform.sizeDelta = new Vector2(160, 28); prog.rectTransform.anchoredPosition = new Vector2(564, 14);
-            prog.color = ratio >= 1f ? new Color(0.55f, 0.95f, 0.65f) : new Color(0.8f, 0.83f, 0.9f);
+            var parts = new List<(string, string, string)>();
+            foreach (var r in m.rewards)
+            {
+                var (icon, count) = RewardIcon(r);
+                string hex = r.kind switch { MissionRewardKind.Crystal => "#8FE9FF", MissionRewardKind.Gold => "#FFD36B", MissionRewardKind.Ticket => "#FFB3E6", _ => Grades.Hex(Materials.Grade(r.material)) };
+                parts.Add((icon, count, hex));
+            }
+            RewardTiles(card, parts, 210);
 
-            // 보상
-            var rew = Label(row.transform, m.RewardText, 22, FontStyles.Bold, TextAlignmentOptions.Right);
-            UIFactory.Anchor(rew.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
-            rew.rectTransform.sizeDelta = new Vector2(460, 60); rew.rectTransform.anchoredPosition = new Vector2(-250, 0);
-            rew.enableAutoSizing = true; rew.fontSizeMin = 15; rew.fontSizeMax = 22;
-
-            // 받기 버튼
-            string label = claimed ? "받음" : can ? "받기" : "진행 중";
-            var btn = UIFactory.AddButton("Claim", row.transform, label, 24, font,
-                can ? new Color(0.25f, 0.62f, 0.95f, 0.98f) : new Color(1, 1, 1, 0.12f), Color.white);
-            var brt = (RectTransform)btn.transform;
-            UIFactory.Anchor(brt, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
-            brt.sizeDelta = new Vector2(190, 66); brt.anchoredPosition = new Vector2(-28, 0);
-            btn.interactable = can;
+            var btn = ClaimButton(card, claimed ? "받음" : can ? "받기" : "진행 중", can, accent);
             var mission = m;
             btn.onClick.AddListener(() => OnClaim(mission));
         }
@@ -366,56 +483,74 @@ namespace SubcultureRPG.Meta.UI
 
             _root = UIFactory.AddImage("Root", canvas.transform, new Color(0.05f, 0.06f, 0.09f, 1f), null, raycast: true).gameObject;
             UIFactory.Stretch((RectTransform)_root.transform);
-            BackgroundArt.Create(_root.transform, 0.74f).Set("Backgrounds/mission", "Backgrounds/party");
-            var root = _root.transform;
+            BackgroundArt.Create(_root.transform, 0.7f).Set("Backgrounds/mission", "Backgrounds/party");
+            var root = UIFactory.Frame(_root.transform);
 
-            var title = UIFactory.AddText("Title", root, "임무", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            Place(title.rectTransform, new Vector2(0.5f, 1), new Vector2(600, 56), new Vector2(0, -30));
+            var title = UIFactory.AddText("Title", root, "임무", 40, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            Place(title.rectTransform, new Vector2(0, 1), new Vector2(400, 56), new Vector2(200, -24), new Vector2(0, 1));
 
             CurrencyBar.Create(root, font, wallet, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
             CurrencyBar.Create(root, font, wallet, new Vector2(-50, -94), Currency.PickupTicket, Currency.StandardTicket);   // 임무 보상에 뽑기권이 있어 함께
 
-            // 탭
+            // 왼쪽: 세로 탭
             _tabs = UIFactory.NewRect("Tabs", root);
-            Place(_tabs, new Vector2(0.5f, 1), new Vector2(1400, 44), new Vector2(0, -112));
-            var th = _tabs.gameObject.AddComponent<HorizontalLayoutGroup>();
-            th.spacing = 10; th.childAlignment = TextAnchor.MiddleLeft;
-            th.childControlWidth = true; th.childControlHeight = true;
-            th.childForceExpandWidth = false; th.childForceExpandHeight = false;
+            Place(_tabs, new Vector2(0, 1), new Vector2(300, 600), new Vector2(40, -170), new Vector2(0, 1));
+            var tv = _tabs.gameObject.AddComponent<VerticalLayoutGroup>();
+            tv.spacing = 12; tv.childAlignment = TextAnchor.UpperLeft;
+            tv.childControlWidth = true; tv.childControlHeight = true;
+            tv.childForceExpandWidth = true; tv.childForceExpandHeight = false;
 
-            _hint = UIFactory.AddText("Hint", root, "", 22, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
-            Place(_hint.rectTransform, new Vector2(0.5f, 1), new Vector2(1400, 32), new Vector2(0, -168));
+            // 오른쪽 위: 머리띠(탭 이름 · 진행 · 초기화 · 모두 받기)
+            var head = UIFactory.AddImage("Header", root, new Color(0.07f, 0.08f, 0.12f, 0.92f), ProceduralSprites.Rounded);
+            head.type = Image.Type.Sliced; head.preserveAspect = false;
+            Place(head.rectTransform, new Vector2(0, 1), new Vector2(1500, 118), new Vector2(370, -170), new Vector2(0, 1));
+            var hrt = head.rectTransform;
+            _headIcon = UIFactory.AddImage("Icon", hrt, Color.white);
+            _headIcon.preserveAspect = true;
+            UIFactory.Anchor(_headIcon.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+            _headIcon.rectTransform.sizeDelta = new Vector2(92, 92); _headIcon.rectTransform.anchoredPosition = new Vector2(16, 0);
+            _headTitle = Label(hrt, "", 34, FontStyles.Bold, TextAlignmentOptions.Left);
+            UIFactory.Anchor(_headTitle.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            _headTitle.rectTransform.sizeDelta = new Vector2(400, 46); _headTitle.rectTransform.anchoredPosition = new Vector2(124, -12);
+            _headSub = Label(hrt, "", 20, FontStyles.Normal, TextAlignmentOptions.Left);
+            UIFactory.Anchor(_headSub.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            _headSub.rectTransform.sizeDelta = new Vector2(700, 30); _headSub.rectTransform.anchoredPosition = new Vector2(126, 14);
+            _headCount = Label(hrt, "", 22, FontStyles.Normal, TextAlignmentOptions.Right);
+            UIFactory.Anchor(_headCount.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            _headCount.rectTransform.sizeDelta = new Vector2(380, 32); _headCount.rectTransform.anchoredPosition = new Vector2(-370, -22);
+            var barBg = UIFactory.AddImage("BarBg", hrt, new Color(1, 1, 1, 0.12f), ProceduralSprites.Rounded);
+            barBg.type = Image.Type.Sliced; barBg.preserveAspect = false; barBg.pixelsPerUnitMultiplier = 4f;
+            UIFactory.Anchor(barBg.rectTransform, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            barBg.rectTransform.sizeDelta = new Vector2(380, 14); barBg.rectTransform.anchoredPosition = new Vector2(-370, 30);
+            var fill = UIFactory.AddImage("Fill", barBg.rectTransform, new Color(1f, 0.83f, 0.42f), ProceduralSprites.Rounded);
+            fill.type = Image.Type.Sliced; fill.preserveAspect = false; fill.pixelsPerUnitMultiplier = 4f;
+            _headFill = fill.rectTransform;
+            _headFill.anchorMin = Vector2.zero; _headFill.anchorMax = new Vector2(0, 1); _headFill.offsetMin = Vector2.zero; _headFill.offsetMax = Vector2.zero;
 
-            // 임무 목록(스크롤)
-            var view = UIFactory.NewRect("View", root);
-            Place(view, new Vector2(0.5f, 1), new Vector2(1400, 700), new Vector2(0, -210));
-            view.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0.25f);
-            view.gameObject.AddComponent<RectMask2D>();
-            _content = UIFactory.NewRect("Content", view);
-            UIFactory.Anchor(_content, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            _content.sizeDelta = Vector2.zero; _content.anchoredPosition = Vector2.zero;
-            var vl = _content.gameObject.AddComponent<VerticalLayoutGroup>();
-            vl.spacing = 10; vl.padding = new RectOffset(14, 14, 14, 14);
-            vl.childControlWidth = true; vl.childControlHeight = true;
-            vl.childForceExpandWidth = true; vl.childForceExpandHeight = false;
-            _content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            var scroll = view.gameObject.AddComponent<ScrollRect>();
-            scroll.content = _content; scroll.viewport = view;
-            scroll.horizontal = false; scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 40f;
-
-            // 아래: 알림 + 모두 받기
-            _toast = UIFactory.AddText("Toast", root, "", 24, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
-            Place(_toast.rectTransform, new Vector2(0.5f, 0), new Vector2(1000, 40), new Vector2(-200, 62), new Vector2(0.5f, 0));
-            _toast.richText = true;
-            _toast.alpha = 0f;
-
-            _claimAllBtn = UIFactory.AddButton("ClaimAll", root, "모두 받기", 26, font, new Color(0.8f, 0.6f, 0.2f, 0.95f), Color.white);
-            Place((RectTransform)_claimAllBtn.transform, new Vector2(0.5f, 0), new Vector2(300, 72), new Vector2(550, 46), new Vector2(0.5f, 0));
+            _claimAllBtn = UIFactory.AddButton("ClaimAll", hrt, "모두 받기", 26, font, Gold, Color.white);
+            var crt = (RectTransform)_claimAllBtn.transform;
+            UIFactory.Anchor(crt, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f));
+            crt.sizeDelta = new Vector2(300, 76); crt.anchoredPosition = new Vector2(-24, 0);
             _claimAllLabel = _claimAllBtn.GetComponentInChildren<TextMeshProUGUI>();
             _claimAllLabel.richText = true;
             _claimAllBtn.onClick.AddListener(OnClaimAll);
+
+            // 목록(스크롤)
+            var view = UIFactory.NewRect("View", root);
+            Place(view, new Vector2(0, 1), new Vector2(1500, 760), new Vector2(370, -300), new Vector2(0, 1));
+            _content = UIFactory.NewRect("Content", view);
+            var vl = _content.gameObject.AddComponent<VerticalLayoutGroup>();
+            vl.spacing = 10; vl.padding = new RectOffset(4, 4, 4, 12);
+            vl.childControlWidth = true; vl.childControlHeight = true;
+            vl.childForceExpandWidth = true; vl.childForceExpandHeight = false;
+            _scroll = UIFactory.MakeVerticalScroll(view, _content);
+
+            // 아래: 알림
+            _toast = UIFactory.AddText("Toast", root, "", 24, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            Place(_toast.rectTransform, new Vector2(0.5f, 0), new Vector2(1200, 40), new Vector2(180, 16), new Vector2(0.5f, 0));
+            _toast.richText = true;
+            _toast.alpha = 0f;
+            TextOutline.Apply(_toast, 0.22f, new Color32(8, 10, 18, 240));
 
             _backBtn = UIFactory.AddButton("BackBtn", root, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
             Place((RectTransform)_backBtn.transform, new Vector2(0, 1), new Vector2(150, 44), new Vector2(30, -30), new Vector2(0, 1));

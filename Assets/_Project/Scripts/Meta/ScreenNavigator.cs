@@ -333,6 +333,7 @@ namespace SubcultureRPG.Meta
             if (friends != null) friends.Show(screen == HubScreen.Friends);
             if (guild != null) guild.Show(screen == HubScreen.Guild);
             if (battleHud != null) battleHud.Show(screen == HubScreen.Battle);
+            PlatformRuntime.RefreshSafeArea();   // 처음 여는 화면도 바로 안전 영역에
         }
 
         public void GoHome() => Go(HubScreen.Home);
@@ -358,10 +359,17 @@ namespace SubcultureRPG.Meta
         };
 
         /// <summary>스테이지 화면을 특수 던전(종류 지정) 탭으로 엶.</summary>
-        public void OpenDungeon(StageKind kind)
+        public void OpenDungeon(StageKind kind, SubcultureRPG.Characters.Element? element = null)
         {
-            if (stage != null) stage.OpenSpecial(kind);
+            if (stage != null) stage.OpenSpecial(kind, element);
             Go(HubScreen.Stage);
+        }
+
+        /// <summary>상점을 지정 탭으로(그 재료 상품 선택) 엶 — 가방 '바로 가기'.</summary>
+        public void OpenShop(SubcultureRPG.Meta.Shop.ShopTab tab, MaterialType? reward = null)
+        {
+            if (shop != null) shop.Focus(tab, reward);
+            Go(HubScreen.Shop);
         }
 
         /// <summary>스테이지 상세의 '편성 후 출격' → 출격 모드 편성 화면.</summary>

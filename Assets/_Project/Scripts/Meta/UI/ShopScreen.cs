@@ -90,6 +90,16 @@ namespace SubcultureRPG.Meta.UI
             if (on) { _qty = 1; Refresh(); }
         }
 
+        /// <summary>지정 탭(+ 그 재료를 주는 상품 선택)으로 열 준비 — 가방 '바로 가기'. 이어서 Show(true).</summary>
+        public void Focus(ShopTab tab, MaterialType? reward = null)
+        {
+            _tab = tab;
+            _selected = null;
+            if (reward.HasValue)
+                foreach (var it in ShopCatalog.Of(tab))
+                    if (!it.IsBundle && !it.IsGold && !it.rewardTicket && it.reward == reward.Value) { _selected = it; break; }
+        }
+
         public void SetBackAction(Action onBack)
         {
             _onBack = onBack;

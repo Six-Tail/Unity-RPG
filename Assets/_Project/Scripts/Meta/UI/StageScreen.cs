@@ -311,10 +311,11 @@ namespace SubcultureRPG.Meta.UI
         }
 
         /// <summary>특수 던전 탭으로 열기(HubScreen.Dungeon).</summary>
-        public void OpenSpecial(StageKind kind = StageKind.AscensionDungeon)
+        public void OpenSpecial(StageKind kind = StageKind.AscensionDungeon, Element? element = null)
         {
             _dungeonMode = true;
             if (kind != StageKind.Main) _dungeonKind = kind;
+            if (element.HasValue) _ascElement = element.Value;
             _equipSite = -1;   // 장비 던전은 지도부터
             _selected = null;
         }

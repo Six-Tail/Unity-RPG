@@ -12,6 +12,46 @@ namespace SubcultureRPG.Meta.UI
     public abstract class SocialScreenBase : ModeScreenBase
     {
         protected const float RowW = 1480f, RowH = 112f;
+        /// <summary>오른쪽 내용 영역 왼쪽 끝(왼쪽 300px은 세로 탭) — 2026-11 개편.</summary>
+        protected const float ListX = 370f;
+
+        protected RectTransform _side;
+
+        /// <summary>왼쪽 세로 탭 칸(위에서부터 쌓임).</summary>
+        protected void BuildSide(float h = 620)
+        {
+            _side = UIFactory.NewRect("SideTabs", _frame);
+            Place(_side, 40, -130, 300, h);
+            var tv = _side.gameObject.AddComponent<VerticalLayoutGroup>();
+            tv.spacing = 10; tv.childAlignment = TextAnchor.UpperLeft;
+            tv.childControlWidth = true; tv.childControlHeight = true;
+            tv.childForceExpandWidth = true; tv.childForceExpandHeight = false;
+        }
+
+        /// <summary>세로 탭 하나(아이콘 · 이름 · 한 줄 상태 · 빨간 느낌표).</summary>
+        protected void SideTab(string icon, string name, string sub, bool on, bool badge, System.Action onClick)
+        {
+            var bg = UIFactory.AddImage("Tab", _side, on ? Blue : new Color(0.08f, 0.09f, 0.13f, 0.9f), ProceduralSprites.Rounded, raycast: true);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            bg.gameObject.AddComponent<LayoutElement>().preferredHeight = 92;
+            var b = bg.gameObject.AddComponent<Button>();
+            b.targetGraphic = bg;
+            b.onClick.AddListener(() => onClick());
+            bg.gameObject.AddComponent<ButtonFx>();
+            var rt = bg.rectTransform;
+            var sp = GameArt.Load(icon);
+            if (sp != null)
+            {
+                var im = UIFactory.AddImage("Icon", rt, Color.white, sp);
+                im.preserveAspect = true; im.raycastTarget = false;
+                UIFactory.Anchor(im.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                im.rectTransform.sizeDelta = new Vector2(70, 70); im.rectTransform.anchoredPosition = new Vector2(10, 0);
+            }
+            var t = Text(rt, $"<b>{name}</b>\n<size=72%>{sub}</size>", 24, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            t.lineSpacing = -4f;
+            UIFactory.Stretch(t.rectTransform, 90, 8, 10, 8);
+            if (badge) NotifyBadge.Attach(rt, font, 4, 4, 26).Set(true);
+        }
 
         protected static GameDatabase Db()
         {
@@ -23,7 +63,7 @@ namespace SubcultureRPG.Meta.UI
         protected RectTransform MakeList(float y, float h)
         {
             var view = UIFactory.NewRect("View", _frame);
-            Top(view, 0, y, RowW + 20, h, new Vector2(0.5f, 1));
+            Place(view, ListX, y, RowW + 20, h);
             var content = UIFactory.NewRect("Content", view);
             var vl = content.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 8; vl.padding = new RectOffset(10, 10, 4, 4);
@@ -146,9 +186,9 @@ namespace SubcultureRPG.Meta.UI
     public class FriendScreen : SocialScreenBase
     {
         private int _tab;
-        private readonly Button[] _tabs = new Button[3];
         private RectTransform _list;
-        private TextMeshProUGUI _info;
+        private TextMeshProUGUI _info, _meName, _meInfo;
+        private ProfileAvatar _meAvatar;
         private GameObject _findBar, _greetAll;
         private TMP_InputField _uid;
         private int _found = -1;
@@ -161,24 +201,36 @@ namespace SubcultureRPG.Meta.UI
             BuildBase("친구", "Backgrounds/friends", 73);
             CurrencyBar.Create(_frame, font, null, new Vector2(-50, -32), Currency.Stamina, Currency.Gold);
 
-            string[] names = { "친구", "받은 신청", "친구 찾기" };
-            for (int i = 0; i < 3; i++)
-            {
-                int idx = i;
-                _tabs[i] = TopButton(names[i], -620 + i * 250, -104, 236, Dim, () => { _tab = idx; _found = -1; _foundSnap = null; Refresh(); });
-            }
-            _info = Text(_frame, "", 20, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.Right);
-            Top(_info.rectTransform, 90, -186, 920, 32, new Vector2(0.5f, 1));    // 탭 줄 아래, '모두 인사' 버튼 왼쪽
-            // 재화 표시(행동력 '가득참' 글자)와 붙지 않게 탭 줄이 아니라 목록 바로 위 오른쪽 끝에 둠
-            _greetAll = TopButton("모두 인사", 645, -176, 190, Green, () =>
+            BuildSide(330);
+
+            // 왼쪽 아래: 내 카드(아바타 · 이름 · UID) + 인사 안내 · 모두 인사
+            var me = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.9f));
+            Place(me.rectTransform, 40, -480, 300, 520);
+            _meAvatar = new ProfileAvatar(me.transform, 150);
+            UIFactory.Anchor(_meAvatar.Rect, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            _meAvatar.Rect.anchoredPosition = new Vector2(0, -22);
+            _meName = Text(me.transform, "", 26, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
+            Top(_meName.rectTransform, 0, -184, 280, 36, new Vector2(0.5f, 1));
+            _meInfo = Text(me.transform, "", 19, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.Center);
+            _meInfo.lineSpacing = 8f;
+            Top(_meInfo.rectTransform, 0, -224, 280, 200, new Vector2(0.5f, 1));
+            var gb = UIFactory.AddButton("GreetAll", me.transform, "모두 인사", 24, font, Green, Color.white);
+            UIFactory.Anchor((RectTransform)gb.transform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            ((RectTransform)gb.transform).sizeDelta = new Vector2(256, 64); ((RectTransform)gb.transform).anchoredPosition = new Vector2(0, 20);
+            gb.onClick.AddListener(() =>
             {
                 int n = PlayerSocial.Instance.GreetAll();
                 Toast(n > 0 ? $"{n}명에게 인사 — 행동력 +{n * PlayerSocial.GreetStamina} · 금화 +{n * PlayerSocial.GreetGold:N0}" : "오늘은 모두에게 인사했습니다");
-            }).gameObject;
+            });
+            _greetAll = gb.gameObject;
+
+            // 오른쪽 위: 탭 이름 · 안내
+            _info = Text(_frame, "", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(_info.rectTransform, ListX + 10, -130, RowW, 50);
 
             // 친구 찾기: UID 입력
             var bar = UIFactory.NewRect("FindBar", _frame);
-            Top(bar, 0, -170, RowW, 60, new Vector2(0.5f, 1));
+            Place(bar, ListX + 10, -192, RowW, 60);
             _findBar = bar.gameObject;
             _uid = Input(bar, "UID 8자리 입력", 8, 24);
             _uid.contentType = TMP_InputField.ContentType.IntegerNumber;
@@ -189,11 +241,8 @@ namespace SubcultureRPG.Meta.UI
             var re = UIFactory.AddButton("Re", bar, "추천 새로고침", 22, font, Dim, Color.white);
             Place((RectTransform)re.transform, 588, 0, 200, 56);
             re.onClick.AddListener(() => { _found = -1; _foundSnap = null; PlayerSocial.Instance.RefreshRecommend(); });
-            var mine = Text(bar, "", 22, new Color(0.8f, 0.83f, 0.9f), FontStyles.Normal, TextAlignmentOptions.Right);
-            Place(mine.rectTransform, 880, -8, 600, 40);
-            mine.text = $"내 UID  <color=#FFFFFF><b>{PlayerProfile.Instance.Uid}</b></color>";
 
-            _list = MakeList(-244, 760);
+            _list = MakeList(-196, 844);
             _root.SetActive(false);
             PlayerSocial.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
             FriendLink.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
@@ -252,17 +301,27 @@ namespace SubcultureRPG.Meta.UI
             // 화면을 보는 동안 30초마다 서버와 친구 신청 · 수락을 맞춤
             if (FriendLink.Online && Time.unscaledTime - _syncAsked > 30f) { _syncAsked = Time.unscaledTime; link.RequestSync(); }
             if (link.Notices.Count > 0) { Toast(string.Join("  ·  ", link.Notices)); link.Notices.Clear(); }
-            string[] names = { $"친구 {s.FriendCount}/{PlayerSocial.MaxFriends}", $"받은 신청 {s.Requests.Count + link.Incoming.Count}", "친구 찾기" };
-            for (int i = 0; i < 3; i++)
-            {
-                _tabs[i].image.color = i == _tab ? Blue : Dim;
-                _tabs[i].GetComponentInChildren<TextMeshProUGUI>().text = names[i];
-            }
+            int req = s.Requests.Count + link.Incoming.Count;
+            Clear(_side);
+            SideTab("Items/FriendTabList", "친구", $"<color=#9AA3B5>{s.FriendCount} / {PlayerSocial.MaxFriends}명</color>", _tab == 0, false, () => SelectTab(0));
+            SideTab("Items/FriendTabRequest", "받은 신청", req > 0 ? $"<color=#FFD36B>새 신청 {req}</color>" : "<color=#9AA3B5>없음</color>", _tab == 1, req > 0, () => SelectTab(1));
+            SideTab("Items/FriendTabFind", "친구 찾기", "<color=#9AA3B5>UID 검색 · 추천</color>", _tab == 2, false, () => SelectTab(2));
+
+            var pf = PlayerProfile.Instance;
+            _meAvatar.Set(ProfileAvatar.CharacterOf(pf, FindAnyObjectByType<PlayerRoster>()), pf.FrameId);
+            _meName.text = pf.DisplayName;
+            _meInfo.text = $"<color=#9AA3B5>내 UID</color>  <b>{pf.Uid}</b>\n<color=#9AA3B5>Lv.</color>{pf.Level}   <color=#FFB347>{MyPower():N0}</color>\n\n<size=90%><color=#9AA3B5>인사 1번마다</color>\n행동력 +{PlayerSocial.GreetStamina} · 금화 +{PlayerSocial.GreetGold}\n<color=#9AA3B5>매일 05:00 초기화</color></size>";
+
             _findBar.SetActive(_tab == 2);
             _greetAll.SetActive(_tab == 0);
-            _info.text = _tab == 0 ? $"<color=#9AA3B5>친구에게 인사 1번마다 행동력 +{PlayerSocial.GreetStamina} · 금화 +{PlayerSocial.GreetGold}  (매일 05:00 초기화)</color>" : "";
-            ((RectTransform)_list.parent).anchoredPosition = new Vector2(0, _tab == 2 ? -244 : _tab == 0 ? -210 : -176);
-            ((RectTransform)_list.parent).sizeDelta = new Vector2(RowW + 20, _tab == 2 ? 760 : _tab == 0 ? 794 : 828);
+            _info.text = _tab switch
+            {
+                0 => "<b>친구</b>  <size=70%><color=#9AA3B5>대화 · 인사 · 친선 전투 — 줄을 누르면 지휘관 정보</color></size>",
+                1 => "<b>받은 신청</b>  <size=70%><color=#9AA3B5>수락하면 바로 친구 — 내가 보낸 신청도 여기에</color></size>",
+                _ => "<b>친구 찾기</b>  <size=70%><color=#9AA3B5>UID로 검색하거나 추천 지휘관을 추가</color></size>",
+            };
+            ((RectTransform)_list.parent).anchoredPosition = new Vector2(ListX, _tab == 2 ? -262 : -196);
+            ((RectTransform)_list.parent).sizeDelta = new Vector2(RowW + 20, _tab == 2 ? 778 : 844);
 
             Clear(_list);
             if (_tab == 0)
@@ -352,6 +411,8 @@ namespace SubcultureRPG.Meta.UI
             }
         }
 
+        private void SelectTab(int i) { _tab = i; _found = -1; _foundSnap = null; Refresh(); }
+
         private void AddRow(int seed, string tag, GameDatabase db)
         {
             var c = Commanders.FromSeed(seed, db);
@@ -387,7 +448,6 @@ namespace SubcultureRPG.Meta.UI
         private TextMeshProUGUI _createTip;
         private Button _freeBtn;
         private bool _createFree = true;
-        private readonly List<Button> _tabs = new();
         private T _tab = T.Find;
         private GuildRanking.Tab _rankTab = GuildRanking.Tab.Boss;
 
@@ -400,13 +460,15 @@ namespace SubcultureRPG.Meta.UI
             BuildBase("길드", "Backgrounds/guild", 73);
             CurrencyBar.Create(_frame, font, null, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
 
+            BuildSide();
             var head = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.9f));
-            Top(head.rectTransform, 0, -104, RowW, 170, new Vector2(0.5f, 1));
+            Place(head.rectTransform, ListX + 10, -130, RowW, 170);
             _head = head.rectTransform;
 
             // 미가입: 창설 줄
-            var bar = UIFactory.NewRect("CreateBar", _frame);
-            Top(bar, 0, -104, RowW, 170, new Vector2(0.5f, 1));
+            var cbg = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.9f));
+            var bar = cbg.rectTransform;
+            Place(bar, ListX + 10, -130, RowW, 170);
             _createBar = bar.gameObject;
             _createTip = Text(bar, "", 28, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
             Place(_createTip.rectTransform, 28, -18, 1420, 80);
@@ -433,7 +495,7 @@ namespace SubcultureRPG.Meta.UI
             Place((RectTransform)re.transform, 1262, -100, 200, 54);
             re.onClick.AddListener(() => PlayerGuild.Instance.RefreshRecommend());
 
-            _list = MakeList(-352, 660);
+            _list = MakeList(-316, 724);
             _root.SetActive(false);
             PlayerGuild.Instance.OnChanged += RefreshIfOpen;
             GuildLink.Instance.OnChanged += RefreshIfOpen;
@@ -472,26 +534,52 @@ namespace SubcultureRPG.Meta.UI
             {
                 T.Find => "길드 찾기",
                 T.Members => "길드원",
-                T.Requests => "가입 신청" + (g.Requests.Count > 0 ? $"  <color=#FF6B6B>●{g.Requests.Count}</color>" : ""),
-                T.Boss => "길드 보스" + (GuildBoss.ClaimableCount > 0 ? $"  <color=#FF6B6B>●{GuildBoss.ClaimableCount}</color>" : ""),
+                T.Requests => "가입 신청",
+                T.Boss => "길드 보스",
                 T.War => "길드전",
                 _ => "순위",
             };
         }
 
+        private static string TabIcon(T t) => t switch
+        {
+            T.Find => "Items/GuildTabFind",
+            T.Members => "Items/GuildTabMembers",
+            T.Requests => "Items/GuildTabRequests",
+            T.Boss => "Items/GuildTabBoss",
+            T.War => "Items/GuildTabWar",
+            _ => "Items/GuildTabRank",
+        };
+
+        /// <summary>왼쪽 세로 탭(아이콘 · 이름 · 한 줄 상태 · 빨간 느낌표).</summary>
         private void BuildTabs()
         {
-            foreach (var b in _tabs) if (b != null) Destroy(b.gameObject);
-            _tabs.Clear();
+            Clear(_side);
+            var g = PlayerGuild.Instance;
             var tabs = TabsNow();
             if (!tabs.Contains(_tab)) _tab = tabs[0];
-            float w = 280f, gap = 14f, x0 = -(tabs.Count - 1) * (w + gap) / 2f;
-            for (int i = 0; i < tabs.Count; i++)
+            foreach (var t in tabs)
             {
-                var t = tabs[i];
-                var b = TopButton(TabLabel(t), x0 + i * (w + gap), -288, w, t == _tab ? Blue : Dim, () => { _tab = t; Refresh(); });
-                b.GetComponentInChildren<TextMeshProUGUI>().richText = true;
-                _tabs.Add(b);
+                var tt = t;
+                string sub; bool badge = false;
+                switch (t)
+                {
+                    case T.Find: sub = "<color=#9AA3B5>가입할 길드 찾기</color>"; break;
+                    case T.Members:
+                        sub = g.Attended ? $"<color=#9AA3B5>길드원 {g.Members}/{PlayerGuild.MaxMembers}</color>" : "<color=#FFD36B>오늘 출석 전</color>";
+                        badge = !g.Attended; break;
+                    case T.Requests:
+                        sub = g.Requests.Count > 0 ? $"<color=#FFD36B>새 신청 {g.Requests.Count}</color>" : "<color=#9AA3B5>모집 설정</color>";
+                        badge = g.Requests.Count > 0; break;
+                    case T.Boss:
+                        int cl = GuildBoss.ClaimableCount;
+                        sub = cl > 0 ? $"<color=#FFD36B>받을 보상 {cl}</color>" : $"<color=#9AA3B5>{GuildBoss.Current(GuildBoss.GuildTotal)}단계 · 도전 {GuildBoss.AttemptsLeft}/{GuildBoss.AttemptsPerDay}</color>";
+                        badge = cl > 0; break;
+                    case T.War:
+                        sub = $"<color=#FFD36B>★{GuildWar.OurStars()}</color> <color=#9AA3B5>: ★{GuildWar.TheirStars()} · 공격 {GuildWar.AttemptsLeft}/{GuildWar.AttemptsPerDay}</color>"; break;
+                    default: sub = "<color=#9AA3B5>보스 · 길드전 · 레벨</color>"; break;
+                }
+                SideTab(TabIcon(t), TabLabel(t), sub, t == _tab, badge, () => { _tab = tt; Refresh(); });
             }
         }
 

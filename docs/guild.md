@@ -5,7 +5,7 @@
 - 길드 상태: [PlayerGuild.cs](../Assets/_Project/Scripts/Meta/Social/PlayerGuild.cs) · 가상 길드: [VirtualGuilds.cs](../Assets/_Project/Scripts/Meta/Social/VirtualGuilds.cs) · 순위: [GuildRanking.cs](../Assets/_Project/Scripts/Meta/Social/GuildRanking.cs)
 - 서버 동기화: [GuildLink.cs](../Assets/_Project/Scripts/Meta/Cloud/GuildLink.cs)
 - 길드 보스: [GuildBoss.cs](../Assets/_Project/Scripts/Meta/Modes/GuildBoss.cs) · 길드전: [GuildWar.cs](../Assets/_Project/Scripts/Meta/Modes/GuildWar.cs)
-- 화면: `GuildScreen`([SocialScreens.cs](../Assets/_Project/Scripts/Meta/UI/SocialScreens.cs)) · 길드 채팅: [ChatService.cs](../Assets/_Project/Scripts/Meta/Social/ChatService.cs)
+- 화면: `GuildScreen`([SocialScreens.cs](../Assets/_Project/Scripts/Meta/UI/SocialScreens.cs)) — 2026-11 개편: 왼쪽 세로 탭(아이콘 `Items/GuildTab*` · 한 줄 상태: 길드원 수/오늘 출석 전 · 새 신청 · 보스 단계와 남은 도전/받을 보상 · 길드전 별과 남은 공격, 출석 전 · 새 신청 · 받을 보스 보상은 빨간 느낌표), 오른쪽 위 길드 정보(출석 · 기부 · 채팅 · 탈퇴) 또는 창설 칸, 그 아래 목록 · 길드 채팅: [ChatService.cs](../Assets/_Project/Scripts/Meta/Social/ChatService.cs)
 
 ## 설정 (한 번) — UGS 대시보드
 

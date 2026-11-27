@@ -218,6 +218,21 @@ const ITEMS = [
   ['TopUp4', '크리스탈 충전 4단계', 'a small wooden treasure chest full of the exact same brilliant-cut blue diamond gem as in the reference image copies with blue light shining out, sparkles'],
   ['TopUp5', '크리스탈 충전 5단계', 'a large ornate golden treasure chest overflowing with heaps of the exact same brilliant-cut blue diamond gem as in the reference image copies, bright light rays'],
   ['TopUp6', '크리스탈 충전 6단계', 'a magnificent mountain of the exact same brilliant-cut blue diamond gem as in the reference image copies spilling from a giant royal golden chest with a crown on top, radiant light rays and stars'],
+  // 임무 화면 왼쪽 탭
+  ['MissionTabDaily', '임무 탭 — 일일 임무', 'a small parchment checklist with a bright rising sun emblem above it and one golden check mark, sparkles'],
+  ['MissionTabWeekly', '임무 탭 — 주간 임무', 'a blue leather-bound weekly planner with seven small boxes on its open page and a golden ribbon bookmark, sparkles'],
+  ['MissionTabAch', '임무 탭 — 업적', 'a shiny golden trophy cup with a star on it standing on a small laurel-wreath base, sparkles'],
+  // 친구 · 길드 화면 왼쪽 세로 탭(2026-11 개편)
+  ['FriendTabList', '친구 탭 — 친구 목록', 'two cute round chibi-style smiling mascot faces side by side with a small pink heart between them, sparkles'],
+  ['FriendTabRequest', '친구 탭 — 받은 신청', 'a cream envelope sealed with a pink heart wax seal, a small glowing plus badge at its corner, sparkles'],
+  ['FriendTabFind', '친구 탭 — 친구 찾기', 'a golden magnifying glass over a small round blue person silhouette badge, sparkles'],
+  ['GuildTabFind', '길드 탭 — 길드 찾기', 'a golden magnifying glass in front of a small blue and gold heraldic guild banner on a pole, sparkles'],
+  ['GuildTabMembers', '길드 탭 — 길드원', 'three small heraldic shields in blue, red and green overlapping in a fan around a golden crown, sparkles'],
+  ['GuildTabRequests', '길드 탭 — 가입 신청', 'a rolled parchment application letter tied with a red ribbon and stamped with a golden guild seal, sparkles'],
+  ['GuildTabBoss', '길드 탭 — 길드 보스', 'a menacing purple horned demon skull with glowing red eyes and dark purple flames, sparkles'],
+  ['GuildTabWar', '길드 탭 — 길드전', 'two crossed silver swords in front of a red war banner with a golden star emblem, sparkles'],
+  ['GuildTabRank', '길드 탭 — 순위', 'a three-step golden winners podium with a small crown on the top step and numbers 1 2 3, sparkles'],
+  ['ArenaTicket', '결투장 도전권', 'a crimson and gold admission ticket with a perforated edge and two small crossed swords emblem in the center, sparkles'],
   ['ShopTabExchange', '상점 탭 — 교환소', 'two circular golden arrows forming an exchange cycle around a small glowing gem'],
   // 홈 아래 메뉴 바 · 출격/소환 · 메뉴
   ['UiCharacter', '홈 메뉴 — 캐릭터(육성)', 'a heroine silhouette bust portrait inside a golden circular frame with a small upward green arrow and sparkles'],
@@ -753,6 +768,27 @@ function build() {
     }, `${emblem}. ${STYLE.item}`));
   }
 
+  // 파견 의뢰 장소(PlayerDispatch.Places 순서 — 번호를 바꾸지 말 것): 의뢰 카드 위쪽 풍경(16:9 작은 그림)
+  const DISPATCH = [
+    'a quiet sunlit forest path winding between tall mossy trees, soft light beams, small wooden signpost',
+    'an old abandoned mine entrance in a rocky hillside with wooden supports, rusty minecart rails and hanging lanterns',
+    'a busy fantasy harbor at morning with wooden cargo crates on the pier and sailing ships, seagulls',
+    'ancient starlit ruins with broken stone pillars and glowing blue star runes under a night sky',
+    'snowy frost hills under a pale blue sky with icy crystals and a small watchtower on a ridge',
+    'a volcanic field with glowing lava rivers, black rocks and red fire flowers, smoke in the distance',
+    'a ruined grand library with toppled tall bookshelves, scattered books and sunlight through broken windows',
+    'a wide plain under a stormy sky with bright lightning bolts and tall surveying stone markers',
+    'a cheerful village festival at dusk with colorful lantern strings, food stalls and a decorated square',
+    'a dark abyss entrance in a cliff with purple mist, ancient sealed gate and torches',
+    'a windy mountain valley with green grass bending in the wind, rope bridge and swirling leaves',
+    'a grand royal academy courtyard with white marble buildings, a clock tower and blue banners',
+  ];
+  DISPATCH.forEach((scene, i) => list.push({
+    group: 'dispatch', key: `dispatch_${i}`, label: `파견 장소 ${i}`,
+    out: `Dispatch/place_${i}.jpg`, aspect: '16:9', resolution: '1K', width: 768, height: 432, format: 'jpg',
+    prompt: `${scene}. ${STYLE.background}`, negative: NEGATIVE + ', people, characters, text',
+  }));
+
   for (const [key, name, charId, scene] of BANNERS) {
     const c = charId ? charById[charId] : null;
     const prompt = c
@@ -768,4 +804,4 @@ function build() {
   return list;
 }
 
-module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'bloom', 'festival', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'events', 'backgrounds', 'banners'] };
+module.exports = { entries: build(), AVOID, GROUPS: ['characters', 'bloom', 'festival', 'enemies', 'items', 'equipment', 'status', 'gacha', 'title', 'events', 'backgrounds', 'banners', 'dispatch'] };

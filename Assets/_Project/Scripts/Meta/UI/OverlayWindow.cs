@@ -92,6 +92,7 @@ namespace SubcultureRPG.Meta.UI
                 crt.sizeDelta = new Vector2(120, 46); crt.anchoredPosition = new Vector2(-22, -22);
                 close.onClick.AddListener(win.Close);
             }
+            PlatformRuntime.RefreshSafeArea();   // 열자마자 안전 영역 · 화면 가운데에 맞춤(0.5초 뒤 밀리는 '움찔' 없음)
             return win;
         }
 

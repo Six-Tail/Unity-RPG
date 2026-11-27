@@ -50,7 +50,7 @@ namespace SubcultureRPG.EditorTools
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
             EditorUserBuildSettings.buildAppBundle = true;
             PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android, ManagedStrippingLevel.Low);
-            PlayerSettings.Android.renderOutsideSafeArea = false;   // 노치 · 펀치홀 부분엔 그리지 않음(버튼이 가려지지 않게)
+            ApplyAndroidScreen();
             PlayerSettings.Android.splitApplicationBinary = true;   // 큰 리소스는 설치 시 함께 받는 애셋 팩으로(구글 플레이 기본 모듈 용량 제한 대비)
 
             // iOS
@@ -74,6 +74,16 @@ namespace SubcultureRPG.EditorTools
             EditorUtility.DisplayDialog("출시 설정",
                 $"적용했습니다.\n\n회사 {Company} · 이름 {Product}\n번들 ID {BundleId}\n버전 {PlayerSettings.bundleVersion} (빌드 번호 {PlayerSettings.Android.bundleVersionCode})\n\n" +
                 "가로 화면 고정 · 안드로이드 IL2CPP/ARM64/aab · iOS 13 이상 · PC 전체 화면(창 크기 조절 가능)", "확인");
+        }
+
+        /// <summary>
+        /// 안드로이드 화면: 노치 · 펀치홀 부분까지 그림(배경이 화면 끝까지 — 버튼 · 글자는 PlatformRuntime 안전 영역이 안쪽으로) ·
+        /// 상태 표시줄(시간 · 알림) 숨김으로 시작. 빌드할 때마다 다시 맞춤(출시 설정을 다시 누르지 않아도).
+        /// </summary>
+        private static void ApplyAndroidScreen()
+        {
+            PlayerSettings.Android.renderOutsideSafeArea = true;
+            PlayerSettings.Android.startInFullscreen = true;
         }
 
         private const string IconPath = "Assets/_Project/Branding/AppIcon.png";
@@ -131,6 +141,7 @@ namespace SubcultureRPG.EditorTools
         {
             var scenes = Scenes();
             if (scenes.Length == 0) { EditorUtility.DisplayDialog("빌드", "Build Settings에 켜진 씬이 없습니다.", "확인"); return false; }
+            if (target == BuildTarget.Android) ApplyAndroidScreen();   // 화면 끝까지 그림 · 상태 표시줄 숨김
             Directory.CreateDirectory(Path.GetDirectoryName(path) ?? Builds);
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
@@ -184,13 +195,20 @@ namespace SubcultureRPG.EditorTools
         public static void BuildAndroidApk()
         {
             bool aab = EditorUserBuildSettings.buildAppBundle;
+            // 휴대폰에 직접 설치하는 apk는 파일 하나로(애셋 팩을 나누면 apk + obb 두 파일이 되어 apk만 깔면 실행되지 않음)
+            bool split = PlayerSettings.Android.splitApplicationBinary;
             EditorUserBuildSettings.buildAppBundle = false;
+            PlayerSettings.Android.splitApplicationBinary = false;
             try
             {
                 string path = Path.Combine(Builds, "Android", $"{FileBase}-{PlayerSettings.bundleVersion}-test.apk");
                 if (Build(BuildTarget.Android, BuildTargetGroup.Android, path)) EditorUtility.RevealInFinder(path);
             }
-            finally { EditorUserBuildSettings.buildAppBundle = aab; }
+            finally
+            {
+                EditorUserBuildSettings.buildAppBundle = aab;
+                PlayerSettings.Android.splitApplicationBinary = split;   // aab(구글 플레이 업로드)는 그대로 나눔
+            }
         }
 
         [MenuItem("Tools/출시/6. iOS 빌드 (Xcode 프로젝트)", priority = 23)]

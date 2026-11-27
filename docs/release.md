@@ -6,11 +6,11 @@
 
 | 메뉴 | 하는 일 |
 |---|---|
-| 1. 출시 설정 적용 | 회사 · 이름 · 번들 ID(3플랫폼), 가로 화면만, 안드로이드 IL2CPP · ARM64 · aab · 최신 대상 API · 노치 부분 그리지 않음 · 큰 리소스 애셋 팩 분리, iOS 13 이상, PC 전체 화면(창 크기 조절 · 백그라운드 실행). ProjectSettings에 저장(커밋은 직접 결정) |
+| 1. 출시 설정 적용 | 회사 · 이름 · 번들 ID(3플랫폼), 가로 화면만, 안드로이드 IL2CPP · ARM64 · aab · 최신 대상 API · 노치 · 펀치홀 부분까지 그림 · 상태 표시줄 숨김(안드로이드 빌드 때마다 다시 맞춤) · 큰 리소스 애셋 팩 분리, iOS 13 이상, PC 전체 화면(창 크기 조절 · 백그라운드 실행). ProjectSettings에 저장(커밋은 직접 결정) |
 | 2. 버전 올리기 | 1.0.0 → 1.0.1, 빌드 번호(안드로이드 versionCode · iOS build) +1. 스토어에 올릴 때마다 |
 | 3. Windows 빌드 (zip) | `Builds/Windows/스텔라 앵커.exe` → `Builds/StellaAnchor-Windows-{버전}.zip`(디버그 기호 폴더 제외) |
 | 4. Android 빌드 (aab) | `Builds/Android/StellaAnchor-{버전}.aab` — 구글 플레이 업로드용. 출시 키스토어가 없으면 경고 |
-| 5. Android 테스트용 apk | 휴대폰에 바로 설치해 보는 용도 |
+| 5. Android 테스트용 apk | 휴대폰에 바로 설치해 보는 용도 — **파일 하나**(애셋 팩 분리를 잠시 끄고 빌드, obb 없음 · 약 600MB). 예전에 나온 `*.main.obb`는 지워도 됨 |
 | 6. iOS 빌드 (Xcode 프로젝트) | `Builds/iOS` → Mac의 Xcode에서 서명 · Archive · App Store Connect 업로드 |
 | 출시 화면 미리보기 | 에디터에서도 테스트 기능을 숨겨 출시 화면 그대로 확인(체크 해제하면 다시 보임) |
 
@@ -60,8 +60,8 @@
 
 ## 안전 영역(노치)
 
-- 안드로이드: 출시 설정에서 노치 부분을 그리지 않음
-- iOS 등: `PlatformRuntime`이 0.5초마다 `Screen.safeArea`를 보고, 화면 전체가 안전하지 않으면 모든 화면 캔버스 내용을 `SafeArea` 칸으로 옮김 — **좌우만**(노치 쪽은 검은 여백, 위아래 배치는 그대로 · 회전 · 새 창도 따라감). 에디터 Game 뷰를 **Simulator**(iPhone)로 바꿔 확인 가능
+- 안드로이드 · iOS 모두 노치 부분까지 그리고 UI만 안쪽으로(아래 '노치 · 펀치홀 · 상태 표시줄' 참고)
+- iOS 등: `PlatformRuntime`이 0.5초마다 `Screen.safeArea`를 보고, 화면 전체가 안전하지 않으면 모든 화면 캔버스 내용을 `SafeArea` 칸으로 옮김 — **좌우만**(노치 쪽은 배경만 넓혀 채움, 위아래 배치는 그대로 · 회전 · 새 창도 따라감). 에디터 Game 뷰를 **Simulator**(iPhone)로 바꿔 확인 가능
 
 ## 휴대폰 글자 크기
 
@@ -98,3 +98,13 @@
 | iOS | **Mac + Xcode**(빌드 · 업로드는 Mac에서만) · Apple 개발자 계정(연 $99) · App Store Connect 앱 등록 · 개인정보처리방침 URL · 앱 개인정보 라벨 · 연령 등급 |
 | Windows | 직접 배포라 계정 불필요. zip을 올릴 곳(홈페이지 · 카페 등). 서명 안 된 exe는 Windows SmartScreen 경고가 뜰 수 있음(코드 서명 인증서로 해결, 선택) |
 | 공통 | 확률형 아이템 확률 공개(뽑기 화면 `확률 보기` 있음) · 게임물 등급(구글 · 애플은 자체 등급 분류로 국내 유통 가능, PC 직접 배포는 게임물관리위원회 등급 필요 여부 확인) |
+
+## 노치 · 펀치홀 · 상태 표시줄 (안드로이드 · iOS)
+
+- 화면은 **카메라 구멍 · 노치 부분까지** 꽉 채워 그리고, **상단 시간 · 알림 표시줄은 숨김**(몰입 모드 — 화면 위에서 쓸어내리면 잠깐 나타남).
+- 버튼 · 글자는 [PlatformRuntime](../Assets/_Project/Scripts/Meta/PlatformRuntime.cs)이 각 화면을 `SafeArea` 칸으로 옮겨 **카메라를 피해 안쪽**에만 둠(가로 화면이라 좌우만).
+- 대신 화면 배경 그림(`BackgroundArt`) · 화면 바탕색은 카메라 쪽 여백까지 넓혀 그려 **검은 띠가 생기지 않음**(`SafeBleed`).
+- **창 · 팝업**(공용 창 `OverlayWindow`의 `Dim`, 확인 창 · 대표 캐릭터 고르기 · 메뉴 · 확률 보기 · 도감 크게 보기 — `PlatformRuntime.Modals`)은 어두운 막을 **화면 전체**로 넓혀 카메라 쪽까지 덮고, 안의 창은 **화면 정가운데**(안전 영역 가운데에 두면 카메라 반대쪽으로 밀려 보였음).
+- 창을 열거나 화면을 바꾸면 그 자리에서 바로 맞춤(`PlatformRuntime.RefreshSafeArea` — 0.5초 뒤 밀려 보이는 '움찔' 없음).
+- 설정: `PlayerSettings.Android.renderOutsideSafeArea = true` · `startInFullscreen = true`(출시 설정과 안드로이드 빌드 때 자동), 실행 중 `Screen.fullScreen = true`.
+

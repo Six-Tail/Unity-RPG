@@ -248,50 +248,89 @@ namespace SubcultureRPG.Meta.UI
         /// <summary>'도전'을 눌렀을 때(상대).</summary>
         public event System.Action<PlayerArena.Opponent> OnChallenge;
 
-        private TextMeshProUGUI _rank, _tickets, _myPower, _refreshLabel;
-        private Image _tierIcon;
+        private TextMeshProUGUI _rank, _points, _rankLine, _record, _tickets, _ticketSub, _myPower, _season, _refreshLabel;
+        private Image _tierIcon, _tierGlow;
         private float _refreshTick;
         private RectTransform _list;
+
+        private const float CardW = 440f, CardH = 742f, CardGap = 20f, RightX = 520f;
 
         private void Awake()
         {
             BuildBase("결투장", "Backgrounds/arena", 73);
             CurrencyBar.Create(_frame, font, null, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
 
-            var head = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.88f));
-            Top(head.rectTransform, 0, -108, 1500, 120, new Vector2(0.5f, 1));
-            // 내 티어 아이콘(단계마다 다름 — Refresh에서 바꿈)
-            _tierIcon = UIFactory.AddImage("TierIcon", head.transform, Color.white, GameArt.Load("Items/ArenaCoin"));
+            // ---- 왼쪽: 내 랭크 카드 ----
+            var me = Panel(_frame, new Color(0.06f, 0.07f, 0.11f, 0.9f));
+            Place(me.rectTransform, 40, -130, 460, 880);
+            var mt = me.transform;
+            _tierGlow = UIFactory.AddImage("Glow", mt, Color.white, ProceduralSprites.Glow);
+            Top(_tierGlow.rectTransform, 0, -4, 300, 260, new Vector2(0.5f, 1));
+            _tierIcon = UIFactory.AddImage("TierIcon", mt, Color.white, GameArt.Load("Items/ArenaCoin"));
             _tierIcon.preserveAspect = true;
-            Place(_tierIcon.rectTransform, 18, -6, 108, 108);
-            _rank = Text(head.transform, "", 34, Color.white, FontStyles.Bold, TextAlignmentOptions.Left);
-            Place(_rank.rectTransform, 140, -14, 760, 50);
-            _myPower = Text(head.transform, "", 22, new Color(0.8f, 0.83f, 0.9f), FontStyles.Normal, TextAlignmentOptions.Left);
-            Place(_myPower.rectTransform, 140, -66, 760, 36);
-            _tickets = Text(head.transform, "", 26, Color.white, FontStyles.Bold, TextAlignmentOptions.Right);
-            Place(_tickets.rectTransform, 1100, -12, 270, 40);
-            var buy = UIFactory.AddButton("BuyTicket", head.transform, "+ 구매", 20, font, new Color(0.25f, 0.55f, 0.9f, 0.96f), Color.white);
-            Place((RectTransform)buy.transform, 1380, -10, 98, 42);
+            Top(_tierIcon.rectTransform, 0, -24, 210, 210, new Vector2(0.5f, 1));
+            _rank = Text(mt, "", 36, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
+            Top(_rank.rectTransform, 0, -238, 420, 48, new Vector2(0.5f, 1));
+            _points = Text(mt, "", 30, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
+            Top(_points.rectTransform, 0, -286, 420, 40, new Vector2(0.5f, 1));
+            _rankLine = Text(mt, "", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            Top(_rankLine.rectTransform, 0, -330, 420, 32, new Vector2(0.5f, 1));
+            _record = Text(mt, "", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            Top(_record.rectTransform, 0, -364, 420, 32, new Vector2(0.5f, 1));
+            var line = UIFactory.AddImage("Line", mt, new Color(1, 1, 1, 0.1f));
+            Top(line.rectTransform, 0, -410, 400, 2, new Vector2(0.5f, 1));
+            _myPower = Text(mt, "", 22, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.Center);
+            Top(_myPower.rectTransform, 0, -424, 420, 34, new Vector2(0.5f, 1));
+            _season = Text(mt, "", 20, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            Top(_season.rectTransform, 0, -460, 420, 30, new Vector2(0.5f, 1));
+
+            // 도전권 상자
+            var tb = UIFactory.AddImage("TicketBox", mt, new Color(1, 1, 1, 0.06f), ProceduralSprites.Rounded);
+            tb.type = Image.Type.Sliced; tb.preserveAspect = false;
+            Top(tb.rectTransform, 0, -508, 416, 128, new Vector2(0.5f, 1));
+            var tIcon = GameArt.Load("Items/ArenaTicket");
+            float tx0 = 20;
+            if (tIcon != null)
+            {
+                var ti = UIFactory.AddImage("TicketIcon", tb.transform, Color.white, tIcon);
+                ti.preserveAspect = true;
+                Place(ti.rectTransform, 12, -10, 80, 80);
+                tx0 = 100;
+            }
+            var tl = Text(tb.transform, "<color=#9AA3B5>도전권</color>", 22, Color.white, FontStyles.Bold, TextAlignmentOptions.Left);
+            Place(tl.rectTransform, tx0, -12, 160, 30);
+            _tickets = Text(tb.transform, "", 44, Color.white, FontStyles.Bold, TextAlignmentOptions.Left);
+            Place(_tickets.rectTransform, tx0, -40, 160, 56);
+            _ticketSub = Text(tb.transform, "", 17, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(_ticketSub.rectTransform, 20, -94, 380, 26);
+            var buy = UIFactory.AddButton("BuyTicket", tb.transform, "+ 구매", 24, font, new Color(0.25f, 0.55f, 0.9f, 0.96f), Color.white);
+            Place((RectTransform)buy.transform, 266, -24, 130, 60);
             buy.onClick.AddListener(OpenBuyTicket);
-            var rankBtn = UIFactory.AddButton("Ranking", head.transform, "랭킹", 22, font, new Color(0.8f, 0.58f, 0.22f, 0.96f), Color.white);
-            Place((RectTransform)rankBtn.transform, 920, -56, 170, 50);
+
+            var rankBtn = UIFactory.AddButton("Ranking", mt, "시즌 랭킹", 24, font, new Color(0.8f, 0.58f, 0.22f, 0.96f), Color.white);
+            Place((RectTransform)rankBtn.transform, 22, -656, 202, 66);
             rankBtn.onClick.AddListener(OpenRanking);
-            var tierBtn = UIFactory.AddButton("Tiers", head.transform, "티어 · 보상", 22, font, new Color(1, 1, 1, 0.16f), Color.white);
-            Place((RectTransform)tierBtn.transform, 1104, -56, 180, 50);
+            var tierBtn = UIFactory.AddButton("Tiers", mt, "티어 · 보상", 24, font, new Color(1, 1, 1, 0.16f), Color.white);
+            Place((RectTransform)tierBtn.transform, 236, -656, 202, 66);
             tierBtn.onClick.AddListener(OpenTiers);
-            var refresh = UIFactory.AddButton("Refresh", head.transform, "상대 새로고침", 22, font, new Color(1, 1, 1, 0.16f), Color.white);
-            Place((RectTransform)refresh.transform, 1298, -56, 180, 50);
+
+            var rule = Text(mt, $"<color=#9AA3B5>도전권은 매일 05:00에 {PlayerArena.MaxTickets}장으로 충전\n모자라면 크리스탈로 구매(하루 {PlayerArena.BuyCosts.Length}장)\n이기면 새 상대 · <color=#7CFF9A>● 플레이어</color>는 실제 지휘관의\n파티(AI 조종)</color>",
+                18, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            rule.lineSpacing = 6f;
+            UIFactory.Anchor(rule.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            rule.rectTransform.sizeDelta = new Vector2(420, 130); rule.rectTransform.anchoredPosition = new Vector2(0, 14);
+
+            // ---- 오른쪽: 상대 선택 ----
+            var head = Text(_frame, "<b>상대 선택</b>  <size=70%><color=#9AA3B5>쉬움 · 보통 · 어려움 — 어려울수록 점수 · 보상이 큼</color></size>", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(head.rectTransform, RightX, -132, 900, 50);
+            var refresh = UIFactory.AddButton("Refresh", _frame, "상대 새로고침", 22, font, new Color(1, 1, 1, 0.16f), Color.white);
+            Place((RectTransform)refresh.transform, RightX + 3 * CardW + 2 * CardGap - 260, -128, 260, 56);
             _refreshLabel = refresh.GetComponentInChildren<TextMeshProUGUI>();
             _refreshLabel.richText = true;
             refresh.onClick.AddListener(OnRefreshClicked);
 
             _list = UIFactory.NewRect("List", _frame);
-            Top(_list, 0, -250, 1500, 700, new Vector2(0.5f, 1));
-
-            var rule = Text(_frame, $"<color=#9AA3B5>도전권은 매일 05:00에 {PlayerArena.MaxTickets}장으로 충전 · 모자라면 크리스탈로 구매(하루 {PlayerArena.BuyCosts.Length}장) · 이기면 새 상대 · <color=#7CFF9A>● 플레이어</color>는 실제 지휘관의 파티(AI 조종)</color>",
-                20, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
-            UIFactory.Anchor(rule.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
-            rule.rectTransform.sizeDelta = new Vector2(1400, 30); rule.rectTransform.anchoredPosition = new Vector2(0, 70);
+            Place(_list, RightX, -198, 3 * CardW + 2 * CardGap, CardH);
 
             _root.SetActive(false);
             PlayerArena.Instance.OnChanged += () => { if (_root != null && _root.activeSelf) Refresh(); };
@@ -376,6 +415,7 @@ namespace SubcultureRPG.Meta.UI
             var (tier, color) = PlayerArena.Tier(a.Points, myRank);
             var tierSprite = PlayerArena.Icon(a.Points, myRank);
             if (_tierIcon != null && tierSprite != null) _tierIcon.sprite = tierSprite;
+            if (_tierGlow != null) _tierGlow.color = new Color(color.r, color.g, color.b, 0.45f);
 
             // 승급 축하(한 번)
             var promo = a.TakePromotion();
@@ -388,7 +428,13 @@ namespace SubcultureRPG.Meta.UI
                     $"<color=#FFD36B>승급 보상</color>  <color=#8FE9FF>{reward.Describe()}</color>\n<size=80%><color=#9AA3B5>보상은 이미 지급되었습니다</color></size>",
                     "확인", null, null, null, PlayerArena.LevelIconKey(to));
             }
-            _rank.text = $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{tier}</color>   {a.Points:N0} 점   <size=65%><color=#FFD36B>시즌 {myRank:N0}위</color> <color=#9AA3B5>({PlayerArena.Percent(myRank, total)})   {a.Wins}승 {a.Losses}패</color></size>";
+            _rank.text = $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{tier}</color>";
+            _points.text = $"{a.Points:N0} <size=70%><color=#9AA3B5>점</color></size>";
+            _rankLine.text = $"<color=#FFD36B>시즌 {myRank:N0}위</color>  <color=#9AA3B5>({PlayerArena.Percent(myRank, total)} · {total:N0}명)</color>";
+            int games = a.Wins + a.Losses;
+            _record.text = $"<color=#7CFF9A>{a.Wins}승</color> <color=#FF8A8A>{a.Losses}패</color>" + (games > 0 ? $"  <color=#9AA3B5>· 승률 {a.Wins * 100 / games}%</color>" : "");
+            var se = PlayerArena.UntilSeasonEnd;
+            _season.text = $"<color=#9AA3B5>시즌 종료까지</color> {(se.Days > 0 ? $"{se.Days}일 " : "")}{se.Hours}시간 {se.Minutes}분";
 
             // 지난 시즌 정산(한 번만)
             var st = a.TakeSettlement();
@@ -403,12 +449,15 @@ namespace SubcultureRPG.Meta.UI
             }
             long top4 = 0; int n = 0;
             foreach (var kv in CombatPower.All(roster, FindAnyObjectByType<PlayerEquipment>())) { if (n++ >= 4) break; top4 += kv.Value; }
-            _myPower.text = $"내 주력 4명 전투력  <color=#FFB347><b>{top4:N0}</b></color>";
-            _tickets.text = $"도전권  <color={(a.Tickets > 0 ? "#7CFF9A" : "#FF8A8A")}>{a.Tickets}</color> / {PlayerArena.MaxTickets}";
+            _myPower.text = $"<color=#9AA3B5>주력 4명 전투력</color>  <color=#FFB347><b>{top4:N0}</b></color>";
+            _tickets.text = $"<color={(a.Tickets > 0 ? "#7CFF9A" : "#FF8A8A")}>{a.Tickets}</color> <size=60%><color=#9AA3B5>/ {PlayerArena.MaxTickets}</color></size>";
+            int nextCost = a.NextBuyCost;
+            _ticketSub.text = nextCost < 0 ? $"<color=#9AA3B5>오늘 구매 완료 ({PlayerArena.BuyCosts.Length}/{PlayerArena.BuyCosts.Length})</color>"
+                : $"<color=#9AA3B5>오늘 구매 {a.BoughtToday}/{PlayerArena.BuyCosts.Length} · 다음</color> <color=#8FE9FF>{nextCost:N0}</color>";
 
             Clear(_list);
-            float y = 0;
-            foreach (var o in a.Opponents) { Row(o, db, y); y -= 226; }
+            int col = 0;
+            foreach (var o in a.Opponents) { Card(o, db, col * (CardW + CardGap)); col++; }
         }
 
         private int _rankTab;   // 0 전체 · 1 친구
@@ -575,66 +624,125 @@ namespace SubcultureRPG.Meta.UI
                 Cell(3 + i, 1, PlayerArena.RankFrames[i], rn[i], "시즌 정산 한정", rcol[i], (a.RankFrameBits & (1 << i)) != 0, false);
         }
 
-        private void Row(PlayerArena.Opponent o, GameDatabase db, float y)
+        /// <summary>상대 카드(세로): 대표 캐릭터 그림 · 난이도 띠 · 이름 · 티어 · 전투력 · 팀 4명 · 승리 보상 · 도전.</summary>
+        private void Card(PlayerArena.Opponent o, GameDatabase db, float x)
         {
             var dc = PlayerArena.DifficultyColor(o.Diff);
-            var row = Panel(_list, new Color(0.07f, 0.08f, 0.12f, 0.9f));
-            Place(row.rectTransform, 0, y, 1500, 210);
-            var bar = UIFactory.AddImage("Accent", row.transform, dc);
-            Place(bar.rectTransform, 0, -14, 8, 182);
+            var edge = Panel(_list, new Color(dc.r, dc.g, dc.b, 0.85f));
+            Place(edge.rectTransform, x, 0, CardW, CardH);
+            var card = Panel(edge.transform, new Color(0.06f, 0.07f, 0.11f, 0.97f));
+            UIFactory.Stretch(card.rectTransform, 3, 3, 3, 3);
+            var ct = card.transform;
 
-            // 상대 대표 · 이름 · 티어
+            // 위: 대표 캐릭터 그림(상대는 기본 의상, 실제 플레이어는 그 사람의 의상)
             var leader = PlayerArena.Instance.Leader(o, db);
-            var av = new ProfileAvatar(row.transform, 150);
-            Place(av.Rect, 24, -30, 150, 150);
-            if (o.Real) av.Set(leader, string.IsNullOrEmpty(o.frameId) ? "f_silver" : o.frameId, o.avatarOutfit ?? "");   // 실제 플레이어는 그 사람의 테두리 · 의상
-            else av.Set(leader, o.Diff == PlayerArena.Difficulty.Hard ? "f_gold" : o.Diff == PlayerArena.Difficulty.Normal ? "f_silver" : "f_bronze", "");   // 가상 상대는 기본 의상
+            var art = UIFactory.AddImage("Art", ct, new Color(dc.r * 0.35f, dc.g * 0.35f, dc.b * 0.35f, 1f), ProceduralSprites.Rounded);
+            art.type = Image.Type.Sliced; art.preserveAspect = false;
+            Place(art.rectTransform, 6, -6, CardW - 18, 300);
+            art.gameObject.AddComponent<RectMask2D>();
+            var glow = UIFactory.AddImage("Glow", art.transform, new Color(dc.r, dc.g, dc.b, 0.5f), ProceduralSprites.Glow);
+            Top(glow.rectTransform, 0, 20, 420, 360, new Vector2(0.5f, 1));
+            if (leader != null)
+            {
+                string key = !string.IsNullOrEmpty(leader.id) ? leader.id : leader.name;
+                string sfx = o.Real ? (o.avatarOutfit ?? "") : "";
+                var sp = GameArt.Outfitted("Cutouts/", key, sfx) ?? GameArt.Outfitted("Cutouts/", key, "") ?? GameArt.Portrait(leader, "");
+                if (sp != null)
+                {
+                    var im = UIFactory.AddImage("Leader", art.transform, Color.white, sp);
+                    im.preserveAspect = true;
+                    Top(im.rectTransform, 0, 6, 420, 640, new Vector2(0.5f, 1));
+                }
+            }
+            var fade = UIFactory.AddImage("Fade", art.transform, new Color(0.06f, 0.07f, 0.11f, 0.85f));
+            UIFactory.Anchor(fade.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            fade.rectTransform.sizeDelta = new Vector2(0, 54); fade.rectTransform.anchoredPosition = Vector2.zero;
+
+            // 난이도 띠 · 실제 플레이어 표시
+            var pill = UIFactory.AddImage("Diff", art.transform, dc, ProceduralSprites.Rounded);
+            pill.type = Image.Type.Sliced; pill.preserveAspect = false;
+            Place(pill.rectTransform, 12, -12, 120, 42);
+            var pt = Text(pill.transform, $"<b>{PlayerArena.DifficultyName(o.Diff)}</b>", 22, Color.white, FontStyles.Normal, TextAlignmentOptions.Center);
+            UIFactory.Stretch(pt.rectTransform);
+            TextOutline.Apply(pt, 0.2f, new Color32(8, 10, 18, 220));
             if (o.Real)
             {
-                // 아바타를 누르면 그 플레이어 정보창
+                var real = Text(art.transform, "<color=#7CFF9A>● 플레이어</color>", 20, Color.white, FontStyles.Bold, TextAlignmentOptions.Right);
+                UIFactory.Anchor(real.rectTransform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+                real.rectTransform.sizeDelta = new Vector2(200, 30); real.rectTransform.anchoredPosition = new Vector2(-14, -18);
+                TextOutline.Apply(real, 0.22f, new Color32(8, 10, 18, 230));
+                // 그림을 누르면 그 플레이어 정보창
                 var snap = o.Snap;
-                var hit = UIFactory.AddImage("Info", row.transform, new Color(0, 0, 0, 0), null, raycast: true);
-                Place(hit.rectTransform, 24, -30, 150, 150);
-                var ib = hit.gameObject.AddComponent<Button>();
+                art.raycastTarget = true;
+                var ib = art.gameObject.AddComponent<Button>();
                 ib.transition = Selectable.Transition.None;
                 ib.onClick.AddListener(() => { if (snap != null) PlayerInfoWindow.Open(snap, font); });
             }
-            var (tier, tc) = PlayerArena.Tier(o.points);
-            string realTag = o.Real ? "  <size=62%><color=#7CFF9A>● 플레이어</color></size>" : "";
-            var name = Text(row.transform, $"<b>{o.name}</b>{realTag}   <size=70%><color=#{ColorUtility.ToHtmlStringRGB(dc)}>{PlayerArena.DifficultyName(o.Diff)}</color></size>", 30, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
-            Place(name.rectTransform, 196, -24, 420, 44);
-            var info = Text(row.transform, $"<color=#{ColorUtility.ToHtmlStringRGB(tc)}>{tier}</color> {o.points:N0}점   ·   평균 Lv.{o.level}" + (o.transcend > 0 ? $"   ·   초월 +{o.transcend}" : "") +
-                $"\n전투력  <color=#FFB347><b>{o.power:N0}</b></color>", 22, new Color(0.85f, 0.88f, 0.94f), FontStyles.Normal, TextAlignmentOptions.TopLeft);
-            info.lineSpacing = 10f;
-            Place(info.rectTransform, 196, -76, 440, 90);
 
-            // 팀
-            float tx = 660;
-            for (int k = 0; k < o.team.Count; k++)
+            // 이름 · 티어 · 레벨
+            var name = Text(art.transform, $"<b>{o.name}</b>", 32, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            UIFactory.Anchor(name.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+            name.rectTransform.sizeDelta = new Vector2(CardW - 50, 44); name.rectTransform.anchoredPosition = new Vector2(16, 6);
+            TextOutline.Apply(name, 0.22f, new Color32(8, 10, 18, 240));
+
+            var (tier, tc) = PlayerArena.Tier(o.points);
+            var ti = UIFactory.AddImage("TierIcon", ct, Color.white, PlayerArena.Icon(o.points, 0));
+            ti.preserveAspect = true;
+            Place(ti.rectTransform, 16, -316, 52, 52);
+            var info = Text(ct, $"<color=#{ColorUtility.ToHtmlStringRGB(tc)}><b>{tier}</b></color>  {o.points:N0}점\n<size=85%><color=#9AA3B5>평균 Lv.{o.level}" + (o.transcend > 0 ? $" · 초월 +{o.transcend}" : "") + "</color></size>",
+                22, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+            Place(info.rectTransform, 78, -314, CardW - 100, 60);
+            var pw = Text(ct, $"<color=#9AA3B5>전투력</color>  <color=#FFB347><b>{o.power:N0}</b></color>", 28, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(pw.rectTransform, 16, -380, CardW - 40, 40);
+
+            // 팀 4명
+            float tx = 16;
+            for (int k = 0; k < o.team.Count && k < 4; k++)
             {
                 var c = db != null ? db.GetCharacter(o.team[k]) : null;
                 if (c == null) continue;
                 bool per = o.Real && k < o.levels.Count && k < o.stars.Count;   // 실제 플레이어는 캐릭터마다 레벨 · 성급
-                Thumb(row.transform, c, tx, -38, 112, per ? o.stars[k] : o.transcend > 0 ? 6 : (int)c.rarity, mine: false);
-                var lv = Text(row.transform, $"Lv.{(per ? o.levels[k] : o.level)}", 16, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
-                Place(lv.rectTransform, tx, -154, 112, 24);
-                tx += 124;
+                Thumb(ct, c, tx, -430, 94, per ? o.stars[k] : o.transcend > 0 ? 6 : (int)c.rarity, mine: false);
+                var lv = Text(ct, $"Lv.{(per ? o.levels[k] : o.level)}", 16, Color.white, FontStyles.Bold, TextAlignmentOptions.Center);
+                Place(lv.rectTransform, tx, -526, 94, 22);
+                tx += 102;
             }
 
-            // 보상 · 도전
+            // 승리 보상(점수 · 크리스탈 · 금화)
             int d = (int)o.Diff;
-            var rew = Text(row.transform, $"<color=#9AA3B5>승리 보상</color>\n<color=#7CFF9A>+{PlayerArena.WinPoints[d]}점</color>  <color=#8FE9FF>크리스탈 {PlayerArena.WinCrystals[d]}</color>\n<color=#FFD36B>금화 {PlayerArena.WinGold[d]:N0}</color>",
-                20, Color.white, FontStyles.Normal, TextAlignmentOptions.TopLeft);
-            rew.lineSpacing = 6f;
-            Place(rew.rectTransform, 1170, -24, 300, 96);
-            var go = UIFactory.AddButton("Fight", row.transform, "도전", 28, font, new Color(0.85f, 0.4f, 0.3f, 0.96f), Color.white);
-            Place((RectTransform)go.transform, 1170, -126, 300, 64);
+            var rl = Text(ct, "<color=#9AA3B5>승리 보상</color>", 18, Color.white, FontStyles.Bold, TextAlignmentOptions.Left);
+            Place(rl.rectTransform, 16, -560, 200, 26);
+            Chip(ct, 16, -590, "Items/ArenaCoin", $"+{PlayerArena.WinPoints[d]}점", "#7CFF9A");
+            Chip(ct, 152, -590, "Items/Crystal", $"{PlayerArena.WinCrystals[d]}", "#8FE9FF");
+            Chip(ct, 288, -590, "Items/Gold", $"{PlayerArena.WinGold[d]:N0}", "#FFD36B");
+
+            var go = UIFactory.AddButton("Fight", ct, "도전", 30, font, new Color(0.85f, 0.4f, 0.3f, 0.96f), Color.white);
+            var grt = (RectTransform)go.transform;
+            UIFactory.Anchor(grt, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0));
+            grt.sizeDelta = new Vector2(CardW - 40, 66); grt.anchoredPosition = new Vector2(0, 14);
             var opp = o;
             go.onClick.AddListener(() =>
             {
                 if (PlayerArena.Instance.Tickets <= 0) { OpenBuyTicket(); return; }   // 없으면 바로 구매 창
                 OnChallenge?.Invoke(opp);
             });
+        }
+
+        /// <summary>보상 칩(아이콘 + 수치).</summary>
+        private void Chip(Transform parent, float x, float y, string icon, string value, string hex)
+        {
+            var bg = UIFactory.AddImage("Chip", parent, new Color(1, 1, 1, 0.07f), ProceduralSprites.Rounded);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            Place(bg.rectTransform, x, y, 128, 50);
+            var sp = GameArt.Load(icon);
+            if (sp != null)
+            {
+                var im = UIFactory.AddImage("Icon", bg.transform, Color.white, sp);
+                im.preserveAspect = true;
+                Place(im.rectTransform, 4, -5, 40, 40);
+            }
+            var t = Text(bg.transform, $"<color={hex}><b>{value}</b></color>", 21, Color.white, FontStyles.Normal, TextAlignmentOptions.Left);
+            Place(t.rectTransform, 46, -8, 80, 34);
         }
     }
 
