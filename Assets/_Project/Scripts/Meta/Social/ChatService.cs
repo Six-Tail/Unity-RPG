@@ -80,13 +80,53 @@ namespace SubcultureRPG.Meta
 
         // ---------------- 연결 ----------------
 
+        /// <summary>
+        /// 진행 중인 연결(장면을 다시 불러와 ChatService가 새로 생겨도 하나만) — 로그인이 겹치면 Vivox가
+        /// 'Handle Taken(5006)'으로 거절하고 앞의 로그인은 'task canceled'가 됨.
+        /// </summary>
+        private static Task s_connect;
+
         private void Update()
         {
             if (!Available || Connected || Connecting) return;
+            if (s_connect != null && !s_connect.IsCompleted) return;
             if (!CloudAccount.SignedIn || !CloudAccount.Synced) return;
             if (Time.unscaledTime < _nextTry) return;
-            _ = ConnectAsync();
+            s_connect = ConnectAsync();
         }
+
+        /// <summary>게임을 끌 때 채팅에서 로그아웃(서버에 남은 접속 때문에 다음 로그인이 'Handle Taken'이 되지 않게).</summary>
+        private void OnApplicationQuit()
+        {
+#if VIVOX_PRESENT
+            try { if (VivoxService.Instance.IsLoggedIn) _ = VivoxService.Instance.LogoutAsync(); } catch { }
+            _loggedPid = null;
+#endif
+        }
+
+#if VIVOX_PRESENT
+        /// <summary>
+        /// 로그인. 'Handle Taken(5006)'(같은 계정의 이전 접속이 서버에 아직 남아 있음)이면 로그아웃하고 잠시 뒤 한 번 더.
+        /// </summary>
+        private static async Task LoginWithRetryAsync(IVivoxService v, string pid)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    await v.LoginAsync(new LoginOptions { DisplayName = "p" + (PlayerProfile.Instance.Uid ?? "0"), EnableTTS = false });
+                    _loggedPid = pid;
+                    return;
+                }
+                catch (Exception e) when (attempt == 0 && e.Message != null && (e.Message.Contains("5006") || e.Message.Contains("Handle Taken")))
+                {
+                    Debug.LogWarning("[Chat] 이전 채팅 접속이 남아 있어 정리 후 다시 로그인합니다.");
+                    try { if (v.IsLoggedIn) await v.LogoutAsync(); } catch { }
+                    await Task.Delay(4000);
+                }
+            }
+        }
+#endif
 
         private async Task ConnectAsync()
         {
@@ -99,11 +139,7 @@ namespace SubcultureRPG.Meta
                 await v.InitializeAsync();
                 string pid = CloudAccount.PlayerId;
                 if (v.IsLoggedIn && _loggedPid != pid) await v.LogoutAsync();
-                if (!v.IsLoggedIn)
-                {
-                    await v.LoginAsync(new LoginOptions { DisplayName = "p" + (PlayerProfile.Instance.Uid ?? "0"), EnableTTS = false });
-                    _loggedPid = pid;
-                }
+                if (!v.IsLoggedIn) await LoginWithRetryAsync(v, pid);
                 v.ChannelMessageReceived -= OnVivoxChannel;
                 v.ChannelMessageReceived += OnVivoxChannel;
                 v.DirectedMessageReceived -= OnVivoxDirect;
@@ -128,7 +164,9 @@ namespace SubcultureRPG.Meta
             catch (Exception e)
             {
                 Debug.LogWarning($"[Chat] 연결 실패: {e.Message}");
-                Error = "채팅 서버에 연결하지 못했습니다. 잠시 뒤 다시 시도합니다.";
+                bool taken = e.Message != null && (e.Message.Contains("5006") || e.Message.Contains("Handle Taken"));
+                Error = taken ? "같은 계정이 다른 곳(다른 PC · 기기)에서 채팅에 접속해 있습니다. 잠시 뒤 다시 시도합니다."
+                              : "채팅 서버에 연결하지 못했습니다. 잠시 뒤 다시 시도합니다.";
                 _nextTry = Time.unscaledTime + 30f;
             }
             finally
