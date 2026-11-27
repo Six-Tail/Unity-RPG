@@ -11,7 +11,9 @@ using SubcultureRPG.Meta.Shop;
 namespace SubcultureRPG.Meta.UI
 {
     /// <summary>
-    /// 상점 화면. 위쪽 탭(일반 상점 · 크리스탈 상점 · 교환소), 왼쪽 상품 칸(테두리 = 등급 색), 오른쪽 상세 + 수량 선택 + 구매.
+    /// 상점 화면. 왼쪽 세로 탭(패키지 · 월정액 · 일반 · 크리스탈 · 길드 · 교환소, 탭 아이콘 Items/ShopTab*).
+    /// 일반 · 크리스탈 · 길드 · 교환소 = 상품 칸(테두리 = 등급 색) + 오른쪽 상세 · 수량 · 구매.
+    /// 패키지 = 넓은 카드(묶음 내용 · 출시 때 결제 가격), 월정액 = 세로 카드 4장(바로 · 매일 보상 · 남은 기간) — 카드에서 바로 구매.
     /// 크리스탈 구매는 확인 창을 거칩니다. 코드로 자동 구성 — 참조는 비우면 자동 탐색(PlayerShop이 없으면 지갑 오브젝트에 추가).
     /// </summary>
     [DisallowMultipleComponent]
@@ -25,20 +27,26 @@ namespace SubcultureRPG.Meta.UI
 
         private GameObject _root, _confirmRoot;
         private TextMeshProUGUI _hint, _detName, _detSub, _detDesc, _detLimit, _qtyText, _total, _toast;
-        private TextMeshProUGUI _confirmBody;
-        private RectTransform _tabs, _content;
+        private TextMeshProUGUI _confirmBody, _confirmTitle;
+        private Action _confirmOk;
+        private RectTransform _tabs, _content, _view;
+        private GridLayoutGroup _grid;
+        private GameObject _detailPanel;
         private Button _backBtn, _buyBtn;
         private TextMeshProUGUI _buyLabel;
         private Action _onBack;
 
-        private ShopTab _tab = ShopTab.General;
+        private ShopTab _tab = ShopTab.Package;
         private ShopItem _selected;
         private int _qty = 1;
         private float _timerAcc;
         private string _periodSeen;
         private Coroutine _toastCo;
 
-        private static readonly ShopTab[] Tabs = { ShopTab.General, ShopTab.Crystal, ShopTab.Exchange };
+        private static readonly ShopTab[] Tabs = { ShopTab.Package, ShopTab.Monthly, ShopTab.General, ShopTab.Crystal, ShopTab.Guild, ShopTab.Exchange };
+
+        private static string TabIcon(ShopTab t) => "Items/ShopTab" + t;
+        private bool Wide => _tab == ShopTab.Package || _tab == ShopTab.Monthly;
 
         private void Awake()
         {
@@ -59,6 +67,7 @@ namespace SubcultureRPG.Meta.UI
             if (shop != null) shop.OnChanged += Refresh;
             if (wallet != null) wallet.OnChanged += Refresh;
             if (inventory != null) inventory.OnChanged += Refresh;
+            MonthlyPass.Instance.OnChanged += Refresh;
         }
 
         private void OnDisable()
@@ -66,6 +75,7 @@ namespace SubcultureRPG.Meta.UI
             if (shop != null) shop.OnChanged -= Refresh;
             if (wallet != null) wallet.OnChanged -= Refresh;
             if (inventory != null) inventory.OnChanged -= Refresh;
+            if (FindAnyObjectByType<MonthlyPass>() is MonthlyPass mp) mp.OnChanged -= Refresh;
         }
 
         private void Start() => Refresh();
@@ -115,20 +125,36 @@ namespace SubcultureRPG.Meta.UI
                 Destroy(ch.gameObject);
             }
 
-            var items = ShopCatalog.Of(_tab);
-            if (_selected == null || _selected.tab != _tab) { _selected = items.Count > 0 ? items[0] : null; _qty = 1; }
-            foreach (var it in items) BuildCell(it);
+            // 탭에 따라 배치: 넓은 카드(패키지 · 월정액, 상세 없음) / 상품 칸 3열 + 오른쪽 상세
+            bool wide = Wide;
+            _detailPanel.SetActive(!wide);
+            _view.sizeDelta = new Vector2(wide ? 1610 : 1060, _view.sizeDelta.y);
+            if (_tab == ShopTab.Package) { _grid.cellSize = new Vector2(780, 300); _grid.constraintCount = 2; }
+            else if (_tab == ShopTab.Monthly) { _grid.cellSize = new Vector2(380, 740); _grid.constraintCount = 4; }
+            else { _grid.cellSize = new Vector2(330, 250); _grid.constraintCount = 3; }
+
+            if (_tab == ShopTab.Monthly)
+            {
+                foreach (var p in MonthlyPass.Passes) BuildPassCard(p);
+            }
+            else
+            {
+                var items = ShopCatalog.Of(_tab);
+                if (_selected == null || _selected.tab != _tab) { _selected = items.Count > 0 ? items[0] : null; _qty = 1; }
+                foreach (var it in items) { if (_tab == ShopTab.Package) BuildPackageCard(it); else BuildCell(it); }
+            }
 
             UpdateHint();
-            RefreshDetail();
+            if (!wide) RefreshDetail();
         }
 
         private void UpdateHint()
         {
             string hint = ShopCatalog.TabHint(_tab);
-            var reset = _tab == ShopTab.General ? ShopReset.Daily : _tab == ShopTab.Crystal ? ShopReset.Weekly : ShopReset.None;
-            var left = PlayerShop.UntilReset(reset, DateTime.Now);
+            var left = PlayerShop.UntilReset(ShopCatalog.TabReset(_tab), DateTime.Now);
             if (left.HasValue) hint += $"   <color=#FFD36B>초기화까지 {PlayerShop.FormatSpan(left.Value)}</color>";
+            if (_tab == ShopTab.Guild)
+                hint += PlayerGuild.Instance.Joined ? $"   <color=#FFD98A>보유 길드 코인 {Count(MaterialType.GuildCoin):N0}</color>" : "   <color=#FF8A8A>길드에 가입해야 이용할 수 있습니다</color>";
             _hint.text = $"{ShopCatalog.TabName(_tab)}  <size=80%><color=#9AA3B5>{hint}</color></size>";
         }
 
@@ -208,11 +234,33 @@ namespace SubcultureRPG.Meta.UI
             {
                 bool on = _tab == t;
                 var tab = t;
-                var b = UIFactory.AddButton("Tab", _tabs, ShopCatalog.TabName(t), 20, font,
+                var b = UIFactory.AddButton("Tab", _tabs, "", 23, font,
                     on ? new Color(0.78f, 0.58f, 0.22f, 0.95f) : new Color(1, 1, 1, 0.12f), Color.white);
                 var le = b.gameObject.AddComponent<LayoutElement>();
-                le.preferredWidth = 190; le.preferredHeight = 44;
+                le.preferredWidth = 210; le.preferredHeight = 78;
                 b.onClick.AddListener(() => { _tab = tab; Refresh(); });
+                // 아이콘 + 이름(아이콘이 없으면 이름만 가운데)
+                var lbl = b.GetComponentInChildren<TextMeshProUGUI>();
+                var ic = GameArt.Load(TabIcon(t));
+                if (ic != null)
+                {
+                    var im = UIFactory.AddImage("Icon", b.transform, Color.white, ic);
+                    im.preserveAspect = true; im.raycastTarget = false;
+                    UIFactory.Anchor(im.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                    im.rectTransform.sizeDelta = new Vector2(60, 60); im.rectTransform.anchoredPosition = new Vector2(8, 0);
+                    UIFactory.Stretch(lbl.rectTransform, 70, 0, 6, 0);
+                    lbl.alignment = TextAlignmentOptions.Left;
+                }
+                lbl.text = ShopCatalog.TabName(t);
+                lbl.enableAutoSizing = true; lbl.fontSizeMin = 16; lbl.fontSizeMax = 23;
+                // 월정액: 쓰는 중인 것 수
+                if (t == ShopTab.Monthly)
+                {
+                    int active = 0;
+                    foreach (var p in MonthlyPass.Passes) if (MonthlyPass.Instance.Active(p)) active++;
+                    if (active > 0) lbl.text += $"\n<size=70%><color=#7CFF9A>사용 중 {active}</color></size>";
+                    lbl.richText = true;
+                }
             }
         }
 
@@ -251,7 +299,7 @@ namespace SubcultureRPG.Meta.UI
             Label(inner.transform, Grades.Tag(it.Grade), 14, FontStyles.Bold, new Vector2(0, 1), new Vector2(10, -8), new Vector2(90, 20), TextAlignmentOptions.TopLeft);
             Label(inner.transform, LimitText(it, detailed: false), 14, FontStyles.Bold, new Vector2(1, 1), new Vector2(-10, -8), new Vector2(150, 20), TextAlignmentOptions.TopRight);
 
-            var name = Label(inner.transform, it.RewardName, 20, FontStyles.Bold, new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(250, icon != null ? 28 : 52), TextAlignmentOptions.Top);
+            var name = Label(inner.transform, it.RewardName, 21, FontStyles.Bold, new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(300, icon != null ? 28 : 52), TextAlignmentOptions.Top);
             name.enableAutoSizing = true; name.fontSizeMin = 13; name.fontSizeMax = 20;
             if (it.IsGold) name.color = new Color(1f, 0.83f, 0.42f);
 
@@ -268,9 +316,125 @@ namespace SubcultureRPG.Meta.UI
             var brt = bar.rectTransform;
             UIFactory.Anchor(brt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
             brt.sizeDelta = new Vector2(0, 46); brt.anchoredPosition = Vector2.zero;
-            var price = Label(bar.transform, soldOut ? "<color=#FF8A8A>품절</color>" : it.PriceText(), 18, FontStyles.Bold, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(260, 40), TextAlignmentOptions.Center);
+            var price = Label(bar.transform, soldOut ? "<color=#FF8A8A>품절</color>" : it.PriceText(), 20, FontStyles.Bold, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(300, 40), TextAlignmentOptions.Center);
             price.enableAutoSizing = true; price.fontSizeMin = 12; price.fontSizeMax = 18;
             if (!soldOut && !afford) price.alpha = 0.5f;
+        }
+
+        // ---------------- 패키지 · 월정액 카드 ----------------
+
+        private Image Card(Color edge, bool dim)
+        {
+            var frame = UIFactory.AddImage("Card", _content, new Color(edge.r, edge.g, edge.b, dim ? 0.35f : 0.9f), ProceduralSprites.Rounded);
+            frame.type = Image.Type.Sliced;
+            var inner = UIFactory.AddImage("Inner", frame.transform, new Color(0.07f, 0.08f, 0.12f, 0.96f), ProceduralSprites.Rounded);
+            inner.type = Image.Type.Sliced;
+            UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
+            if (dim) inner.gameObject.AddComponent<CanvasGroup>().alpha = 0.5f;
+            return inner;
+        }
+
+        private Button CardButton(Transform parent, string label, Color color, bool enabled, UnityEngine.Events.UnityAction onClick, Vector2 size, Vector2 pos, Vector2 anchor)
+        {
+            var b = UIFactory.AddButton("Buy", parent, label, 24, font, enabled ? color : new Color(1, 1, 1, 0.1f), Color.white);
+            var rt = (RectTransform)b.transform;
+            UIFactory.Anchor(rt, anchor, anchor, anchor);
+            rt.sizeDelta = size; rt.anchoredPosition = pos;
+            b.interactable = enabled;
+            var t = b.GetComponentInChildren<TextMeshProUGUI>();
+            t.richText = true; t.enableAutoSizing = true; t.fontSizeMin = 14; t.fontSizeMax = 24;
+            b.onClick.AddListener(onClick);
+            return b;
+        }
+
+        /// <summary>패키지 카드: 아이콘 · 이름 · 묶음 내용 · 남은 구매 · (출시 결제 가격) · 크리스탈 구매.</summary>
+        private void BuildPackageCard(ShopItem it)
+        {
+            int left = shop.Remaining(it);
+            bool soldOut = left == 0;
+            var inner = Card(new Color(1f, 0.8f, 0.4f), soldOut).transform;
+
+            var icon = GameArt.Load(it.IconPath);
+            if (icon != null)
+            {
+                var im = UIFactory.AddImage("Icon", inner, Color.white, icon);
+                im.preserveAspect = true;
+                UIFactory.Anchor(im.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                im.rectTransform.sizeDelta = new Vector2(220, 220); im.rectTransform.anchoredPosition = new Vector2(20, 8);
+            }
+            Label(inner, $"<b>{it.title}</b>", 30, FontStyles.Normal, new Vector2(0, 1), new Vector2(260, -20), new Vector2(490, 42), TextAlignmentOptions.TopLeft).color = new Color(1f, 0.88f, 0.6f);
+            var contents = Label(inner, it.BundleText("\n"), 21, FontStyles.Normal, new Vector2(0, 1), new Vector2(260, -70), new Vector2(490, 140), TextAlignmentOptions.TopLeft);
+            contents.lineSpacing = 6f; contents.enableAutoSizing = true; contents.fontSizeMin = 14; contents.fontSizeMax = 21;
+            string limit = it.limit <= 0 ? "" : it.reset switch
+            {
+                ShopReset.Daily => $"오늘 {left}/{it.limit}", ShopReset.Weekly => $"이번 주 {left}/{it.limit}",
+                ShopReset.Monthly => $"이번 달 {left}/{it.limit}", _ => $"계정당 {left}/{it.limit}",
+            };
+            Label(inner, $"<color=#9AA3B5>{limit}</color>", 18, FontStyles.Bold, new Vector2(1, 1), new Vector2(-18, -20), new Vector2(200, 26), TextAlignmentOptions.TopRight);
+            if (it.IsIap)
+                Label(inner, $"<color=#9AA3B5>출시 때 {it.realPrice} · 지금은 크리스탈</color>", 16, FontStyles.Normal, new Vector2(1, 0), new Vector2(-18, 88), new Vector2(300, 24), TextAlignmentOptions.BottomRight);
+            string block = shop.BlockReason(it, 1);
+            var item = it;
+            CardButton(inner, soldOut ? "품절" : $"구매  {it.PriceText()}", new Color(0.25f, 0.62f, 0.95f, 0.98f), block == null,
+                () => { _selected = item; _qty = 1; OnBuyClicked(); }, new Vector2(300, 62), new Vector2(-18, 18), new Vector2(1, 0));
+        }
+
+        /// <summary>월정액 카드: 아이콘 · 이름 · 바로 · 매일(30일) · 총 · 남은 기간 · 구매/연장.</summary>
+        private void BuildPassCard(PassDef p)
+        {
+            var mp = MonthlyPass.Instance;
+            int daysLeft = mp.DaysLeft(p);
+            var inner = Card(p.color, false).transform;
+
+            Label(inner, $"<b>{p.name}</b>", 26, FontStyles.Normal, new Vector2(0.5f, 1), new Vector2(0, -18), new Vector2(350, 38), TextAlignmentOptions.Top).color = p.color;
+            Label(inner, $"<color=#9AA3B5>{p.desc}</color>", 17, FontStyles.Normal, new Vector2(0.5f, 1), new Vector2(0, -56), new Vector2(350, 26), TextAlignmentOptions.Top);
+            var icon = GameArt.Load(p.icon);
+            if (icon != null)
+            {
+                var im = UIFactory.AddImage("Icon", inner, Color.white, icon);
+                im.preserveAspect = true;
+                UIFactory.Anchor(im.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+                im.rectTransform.sizeDelta = new Vector2(210, 210); im.rectTransform.anchoredPosition = new Vector2(0, -88);
+            }
+            var body = Label(inner,
+                $"<color=#FFD36B>구매 즉시</color>\n{p.now().Describe("\n")}\n\n<color=#FFD36B>매일 05:00 우편 · {MonthlyPass.Days}일</color>\n{p.daily().Describe("\n")}",
+                20, FontStyles.Normal, new Vector2(0.5f, 1), new Vector2(0, -310), new Vector2(340, 250), TextAlignmentOptions.Top);
+            body.lineSpacing = 4f; body.enableAutoSizing = true; body.fontSizeMin = 13; body.fontSizeMax = 20;
+
+            string state = daysLeft > 0
+                ? $"<color=#7CFF9A>사용 중 · 남은 {daysLeft}일</color>" + (mp.ReceivedToday(p) ? "  <size=85%><color=#9AA3B5>오늘 보상 받음(우편)</color></size>" : "")
+                : "<color=#9AA3B5>미사용</color>";
+            Label(inner, state, 19, FontStyles.Bold, new Vector2(0.5f, 0), new Vector2(0, 128), new Vector2(350, 52), TextAlignmentOptions.Bottom).textWrappingMode = TextWrappingModes.Normal;
+            Label(inner, $"<color=#9AA3B5>출시 때 {p.realPrice} · 지금은 크리스탈</color>", 15, FontStyles.Normal, new Vector2(0.5f, 0), new Vector2(0, 96), new Vector2(350, 22), TextAlignmentOptions.Bottom);
+            string block = mp.BlockReason(p);
+            var pass = p;
+            CardButton(inner, $"{(daysLeft > 0 ? "30일 연장" : "구매")}  <color=#8FE9FF>크리스탈 {p.crystals:N0}</color>", new Color(0.25f, 0.62f, 0.95f, 0.98f), block == null || block == "크리스탈이 부족합니다",
+                () => ConfirmPass(pass), new Vector2(340, 66), new Vector2(0, 20), new Vector2(0.5f, 0));
+        }
+
+        private void ConfirmPass(PassDef p)
+        {
+            var mp = MonthlyPass.Instance;
+            string block = mp.BlockReason(p);
+            if (block != null) { Toast($"<color=#FF8A8A>{block}</color>"); return; }
+            int have = wallet != null ? wallet.Crystals : 0;
+            ShowConfirm("월정액 구매",
+                $"<b>{p.name}</b>을(를) <color=#8FE9FF>크리스탈 {p.crystals:N0}</color>으로 {(mp.Active(p) ? "30일 연장" : "구매")}할까요?\n" +
+                $"<size=80%><color=#9AA3B5>보유 {have:N0}  →  {have - p.crystals:N0} · 오늘 보상은 바로 우편으로</color></size>",
+                () =>
+                {
+                    string err = MonthlyPass.Instance.Buy(p);
+                    Toast(err == null ? $"<color=#7CFF9A>{p.name} 구매!</color> 보상을 확인하세요" : $"<color=#FF8A8A>{err}</color>");
+                    Refresh();
+                });
+        }
+
+        private void ShowConfirm(string title, string body, Action ok)
+        {
+            _confirmTitle.text = title;
+            _confirmBody.text = body;
+            _confirmOk = ok;
+            _confirmRoot.SetActive(true);
         }
 
         // ---------------- 수량 · 구매 ----------------
@@ -298,10 +462,11 @@ namespace SubcultureRPG.Meta.UI
             {
                 int have = wallet != null ? wallet.Crystals : 0;
                 long cost = (long)it.price * _qty;
-                _confirmBody.text =
-                    $"<color=#8FE9FF>크리스탈 {cost:N0}</color>을(를) 사용해\n<b>{it.RewardRichName} ×{(long)it.amount * _qty:N0}</b>을(를) 구매할까요?\n" +
-                    $"<size=80%><color=#9AA3B5>보유 {have:N0}  →  {have - cost:N0}</color></size>";
-                _confirmRoot.SetActive(true);
+                string what = it.IsBundle ? $"<b>{it.RewardRichName}</b>\n<size=80%>{it.BundleText()}</size>" : $"<b>{it.RewardRichName} ×{(long)it.amount * _qty:N0}</b>";
+                ShowConfirm("크리스탈 사용",
+                    $"<color=#8FE9FF>크리스탈 {cost:N0}</color>을(를) 사용해\n{what}을(를) 구매할까요?\n" +
+                    $"<size=80%><color=#9AA3B5>보유 {have:N0}  →  {have - cost:N0}</color></size>",
+                    DoBuy);
                 return;
             }
             DoBuy();
@@ -369,29 +534,31 @@ namespace SubcultureRPG.Meta.UI
 
             CurrencyBar.Create(root, font, wallet, new Vector2(-50, -32), Currency.Crystal, Currency.Gold);
 
-            // 탭
+            // 왼쪽 세로 탭(아이콘 + 이름)
             _tabs = UIFactory.NewRect("Tabs", root);
-            Place(_tabs, new Vector2(0, 1), new Vector2(1200, 44), new Vector2(60, -100), new Vector2(0, 1));
-            var th = _tabs.gameObject.AddComponent<HorizontalLayoutGroup>();
-            th.spacing = 10; th.childAlignment = TextAnchor.MiddleLeft;
+            Place(_tabs, new Vector2(0, 1), new Vector2(210, 560), new Vector2(40, -150), new Vector2(0, 1));
+            var th = _tabs.gameObject.AddComponent<VerticalLayoutGroup>();
+            th.spacing = 10; th.childAlignment = TextAnchor.UpperCenter;
             th.childControlWidth = true; th.childControlHeight = true;
             th.childForceExpandWidth = false; th.childForceExpandHeight = false;
 
             _hint = UIFactory.AddText("Hint", root, "", 22, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
-            Place(_hint.rectTransform, new Vector2(0, 1), new Vector2(1240, 32), new Vector2(60, -156), new Vector2(0, 1));
+            Place(_hint.rectTransform, new Vector2(0, 1), new Vector2(1610, 34), new Vector2(270, -104), new Vector2(0, 1));
 
             // 상품 목록(스크롤)
             var view = UIFactory.NewRect("View", root);
-            Place(view, new Vector2(0, 1), new Vector2(1240, 860), new Vector2(50, -196), new Vector2(0, 1));
+            Place(view, new Vector2(0, 1), new Vector2(1060, 890), new Vector2(270, -150), new Vector2(0, 1));
+            _view = view;
             view.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0.2f);
             view.gameObject.AddComponent<RectMask2D>();
             _content = UIFactory.NewRect("Content", view);
             UIFactory.Anchor(_content, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
             _content.sizeDelta = Vector2.zero; _content.anchoredPosition = Vector2.zero;
             var grid = _content.gameObject.AddComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(280, 240); grid.spacing = new Vector2(18, 18);
+            grid.cellSize = new Vector2(330, 250); grid.spacing = new Vector2(18, 18);
             grid.padding = new RectOffset(16, 16, 16, 16);
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 4;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 3;
+            _grid = grid;
             _content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             var scroll = view.gameObject.AddComponent<ScrollRect>();
             scroll.content = _content; scroll.viewport = view;
@@ -401,7 +568,8 @@ namespace SubcultureRPG.Meta.UI
 
             // 오른쪽: 상세
             var panel = UIFactory.AddImage("Detail", root, new Color(0.10f, 0.10f, 0.14f, 0.96f));
-            Place(panel.rectTransform, new Vector2(1, 1), new Vector2(560, 860), new Vector2(-50, -196), new Vector2(1, 1));
+            Place(panel.rectTransform, new Vector2(1, 1), new Vector2(530, 890), new Vector2(-40, -150), new Vector2(1, 1));
+            _detailPanel = panel.gameObject;
             var pt = panel.transform;
 
             _detName = UIFactory.AddText("Name", pt, "", 30, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
@@ -462,13 +630,15 @@ namespace SubcultureRPG.Meta.UI
 
             var panel = UIFactory.AddImage("Panel", _confirmRoot.transform, new Color(0.12f, 0.12f, 0.17f, 0.98f), ProceduralSprites.Rounded, raycast: true);
             panel.type = Image.Type.Sliced; panel.preserveAspect = false;
-            Place(panel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(640, 360), Vector2.zero, new Vector2(0.5f, 0.5f));
+            Place(panel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(700, 420), Vector2.zero, new Vector2(0.5f, 0.5f));
 
             var title = UIFactory.AddText("Title", panel.transform, "크리스탈 사용", 34, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
             Place(title.rectTransform, new Vector2(0.5f, 1), new Vector2(600, 50), new Vector2(0, -26));
+            _confirmTitle = title;
 
             _confirmBody = UIFactory.AddText("Body", panel.transform, "", 26, font, Color.white, TextAlignmentOptions.Center);
-            Place(_confirmBody.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(580, 150), new Vector2(0, 14), new Vector2(0.5f, 0.5f));
+            Place(_confirmBody.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(640, 210), new Vector2(0, 20), new Vector2(0.5f, 0.5f));
+            _confirmBody.textWrappingMode = TextWrappingModes.Normal;
             _confirmBody.lineSpacing = 10f;
 
             var cancel = UIFactory.AddButton("Cancel", panel.transform, "취소", 26, font, new Color(0.35f, 0.37f, 0.44f, 0.98f), Color.white);
@@ -477,7 +647,7 @@ namespace SubcultureRPG.Meta.UI
 
             var ok = UIFactory.AddButton("Ok", panel.transform, "구매", 26, font, new Color(0.25f, 0.62f, 0.95f, 0.98f), Color.white);
             Place((RectTransform)ok.transform, new Vector2(0.5f, 0), new Vector2(240, 68), new Vector2(135, 30), new Vector2(0.5f, 0));
-            ok.onClick.AddListener(DoBuy);
+            ok.onClick.AddListener(() => { _confirmRoot.SetActive(false); var a = _confirmOk; _confirmOk = null; a?.Invoke(); });
 
             _confirmRoot.SetActive(false);
         }

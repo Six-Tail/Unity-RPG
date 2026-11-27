@@ -36,6 +36,14 @@ namespace SubcultureRPG.Meta
     {
         public const int MaxMembers = 30, MaxLevel = 10, CreateCost = 50_000, DonateCost = 10_000, DonatePerDay = 3;
         public const int AttendGold = 5000, AttendCrystals = 10, AttendExp = 20, DonateExp = 50, DonateCrystals = 5;
+        /// <summary>길드 코인(길드 상점 화폐): 출석 · 기부 1회.</summary>
+        public const int AttendCoins = 30, DonateCoins = 20;
+
+        private static void AddCoins(int n)
+        {
+            var inv = FindAnyObjectByType<PlayerInventory>();
+            if (inv != null && n > 0) inv.Add(MaterialType.GuildCoin, n);
+        }
         public const int MinNameLength = 2, MaxNameLength = 8, MaxIntroLength = 30, RecommendCount = 8;
         private const string SaveKey = "guild";
 
@@ -402,6 +410,7 @@ namespace SubcultureRPG.Meta
             if (!_d.joined || _d.attended) return false;
             var wallet = FindAnyObjectByType<PlayerWallet>();
             if (wallet != null) { wallet.AddGold(AttendGoldNow); wallet.Add(AttendCrystals); }
+            AddCoins(AttendCoins);
             _d.attended = true;
             Contribute(AttendExp);
             Changed();
@@ -417,6 +426,7 @@ namespace SubcultureRPG.Meta
             var wallet = FindAnyObjectByType<PlayerWallet>();
             if (wallet == null || !wallet.SpendGold(DonateCost)) return $"금화가 부족합니다 (필요 {DonateCost:N0})";
             wallet.Add(DonateCrystals);
+            AddCoins(DonateCoins);
             _d.donated++;
             Contribute(DonateExp);
             Changed();

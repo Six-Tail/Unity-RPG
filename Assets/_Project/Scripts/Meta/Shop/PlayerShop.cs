@@ -86,7 +86,9 @@ namespace SubcultureRPG.Meta.Shop
                     ShopCurrency.Crystal => "크리스탈이 부족합니다",
                     _ => $"{Materials.Name(item.costMaterial)}이(가) 부족합니다",
                 };
+            if (item.tab == ShopTab.Guild && !PlayerGuild.Instance.Joined) return "길드에 가입해야 이용할 수 있습니다";
             if (wallet == null && item.currency != ShopCurrency.Material) return "지갑을 찾을 수 없습니다";
+            if (item.IsBundle) return null;
             if (inventory == null && ((!item.IsGold && !item.IsTicket) || item.currency == ShopCurrency.Material)) return "가방을 찾을 수 없습니다";
             if (wallet == null && (item.IsGold || item.IsTicket)) return "지갑을 찾을 수 없습니다";
             return null;
@@ -108,7 +110,8 @@ namespace SubcultureRPG.Meta.Shop
             if (!paid) return false;
 
             int got = item.amount * qty;
-            if (item.IsTicket) wallet.AddTickets(item.ticketType, got);
+            if (item.IsBundle) { for (int i = 0; i < qty; i++) item.bundle().Grant(); }
+            else if (item.IsTicket) wallet.AddTickets(item.ticketType, got);
             else if (item.IsGold) wallet.AddGold(item.rewardGold * got);
             else inventory.Add(item.reward, got);
 
@@ -141,6 +144,7 @@ namespace SubcultureRPG.Meta.Shop
         {
             ShopReset.Daily => "d" + GameDay(now).ToString("yyyyMMdd", CultureInfo.InvariantCulture),
             ShopReset.Weekly => "w" + WeekStart(now).ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+            ShopReset.Monthly => "m" + GameDay(now).ToString("yyyyMM", CultureInfo.InvariantCulture),
             _ => "all",
         };
 
@@ -152,6 +156,7 @@ namespace SubcultureRPG.Meta.Shop
             {
                 case ShopReset.Daily: next = GameDay(now).AddDays(1).AddHours(ShopCatalog.ResetHour); break;
                 case ShopReset.Weekly: next = WeekStart(now).AddDays(7).AddHours(ShopCatalog.ResetHour); break;
+                case ShopReset.Monthly: { var d = GameDay(now); next = new DateTime(d.Year, d.Month, 1).AddMonths(1).AddHours(ShopCatalog.ResetHour); break; }
                 default: return null;
             }
             return next - now;

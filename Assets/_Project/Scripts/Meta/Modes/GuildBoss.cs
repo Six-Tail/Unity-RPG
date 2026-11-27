@@ -76,7 +76,17 @@ namespace SubcultureRPG.Meta
         };
 
         /// <summary>지난주 길드 보스 순위 보상(우편).</summary>
+        /// <summary>단계 보상마다 함께 주는 길드 코인.</summary>
+        public const int StageCoins = 30;
+
         public static RewardBundle RankReward(int rank, out string tier)
+        {
+            var r = RankRewardBase(rank, out tier);
+            int coins = rank == 1 ? 300 : rank <= 3 ? 200 : rank <= 10 ? 150 : rank <= 30 ? 100 : rank <= 100 ? 70 : 50;
+            return r.Mat(MaterialType.GuildCoin, coins);
+        }
+
+        private static RewardBundle RankRewardBase(int rank, out string tier)
         {
             if (rank == 1) { tier = "1위"; return new RewardBundle().Crystals(500).Gold(100000); }
             if (rank <= 3) { tier = "2~3위"; return new RewardBundle().Crystals(300).Gold(80000); }
@@ -109,7 +119,7 @@ namespace SubcultureRPG.Meta
         public static RewardBundle Claim(int stage)
         {
             if (!CanClaim(stage)) return null;
-            var b = StageRewards[stage - 1].bundle();
+            var b = StageRewards[stage - 1].bundle().Mat(MaterialType.GuildCoin, StageCoins);   // 단계마다 길드 코인
             b.Grant();
             PlayerGuild.Instance.MarkBossClaimed(stage);
             return b;

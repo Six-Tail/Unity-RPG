@@ -40,6 +40,10 @@ namespace SubcultureRPG.Meta.UI
 
         // 픽업 전환 연출
         private GachaBanner _shownBanner;
+        // 상시: 6성 캐릭터 일러스트 넘겨 보기(좌우 버튼 · 밀기 · 왼쪽 목록)
+        private int _stdIndex;
+        private Button _prevBtn, _nextBtn;
+        private TextMeshProUGUI _dots;
         private Coroutine _switchRoutine;
         private Image _veil, _sweep;
         private CanvasGroup _featGroup;
@@ -300,10 +304,14 @@ namespace SubcultureRPG.Meta.UI
 
             // 픽업: 카드 왼쪽 세로 목록(썸네일 + 이름) — 카드·제목과 겹치지 않음
             bool showSub = cur != null && cur.IsPickup && pickups.Count > 1;
-            _bannerTabs.gameObject.SetActive(showSub);
+            bool showStd = cur != null && !cur.IsPickup && StdPool.Count > 1;
+            _bannerTabs.gameObject.SetActive(showSub || showStd);
             if (showSub)
                 foreach (var p in pickups)
                     BannerTab(p, p == cur);
+            else if (showStd)
+                for (int i = 0; i < StdPool.Count; i++)
+                    StdTab(StdPool[i], i);
         }
 
         /// <summary>픽업 캐릭터 탭 1개: 썸네일 + ★6 이름 + 속성. 선택된 탭은 분홍 바탕 · 왼쪽 강조 막대 · 살짝 커지는 연출.</summary>
@@ -348,6 +356,68 @@ namespace SubcultureRPG.Meta.UI
             }
         }
 
+        /// <summary>상시 6성 목록(일러스트 넘겨 보기 순서).</summary>
+        private List<CharacterData> StdPool
+        {
+            get
+            {
+                var l = new List<CharacterData>();
+                var b = gacha != null ? gacha.Banner : null;
+                if (b != null && !b.IsPickup) foreach (var c in b.pool6) if (c != null) l.Add(c);
+                return l;
+            }
+        }
+
+        /// <summary>상시 캐릭터 탭 1개(픽업 탭과 같은 모양) — 누르면 그 캐릭터 일러스트로.</summary>
+        private void StdTab(CharacterData c, int index)
+        {
+            bool on = index == _stdIndex;
+            var btn = UIFactory.AddButton("StdTab", _bannerTabs, "", 20, font,
+                on ? new Color(0.55f, 0.5f, 0.95f, 0.96f) : new Color(0.1f, 0.1f, 0.16f, 0.82f), Color.white);
+            var rt = (RectTransform)btn.transform;
+            var le = btn.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = 232; le.preferredHeight = 76;
+            int idx = index;
+            btn.onClick.AddListener(() => ShowStd(idx));
+            var thumbBg = UIFactory.AddImage("ThumbBg", rt, new Color(0, 0, 0, 0.45f));
+            UIFactory.Anchor(thumbBg.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+            thumbBg.rectTransform.sizeDelta = new Vector2(60, 60); thumbBg.rectTransform.anchoredPosition = new Vector2(10, 0);
+            var sprite = GameArt.Thumb(c);
+            if (sprite != null)
+            {
+                var th = UIFactory.AddImage("Thumb", thumbBg.transform, Color.white, sprite);
+                th.preserveAspect = true;
+                UIFactory.Stretch(th.rectTransform, 2, 2, 2, 2);
+            }
+            var lbl = btn.GetComponentInChildren<TextMeshProUGUI>();
+            lbl.alignment = TextAlignmentOptions.Left;
+            lbl.richText = true;
+            UIFactory.Stretch(lbl.rectTransform, 80, 0, 8, 0);
+            lbl.text = $"<size=72%><color={(on ? "#FFF1A8" : "#FFC73F")}>★6</color></size> <b>{c.displayName}</b>\n<size=72%><color={(on ? "#FFFFFF" : Traits.Hex(c.element))}>{Traits.Name(c.element)} · {Traits.Name(c.role)}</color></size>";
+            lbl.color = on ? Color.white : new Color(0.85f, 0.87f, 0.93f);
+            if (on)
+            {
+                var bar = UIFactory.AddImage("Accent", rt, new Color(1f, 0.92f, 0.6f, 1f));
+                UIFactory.Anchor(bar.rectTransform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f));
+                bar.rectTransform.sizeDelta = new Vector2(5, -14); bar.rectTransform.anchoredPosition = new Vector2(2, 0);
+                StartCoroutine(TabPop(rt));
+            }
+        }
+
+        /// <summary>상시 일러스트를 index번째로(카드 뒤집기 연출). 범위를 넘으면 돌아감.</summary>
+        private void ShowStd(int index)
+        {
+            var pool = StdPool;
+            if (pool.Count == 0) return;
+            index = ((index % pool.Count) + pool.Count) % pool.Count;
+            if (index == _stdIndex && _frame.gameObject.activeSelf) return;
+            _stdIndex = index;
+            RebuildTabs();
+            if (_switchRoutine != null) StopCoroutine(_switchRoutine);
+            if (isActiveAndEnabled && _root != null && _root.activeInHierarchy) _switchRoutine = StartCoroutine(SwitchRoutine());
+            else { BuildFeatured(); ResetSwitchVisuals(); }
+        }
+
         private System.Collections.IEnumerator TabPop(RectTransform rt)
         {
             const float dur = 0.28f;
@@ -389,6 +459,24 @@ namespace SubcultureRPG.Meta.UI
             // 배경: 배너 그림(Banners/{픽업 캐릭터 id} · Banners/standard) → 없으면 공용 가챠 배경
             string bannerKey = b == null ? null : (feat != null ? "Banners/" + (!string.IsNullOrEmpty(feat.id) ? feat.id : feat.name) : "Banners/standard");
             if (_bg != null) _bg.Set(bannerKey, "Backgrounds/gacha");
+            // 상시: 6성 캐릭터를 한 명씩 일러스트로(좌우 버튼 · 밀기)
+            var std = feat == null ? StdPool : null;
+            if (std != null && std.Count > 0)
+            {
+                _stdIndex = Mathf.Clamp(_stdIndex, 0, std.Count - 1);
+                feat = std[_stdIndex];
+            }
+            bool isStd = std != null && std.Count > 0;
+            _prevBtn.gameObject.SetActive(isStd && std.Count > 1);
+            _nextBtn.gameObject.SetActive(isStd && std.Count > 1);
+            _dots.gameObject.SetActive(isStd && std.Count > 1);
+            if (isStd)
+            {
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < std.Count; i++) sb.Append(i == _stdIndex ? "<color=#FFD36B>●</color> " : "<color=#6B7280>●</color> ");
+                _dots.text = sb.ToString().TrimEnd();
+            }
+
             _frame.gameObject.SetActive(feat != null);
             if (feat != null)
             {
@@ -402,7 +490,7 @@ namespace SubcultureRPG.Meta.UI
                 _portrait.color = Color.white;
                 _frameFallback.text = !live && sprite == null ? feat.displayName : "";
                 _featuredName.text = $"{feat.displayName}  <size=70%><color={Traits.Hex(feat.element)}>{Traits.Name(feat.element)}</color> · {Traits.Name(feat.role)}</size>";
-                _featuredStars.text = new string('★', (int)feat.rarity) + "  <size=70%>픽업</size>";
+                _featuredStars.text = new string('★', (int)feat.rarity) + (isStd ? $"  <size=70%>상시 {_stdIndex + 1} / {std.Count}</size>" : "  <size=70%>픽업</size>");
             }
             else
             {
@@ -500,6 +588,20 @@ namespace SubcultureRPG.Meta.UI
             _sweep.gameObject.SetActive(false);
             _frameFallback = UIFactory.AddText("Fallback", frameInner.transform, "", 34, font, new Color(1f, 0.85f, 0.45f), TextAlignmentOptions.Center, FontStyles.Bold);
             UIFactory.Stretch(_frameFallback.rectTransform, 10, 10, 10, 10);
+
+            // 상시: 카드를 좌우로 밀거나 버튼으로 이전 · 다음 캐릭터
+            _frame.raycastTarget = true;
+            _frame.gameObject.AddComponent<SwipeArea>().OnSwipe = dir => { if (gacha != null && gacha.Banner != null && !gacha.Banner.IsPickup) ShowStd(_stdIndex + dir); };
+            _prevBtn = UIFactory.AddButton("Prev", root, "<", 46, font, new Color(0f, 0f, 0f, 0.45f), Color.white);
+            Place((RectTransform)_prevBtn.transform, new Vector2(0.5f, 0.5f), new Vector2(76, 120), new Vector2(-236, 32), new Vector2(0.5f, 0.5f));
+            _prevBtn.onClick.AddListener(() => ShowStd(_stdIndex - 1));
+            _nextBtn = UIFactory.AddButton("Next", root, ">", 46, font, new Color(0f, 0f, 0f, 0.45f), Color.white);
+            Place((RectTransform)_nextBtn.transform, new Vector2(0.5f, 0.5f), new Vector2(76, 120), new Vector2(236, 32), new Vector2(0.5f, 0.5f));
+            _nextBtn.onClick.AddListener(() => ShowStd(_stdIndex + 1));
+            _dots = UIFactory.AddText("Dots", root, "", 22, font, Color.white, TextAlignmentOptions.Center);
+            _dots.richText = true;
+            Place(_dots.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(400, 26), new Vector2(0, -262), new Vector2(0.5f, 0.5f));
+            _prevBtn.gameObject.SetActive(false); _nextBtn.gameObject.SetActive(false); _dots.gameObject.SetActive(false);
 
             _featuredStars = UIFactory.AddText("FStars", root, "", 26, font, new Color(1f, 0.8f, 0.3f), TextAlignmentOptions.Center, FontStyles.Bold);
             Place(_featuredStars.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(400, 32), new Vector2(0, -196), new Vector2(0.5f, 0.5f));
@@ -683,6 +785,23 @@ namespace SubcultureRPG.Meta.UI
             if (FindAnyObjectByType<EventSystem>() != null) return;
             var es = new GameObject("EventSystem", typeof(EventSystem));
             SubcultureRPG.UI.UIInput.AddModule(es);
+        }
+    }
+
+    /// <summary>좌우로 밀기 감지(손가락 · 마우스 끌기). 왼쪽으로 밀면 +1(다음), 오른쪽으로 밀면 -1(이전).</summary>
+    public class SwipeArea : MonoBehaviour, UnityEngine.EventSystems.IBeginDragHandler, UnityEngine.EventSystems.IDragHandler, UnityEngine.EventSystems.IEndDragHandler
+    {
+        public System.Action<int> OnSwipe;
+        public float minDistance = 60f;
+        private Vector2 _start;
+        public void OnBeginDrag(UnityEngine.EventSystems.PointerEventData e) => _start = e.position;
+        public void OnDrag(UnityEngine.EventSystems.PointerEventData e) { }
+        public void OnEndDrag(UnityEngine.EventSystems.PointerEventData e)
+        {
+            var d = e.position - _start;
+            float min = minDistance * (Screen.height / 1080f);
+            if (Mathf.Abs(d.x) < min || Mathf.Abs(d.x) < Mathf.Abs(d.y)) return;
+            OnSwipe?.Invoke(d.x < 0 ? 1 : -1);
         }
     }
 }

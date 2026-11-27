@@ -32,6 +32,7 @@ namespace SubcultureRPG.Meta
         EquipEssence = 19,    // 장비 정수 (선택 제작)           영웅 — 장비 분해
         RefineStone = 20,     // 재련석 (주옵션 재련)            전설 — 무한의 탑 · 주간 보스 · 크리스탈 상점(주 1)
         Select6All = 21,      // 태생 6★ 캐릭터 선택권(픽업 포함) 전설 — 운영 선물
+        GuildCoin = 22,       // 길드 코인(길드 상점 화폐)             영웅 — 길드 출석 · 기부 · 길드 보스
 
         PhysicalAsc1 = 101, PhysicalAsc2 = 102, PhysicalAsc3 = 103,
         FireAsc1 = 111, FireAsc2 = 112, FireAsc3 = 113,
@@ -100,6 +101,7 @@ namespace SubcultureRPG.Meta
                 MaterialType.Select5 => "태생 5★ 캐릭터 선택권",
                 MaterialType.Select6 => "태생 6★ 캐릭터 선택권",
                 MaterialType.Select6All => "태생 6★ 캐릭터 선택권(픽업 포함)",
+                MaterialType.GuildCoin => "길드 코인",
                 MaterialType.GiftSmall => "들꽃 꽃다발",
                 MaterialType.GiftMedium => "수제 쿠키 상자",
                 MaterialType.GiftLarge => "별빛 브로치",
@@ -121,7 +123,7 @@ namespace SubcultureRPG.Meta
                 MaterialType.GiftLarge or MaterialType.EquipEssence => 5,
                 MaterialType.ExpPotion or MaterialType.SkillBookBlue or MaterialType.EquipOre => 4,
                 MaterialType.StaminaSmall => 4,
-                MaterialType.ExpLarge or MaterialType.SkillBookPurple or MaterialType.StarShard or MaterialType.StaminaLarge or MaterialType.Select5 => 5,
+                MaterialType.ExpLarge or MaterialType.SkillBookPurple or MaterialType.StarShard or MaterialType.StaminaLarge or MaterialType.Select5 or MaterialType.GuildCoin => 5,
                 _ => 6,   // 경험치 결정 · 전설의 비전서
             };
         }
@@ -134,7 +136,7 @@ namespace SubcultureRPG.Meta
             if (IsAscension(t)) return Category.Ascension;
             if (ExpValue(t) > 0) return Category.Exp;
             if (t == MaterialType.EquipOre || t == MaterialType.EquipEssence || t == MaterialType.RefineStone) return Category.Equipment;
-            if (t == MaterialType.StarShard || StaminaValue(t) > 0 || IsSelector(t) || GiftExp(t) > 0 || t == MaterialType.SweepTicket) return Category.Etc;
+            if (t == MaterialType.StarShard || StaminaValue(t) > 0 || IsSelector(t) || GiftExp(t) > 0 || t == MaterialType.SweepTicket || t == MaterialType.GuildCoin) return Category.Etc;
             return Category.Skill;
         }
 
@@ -154,7 +156,7 @@ namespace SubcultureRPG.Meta
             {
                 MaterialType.SkillBook, MaterialType.SkillBookBlue, MaterialType.SkillBookPurple, MaterialType.SkillLegend,
                 MaterialType.EquipOre, MaterialType.EquipEssence, MaterialType.RefineStone, MaterialType.StarShard, MaterialType.StaminaSmall, MaterialType.StaminaLarge, MaterialType.SweepTicket,
-                MaterialType.Select5, MaterialType.Select6, MaterialType.Select6All,
+                MaterialType.Select5, MaterialType.Select6, MaterialType.Select6All, MaterialType.GuildCoin,
                 MaterialType.GiftSmall, MaterialType.GiftMedium, MaterialType.GiftLarge,
             };
             foreach (var e in Traits.AllElements)
@@ -269,6 +271,7 @@ namespace SubcultureRPG.Meta
                 MaterialType.Select5 => "<color=#FFD36B>용도</color>\n태생 5★ 캐릭터 1명을 골라 영입합니다. 이미 가진 캐릭터를 고르면 합성 · 초월에 쓰는 중복이 됩니다.\n가방에서 선택 후 '사용'\n\n<color=#FFD36B>획득처</color>\n신규 지휘관 출석 3일째",
                 MaterialType.Select6 => "<color=#FFD36B>용도</color>\n태생 6★ 캐릭터 1명을 골라 영입합니다(지금 픽업 중인 캐릭터는 제외). 이미 가진 캐릭터를 고르면 초월에 쓰는 중복이 됩니다.\n가방에서 선택 후 '사용'\n\n<color=#FFD36B>획득처</color>\n신규 지휘관 출석 7일째",
                 MaterialType.Select6All => "<color=#FFD36B>용도</color>\n태생 6★ 캐릭터 1명을 골라 영입합니다. <color=#FFD36B>지금 픽업 중인 캐릭터도 고를 수 있습니다.</color> 이미 가진 캐릭터를 고르면 초월에 쓰는 중복이 됩니다.\n가방에서 선택 후 '사용'\n\n<color=#FFD36B>획득처</color>\n운영 선물",
+                MaterialType.GuildCoin => "<color=#FFD36B>용도</color>\n상점의 '길드 상점'에서 비전서 · 재련석 · 뽑기권 등과 교환\n\n<color=#FFD36B>획득처</color>\n길드 출석(30) · 기부(1회 20) · 길드 보스 단계 보상 · 주간 길드 순위 보상",
                 MaterialType.EquipEssence => "<color=#FFD36B>용도</color>\n장비 선택 제작 (장비 화면 '제작')\n세트 · 부위 · 주옵션 중 고르는 항목이 많을수록 많이 필요합니다\n\n<color=#FFD36B>획득처</color>\n장비 분해 (6★ 8개 · 5★ 4개 · 4★ 2개 · 3★ 1개, 강화 4단계마다 +1)",
                 MaterialType.RefineStone => "<color=#FFD36B>용도</color>\n장비 주옵션 재련 (몸 · 발 · 목걸이 · 반지의 주옵션을 다른 것으로 다시 뽑기)\n\n<color=#FFD36B>획득처</color>\n무한의 탑 25층마다 · 주간 보스 누적 점수 최종 단계 · 크리스탈 상점(주 1개)",
                 MaterialType.EquipOre => "<color=#FFD36B>용도</color>\n장비 강화 (금화 필요)\n\n<color=#FFD36B>획득처</color>\n특수 던전 · 장비 던전\n장비 분해 · 상점 (일반 상점)",
