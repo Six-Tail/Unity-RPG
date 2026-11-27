@@ -27,7 +27,7 @@ MonoBehaviour:
   - spring
   - swift
   equipmentDrops: 2
-  equipmentRarityWeights: 50000000140000000000000000000000
+  equipmentRarityWeights: 32000000230000000f000000000000000000000000000000
   unlockAfter: {fileID: 11400000, guid: 720048dfcffdaa745bab3581c1195784, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: 24d54f7b5de1f9a41932029e77ebceed, type: 2}

@@ -340,8 +340,9 @@ namespace SubcultureRPG.Meta.UI
             if (cost < 0) { Toast($"오늘은 도전권을 모두 구매했습니다 ({max}/{max}, 매일 05:00 초기화)"); return; }
             var wallet = FindAnyObjectByType<PlayerWallet>();
             int have = wallet != null ? wallet.Crystals : 0;
+            string next = bought + 1 < max ? $"다음 1장은 <color=#8FE9FF>{PlayerArena.BuyCosts[bought + 1]:N0}</color>" : "오늘 마지막 구매";
             Confirm($"<color=#8FE9FF>크리스탈 {cost:N0}</color>개로 결투장 도전권 1장을 구매할까요?\n" +
-                    $"<size=80%><color=#9AA3B5>보유 크리스탈 <color={(have >= cost ? "#FFFFFF" : "#FF8A8A")}>{have:N0}</color>  ·  오늘 구매 {bought} / {max}</color></size>",
+                    $"<size=80%><color=#9AA3B5>보유 크리스탈 <color={(have >= cost ? "#FFFFFF" : "#FF8A8A")}>{have:N0}</color>  ·  오늘 구매 {bought} / {max}  ·  {next}</color></size>",
                 "구매", () =>
                 {
                     string err = a.BuyTicket();

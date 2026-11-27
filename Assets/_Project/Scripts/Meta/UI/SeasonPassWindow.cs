@@ -45,8 +45,12 @@ namespace SubcultureRPG.Meta.UI
                     17, Color.white, TextAlignmentOptions.Left, 36, -204, 1100, 28);
 
                 // 프리미엄
+                // 단계 구매(크리스탈로 건너뛰기)
+                int buyable = pass.BuyableLevels;
+                w.Btn(body, buyable > 0 ? $"단계 구매\n<size=65%>1단계 = 크리스탈 {SeasonPass.LevelPrice}</size>" : "단계 구매\n<size=65%>최대 단계</size>", 24, Gold,
+                    960, -84, 324, 84, () => OpenBuyLevels(pass, w.Font, Rebuild), buyable > 0).GetComponentInChildren<TextMeshProUGUI>().lineSpacing = -14f;
                 if (pass.Premium)
-                    w.Text(body, "<color=#C9B6FF><b>프리미엄 패스 사용 중</b></color>", 24, Color.white, TextAlignmentOptions.Right, 1000, -98, 620, 40);
+                    w.Text(body, "<color=#C9B6FF><b>프리미엄 패스 사용 중</b></color>", 24, Color.white, TextAlignmentOptions.Center, 1300, -106, 324, 40);
                 else
                     w.Btn(body, $"프리미엄 패스 열기\n<size=65%>크리스탈 {SeasonPass.PremiumPrice}</size>", 24, Violet, 1300, -84, 324, 84, () =>
                     {
@@ -138,5 +142,42 @@ namespace SubcultureRPG.Meta.UI
 
             Rebuild();
         }
-    }
+    
+        /// <summary>단계 구매 창: - / + 로 개수 고르고 크리스탈로 건너뛰기.</summary>
+        private static void OpenBuyLevels(SeasonPass pass, TMP_FontAsset font, System.Action done)
+        {
+            int max = pass.BuyableLevels;
+            if (max <= 0) return;
+            var w = OverlayWindow.Open("단계 구매", 720, 470, font);
+            var body = UIFactory.NewRect("Body", w.Panel);
+            UIFactory.Stretch(body);
+            int n = 1;
+            void Draw()
+            {
+                if (!w.IsOpen) return;
+                OverlayWindow.Clear(body);
+                int cost = n * SeasonPass.LevelPrice, lv = pass.Level;
+                var wallet = Object.FindAnyObjectByType<PlayerWallet>();
+                int have = wallet != null ? wallet.Crystals : 0;
+                w.Text(body, $"<color=#FFD36B>Lv.{lv}</color>  →  <color=#FFD36B><b>Lv.{Mathf.Min(SeasonPass.MaxLevel, lv + n)}</b></color>", 40, Color.white, TextAlignmentOptions.Center, 0, -92, 720, 56);
+                w.Btn(body, "-10", 26, new Color(1, 1, 1, 0.14f), 110, -170, 90, 70, () => { n = Mathf.Max(1, n - 10); Draw(); }, n > 1);
+                w.Btn(body, "-", 34, new Color(1, 1, 1, 0.14f), 210, -170, 90, 70, () => { n = Mathf.Max(1, n - 1); Draw(); }, n > 1);
+                w.Text(body, $"<b>{n}</b><size=60%>단계</size>", 40, Color.white, TextAlignmentOptions.Center, 300, -172, 120, 66);
+                w.Btn(body, "+", 34, new Color(1, 1, 1, 0.14f), 420, -170, 90, 70, () => { n = Mathf.Min(max, n + 1); Draw(); }, n < max);
+                w.Btn(body, "+10", 26, new Color(1, 1, 1, 0.14f), 520, -170, 90, 70, () => { n = Mathf.Min(max, n + 10); Draw(); }, n < max);
+                w.Text(body, $"<color=#8FE9FF>크리스탈 {cost:N0}</color>  <size=75%><color=#9AA3B5>보유 <color={(have >= cost ? "#FFFFFF" : "#FF8A8A")}>{have:N0}</color></color></size>",
+                    28, Color.white, TextAlignmentOptions.Center, 0, -262, 720, 40);
+                w.Text(body, "<color=#9AA3B5>이번 단계에 쌓인 경험치는 그대로 이어집니다 · 최대 " + SeasonPass.MaxLevel + "단계</color>", 18, Color.white, TextAlignmentOptions.Center, 0, -306, 720, 30);
+                w.Btn(body, "구매", 28, new Color(0.85f, 0.62f, 0.22f, 0.96f), 210, -360, 300, 72, () =>
+                {
+                    string err = pass.BuyLevels(n);
+                    if (err != null) { Popups.Show("단계 구매", err); return; }
+                    w.Close();
+                    done?.Invoke();
+                    Popups.Show("단계 구매", $"시즌 패스 <color=#FFD36B>Lv.{pass.Level}</color>이 되었습니다.\n새로 열린 단계 보상을 받아 가세요.");
+                }, have >= cost);
+            }
+            Draw();
+        }
+}
 }

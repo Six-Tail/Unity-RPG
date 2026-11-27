@@ -38,7 +38,7 @@ namespace SubcultureRPG.Meta.UI
         private GameObject _root, _picker;
         private PlayerMissions _missions;
         private PlayerCodex _codex;
-        private TextMeshProUGUI _missionLabel, _rosterText, _assistName, _bubbleText;
+        private TextMeshProUGUI _rosterText, _assistName, _bubbleText;
         private Image _assistant;
         private RectTransform _assistRt, _bubble, _pickerGrid;
         private StarRow _assistStars;
@@ -118,6 +118,8 @@ namespace SubcultureRPG.Meta.UI
         public void Show(bool on)
         {
             if (_root != null) _root.SetActive(on);
+            if (_menuPop != null) _menuPop.SetActive(false);
+            if (on && _hub != null && _hub.activeSelf && !Tutorial.Finished) OpenModeHub(false);
             if (on) { _shown = null; Refresh(); }
             else if (_picker != null) _picker.SetActive(false);
         }
@@ -405,6 +407,7 @@ namespace SubcultureRPG.Meta.UI
             // 도감은 프로필에서 — 받을 수집 보상 · 호감도 보상(새 개인 스토리)이 있으면 프로필 배지에 점
             if (_profileBadge != null)
                 _profileBadge.Set((_codex != null && _codex.ClaimableCount() > 0) || PlayerBond.Instance.NoticeCount(roster) > 0);
+            if (_menuCodexBadge != null) RefreshBadges();
             if (_rosterText == null) return;
             int owned = roster != null ? roster.Owned.Count : 0;
             string count = _codex != null && _codex.Total > 0 ? $"{_codex.OwnedCount} / {_codex.Total}" : $"{owned}명";
@@ -415,9 +418,7 @@ namespace SubcultureRPG.Meta.UI
         /// <summary>임무 타일: 받을 보상 수 + 빨간 느낌표.</summary>
         private void RefreshMissionBadge()
         {
-            if (_missionLabel == null) return;
             int n = (_missions != null ? _missions.ClaimableCount() : 0) + PlayerAchievements.Instance.ClaimableCount();
-            _missionLabel.text = n > 0 ? $"임무\n<size=55%>받을 보상 {n}개</size>" : "임무\n<size=55%>일일 · 주간 · 업적</size>";
             if (_missionBadge != null) _missionBadge.Set(n > 0);
         }
 
@@ -528,71 +529,41 @@ namespace SubcultureRPG.Meta.UI
             // 재화(오른쪽 위): 크리스탈 · 금화 알약
             CurrencyBar.Create(root, font, wallet, new Vector2(-50, -36), Currency.Crystal, Currency.Gold);
 
-            // 메뉴(오른쪽): 스테이지(크게) → 가챠 → 2열 타일
-            const float cx = 590f, w = 580f;
-            var stage = _stageTile = Tile(root, "스테이지\n<size=50%>출격하고 보상 획득</size>", new Color(0.85f, 0.42f, 0.25f, 0.96f), new Vector2(cx, 268), new Vector2(w, 170), 52, () => Nav(HubScreen.Stage));
-            var gachaBtn = Tile(root, "가챠\n<size=50%>캐릭터 소환</size>", new Color(0.78f, 0.56f, 0.2f, 0.96f), new Vector2(cx, 118), new Vector2(w, 110), 42, () => Nav(HubScreen.Gacha));
-
-            // 2열 타일: 육성 · 임무 / 결투장 · 주간 보스 (상점 · 가방은 오른쪽 위 아이콘, 도감 · 대표 변경은 프로필에서)
-            float tw = (w - 16f) / 2f, lx = cx - (tw + 16f) / 2f, rx = cx + (tw + 16f) / 2f;
-            var growthTile = Tile(root, "육성\n<size=55%>레벨 · 스킬 · 초월</size>", new Color(0.33f, 0.55f, 0.4f, 0.95f), new Vector2(lx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Growth));
-            var mission = Tile(root, "", new Color(0.3f, 0.45f, 0.8f, 0.95f), new Vector2(rx, -10), new Vector2(tw, 112), 34, () => Nav(HubScreen.Mission));
-            _missionLabel = mission.GetComponentInChildren<TextMeshProUGUI>();
-            _arenaColor = new Color(0.72f, 0.3f, 0.3f, 0.95f); _raidColor = new Color(0.45f, 0.3f, 0.7f, 0.95f);
-            var arenaBtn = Tile(root, "", new Color(0.72f, 0.3f, 0.3f, 0.95f), new Vector2(lx, -136), new Vector2(tw, 112), 34, () => Nav(HubScreen.Arena));
-            _arenaLabel = arenaBtn.GetComponentInChildren<TextMeshProUGUI>();
-            _arenaTile = arenaBtn;
-            TileIcon(arenaBtn, "Items/ArenaCoin");
-            var raidBtn = Tile(root, "", new Color(0.45f, 0.3f, 0.7f, 0.95f), new Vector2(rx, -136), new Vector2(tw, 112), 34, () => Nav(HubScreen.Raid));
-            _raidLabel = raidBtn.GetComponentInChildren<TextMeshProUGUI>();
-            _raidTile = raidBtn;
-            TileIcon(raidBtn, "Items/RaidIcon");
-            var guildBtn = Tile(root, "", new Color(0.25f, 0.42f, 0.62f, 0.95f), new Vector2(lx, -262), new Vector2(tw, 112), 34, () => Nav(HubScreen.Guild));
-            _guildLabel = guildBtn.GetComponentInChildren<TextMeshProUGUI>();
-            TileIcon(guildBtn, "Items/GuildIcon");
-            var friendBtn = Tile(root, "", new Color(0.62f, 0.38f, 0.52f, 0.95f), new Vector2(rx, -262), new Vector2(tw, 112), 34, () => Nav(HubScreen.Friends));
-            _friendLabel = friendBtn.GetComponentInChildren<TextMeshProUGUI>();
-            TileIcon(friendBtn, "Items/FriendIcon");
-            var dispatchBtn = Tile(root, "", new Color(0.3f, 0.5f, 0.45f, 0.95f), new Vector2(lx, -388), new Vector2(tw, 112), 34, () => Nav(HubScreen.Dispatch));
-            _dispatchLabel = dispatchBtn.GetComponentInChildren<TextMeshProUGUI>();
-            _dispatchTile = dispatchBtn;
-            TileIcon(dispatchBtn, "Items/DispatchIcon");
-            var towerBtn = Tile(root, "", new Color(0.55f, 0.42f, 0.25f, 0.95f), new Vector2(rx, -388), new Vector2(tw, 112), 34, () => Nav(HubScreen.Tower));
-            _towerLabel = towerBtn.GetComponentInChildren<TextMeshProUGUI>();
-            _towerTile = towerBtn;
-            TileIcon(towerBtn, "Items/TowerIcon");
-
-            // 상점 · 가방: 재화 알약 왼쪽 아이콘
-            IconButton(root, "Items/UiShop", "상점", new Vector2(-50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14 - 78, -30), () => Nav(HubScreen.Shop));
-            IconButton(root, "Items/UiBag", "가방", new Vector2(-50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14, -30), () => Nav(HubScreen.Bag));
-            // 출석부 · 우편함(받을 것이 있으면 빨간 느낌표)
-            float iconX = -50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14 - 78;
-            var attend = IconButton(root, "Items/UiAttendance", "출석", new Vector2(iconX - 78, -30), () => AttendanceWindow.Open(font));
-            var mailBtn = IconButton(root, "Items/UiMail", "우편", new Vector2(iconX - 156, -30), () => MailWindow.Open(font));
-            var passBtn = IconButton(root, "Items/UiPass", "패스", new Vector2(iconX - 234, -30), () => SeasonPassWindow.Open(font));
-            IconButton(root, "Items/UiSettings", "설정", new Vector2(iconX - 312, -30), () => SettingsWindow.Open(font));
-
-            // 빨간 느낌표: 받지 않은 보상 · 할 일이 있는 곳
-            _attendBadge = NotifyBadge.Attach(attend, font, 8, 8, 28);
+            // 위쪽 아이콘(재화 왼쪽): 메뉴(시즌 패스 · 도감 · 프로필 · 설정) · 우편 · 출석
+            float iconX = -50 - 2 * CurrencyBar.PillW - CurrencyBar.Gap - 14;
+            var menuBtn = IconButton(root, "Items/UiMenu", "메뉴", new Vector2(iconX, -30), ToggleMenu);
+            var mailBtn = IconButton(root, "Items/UiMail", "우편", new Vector2(iconX - 78, -30), () => MailWindow.Open(font));
+            var attend = IconButton(root, "Items/UiAttendance", "출석", new Vector2(iconX - 156, -30), () => AttendanceWindow.Open(font));
+            _menuBadge = NotifyBadge.Attach(menuBtn, font, 8, 8, 28);
             _mailBadge = NotifyBadge.Attach(mailBtn, font, 8, 8, 28);
-            _passBadge = NotifyBadge.Attach(passBtn, font, 8, 8, 28);
-            _stageBadge = NotifyBadge.Attach(stage, font);
-            _missionBadge = NotifyBadge.Attach(mission, font);
-            _raidBadge = NotifyBadge.Attach(raidBtn, font);
-            _guildBadge = NotifyBadge.Attach(guildBtn, font);
-            _friendBadge = NotifyBadge.Attach(friendBtn, font);
-            _dispatchBadge = NotifyBadge.Attach(dispatchBtn, font);
+            _attendBadge = NotifyBadge.Attach(attend, font, 8, 8, 28);
+
+            // 오른쪽: 출격(크게) · 소환 — 콘텐츠는 출격 화면에 모아 둠
+            _sortieBtn = BigButton(root, "Sortie", "Backgrounds/stage", "Items/UiSortie", new Color(0.95f, 0.62f, 0.3f, 1f),
+                new Vector2(620, 180), new Vector2(600, 400), 76, out _sortieTitle, out _sortieSub, () => OpenModeHub(true));
+            _sortieTitle.text = "출격";
+            _sortieBadge = NotifyBadge.Attach(_sortieBtn, font, 10, 10, 40);
+            _summonBtn = BigButton(root, "Summon", "Backgrounds/gacha", "Items/UiSummon", new Color(1f, 0.82f, 0.4f, 1f),
+                new Vector2(620, -155), new Vector2(600, 230), 58, out var summonTitle, out _summonSub, OpenSummon);
+            summonTitle.text = "소환";
+            BuildSummonArt();
+            BuildSummonPager();
+
+            BuildDock(root);
+            BuildMenuPopup(iconX);
+            BuildModeHub();
+
             PlayerDispatch.Instance.OnChanged += RefreshModeTiles;
             PlayerTower.Instance.OnChanged += RefreshModeTiles;
 
-            // 튜토리얼이 가리킬 곳
-            TutorialTargets.Set("home.stage", stage);
-            TutorialTargets.Set("home.growth", growthTile);
+            // 튜토리얼이 가리킬 곳(출격 화면이 열려 있으면 스테이지 카드)
+            TutorialTargets.Set("home.stage", _sortieBtn);
+            TutorialTargets.Set("home.growth", _growthDock);
 
             BuildPicker();
         }
 
-        private TextMeshProUGUI _arenaLabel, _raidLabel, _guildLabel, _friendLabel, _eventLabel;
+        private TextMeshProUGUI _eventLabel;
         private Image _eventBg;
         private BackgroundArt _eventArt;
         private NotifyBadge _eventBadge;
@@ -693,13 +664,16 @@ namespace SubcultureRPG.Meta.UI
                                (open ? $"<size=55%><color=#E8E8F0>남은 {(t.Days > 0 ? $"{t.Days}일" : $"{t.Hours}시간")}</color></size>"
                                      : $"<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.EventChapter)}</color></size>");
             var ev = LimitedEvent.Instance;
-            _eventBadge.Set(open && (ev.ClaimableCount > 0 || ev.AttemptsLeft == LimitedEvent.AttemptsPerDay));
+            _eventHas = open && (ev.ClaimableCount > 0 || ev.AttemptsLeft == LimitedEvent.AttemptsPerDay);
+            _eventBadge.Set(_eventHas);
+            if (_eventCard != null)
+            {
+                _eventCard.SetLocked(!open, FeatureGate.LockText(FeatureGate.EventChapter));
+                if (open) _eventCard.Status.text = $"남은 <color=#FFE08A>{(t.Days > 0 ? $"{t.Days}일" : $"{t.Hours}시간")}</color> · 오늘 {ev.AttemptsLeft}/{LimitedEvent.AttemptsPerDay}회";
+            }
         }
 
-        private NotifyBadge _profileBadge, _stageBadge, _missionBadge, _raidBadge, _guildBadge, _friendBadge, _mailBadge, _attendBadge, _passBadge;
-        private Button _stageTile, _arenaTile, _raidTile, _dispatchTile, _towerTile;
-        private TextMeshProUGUI _dispatchLabel, _towerLabel;
-        private NotifyBadge _dispatchBadge;
+        private NotifyBadge _profileBadge, _missionBadge, _guildBadge, _friendBadge, _mailBadge, _attendBadge;
         private float _dispatchTick;
         private int _dispatchDone = -1;
 
@@ -707,13 +681,18 @@ namespace SubcultureRPG.Meta.UI
         {
             // 파견은 시간이 지나면 끝나므로 홈에 있는 동안 가끔 확인(끝나면 느낌표)
             if (_root == null || !_root.activeSelf) return;
+            // 소환 버튼: 가만히 두면 7초마다 다음 배너(끄는 중 · 출격 화면이 덮고 있을 때는 멈춤)
+            if (_summonSwipe != null && !_summonSwipe.Dragging && (_hub == null || !_hub.activeSelf))
+            {
+                _summonAuto -= Time.unscaledDeltaTime;
+                if (_summonAuto <= 0f) { if (SummonBanners().Count > 1) ShowSummon(_summonIndex + 1); else _summonAuto = 7f; }
+            }
             _dispatchTick -= Time.unscaledDeltaTime;
             if (_dispatchTick > 0f) return;
             _dispatchTick = 5f;
             int done = PlayerDispatch.Instance.DoneCount;
             if (done != _dispatchDone) { _dispatchDone = done; RefreshModeTiles(); }
         }
-        private Color _arenaColor, _raidColor;
         private StageScreen _stageScreen;
         private StageProgress _stageProgress;
 
@@ -723,93 +702,116 @@ namespace SubcultureRPG.Meta.UI
             if (_mailBadge == null) return;
             _mailBadge.Set(PlayerMail.Instance.UnclaimedCount > 0);
             _attendBadge.Set(PlayerAttendance.Instance.CanClaimAny);
-            if (_passBadge != null) _passBadge.Set(SeasonPass.Instance.ClaimableCount() > 0);
+            bool pass = SeasonPass.Instance.ClaimableCount() > 0;
+            bool codex = _codex != null && _codex.ClaimableCount() > 0;
+            if (_menuPassBadge != null) _menuPassBadge.Set(pass);
+            if (_menuCodexBadge != null) _menuCodexBadge.Set(codex);
+            if (_menuBadge != null) _menuBadge.Set(pass || codex);
             _missionBadge.Set((_missions != null && _missions.ClaimableCount() > 0) || PlayerAchievements.Instance.ClaimableCount() > 0);
-            _raidBadge.Set(FeatureGate.RaidOpen && (WorldRaid.Instance.ClaimableCount > 0 || ServerRaid.Instance.ClaimableCount > 0));
             _guildBadge.Set(PlayerGuild.Instance.BadgeCount > 0);
             _friendBadge.Set(PlayerSocial.Instance.BadgeCount > 0);
+
+            // 출격 화면 카드 → 홈의 출격 버튼 하나로 묶어서
             if (_stageScreen == null) _stageScreen = FindAnyObjectByType<StageScreen>();
             if (_stageProgress == null) _stageProgress = FindAnyObjectByType<StageProgress>();
-            _stageBadge.Set(_stageScreen != null && ChapterStarRewards.ClaimableTotal(_stageScreen.Database, _stageProgress) > 0);
+            int stars = _stageScreen != null ? ChapterStarRewards.ClaimableTotal(_stageScreen.Database, _stageProgress) : 0;
+            bool raid = FeatureGate.RaidOpen && (WorldRaid.Instance.ClaimableCount > 0 || ServerRaid.Instance.ClaimableCount > 0);
+            if (_stageCard != null) _stageCard.Badge.Set(stars > 0);
+            if (_raidCard != null) _raidCard.Badge.Set(raid);
+            if (_dispatchCard != null) _dispatchCard.Badge.Set(_dispatchHas);
+            if (_eventCard != null) _eventCard.Badge.Set(_eventHas);
+            int todo = (stars > 0 ? 1 : 0) + (raid ? 1 : 0) + (_dispatchHas ? 1 : 0) + (_eventHas ? 1 : 0);
+            if (_sortieBadge != null) _sortieBadge.Set(todo > 0);
+            if (_sortieSub != null)
+            {
+                int cleared = FeatureGate.ClearedChapters();
+                string story = cleared > 0 ? $"스토리 {cleared}장 클리어" : "스토리 · 결투장 · 레이드 · 탑 · 파견";
+                _sortieSub.text = todo > 0 ? $"{story}  <color=#FFD36B>· 받을 보상 {todo}곳</color>" : story;
+            }
         }
 
-        /// <summary>잠긴 타일은 어둡게.</summary>
-        private static void TileLocked(Button tile, bool locked, Color normal)
-        {
-            if (tile == null) return;
-            tile.image.color = locked ? new Color(0.26f, 0.27f, 0.32f, 0.9f) : normal;
-        }
-
-        /// <summary>결투장 · 주간 보스 · 길드 · 친구 타일 문구 + 잠금 표시 + 빨간 느낌표.</summary>
+        /// <summary>출격 화면 카드 문구 · 잠금 · 빨간 느낌표 + 홈의 출격 버튼 요약.</summary>
         private void RefreshModeTiles()
         {
             int cleared = FeatureGate.ClearedChapters();
-            if (_arenaLabel != null)
+            if (_stageCard != null)
+                _stageCard.Status.text = cleared > 0 ? $"<color=#FFE08A>{cleared}장</color> 클리어 · 특수 던전" : "첫 전투를 시작해 보세요";
+            if (_arenaCard != null)
             {
                 bool open = cleared >= FeatureGate.ArenaChapter;
-                TileLocked(_arenaTile, !open, _arenaColor);
-                if (!open) _arenaLabel.text = $"결투장\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.ArenaChapter)}</color></size>";
-                else
+                _arenaCard.SetLocked(!open, FeatureGate.LockText(FeatureGate.ArenaChapter));
+                if (open)
                 {
                     var a = PlayerArena.Instance;
                     var (tier, _) = a.MyTier;
-                    _arenaLabel.text = $"결투장\n<size=55%>{tier} · {a.MyRank}위 · {a.Tickets}/{PlayerArena.MaxTickets}</size>";
+                    _arenaCard.Status.text = $"{tier} · {a.MyRank}위 · 도전권 <color=#FFE08A>{a.Tickets}/{PlayerArena.MaxTickets}</color>";
                 }
             }
-            if (_raidLabel != null)
+            if (_raidCard != null)
             {
                 bool open = cleared >= FeatureGate.RaidChapter;
-                TileLocked(_raidTile, !open, _raidColor);
-                if (!open) _raidLabel.text = $"레이드\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.RaidChapter)}</color></size>";
-                else
+                _raidCard.SetLocked(!open, FeatureGate.LockText(FeatureGate.RaidChapter));
+                if (open)
                 {
                     var r = WorldRaid.Instance;
-                    _raidLabel.text = $"레이드\n<size=55%>주간 {r.AttemptsLeft}/{WorldRaid.AttemptsPerDay} · 월드 {ServerRaid.Instance.AttemptsLeft}/{ServerRaid.AttemptsPerDay}</size>";
+                    _raidCard.Status.text = $"주간 <color=#FFE08A>{r.AttemptsLeft}/{WorldRaid.AttemptsPerDay}</color> · 월드 <color=#FFE08A>{ServerRaid.Instance.AttemptsLeft}/{ServerRaid.AttemptsPerDay}</color>";
                 }
             }
-            if (_guildLabel != null)
-            {
-                var g = PlayerGuild.Instance;
-                _guildLabel.text = $"길드\n<size=55%>{(g.Joined ? $"{g.Name} Lv.{g.Level}" : "가입 · 창설")}</size>";
-            }
-            if (_friendLabel != null)
-            {
-                var so = PlayerSocial.Instance;
-                _friendLabel.text = $"친구\n<size=55%>{so.Friends.Count}/{PlayerSocial.MaxFriends}명</size>";
-            }
-            if (_dispatchLabel != null)
+            _dispatchHas = false;
+            if (_dispatchCard != null)
             {
                 bool open = cleared >= FeatureGate.DispatchChapter;
-                TileLocked(_dispatchTile, !open, new Color(0.3f, 0.5f, 0.45f, 0.95f));
+                _dispatchCard.SetLocked(!open, FeatureGate.LockText(FeatureGate.DispatchChapter));
                 var dp = PlayerDispatch.Instance;
                 int done = dp.DoneCount;
-                _dispatchLabel.text = !open ? $"파견\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.DispatchChapter)}</color></size>"
-                    : done > 0 ? $"파견\n<size=55%><color=#7CFF9A>완료 {done}팀 · 받기</color></size>"
-                    : $"파견\n<size=55%>진행 {dp.Actives.Count}/{PlayerDispatch.MaxActive}팀</size>";
-                if (_dispatchBadge != null) _dispatchBadge.Set(open && done > 0);
+                _dispatchHas = open && done > 0;
+                if (open) _dispatchCard.Status.text = done > 0 ? $"<color=#7CFF9A>완료 {done}팀 · 받기</color>" : $"진행 {dp.Actives.Count}/{PlayerDispatch.MaxActive}팀";
             }
-            if (_towerLabel != null)
+            if (_towerCard != null)
             {
                 bool open = cleared >= FeatureGate.TowerChapter;
-                TileLocked(_towerTile, !open, new Color(0.55f, 0.42f, 0.25f, 0.95f));
-                _towerLabel.text = !open ? $"무한의 탑\n<size=55%><color=#FFB3B3>{FeatureGate.LockText(FeatureGate.TowerChapter)}</color></size>"
-                    : $"무한의 탑\n<size=55%>최고 {PlayerTower.Instance.Cleared}층</size>";
+                _towerCard.SetLocked(!open, FeatureGate.LockText(FeatureGate.TowerChapter));
+                if (open) _towerCard.Status.text = $"최고 <color=#FFE08A>{PlayerTower.Instance.Cleared}층</color>";
             }
             RefreshEventBanner();
             RefreshBadges();
+            RefreshSummon();
         }
 
-        /// <summary>타일 왼쪽에 아이콘(글자는 오른쪽으로 밀림).</summary>
-        private static void TileIcon(Button tile, string icon)
+        /// <summary>홈 소환 버튼: 대표 픽업 캐릭터 그림 + 이름.</summary>
+        private void RefreshSummon()
         {
-            var sp = GameArt.Load(icon);
-            if (sp == null) return;
-            var img = UIFactory.AddImage("Icon", tile.transform, Color.white, sp);
-            img.preserveAspect = true;
-            UIFactory.Anchor(img.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
-            img.rectTransform.sizeDelta = new Vector2(88, 88); img.rectTransform.anchoredPosition = new Vector2(16, 0);
-            var lbl = tile.GetComponentInChildren<TextMeshProUGUI>();
-            if (lbl != null) lbl.rectTransform.offsetMin = new Vector2(96, lbl.rectTransform.offsetMin.y);
+            if (_summonSub == null) return;
+            var list = SummonBanners();
+            if (list.Count > 0) _summonIndex = ((_summonIndex % list.Count) + list.Count) % list.Count;
+            var b = list.Count > 0 ? list[_summonIndex] : null;
+            CharacterData c = null;
+            if (b != null) c = b.IsPickup ? b.featured6 : (b.pool6 != null ? b.pool6.Find(x => x != null) : null);
+            _summonSub.text = b == null ? "캐릭터 소환"
+                : b.IsPickup ? $"<color=#FFE08A>픽업</color>  {(c != null ? c.displayName : b.bannerName)}"
+                : "<color=#9AD4FF>상시</color>  언제나 만날 수 있는 동료";
+            bool many = list.Count > 1;
+            if (_summonPrev != null) { _summonPrev.gameObject.SetActive(many); _summonNext.gameObject.SetActive(many); _summonDots.gameObject.SetActive(many); }
+            if (many && _summonDots != null)
+            {
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < list.Count; i++) sb.Append(i == _summonIndex ? "<color=#FFD36B>●</color> " : "<color=#8A90A0>●</color> ");
+                _summonDots.text = sb.ToString().TrimEnd();
+            }
+            if (_summonArt == null) return;
+            if (c == _summonShown && _summonArt.sprite != null) return;
+            _summonShown = c;
+            var sp = c != null ? (GameArt.Cutout(c) ?? GameArt.Portrait(c)) : null;
+            _summonArt.sprite = sp;
+            _summonArt.enabled = sp != null;
+            if (sp != null)
+            {
+                _summonFit.aspectRatio = sp.rect.width / Mathf.Max(1f, sp.rect.height);
+                // 그림마다 머리 위 빈 공간이 달라(세라핀 18% · 시엘 1%) 투명한 윗부분만큼 끌어올려 머리 높이를 맞춤
+                float h = 330f / _summonFit.aspectRatio;
+                _summonY = 24f + TopGap(sp) * h;
+                _summonArt.rectTransform.anchoredPosition = new Vector2(0, _summonY);
+            }
         }
 
         /// <summary>오른쪽 위 작은 아이콘 버튼(아이콘 + 아래 이름).</summary>
@@ -838,20 +840,448 @@ namespace SubcultureRPG.Meta.UI
             return rt;
         }
 
-        private Button Tile(Transform parent, string label, Color bg, Vector2 pos, Vector2 size, float fontSize, UnityEngine.Events.UnityAction onClick)
+        // ---------------- 출격 · 소환 · 아래 메뉴 바 · 메뉴 ----------------
+
+        private Button _sortieBtn, _summonBtn;
+        private TextMeshProUGUI _sortieTitle, _sortieSub, _summonSub;
+        private NotifyBadge _sortieBadge, _menuBadge, _menuPassBadge, _menuCodexBadge;
+        private Image _summonArt;
+        private AspectRatioFitter _summonFit;
+        private CharacterData _summonShown;
+        private RectTransform _growthDock;
+        private GameObject _menuPop, _hub;
+        private CanvasGroup _hubGroup;
+        private bool _dispatchHas, _eventHas;
+        private ModeCard _stageCard, _arenaCard, _raidCard, _towerCard, _dispatchCard, _eventCard;
+
+        /// <summary>출격 화면의 콘텐츠 카드 1장.</summary>
+        private sealed class ModeCard
         {
-            var btn = UIFactory.AddButton("Menu", parent, label, fontSize, font, bg, Color.white);
-            var rt = (RectTransform)btn.transform;
+            public Button Btn;
+            public TextMeshProUGUI Title, Status, LockText;
+            public NotifyBadge Badge;
+            public GameObject Lock;
+            public BackgroundArt Art;
+
+            /// <summary>잠기면 어둡게 덮고 여는 조건만 보여 줌(눌러도 내비게이터가 안내 창을 띄움).</summary>
+            public void SetLocked(bool locked, string why)
+            {
+                if (Lock.activeSelf != locked) Lock.SetActive(locked);
+                if (locked) { LockText.text = $"<size=120%><b>잠김</b></size>\n<color=#FFB3B3>{why}</color>"; Status.text = ""; Badge.Set(false); }
+            }
+        }
+
+        /// <summary>아래에서 위로 옅어지는 검은 막(카드 위 글씨가 그림에 묻히지 않게).</summary>
+        private static Sprite s_fade;
+        private static Sprite Fade()
+        {
+            if (s_fade != null) return s_fade;
+            var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            for (int y = 0; y < 64; y++) { float k = 1f - y / 63f; tex.SetPixel(0, y, new Color(1f, 1f, 1f, k * k * (3f - 2f * k))); }
+            tex.Apply();
+            return s_fade = Sprite.Create(tex, new Rect(0, 0, 1, 64), new Vector2(0.5f, 0.5f));
+        }
+
+        private void AddFade(RectTransform rt, float height, float alpha)
+        {
+            var shade = UIFactory.AddImage("Shade", rt, new Color(0f, 0f, 0f, alpha), Fade());
+            shade.preserveAspect = false; shade.raycastTarget = false;
+            UIFactory.Anchor(shade.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            shade.rectTransform.sizeDelta = new Vector2(-8, height); shade.rectTransform.anchoredPosition = new Vector2(0, 4);
+        }
+
+        private TextMeshProUGUI CardText(RectTransform rt, string name, float size, Color color, float left, float bottom, float height, bool bold)
+        {
+            var t = UIFactory.AddText(name, rt, "", size, font, color, TextAlignmentOptions.BottomLeft, bold ? FontStyles.Bold : FontStyles.Normal);
+            t.richText = true;
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.enableAutoSizing = true; t.fontSizeMax = size; t.fontSizeMin = size * 0.55f;
+            UIFactory.Anchor(t.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0));
+            t.rectTransform.sizeDelta = new Vector2(-left - 24, height); t.rectTransform.anchoredPosition = new Vector2(left, bottom);
+            SubcultureRPG.UI.TextOutline.Apply(t, bold ? 0.2f : 0.15f, new Color32(8, 10, 18, 235));
+            return t;
+        }
+
+        /// <summary>그림이 깔린 큰 버튼(출격 · 소환): 왼쪽 아래 아이콘 + 이름 + 한 줄 상태.</summary>
+        private Button BigButton(Transform root, string name, string art, string icon, Color accent, Vector2 pos, Vector2 size, float titleSize,
+            out TextMeshProUGUI title, out TextMeshProUGUI sub, UnityEngine.Events.UnityAction onClick)
+        {
+            var bg = UIFactory.AddImage(name, root, accent, ProceduralSprites.Rounded, raycast: true);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            var rt = bg.rectTransform;
             UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             rt.sizeDelta = size; rt.anchoredPosition = pos;
-            var lbl = btn.GetComponentInChildren<TextMeshProUGUI>();
-            lbl.richText = true;
-            lbl.lineSpacing = -6f;
-            // 글이 길어도 타일 밖으로 넘치거나 잘리지 않게 줄여서 맞춤(아이콘 있는 타일은 글 칸이 좁음)
-            lbl.enableAutoSizing = true; lbl.fontSizeMax = fontSize; lbl.fontSizeMin = fontSize * 0.5f;
-            lbl.textWrappingMode = TextWrappingModes.NoWrap;   // 줄은 직접 넣은 줄바꿈으로만 나눔 → 길면 줄바꿈 대신 글자를 줄임
+            var btn = bg.gameObject.AddComponent<Button>();
+            btn.targetGraphic = bg;
             btn.onClick.AddListener(onClick);
+            bg.gameObject.AddComponent<ButtonFx>();
+            BackgroundArt.Create(rt, 0.12f).Set(art);
+            if (rt.Find("BackgroundArt") is RectTransform clip) UIFactory.Stretch(clip, 4, 4, 4, 4);   // 테두리 색이 보이게 살짝 안쪽
+            AddFade(rt, size.y * 0.66f, 0.88f);
+            float iconSize = Mathf.Min(140f, size.y * 0.5f);
+            var sp = GameArt.Load(icon);
+            float left = 30f;
+            if (sp != null)
+            {
+                var im = UIFactory.AddImage("Icon", rt, Color.white, sp);
+                im.preserveAspect = true; im.raycastTarget = false;
+                UIFactory.Anchor(im.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+                im.rectTransform.sizeDelta = new Vector2(iconSize, iconSize); im.rectTransform.anchoredPosition = new Vector2(20, 18);
+                var sh = im.gameObject.AddComponent<Shadow>();
+                sh.effectColor = new Color(0, 0, 0, 0.6f); sh.effectDistance = new Vector2(0, -3);
+                left = iconSize + 32f;
+            }
+            title = CardText(rt, "Title", titleSize, Color.white, left, 56, titleSize * 1.15f, true);
+            sub = CardText(rt, "Sub", 26, new Color(0.9f, 0.92f, 0.97f), left + 2, 20, 36, false);
             return btn;
+        }
+
+        // 소환 버튼은 배너를 넘겨 봄: 픽업(여러 개) → 상시. 누르면 지금 보이는 배너의 뽑기 화면으로
+        private int _summonIndex;
+        private float _summonAuto;
+        private Button _summonPrev, _summonNext;
+        private TextMeshProUGUI _summonDots;
+        private SwipeArea _summonSwipe;
+
+        private List<GachaBanner> SummonBanners()
+        {
+            var list = new List<GachaBanner>();
+            if (gacha == null) return list;
+            foreach (var b in gacha.Banners) if (b != null && b.IsPickup) list.Add(b);
+            foreach (var b in gacha.Banners) if (b != null && !b.IsPickup) list.Add(b);
+            return list;
+        }
+
+        private void ShowSummon(int index)
+        {
+            _summonIndex = index;
+            _summonAuto = 7f;
+            RefreshSummon();
+            if (_summonArt != null && _summonArt.enabled && _root.activeInHierarchy)
+            {
+                if (_summonFade != null) StopCoroutine(_summonFade);
+                _summonFade = StartCoroutine(SummonFade());
+            }
+        }
+
+        private Coroutine _summonFade;
+        private float _summonY = 24f;
+
+        /// <summary>그림 위쪽 투명한 부분의 비율(0 ~ 1). 'Tight' 스프라이트는 꼭짓점이 보이는 부분만 감싸므로 그 맨 위로 계산(픽셀을 읽지 않음).</summary>
+        private static float TopGap(Sprite sp)
+        {
+            if (sp == null) return 0f;
+            var v = sp.vertices;
+            if (v == null || v.Length == 0) return 0f;
+            float maxY = float.MinValue;
+            foreach (var p in v) if (p.y > maxY) maxY = p.y;
+            float ppu = sp.pixelsPerUnit, fullH = sp.rect.height / ppu;
+            float top = (sp.rect.height - sp.pivot.y) / ppu;   // 피벗 기준 그림 맨 위
+            return Mathf.Clamp((top - maxY) / Mathf.Max(0.0001f, fullH), 0f, 0.4f);
+        }
+        private IEnumerator SummonFade()
+        {
+            var rt = _summonArt.rectTransform;
+            for (float t = 0; t < 0.22f; t += Time.unscaledDeltaTime)
+            {
+                float k = t / 0.22f;
+                _summonArt.color = new Color(1, 1, 1, k);
+                rt.anchoredPosition = new Vector2(Mathf.Lerp(26f, 0f, k), _summonY);
+                yield return null;
+            }
+            _summonArt.color = Color.white; rt.anchoredPosition = new Vector2(0, _summonY);
+            _summonFade = null;
+        }
+
+        /// <summary>지금 보이는 배너를 골라 둔 채로 뽑기 화면으로.</summary>
+        private void OpenSummon()
+        {
+            if (_summonSwipe != null && _summonSwipe.Dragging) return;   // 넘기려고 끈 것은 누른 것이 아님
+            var list = SummonBanners();
+            if (gacha != null && list.Count > 0) gacha.Select(list[Mathf.Clamp(_summonIndex, 0, list.Count - 1)]);
+            Nav(HubScreen.Gacha);
+        }
+
+        private void BuildSummonPager()
+        {
+            var rt = (RectTransform)_summonBtn.transform;
+            _summonSwipe = _summonBtn.gameObject.AddComponent<SwipeArea>();
+            _summonSwipe.OnSwipe = dir => ShowSummon(_summonIndex + dir);
+            _summonPrev = UIFactory.AddButton("PrevBanner", rt, "<", 30, font, new Color(0f, 0f, 0f, 0.5f), Color.white);
+            var prt = (RectTransform)_summonPrev.transform;
+            UIFactory.Anchor(prt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            prt.sizeDelta = new Vector2(48, 56); prt.anchoredPosition = new Vector2(12, -12);
+            _summonPrev.onClick.AddListener(() => ShowSummon(_summonIndex - 1));
+            _summonNext = UIFactory.AddButton("NextBanner", rt, ">", 30, font, new Color(0f, 0f, 0f, 0.5f), Color.white);
+            var nrt = (RectTransform)_summonNext.transform;
+            UIFactory.Anchor(nrt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            nrt.sizeDelta = new Vector2(48, 56); nrt.anchoredPosition = new Vector2(-12, -12);
+            _summonNext.onClick.AddListener(() => ShowSummon(_summonIndex + 1));
+            _summonDots = UIFactory.AddText("Dots", rt, "", 18, font, Color.white, TextAlignmentOptions.Left);
+            _summonDots.richText = true; _summonDots.raycastTarget = false;
+            UIFactory.Anchor(_summonDots.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            _summonDots.rectTransform.sizeDelta = new Vector2(200, 24); _summonDots.rectTransform.anchoredPosition = new Vector2(72, -28);
+            _summonAuto = 7f;
+        }
+
+        /// <summary>소환 버튼 오른쪽: 대표 픽업 캐릭터 그림(가장자리를 흐려 배경에 녹임).</summary>
+        private void BuildSummonArt()
+        {
+            var rt = (RectTransform)_summonBtn.transform;
+            var mask = UIFactory.NewRect("PickupArt", rt);
+            UIFactory.Anchor(mask, new Vector2(1, 0), new Vector2(1, 1), new Vector2(1, 0.5f));
+            mask.sizeDelta = new Vector2(330, -8); mask.anchoredPosition = new Vector2(-4, 0);
+            mask.gameObject.AddComponent<RectMask2D>().softness = new Vector2Int(80, 0);
+            mask.SetSiblingIndex(1);   // 배경 그림 바로 위, 어두운 막 · 글씨 아래
+            _summonArt = UIFactory.AddImage("Art", mask, Color.white);
+            _summonArt.preserveAspect = false; _summonArt.raycastTarget = false;
+            var art = _summonArt.rectTransform;
+            UIFactory.Anchor(art, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            art.sizeDelta = Vector2.zero; art.anchoredPosition = new Vector2(0, 24);
+            _summonFit = _summonArt.gameObject.AddComponent<AspectRatioFitter>();
+            _summonFit.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+            _summonArt.enabled = false;
+        }
+
+        /// <summary>아래 메뉴 바: 캐릭터 · 편성 · 임무 · 길드 · 친구 · 상점 · 가방.</summary>
+        private void BuildDock(Transform root)
+        {
+            var items = new (string icon, string label, UnityEngine.Events.UnityAction act)[]
+            {
+                ("Items/UiCharacter", "캐릭터", () => Nav(HubScreen.Growth)),
+                ("Items/UiParty", "편성", OpenPartyEdit),
+                ("Items/UiMission", "임무", () => Nav(HubScreen.Mission)),
+                ("Items/GuildIcon", "길드", () => Nav(HubScreen.Guild)),
+                ("Items/FriendIcon", "친구", () => Nav(HubScreen.Friends)),
+                ("Items/UiShop", "상점", () => Nav(HubScreen.Shop)),
+                ("Items/UiBag", "가방", () => Nav(HubScreen.Bag)),
+            };
+            const float itemW = 138f, gap = 6f, h = 128f, pad = 12f;
+            float w = items.Length * itemW + (items.Length - 1) * gap + pad * 2;
+            var bar = UIFactory.AddImage("Dock", root, new Color(0.04f, 0.05f, 0.09f, 0.82f), ProceduralSprites.Rounded, raycast: true);
+            bar.type = Image.Type.Sliced; bar.preserveAspect = false;
+            var brt = bar.rectTransform;
+            UIFactory.Anchor(brt, new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0));
+            brt.sizeDelta = new Vector2(w, h); brt.anchoredPosition = new Vector2(-40, 22);
+            var line = UIFactory.AddImage("Line", brt, new Color(1f, 0.85f, 0.5f, 0.45f));
+            UIFactory.Anchor(line.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            line.rectTransform.sizeDelta = new Vector2(-48, 2); line.rectTransform.anchoredPosition = new Vector2(0, -1);
+            var rts = new RectTransform[items.Length];
+            for (int i = 0; i < items.Length; i++)
+                rts[i] = DockItem(brt, items[i].icon, items[i].label, pad + i * (itemW + gap), itemW, items[i].act);
+            _growthDock = rts[0];
+            _missionBadge = NotifyBadge.Attach(rts[2], font, -20, 0, 28);
+            _guildBadge = NotifyBadge.Attach(rts[3], font, -20, 0, 28);
+            _friendBadge = NotifyBadge.Attach(rts[4], font, -20, 0, 28);
+        }
+
+        private RectTransform DockItem(RectTransform bar, string icon, string label, float x, float w, UnityEngine.Events.UnityAction onClick)
+        {
+            var bg = UIFactory.AddImage(label, bar, Color.white, ProceduralSprites.Rounded, raycast: true);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            var rt = bg.rectTransform;
+            UIFactory.Anchor(rt, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f));
+            rt.sizeDelta = new Vector2(w, -12); rt.anchoredPosition = new Vector2(x, 0);
+            var b = bg.gameObject.AddComponent<Button>();
+            b.targetGraphic = bg;
+            var cb = b.colors;
+            cb.normalColor = new Color(1, 1, 1, 0f); cb.selectedColor = cb.normalColor;
+            cb.highlightedColor = new Color(1, 1, 1, 0.08f); cb.pressedColor = new Color(1, 1, 1, 0.16f);
+            b.colors = cb;
+            b.onClick.AddListener(onClick);
+            bg.gameObject.AddComponent<ButtonFx>();
+            var sp = GameArt.Load(icon);
+            var img = UIFactory.AddImage("Icon", rt, Color.white, sp);
+            img.preserveAspect = true; img.raycastTarget = false;
+            UIFactory.Stretch(img.rectTransform, 26, 34, 26, 4);
+            img.enabled = sp != null;
+            var ish = img.gameObject.AddComponent<Shadow>();
+            ish.effectColor = new Color(0, 0, 0, 0.55f); ish.effectDistance = new Vector2(0, -2);
+            var t = UIFactory.AddText("Label", rt, label, 22, font, Color.white, TextAlignmentOptions.Bottom, FontStyles.Bold);
+            UIFactory.Stretch(t.rectTransform, 0, 4, 0, 0);
+            SubcultureRPG.UI.TextOutline.Apply(t, 0.2f, new Color32(10, 12, 20, 230));
+            return rt;
+        }
+
+        /// <summary>편성: 출격 없이 파티만 짜 두기(다음 출격 때 이 파티가 미리 골라짐).</summary>
+        private void OpenPartyEdit()
+        {
+            var party = FindAnyObjectByType<PartyScreen>();
+            if (party != null) party.SetEditMode();
+            Nav(HubScreen.Party);
+        }
+
+        /// <summary>오른쪽 위 '메뉴': 시즌 패스 · 도감 · 프로필 · 설정.</summary>
+        private void BuildMenuPopup(float iconX)
+        {
+            var blocker = UIFactory.AddImage("Close", _root.transform, new Color(0, 0, 0, 0.35f), null, raycast: true);   // 뒤로 키로도 닫힘
+            UIFactory.Stretch(blocker.rectTransform);
+            _menuPop = blocker.gameObject;
+            var bb = blocker.gameObject.AddComponent<Button>();
+            bb.transition = Selectable.Transition.None;
+            bb.onClick.AddListener(() => _menuPop.SetActive(false));
+            var frame = UIFactory.Frame(blocker.transform);
+            var rows = new (string icon, string label, UnityEngine.Events.UnityAction act)[]
+            {
+                ("Items/UiPass", "시즌 패스", () => SeasonPassWindow.Open(font)),
+                ("Items/UiCodex", "도감", () => Nav(HubScreen.Codex)),
+                ("Items/UiCharacter", "프로필 · 로비 설정", () => ProfilePanel.Open(font, OpenAssistantPicker)),
+                ("Items/UiSettings", "설정", () => SettingsWindow.Open(font)),
+            };
+            const float rowH = 86f, pad = 14f, w = 380f;
+            var panel = UIFactory.AddImage("Panel", frame, new Color(0.08f, 0.09f, 0.14f, 0.98f), ProceduralSprites.Rounded, raycast: true);
+            panel.type = Image.Type.Sliced; panel.preserveAspect = false;
+            var prt = panel.rectTransform;
+            UIFactory.Anchor(prt, new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1));
+            prt.sizeDelta = new Vector2(w, rows.Length * rowH + pad * 2); prt.anchoredPosition = new Vector2(iconX + 20, -108);
+            for (int i = 0; i < rows.Length; i++)
+            {
+                var r = rows[i];
+                var btn = UIFactory.AddButton("Row", prt, r.label, 26, font, new Color(1, 1, 1, 0.06f), Color.white);
+                var rrt = (RectTransform)btn.transform;
+                UIFactory.Anchor(rrt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+                rrt.sizeDelta = new Vector2(-pad * 2, rowH - 8); rrt.anchoredPosition = new Vector2(0, -pad - i * rowH);
+                var act = r.act;
+                btn.onClick.AddListener(() => { _menuPop.SetActive(false); act(); });
+                var sp = GameArt.Load(r.icon);
+                if (sp != null)
+                {
+                    var im = UIFactory.AddImage("Icon", rrt, Color.white, sp);
+                    im.preserveAspect = true; im.raycastTarget = false;
+                    UIFactory.Anchor(im.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f));
+                    im.rectTransform.sizeDelta = new Vector2(62, 62); im.rectTransform.anchoredPosition = new Vector2(12, 0);
+                }
+                var lbl = btn.GetComponentInChildren<TextMeshProUGUI>();
+                lbl.alignment = TextAlignmentOptions.Left;
+                UIFactory.Stretch(lbl.rectTransform, 90, 0, 12, 0);
+                if (i == 0) _menuPassBadge = NotifyBadge.Attach(rrt, font, -24, -22, 28);
+                if (i == 1) _menuCodexBadge = NotifyBadge.Attach(rrt, font, -24, -22, 28);
+            }
+            _menuPop.SetActive(false);
+        }
+
+        private void ToggleMenu()
+        {
+            if (_menuPop == null) return;
+            bool on = !_menuPop.activeSelf;
+            _menuPop.SetActive(on);
+            if (on) _menuPop.transform.SetAsLastSibling();
+        }
+
+        /// <summary>출격 화면: 스토리 · 결투장 · 레이드 / 무한의 탑 · 파견 · 기간 한정 이벤트 카드.</summary>
+        private void BuildModeHub()
+        {
+            var hub = UIFactory.AddImage("ModeHub", _root.transform, new Color(0.05f, 0.06f, 0.1f, 1f), null, raycast: true);
+            UIFactory.Stretch(hub.rectTransform);
+            _hub = hub.gameObject;
+            _hubGroup = _hub.AddComponent<CanvasGroup>();
+            BackgroundArt.Create(hub.transform, 0.66f).Set("Backgrounds/stage");
+            var root = UIFactory.Frame(hub.transform);
+
+            var back = UIFactory.AddButton("BackBtn", root, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
+            var brt = (RectTransform)back.transform;
+            UIFactory.Anchor(brt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            brt.sizeDelta = new Vector2(150, 44); brt.anchoredPosition = new Vector2(30, -34);
+            back.onClick.AddListener(() => OpenModeHub(false));
+            var title = UIFactory.AddText("Title", root, "출격  <size=50%><color=#9AA3B5>도전할 콘텐츠를 고르세요</color></size>", 44, font, Color.white, TextAlignmentOptions.Left, FontStyles.Bold);
+            title.richText = true;
+            UIFactory.Anchor(title.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1));
+            title.rectTransform.sizeDelta = new Vector2(900, 60); title.rectTransform.anchoredPosition = new Vector2(204, -26);
+            CurrencyBar.Create(root, font, wallet, new Vector2(-50, -36), Currency.Stamina, Currency.Crystal);
+
+            var size = new Vector2(560, 388);
+            float dx = size.x + 28f, dy = (size.y + 28f) * 0.5f, cy = -26f;   // 위쪽 행동력(회복 시간 글) 아래로 여유
+            var theme = LimitedEvent.CurrentTheme;
+            string emblem = GameArt.Load(theme.ArtEmblem) != null ? theme.ArtEmblem : LimitedEvent.CoinIcon;
+            _stageCard = Card(root, "스토리 · 스테이지", "메인 스토리 · 하드 · 극악 · 특수 던전", "Backgrounds/stage", "Items/UiSortie",
+                new Color(1f, 0.8f, 0.4f, 1f), new Vector2(-dx, cy + dy), size, () => Nav(HubScreen.Stage));
+            _arenaCard = Card(root, "결투장", "다른 지휘관과 순위 경쟁", "Backgrounds/arena", "Items/ArenaCoin",
+                new Color(0.85f, 0.35f, 0.35f, 1f), new Vector2(0, cy + dy), size, () => Nav(HubScreen.Arena));
+            _raidCard = Card(root, "레이드", "주간 보스 · 월드 보스 협동 토벌", "Backgrounds/raid", "Items/RaidIcon",
+                new Color(0.6f, 0.4f, 0.9f, 1f), new Vector2(dx, cy + dy), size, () => Nav(HubScreen.Raid));
+            _towerCard = Card(root, "무한의 탑", "한 층씩 오르는 고난도 도전", "Backgrounds/tower", "Items/TowerIcon",
+                new Color(0.75f, 0.58f, 0.3f, 1f), new Vector2(-dx, cy - dy), size, () => Nav(HubScreen.Tower));
+            _dispatchCard = Card(root, "파견", "캐릭터를 보내 시간이 지나면 보상", "Backgrounds/dispatch", "Items/DispatchIcon",
+                new Color(0.35f, 0.7f, 0.58f, 1f), new Vector2(0, cy - dy), size, () => Nav(HubScreen.Dispatch));
+            _eventCard = Card(root, "기간 한정 이벤트", theme.name, theme.ArtBackground, emblem,
+                theme.color, new Vector2(dx, cy - dy), size, () => Nav(HubScreen.Event));
+            _hub.SetActive(false);
+        }
+
+        private ModeCard Card(RectTransform root, string title, string desc, string art, string icon, Color accent, Vector2 pos, Vector2 size, UnityEngine.Events.UnityAction onClick)
+        {
+            var bg = UIFactory.AddImage("Card", root, new Color(accent.r, accent.g, accent.b, 1f), ProceduralSprites.Rounded, raycast: true);
+            bg.type = Image.Type.Sliced; bg.preserveAspect = false;
+            var rt = bg.rectTransform;
+            UIFactory.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            rt.sizeDelta = size; rt.anchoredPosition = pos;
+            var btn = bg.gameObject.AddComponent<Button>();
+            btn.targetGraphic = bg;
+            btn.onClick.AddListener(onClick);
+            bg.gameObject.AddComponent<ButtonFx>();
+            var c = new ModeCard { Btn = btn };
+            c.Art = BackgroundArt.Create(rt, 0.08f);
+            c.Art.Set(art);
+            if (rt.Find("BackgroundArt") is RectTransform clip) UIFactory.Stretch(clip, 4, 4, 4, 4);
+            AddFade(rt, size.y * 0.62f, 0.92f);
+            float left = 26f;
+            var sp = GameArt.Load(icon);
+            if (sp != null)
+            {
+                var im = UIFactory.AddImage("Icon", rt, Color.white, sp);
+                im.preserveAspect = true; im.raycastTarget = false;
+                UIFactory.Anchor(im.rectTransform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0));
+                im.rectTransform.sizeDelta = new Vector2(100, 100); im.rectTransform.anchoredPosition = new Vector2(18, 20);
+                var sh = im.gameObject.AddComponent<Shadow>();
+                sh.effectColor = new Color(0, 0, 0, 0.6f); sh.effectDistance = new Vector2(0, -3);
+                left = 128f;
+            }
+            c.Title = CardText(rt, "Title", 42, Color.white, left, 92, 52, true);
+            c.Title.text = title;
+            var d = CardText(rt, "Desc", 20, new Color(0.8f, 0.83f, 0.9f), left + 2, 62, 28, false);
+            d.text = desc;
+            c.Status = CardText(rt, "Status", 25, Color.white, left + 2, 22, 36, false);
+
+            var lockImg = UIFactory.AddImage("Lock", rt, new Color(0.02f, 0.03f, 0.06f, 0.68f), ProceduralSprites.Rounded);
+            lockImg.type = Image.Type.Sliced; lockImg.preserveAspect = false; lockImg.raycastTarget = false;
+            UIFactory.Stretch(lockImg.rectTransform, 4, 4, 4, 4);
+            c.Lock = lockImg.gameObject;
+            c.LockText = UIFactory.AddText("T", lockImg.rectTransform, "", 28, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            c.LockText.richText = true;
+            UIFactory.Stretch(c.LockText.rectTransform, 20, 20, 20, 140);
+            c.Lock.SetActive(false);
+            c.Badge = NotifyBadge.Attach(rt, font, 10, 10, 40);
+            return c;
+        }
+
+        /// <summary>출격 화면 열기 · 닫기(열면 살짝 떠오르며 나타남).</summary>
+        private void OpenModeHub(bool on)
+        {
+            if (_hub == null) return;
+            if (_menuPop != null) _menuPop.SetActive(false);
+            _hub.SetActive(on);
+            TutorialTargets.Set("home.stage", on ? (Component)_stageCard.Btn : _sortieBtn);
+            if (!on) return;
+            _hub.transform.SetAsLastSibling();
+            RefreshModeTiles();
+            if (_hubRoutine != null) StopCoroutine(_hubRoutine);
+            if (_root.activeInHierarchy) _hubRoutine = StartCoroutine(HubIn());
+            else _hubGroup.alpha = 1f;
+        }
+
+        private Coroutine _hubRoutine;
+        private IEnumerator HubIn()
+        {
+            var rt = (RectTransform)_hub.transform;
+            for (float t = 0; t < 0.18f; t += Time.unscaledDeltaTime)
+            {
+                float k = 1f - Mathf.Pow(1f - t / 0.18f, 3f);
+                _hubGroup.alpha = Mathf.Max(0.05f, k);
+                rt.localScale = Vector3.one * Mathf.Lerp(1.03f, 1f, k);
+                yield return null;
+            }
+            _hubGroup.alpha = 1f; rt.localScale = Vector3.one;
+            _hubRoutine = null;
         }
 
         private void BuildPicker()

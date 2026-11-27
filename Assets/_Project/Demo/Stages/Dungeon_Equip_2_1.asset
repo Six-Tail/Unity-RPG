@@ -27,7 +27,7 @@ MonoBehaviour:
   - ember
   - frost
   equipmentDrops: 2
-  equipmentRarityWeights: 50000000140000000000000000000000
+  equipmentRarityWeights: 32000000230000000f000000000000000000000000000000
   unlockAfter: {fileID: 11400000, guid: 720048dfcffdaa745bab3581c1195784, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: a900f75261ef1cd4d92f7a114d23a968, type: 2}

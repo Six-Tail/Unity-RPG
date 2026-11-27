@@ -93,13 +93,23 @@ namespace SubcultureRPG.Meta.UI
         /// </summary>
         public void SetLaunchMode(System.Action<List<CharacterData>> handler, string title, string startLabel)
         {
+            _editOnly = false;
             _launchHandler = handler;
             if (_titleText != null) _titleText.text = string.IsNullOrEmpty(title) ? "파티 편성" : title;
             if (_startLabel != null) _startLabel.text = string.IsNullOrEmpty(startLabel) ? "전투 시작" : startLabel;
         }
 
         /// <summary>기본 모드로 복귀.</summary>
-        public void ClearLaunchMode() => SetLaunchMode(null, "파티 편성", "연습 전투 시작");
+        public void ClearLaunchMode() { _editOnly = false; SetLaunchMode(null, "파티 편성", "연습 전투 시작"); }
+
+        /// <summary>홈 '편성': 출격 없이 파티만 저장(다음에 출격 편성을 열면 이 파티가 미리 골라짐).</summary>
+        public void SetEditMode()
+        {
+            SetLaunchMode(null, "파티 편성", "편성 저장");
+            _editOnly = true;
+        }
+
+        private bool _editOnly;
 
         // ---------------- UI 구성 ----------------
 
@@ -437,6 +447,11 @@ namespace SubcultureRPG.Meta.UI
             if (_selected.Count == 0) return;
             var team = new List<CharacterData>(_selected);
             PartyPresets.SetLast(team);   // 다음에 편성 화면을 열면 이 파티로
+            if (_editOnly)
+            {
+                Popups.Show("편성 저장", $"지금 파티({team.Count}명)를 저장했습니다.\n<size=85%><color=#9AA3B5>다음에 출격 편성을 열면 이 파티가 미리 골라집니다.\n여러 파티는 아래 왼쪽 프리셋 칸에 저장해 두세요.</color></size>");
+                return;
+            }
             if (_launchHandler != null) _launchHandler(team);
             else if (launcher != null) launcher.Launch(team);
             else return;

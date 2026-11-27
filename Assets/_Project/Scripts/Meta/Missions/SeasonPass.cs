@@ -13,6 +13,11 @@ namespace SubcultureRPG.Meta.Missions
         public const int MaxLevel = 30, ExpPerLevel = 150, DailyExp = 25, WeeklyExp = 60, PremiumPrice = 980, SeasonDays = 28;
         private const string SaveKey = "seasonpass";
 
+        /// <summary>단계 1개 건너뛰기 값(크리스탈).</summary>
+        public const int LevelPrice = 100;
+        /// <summary>출시 때 프리미엄 패스 인앱 결제 가격(지금은 크리스탈 <see cref="PremiumPrice"/>로 판매).</summary>
+        public const string PremiumRealPrice = "₩11,000";
+
         // 시즌 기준: 2024-01-01(월) 05:00부터 28일씩 (기간 한정 이벤트와 같은 기준 시각)
         private static readonly DateTime Epoch = new(2024, 1, 1, 5, 0, 0);
 
@@ -237,6 +242,25 @@ namespace SubcultureRPG.Meta.Missions
             var wallet = FindAnyObjectByType<PlayerWallet>();
             if (wallet == null || !wallet.Spend(PremiumPrice)) return $"크리스탈이 부족합니다 (필요 {PremiumPrice})";
             _d.premium = true;
+            Changed();
+            return null;
+        }
+
+        /// <summary>지금 살 수 있는 최대 단계 수(최대 단계까지).</summary>
+        public int BuyableLevels { get { CheckSeason(); return Mathf.Max(0, MaxLevel - Level); } }
+
+        /// <summary>크리스탈로 단계 n개 건너뛰기(이번 단계 진행도는 그대로 유지, 최대 단계에서 멈춤). 실패 사유(성공이면 null).</summary>
+        public string BuyLevels(int n)
+        {
+            CheckSeason();
+            n = Mathf.Min(n, BuyableLevels);
+            if (n <= 0) return "이미 최대 단계입니다";
+            int cost = n * LevelPrice;
+            var wallet = FindAnyObjectByType<PlayerWallet>();
+            if (wallet == null || !wallet.Spend(cost)) return $"크리스탈이 부족합니다 (필요 {cost:N0})";
+            int max = (MaxLevel - 1) * ExpPerLevel;
+            _d.exp = Mathf.Min(max, _d.exp + n * ExpPerLevel);
+            if (Level >= MaxLevel) _d.exp = max;
             Changed();
             return null;
         }

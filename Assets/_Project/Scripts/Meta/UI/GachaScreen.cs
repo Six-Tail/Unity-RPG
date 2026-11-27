@@ -306,6 +306,8 @@ namespace SubcultureRPG.Meta.UI
             bool showSub = cur != null && cur.IsPickup && pickups.Count > 1;
             bool showStd = cur != null && !cur.IsPickup && StdPool.Count > 1;
             _bannerTabs.gameObject.SetActive(showSub || showStd);
+            // 상시는 카드 왼쪽에 '<' 버튼이 있으므로 목록을 그만큼 왼쪽으로(겹치지 않게)
+            _bannerTabs.anchoredPosition = new Vector2(showStd ? -296f : -196f, _bannerTabs.anchoredPosition.y);
             if (showSub)
                 foreach (var p in pickups)
                     BannerTab(p, p == cur);
@@ -794,10 +796,13 @@ namespace SubcultureRPG.Meta.UI
         public System.Action<int> OnSwipe;
         public float minDistance = 60f;
         private Vector2 _start;
-        public void OnBeginDrag(UnityEngine.EventSystems.PointerEventData e) => _start = e.position;
+        /// <summary>끄는 중(버튼 위에 붙였을 때, 끌다 놓은 것을 누른 것으로 치지 않게 확인용 — 클릭이 끌기 끝보다 먼저 옴).</summary>
+        public bool Dragging { get; private set; }
+        public void OnBeginDrag(UnityEngine.EventSystems.PointerEventData e) { _start = e.position; Dragging = true; }
         public void OnDrag(UnityEngine.EventSystems.PointerEventData e) { }
         public void OnEndDrag(UnityEngine.EventSystems.PointerEventData e)
         {
+            Dragging = false;
             var d = e.position - _start;
             float min = minDistance * (Screen.height / 1080f);
             if (Mathf.Abs(d.x) < min || Mathf.Abs(d.x) < Mathf.Abs(d.y)) return;

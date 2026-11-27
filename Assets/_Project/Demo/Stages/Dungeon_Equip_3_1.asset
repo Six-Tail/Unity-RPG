@@ -27,7 +27,7 @@ MonoBehaviour:
   - thunder
   - gale
   equipmentDrops: 2
-  equipmentRarityWeights: 50000000140000000000000000000000
+  equipmentRarityWeights: 32000000230000000f000000000000000000000000000000
   unlockAfter: {fileID: 11400000, guid: 720048dfcffdaa745bab3581c1195784, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: 2ab082b95980b8c4aaf95e1151656fca, type: 2}

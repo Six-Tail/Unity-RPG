@@ -27,7 +27,7 @@ namespace SubcultureRPG.Meta
         public static readonly int[] WinPoints = { 12, 20, 32 }, WinCrystals = { 20, 30, 50 }, WinGold = { 3000, 5000, 8000 };
 
         /// <summary>크리스탈로 도전권 구매: 하루 최대 10장, 2장마다 값이 오름(05:00 초기화).</summary>
-        public static readonly int[] BuyCosts = { 50, 50, 100, 100, 150, 150, 200, 200, 250, 250 };
+        public static readonly int[] BuyCosts = { 50, 100, 150, 200, 250, 300, 400, 500, 600, 700 };   // 1장 살 때마다 오름(50 → 300까지 50씩, 그 뒤 100씩)
         public static string DifficultyName(Difficulty d) => d switch { Difficulty.Easy => "쉬움", Difficulty.Normal => "보통", _ => "어려움" };
         public static Color DifficultyColor(Difficulty d) => d switch
         {

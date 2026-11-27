@@ -133,8 +133,52 @@ namespace SubcultureRPG.EditorTools
                     for (int s = 1; s <= StagesPerChapter; s++)
                         main.Add(MainStage(c, s, d));
 
+            var db = LoadOrCreate<StageDatabase>(Root + "/StageDatabase.asset");
+            db.chapterNames = new List<string>();
+            foreach (var ch in Chapters) db.chapterNames.Add(ch.name);
+            db.stages = main;
+            db.dungeons = BuildDungeons(main);
+            db.hardUnlockChapter = 7;
+            db.hellUnlockChapter = 15;
+            EditorUtility.SetDirty(db);
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>특수 던전만 다시 생성(메인 스테이지 · 씬은 그대로). 단계 수 · 보상표를 바꾼 뒤 실행.</summary>
+        [MenuItem("SubcultureRPG/특수 던전 데이터 다시 생성", false, 20)]
+        public static void RebuildDungeons()
+        {
+            var db = AssetDatabase.LoadAssetAtPath<StageDatabase>(Root + "/StageDatabase.asset");
+            if (db == null || db.stages == null || db.stages.Count == 0) { Debug.LogWarning("[StageContent] StageDatabase가 없습니다 — 먼저 '메인 씬 생성'을 실행하세요."); return; }
+            db.dungeons = BuildDungeons(db.stages);
+            EditorUtility.SetDirty(db);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[StageContent] 특수 던전 {db.dungeons.Count}개 생성 완료 (장비 · 금화 · 스킬 교본 · 경험치 {TierUnlockChapters.Length}단계)");
+        }
+
+        /// <summary>에디터를 열었을 때 던전 단계 수가 코드와 다르면(예: 5 → 10단계) 한 번 자동으로 다시 생성.</summary>
+        [InitializeOnLoadMethod]
+        private static void AutoUpgradeDungeons()
+        {
+            EditorApplication.delayCall += () =>
+            {
+                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+                var db = AssetDatabase.LoadAssetAtPath<StageDatabase>(Root + "/StageDatabase.asset");
+                if (db == null || db.stages == null || db.stages.Count == 0) return;
+                bool ok = db.Dungeons(StageKind.GoldDungeon).Count == TierUnlockChapters.Length
+                          && db.Dungeons(StageKind.EquipmentDungeon).Count == EquipPairs.Length * EquipTierChapters.Length;
+                var eq = db.Dungeons(StageKind.EquipmentDungeon);
+                if (ok && eq.Count > 0 && (eq[0].equipmentRarityWeights == null || eq[0].equipmentRarityWeights.Count != EquipTierRarity[0].Length)) ok = false;
+                var ex = db.Dungeons(StageKind.ExpDungeon);
+                if (ok && ex.Count > 0 && ex[ex.Count - 1].rewards != null && ex[ex.Count - 1].rewards.Count > 0 && ex[ex.Count - 1].rewards[0].count != ExpDungeonReward[ExpDungeonReward.Length - 1][0].n) ok = false;
+                if (!ok) RebuildDungeons();
+            };
+        }
+
+        private static List<StageData> BuildDungeons(List<StageData> main)
+        {
             // 특수 던전 (개방 = 쉬움 스테이지 클리어)
-            StageData Find(int c, int s) => main.Find(x => x.difficulty == StageDifficulty.Easy && x.chapter == c && x.number == s);
+            StageData Find(int c, int s) => main.Find(x => x != null && x.difficulty == StageDifficulty.Easy && x.chapter == c && x.number == s);
             var dungeons = new List<StageData>();
 
             // 돌파 던전: 초급 = 3-6, 중급 = 6-6, 상급 = 10-6
@@ -143,13 +187,13 @@ namespace SubcultureRPG.EditorTools
                 for (int tier = 1; tier <= Materials.AscensionTiers; tier++)
                     dungeons.Add(Dungeon(e, tier, ascUnlock[tier - 1]));
 
-            // 장비 던전: 세트 2종씩 5곳 × 1~5단계 (단계 개방 2-6 / 4-6 / 7-6 / 10-6 / 13-6)
+            // 장비 던전: 세트 2종씩 5곳 × 1~10단계 (단계 개방 = EquipTierChapters장 보스)
             for (int k = 1; k <= 5; k++) AssetDatabase.DeleteAsset($"{Root}/Stages/Dungeon_Equip_{k}.asset");   // 예전 단일 단계 에셋 정리
             for (int i = 0; i < EquipPairs.Length; i++)
                 for (int t = 1; t <= EquipTierChapters.Length; t++)
                     dungeons.Add(EquipmentDungeon(i, t, Find(EquipTierChapters[t - 1], StagesPerChapter)));
 
-            // 금화 · 스킬 교본 던전: 1~5단계 = 1-6 / 4-6 / 7-6 / 10-6 / 13-6
+            // 금화 · 스킬 교본 · 경험치 던전: 1~10단계 (단계 개방 = TierUnlockChapters장 보스)
             for (int t = 1; t <= TierUnlockChapters.Length; t++)
             {
                 var after = Find(TierUnlockChapters[t - 1], StagesPerChapter);
@@ -157,16 +201,7 @@ namespace SubcultureRPG.EditorTools
                 dungeons.Add(ResourceDungeon(StageKind.SkillBookDungeon, t, after));
                 dungeons.Add(ResourceDungeon(StageKind.ExpDungeon, t, after));
             }
-
-            var db = LoadOrCreate<StageDatabase>(Root + "/StageDatabase.asset");
-            db.chapterNames = new List<string>();
-            foreach (var ch in Chapters) db.chapterNames.Add(ch.name);
-            db.stages = main;
-            db.dungeons = dungeons;
-            db.hardUnlockChapter = 7;
-            db.hellUnlockChapter = 15;
-            EditorUtility.SetDirty(db);
-            AssetDatabase.SaveAssets();
+            return dungeons;
         }
 
         private static StageData MainStage(int c, int s, StageDifficulty d)
@@ -271,16 +306,24 @@ namespace SubcultureRPG.EditorTools
             new[] { "spring", "swift" },
         };
         /// <summary>장비 던전 단계별 개방 챕터(쉬움 보스 클리어).</summary>
-        public static readonly int[] EquipTierChapters = { 2, 4, 7, 10, 13 };
+        public static readonly int[] EquipTierChapters = { 2, 3, 4, 6, 7, 9, 10, 12, 13, 15 };
 
-        /// <summary>단계별 드롭 성급 가중치 [3성, 4성, 5성, 6성] — 3단계까지 최대 4성, 4단계 5성, 5단계 6성.</summary>
+        /// <summary>
+        /// 단계별 드롭 성급 가중치 [1성, 2성, 3성, 4성, 5성, 6성].
+        /// 낮은 단계는 1 · 2성 위주(처음 시작한 지휘관이 바로 끼고 스테이지를 밀 수 있게), 6단계부터 5성, 8단계부터 6성.
+        /// </summary>
         public static readonly int[][] EquipTierRarity =
         {
-            new[] { 80, 20, 0, 0 },
-            new[] { 55, 45, 0, 0 },
-            new[] { 30, 70, 0, 0 },
-            new[] { 10, 50, 40, 0 },
-            new[] { 0, 35, 45, 20 },
+            new[] { 50, 35, 15, 0, 0, 0 },
+            new[] { 30, 40, 25, 5, 0, 0 },
+            new[] { 10, 35, 40, 15, 0, 0 },
+            new[] { 0, 20, 50, 30, 0, 0 },
+            new[] { 0, 5, 45, 50, 0, 0 },
+            new[] { 0, 0, 30, 55, 15, 0 },
+            new[] { 0, 0, 15, 50, 35, 0 },
+            new[] { 0, 0, 0, 45, 45, 10 },
+            new[] { 0, 0, 0, 35, 45, 20 },
+            new[] { 0, 0, 0, 20, 50, 30 },
         };
         private static readonly Element[] EquipDungeonElement = { Element.Physical, Element.Fire, Element.Lightning, Element.Wind, Element.Ice };
 
@@ -303,10 +346,10 @@ namespace SubcultureRPG.EditorTools
             s.description = "";
             s.isBoss = false;
             s.recommendedLevel = lv;
-            s.turnLimit = 9 + tier;
-            s.firstClearCrystals = new[] { 20, 30, 40, 50, 60 }[t];
-            s.characterExp = new[] { 500, 1200, 2500, 4000, 6000 }[t];
-            s.gold = new[] { 2000, 3500, 5500, 8000, 11000 }[t];
+            s.turnLimit = 9 + (tier + 1) / 2;
+            s.firstClearCrystals = new[] { 20, 25, 30, 35, 40, 45, 50, 55, 60, 80 }[t];
+            s.characterExp = TierCharExp[t];
+            s.gold = new[] { 2000, 2700, 3500, 4500, 5500, 6700, 8000, 9500, 11000, 13500 }[t];
             s.equipmentSets = new List<string>(EquipPairs[i]);
             s.equipmentDrops = 2;
             s.equipmentRarityWeights = new List<int>(EquipTierRarity[t]);
@@ -314,7 +357,7 @@ namespace SubcultureRPG.EditorTools
             {
                 E(DungeonMinion[(int)el], lv - 2), E(DungeonGuardian[(int)el], lv), E(DungeonMinion[(int)el], lv - 2),
             };
-            s.rewards = new List<MaterialReward> { M(MaterialType.EquipOre, new[] { 3, 5, 7, 10, 14 }[t]) };
+            s.rewards = new List<MaterialReward> { M(MaterialType.EquipOre, new[] { 3, 4, 5, 6, 7, 8, 10, 12, 14, 18 }[t]) };
             EditorUtility.SetDirty(s);
             return s;
         }
@@ -322,36 +365,47 @@ namespace SubcultureRPG.EditorTools
         // ---------------- 금화 · 스킬 교본 던전 ----------------
 
         /// <summary>금화/교본 던전 단계별 개방 챕터(쉬움 보스 클리어).</summary>
-        public static readonly int[] TierUnlockChapters = { 1, 4, 7, 10, 13 };
+        public static readonly int[] TierUnlockChapters = { 1, 2, 4, 5, 7, 8, 10, 11, 13, 15 };
 
         public const string GoldMinion = "황금 정령", GoldBoss = "황금 골렘";
         public const string BookMinion = "떠도는 마도서", BookBoss = "금서의 파수꾼";
         public const string ExpMinion = "경험의 정령", ExpBoss = "지혜의 고목";
 
-        private static readonly int[] GoldReward = { 12000, 30000, 55000, 85000, 120000 };
+        private static readonly int[] GoldReward = { 12000, 20000, 30000, 42000, 55000, 70000, 85000, 102000, 120000, 150000 };
         // 스킬 교본 던전: 단계가 오를수록 높은 등급 교본 (전설의 비전서는 이벤트·상점 전용)
         private static readonly (MaterialType type, int n)[][] BookReward =
         {
             new[] { (MaterialType.SkillBook, 4) },
+            new[] { (MaterialType.SkillBook, 4), (MaterialType.SkillBookBlue, 1) },
             new[] { (MaterialType.SkillBook, 3), (MaterialType.SkillBookBlue, 2) },
+            new[] { (MaterialType.SkillBookBlue, 3) },
             new[] { (MaterialType.SkillBookBlue, 3), (MaterialType.SkillBookPurple, 1) },
+            new[] { (MaterialType.SkillBookBlue, 3), (MaterialType.SkillBookPurple, 2) },
             new[] { (MaterialType.SkillBookBlue, 2), (MaterialType.SkillBookPurple, 3) },
+            new[] { (MaterialType.SkillBookBlue, 2), (MaterialType.SkillBookPurple, 4) },
             new[] { (MaterialType.SkillBookBlue, 2), (MaterialType.SkillBookPurple, 5) },
+            new[] { (MaterialType.SkillBookBlue, 3), (MaterialType.SkillBookPurple, 7) },
         };
 
-        // 경험치 던전: 총 EXP 5,000 / 12,000 / 25,000 / 40,000 / 60,000
+        // 경험치 던전: 같은 시점(개방 챕터) 메인 스테이지의 행동력당 경험치 × 약 2배 — 메인은 금화 · 크리스탈도 주므로 경험치만은 던전이 확실히 낫게
+        // 총 EXP 5,000 / 10,000 / 24,000 / 32,000 / 48,000 / 58,000 / 78,000 / 90,000 / 115,000 / 140,000
         private static readonly (MaterialType type, int n)[][] ExpDungeonReward =
         {
             new[] { (MaterialType.ExpSmall, 20), (MaterialType.ExpPotion, 6) },
-            new[] { (MaterialType.ExpPotion, 12), (MaterialType.ExpLarge, 6) },
-            new[] { (MaterialType.ExpLarge, 15), (MaterialType.ExpCrystal, 2) },
-            new[] { (MaterialType.ExpLarge, 10), (MaterialType.ExpCrystal, 6) },
-            new[] { (MaterialType.ExpCrystal, 12) },
+            new[] { (MaterialType.ExpPotion, 10), (MaterialType.ExpLarge, 5) },
+            new[] { (MaterialType.ExpLarge, 14), (MaterialType.ExpCrystal, 2) },
+            new[] { (MaterialType.ExpLarge, 12), (MaterialType.ExpCrystal, 4) },
+            new[] { (MaterialType.ExpLarge, 13), (MaterialType.ExpCrystal, 7) },
+            new[] { (MaterialType.ExpLarge, 8), (MaterialType.ExpCrystal, 10) },
+            new[] { (MaterialType.ExpLarge, 8), (MaterialType.ExpCrystal, 14) },
+            new[] { (MaterialType.ExpCrystal, 18) },
+            new[] { (MaterialType.ExpCrystal, 23) },
+            new[] { (MaterialType.ExpCrystal, 28) },
         };
-        private static readonly int[] ExpGold = { 1000, 2000, 3000, 4500, 6000 };
-        private static readonly int[] BookGold = { 2000, 4000, 6000, 9000, 12000 };
-        private static readonly int[] TierCharExp = { 500, 1200, 2500, 4000, 6000 };
-        private static readonly int[] TierCrystals = { 30, 40, 50, 60, 80 };
+        private static readonly int[] ExpGold = { 1000, 1500, 2000, 2500, 3000, 3700, 4500, 5200, 6000, 8000 };
+        private static readonly int[] BookGold = { 2000, 3000, 4000, 5000, 6000, 7500, 9000, 10500, 12000, 15000 };
+        private static readonly int[] TierCharExp = { 500, 800, 1200, 1800, 2500, 3200, 4000, 5000, 6000, 7500 };
+        private static readonly int[] TierCrystals = { 30, 30, 40, 40, 50, 50, 60, 60, 80, 100 };
 
         /// <summary>금화/교본 던전 1단계분. 적 레벨 = 개방 챕터 보스 레벨 수준.</summary>
         private static StageData ResourceDungeon(StageKind kind, int tier, StageData unlockAfter)
@@ -375,7 +429,7 @@ namespace SubcultureRPG.EditorTools
             s.description = "";
             s.isBoss = false;
             s.recommendedLevel = lv;
-            s.turnLimit = 8 + tier;
+            s.turnLimit = 8 + (tier + 1) / 2;
             s.firstClearCrystals = TierCrystals[t];
             s.characterExp = TierCharExp[t];
             s.gold = gold ? GoldReward[t] : exp ? ExpGold[t] : BookGold[t];

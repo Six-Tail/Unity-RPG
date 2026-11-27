@@ -34,7 +34,7 @@ namespace SubcultureRPG.Meta.UI
 
         // 필터 · 정렬(패널을 닫아도 유지)
         private static string _fSet;                 // null = 모든 세트
-        private static int _fRarity;                 // 0 = 모든 성급, 3 ~ 6
+        private static int _fRarity;                 // 0 = 모든 성급, 1 ~ 6
         private static int _fState;                  // 0 전체 · 1 미장착 · 2 이 캐릭터 장착 · 3 다른 캐릭터 장착 · 4 잠금
         private static int _sort;                    // 0 추천 · 1 강화 · 2 성급 · 3 최근 획득 · 4 세트 · 5 주옵션
         private static bool _asc;                    // 오름차순
@@ -255,7 +255,7 @@ namespace SubcultureRPG.Meta.UI
         {
             float x = 630, y = -110, h = 42;
             _fSetLbl = FilterBtn(p, x, y, 150, h, () => ToggleSetPicker(true)); x += 156;
-            _fRarityLbl = FilterBtn(p, x, y, 104, h, () => { _fRarity = _fRarity == 0 ? 6 : _fRarity == 3 ? 0 : _fRarity - 1; _item = null; Refresh(); }); x += 110;
+            _fRarityLbl = FilterBtn(p, x, y, 104, h, () => { _fRarity = _fRarity == 0 ? 6 : _fRarity == EquipStats.MinRarity ? 0 : _fRarity - 1; _item = null; Refresh(); }); x += 110;
             _fStateLbl = FilterBtn(p, x, y, 120, h, () => { _fState = (_fState + 1) % StateNames.Length; _item = null; Refresh(); }); x += 126;
             _sortLbl = FilterBtn(p, x, y, 100, h, () => { _sort = (_sort + 1) % SortNames.Length; Refresh(); }); x += 104;
             _orderLbl = FilterBtn(p, x, y, 46, h, () => { if (_sort != 0) { _asc = !_asc; Refresh(); } });

@@ -45,7 +45,7 @@ node tools/audio/generate-bgm.js --studio "<스튜디오 폴더>" --key battle -
 
 | 이름 | 언제 |
 |---|---|
-| `click` | 모든 버튼(`UIFactory.AddButton` · 홈 타일 등 `ButtonFx`가 붙은 곳). 꺼진 버튼은 소리 없음 |
+| `click` | 모든 버튼(`UIFactory.AddButton` · 홈 버튼 · 메뉴 바 등 `ButtonFx`가 붙은 곳). 꺼진 버튼은 소리 없음 |
 | `confirm` · `cancel` · `error` | 설정 창 미리 듣기 등(예비) |
 | `reward` | 보상 알림 창(`Popups.Reward`) |
 | `coin` | 상점 구매 |

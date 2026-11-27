@@ -10,13 +10,14 @@ using SubcultureRPG.Characters;
 namespace SubcultureRPG.Meta.UI
 {
     /// <summary>
-    /// 스테이지 선택 화면. 챕터 탭 → 스테이지 노드(별·잠금) → 상세(적·별 조건·보상) → '편성 후 출격'.
-    /// '돌파 던전' 탭: 속성(행) × 등급(열: 초급 40 / 중급 60 / 상급 80 돌파) 격자, 스테이지 진행으로 개방.
+    /// 스테이지 선택 화면. 맨 위 탭으로 '메인 스토리' / '특수 던전'을 나눔.
+    /// 메인 스토리: 난이도 · 챕터 탭 → 스테이지 노드(별·잠금) → 상세(적·별 조건·보상) → '편성 후 출격'.
+    /// 특수 던전: StageScreen.Dungeon.cs(종류 탭 · 왼쪽 단계 목록 · 가운데 그림/보상/적 · 장비 던전 지도).
     /// 코드 자동 구성 — database/progress 연결(progress는 비우면 자동 탐색).
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SubcultureRPG/Meta/Stage Screen")]
-    public class StageScreen : MonoBehaviour
+    public partial class StageScreen : MonoBehaviour
     {
         [SerializeField] private StageDatabase database;
         [SerializeField] private StageProgress progress;
@@ -28,9 +29,8 @@ namespace SubcultureRPG.Meta.UI
         /// <summary>'편성 후 출격'을 눌렀을 때(선택 스테이지).</summary>
         public event System.Action<StageData> OnSortie;
 
-        private GameObject _root, _detPanel;
+        private GameObject _root, _detPanel, _nodesView;
         private RectTransform _modeTabs, _tabs, _nodes;
-        private GridLayoutGroup _grid;
         private bool _dungeonMode;
         private StageKind _dungeonKind = StageKind.AscensionDungeon;
         private StageDifficulty _difficulty = StageDifficulty.Easy;
@@ -300,7 +300,12 @@ namespace SubcultureRPG.Meta.UI
         {
             if (s == null) return;
             _dungeonMode = s.IsDungeon;
-            if (s.IsDungeon) _dungeonKind = s.kind;
+            if (s.IsDungeon)
+            {
+                _dungeonKind = s.kind;
+                if (s.kind == StageKind.EquipmentDungeon) _equipSite = s.chapter;
+                if (s.IsAscensionDungeon) _ascElement = s.dungeonElement;
+            }
             else { _chapter = s.chapter; _difficulty = s.difficulty; }
             _selected = s;
         }
@@ -310,6 +315,7 @@ namespace SubcultureRPG.Meta.UI
         {
             _dungeonMode = true;
             if (kind != StageKind.Main) _dungeonKind = kind;
+            _equipSite = -1;   // 장비 던전은 지도부터
             _selected = null;
         }
 
@@ -348,12 +354,15 @@ namespace SubcultureRPG.Meta.UI
             _totalStars.text = $"<size=75%><color={Difficulties.Hex(_difficulty)}>{Difficulties.Name(_difficulty)}</color></size>  <color=#FFD36B>★</color> {total} / {max}";
             RefreshStamina();
 
-            if (_dungeonMode)
-            {
-                _chapterTitle.text = $"<color={SpecialDungeons.Hex(_dungeonKind)}>{SpecialDungeons.Name(_dungeonKind)}</color>  " +
-                                     $"<size=60%><color=#AEB6C8>{SpecialDungeons.Summary(_dungeonKind)}</color></size>";
-            }
-            else
+            _totalStars.gameObject.SetActive(!_dungeonMode);
+            _chapterTitle.gameObject.SetActive(false);   // 챕터 이름은 지도 위쪽 띠에
+            _nodesView.SetActive(!_dungeonMode);
+            _dgRoot.SetActive(_dungeonMode);
+            // 상세 패널: 던전 화면에서는 왼쪽 단계 목록 · 가운데 칸과 높이를 맞춤
+            var detRt = (RectTransform)_detPanel.transform;
+            detRt.sizeDelta = new Vector2(640, _dungeonMode ? 796 : MapH);
+            detRt.anchoredPosition = new Vector2(560, _dungeonMode ? -108 : -63);   // 왼쪽 지도 · 단계 목록과 위아래를 맞춤
+            if (!_dungeonMode)
             {
                 int chStars = progress != null ? progress.TotalStars(database, _chapter, _difficulty) : 0;
                 int chMax = database.InChapter(_chapter, _difficulty).Count * 3;
@@ -368,16 +377,9 @@ namespace SubcultureRPG.Meta.UI
             }
 
             RebuildTabs(chapters);
-            RebuildNodes();
-            if (_dungeonMode)
-            {
-                if (_selected == null || _selected.kind != _dungeonKind)
-                {
-                    var list = database.Dungeons(_dungeonKind);
-                    _selected = list.Find(d => progress == null || progress.IsUnlocked(d, database));
-                    if (_selected == null && list.Count > 0) _selected = list[0];
-                }
-            }
+            if (_dungeonMode) RefreshDungeon();
+            else RebuildNodes();
+            if (_dungeonMode) { }
             else if (_selected == null || _selected.IsDungeon || _selected.chapter != _chapter || _selected.difficulty != _difficulty)
             {
                 var list = database.InChapter(_chapter, _difficulty);
@@ -391,6 +393,52 @@ namespace SubcultureRPG.Meta.UI
         {
             Clear(_modeTabs);
             Clear(_tabs);
+            Clear(_topTabs);
+
+            // 맨 위: 메인 스토리 / 특수 던전
+            var allDungeons = database.Dungeons();
+            int openDungeons = allDungeons.FindAll(d => progress == null || progress.IsUnlocked(d, database)).Count;
+            for (int i = 0; i < 2; i++)
+            {
+                bool dg = i == 1;
+                if (dg && allDungeons.Count == 0) continue;
+                bool on = dg == _dungeonMode;
+                var col = dg ? new Color(0.55f, 0.35f, 0.85f) : new Color(0.85f, 0.6f, 0.25f);
+                string label = dg ? (openDungeons > 0 ? "특수 던전" : "특수 던전 <size=65%>(1장 클리어)</size>") : "메인 스토리";
+                var tb = UIFactory.AddButton(dg ? "DungeonTab" : "MainTab", _topTabs, label, 26, font,
+                    on ? new Color(col.r, col.g, col.b, 0.96f) : new Color(col.r, col.g, col.b, 0.28f), on ? Color.white : new Color(0.82f, 0.84f, 0.9f));
+                var tle = tb.gameObject.AddComponent<LayoutElement>();
+                tle.preferredWidth = 236; tle.preferredHeight = 54;
+                tb.onClick.AddListener(() =>
+                {
+                    if (_dungeonMode == dg) return;
+                    _dungeonMode = dg;
+                    _selected = null;
+                    if (dg) _equipSite = -1; else JumpToFrontierIn(_difficulty);
+                    Refresh();
+                });
+            }
+
+            // 특수 던전: 종류 탭(+ 그 아래 속성 · 장소)
+            if (_dungeonMode)
+            {
+                foreach (var k in SpecialDungeons.All)
+                {
+                    var kk = k;
+                    var ofKind = allDungeons.FindAll(d => d.kind == k);
+                    if (ofKind.Count == 0) continue;
+                    bool open = ofKind.Exists(d => progress == null || progress.IsUnlocked(d, database));
+                    bool on = k == _dungeonKind;
+                    var col = SpecialDungeons.ColorOf(k);
+                    var b = UIFactory.AddButton("Kind", _modeTabs, open ? SpecialDungeons.Name(k) : $"{SpecialDungeons.Name(k)} <size=70%>(잠김)</size>", 20, font,
+                        on ? new Color(col.r, col.g, col.b, 0.95f) : new Color(col.r, col.g, col.b, open ? 0.3f : 0.12f), Color.white);
+                    var le = b.gameObject.AddComponent<LayoutElement>();
+                    le.preferredWidth = 190; le.preferredHeight = 44;
+                    b.onClick.AddListener(() => { if (_dungeonKind != kk) { _dungeonKind = kk; _equipSite = -1; _selected = null; } Refresh(); });
+                }
+                RebuildDungeonSubTabs();
+                return;
+            }
 
             // 난이도
             foreach (var d in Difficulties.All)
@@ -414,23 +462,8 @@ namespace SubcultureRPG.Meta.UI
                 });
             }
 
-            // 두 번째 줄: 메인 = 챕터 번호(1~15), 특수 던전 = 던전 종류
-            if (_dungeonMode)
-                foreach (var k in SpecialDungeons.All)
-                {
-                    var kk = k;
-                    var ofKind = database.Dungeons(k);
-                    if (ofKind.Count == 0) continue;
-                    bool open = ofKind.Exists(d => progress == null || progress.IsUnlocked(d, database));
-                    bool on = k == _dungeonKind;
-                    var col = SpecialDungeons.ColorOf(k);
-                    var b = UIFactory.AddButton("Kind", _tabs, open ? SpecialDungeons.Name(k) : $"{SpecialDungeons.Name(k)} <size=70%>(잠김)</size>", 19, font,
-                        on ? new Color(col.r, col.g, col.b, 0.95f) : new Color(col.r, col.g, col.b, open ? 0.3f : 0.1f), Color.white);
-                    var le = b.gameObject.AddComponent<LayoutElement>();
-                    le.preferredWidth = 210; le.preferredHeight = 40;
-                    b.onClick.AddListener(() => { _dungeonKind = kk; _selected = null; Refresh(); });
-                }
-            if (!_dungeonMode)
+            // 두 번째 줄: 챕터 번호(1~15)
+            {
                 foreach (int ch in chapters)
                 {
                     int c = ch;
@@ -449,134 +482,10 @@ namespace SubcultureRPG.Meta.UI
                     if (ChapterStarRewards.ClaimableIn(database, progress, _difficulty, ch) > 0)
                         NotifyBadge.Attach(b, font, 6, 6, 20).Set(true);   // 받을 별 보상이 있는 챕터
                 }
-
-            var dungeons = database.Dungeons();
-            if (dungeons.Count == 0) return;
-            var spacer = UIFactory.NewRect("Spacer", _modeTabs);
-            spacer.gameObject.AddComponent<LayoutElement>().preferredWidth = 40;
-            int openCount = dungeons.FindAll(d => progress == null || progress.IsUnlocked(d, database)).Count;
-            var db = UIFactory.AddButton("DungeonTab", _modeTabs, "특수 던전", 20, font,
-                _dungeonMode ? new Color(0.55f, 0.35f, 0.85f, 0.95f) : new Color(0.55f, 0.35f, 0.85f, openCount > 0 ? 0.35f : 0.12f), Color.white);
-            var dle = db.gameObject.AddComponent<LayoutElement>();
-            dle.preferredWidth = 230; dle.preferredHeight = 44;
-            db.onClick.AddListener(() => { _dungeonMode = true; _selected = null; Refresh(); });
-        }
-
-        private void RebuildNodes()
-        {
-            Clear(_nodes);
-            _nodeHL.Clear();
-            _grid.constraintCount = 3;
-            if (_dungeonMode && _dungeonKind == StageKind.EquipmentDungeon)
-            {
-                // 세트 묶음 5줄 × 1~5단계
-                _grid.constraintCount = 5;
-                _grid.cellSize = new Vector2(186, 118); _grid.spacing = new Vector2(17, 14);
-                foreach (var s in database.Dungeons(_dungeonKind)) BuildNode(s);
-            }
-            else if (_dungeonMode && _dungeonKind == StageKind.AscensionDungeon)
-            {
-                // 5속성 × 3등급 → 작은 칸
-                _grid.cellSize = new Vector2(300, 118); _grid.spacing = new Vector2(30, 14);
-                foreach (var s in database.Dungeons(_dungeonKind)) BuildNode(s);
-            }
-            else if (_dungeonMode)
-            {
-                _grid.cellSize = new Vector2(300, 170); _grid.spacing = new Vector2(30, 30);
-                foreach (var s in database.Dungeons(_dungeonKind)) BuildNode(s);
-            }
-            else
-            {
-                _grid.cellSize = new Vector2(300, 170); _grid.spacing = new Vector2(30, 30);
-                foreach (var s in database.InChapter(_chapter, _difficulty)) BuildNode(s);
             }
         }
 
-        private void BuildNode(StageData s)
-        {
-            bool unlocked = progress == null || progress.IsUnlocked(s, database);
-            bool cleared = progress != null && progress.IsCleared(s);
-            int stars = progress != null ? progress.StarsOf(s) : 0;
-
-            var node = UIFactory.NewRect("Node", _nodes);
-
-            var hl = UIFactory.AddImage("HL", node, new Color(0.3f, 0.8f, 1f, 0f));
-            UIFactory.Stretch(hl.rectTransform, -4, -4, -4, -4);
-            _nodeHL[s] = hl;
-
-            Color frameCol = s.isBoss ? new Color(0.85f, 0.32f, 0.36f) : (cleared ? Gold : new Color(0.45f, 0.5f, 0.62f));
-            if (s.IsDungeon)
-                frameCol = (s.IsAscensionDungeon ? Traits.ColorOf(s.dungeonElement) : SpecialDungeons.ColorOf(s.kind))
-                           * new Color(1, 1, 1, cleared ? 1f : 0.75f);
-            if (!unlocked) frameCol = new Color(0.25f, 0.26f, 0.3f);
-            var frame = UIFactory.AddImage("Frame", node, frameCol, null, raycast: true);
-            UIFactory.Stretch(frame.rectTransform);
-            var btn = frame.gameObject.AddComponent<Button>();
-            btn.targetGraphic = frame;
-            var ss = s;
-            btn.onClick.AddListener(() => { _selected = ss; RefreshHighlights(); RefreshDetail(); });
-
-            var inner = UIFactory.AddImage("Inner", frame.transform, unlocked ? new Color(0.11f, 0.12f, 0.16f, 1f) : new Color(0.07f, 0.07f, 0.09f, 1f));
-            UIFactory.Stretch(inner.rectTransform, 3, 3, 3, 3);
-
-            if (s.IsDungeon) { BuildDungeonNodeText(inner.transform, s, unlocked, stars); return; }
-
-            var code = UIFactory.AddText("Code", inner.transform, s.isBoss ? $"{s.Code}  <size=60%><color=#FF8A8A>BOSS</color></size>" : s.Code,
-                34, font, unlocked ? Color.white : new Color(0.5f, 0.5f, 0.55f), TextAlignmentOptions.Center, FontStyles.Bold);
-            var crt = code.rectTransform;
-            UIFactory.Anchor(crt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            crt.sizeDelta = new Vector2(0, 44); crt.anchoredPosition = new Vector2(0, -12);
-
-            var nm = UIFactory.AddText("Name", inner.transform, s.stageName, 18, font,
-                unlocked ? new Color(0.85f, 0.88f, 0.95f) : new Color(0.45f, 0.45f, 0.5f), TextAlignmentOptions.Center);
-            var nrt = nm.rectTransform;
-            UIFactory.Anchor(nrt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            nrt.sizeDelta = new Vector2(-12, 26); nrt.anchoredPosition = new Vector2(0, -58);
-
-            string bottom = unlocked ? StageRunner.Stars(stars) : "<color=#6B7280>잠김</color>";
-            var st = UIFactory.AddText("Stars", inner.transform, bottom, unlocked ? 26 : 18, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var srt = st.rectTransform;
-            UIFactory.Anchor(srt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
-            srt.sizeDelta = new Vector2(0, 34); srt.anchoredPosition = new Vector2(0, 10);
-        }
-
-        /// <summary>던전 칸: '화염 · 초급' / 재료 이름 · N 돌파 / 별 또는 개방 조건.</summary>
-        private void BuildDungeonNodeText(Transform inner, StageData s, bool unlocked, int stars)
-        {
-            var dim = new Color(0.5f, 0.5f, 0.55f);
-            bool asc = s.IsAscensionDungeon;
-            string head = asc
-                ? (unlocked ? $"<color={Traits.Hex(s.dungeonElement)}>{Traits.Name(s.dungeonElement)}</color>" : Traits.Name(s.dungeonElement))
-                : (unlocked ? $"<color={SpecialDungeons.Hex(s.kind)}>{s.Code}</color>" : s.Code);   // 종류는 위 탭에 있으므로 단계만
-            bool equip = s.kind == StageKind.EquipmentDungeon;
-            if (equip && s.equipmentSets != null && s.equipmentSets.Count >= 2)
-                head = $"{EquipSets.Short(s.equipmentSets[0])}·{EquipSets.Short(s.equipmentSets[1])}  " + head;
-            var top = UIFactory.AddText("Code", inner, asc ? $"{head}  ·  {s.Code}" : head, asc ? 26 : (equip ? 22 : 32), font, unlocked ? Color.white : dim,
-                TextAlignmentOptions.Center, FontStyles.Bold);
-            top.enableAutoSizing = true; top.fontSizeMin = 14; top.fontSizeMax = asc ? 26 : 32;
-            var trt = top.rectTransform;
-            UIFactory.Anchor(trt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            trt.sizeDelta = new Vector2(0, 34); trt.anchoredPosition = new Vector2(0, asc ? -8 : -16);
-
-            string sub = asc ? $"{Materials.Name(s.DungeonMaterial)}  <size=80%>· {Materials.TierTargetLevel(s.dungeonTier)} 돌파</size>"
-                : s.kind == StageKind.GoldDungeon ? $"금화 {s.gold:N0}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>"
-                : s.kind == StageKind.EquipmentDungeon ? $"최대 {EquipStats.Stars(s.MaxEquipRarity)}  <size=80%>· Lv.{s.recommendedLevel}</size>"
-                : s.kind == StageKind.ExpDungeon ? $"캐릭터 EXP +{s.characterExp:N0}  <size=78%><color=#9AA3B5>· 재료 {ExpTotal(s):N0} · 권장 Lv.{s.recommendedLevel}</color></size>"
-                : $"교본 ×{BookCount(s)}  <size=80%>· 권장 Lv.{s.recommendedLevel}</size>";
-            var mat = UIFactory.AddText("Mat", inner, sub,
-                17, font, unlocked ? new Color(0.85f, 0.88f, 0.95f) : new Color(0.45f, 0.45f, 0.5f), TextAlignmentOptions.Center);
-            mat.enableAutoSizing = true; mat.fontSizeMin = 12; mat.fontSizeMax = 17;
-            var mrt = mat.rectTransform;
-            UIFactory.Anchor(mrt, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
-            mrt.sizeDelta = new Vector2(-12, 24); mrt.anchoredPosition = new Vector2(0, asc ? -44 : -62);
-
-            string bottom = unlocked ? StageRunner.Stars(stars)
-                : $"<color=#6B7280>{(s.unlockAfter != null ? s.unlockAfter.Code + " 클리어 시 개방" : "잠김")}</color>";
-            var st = UIFactory.AddText("Stars", inner, bottom, unlocked ? 22 : 16, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var srt = st.rectTransform;
-            UIFactory.Anchor(srt, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
-            srt.sizeDelta = new Vector2(0, 28); srt.anchoredPosition = new Vector2(0, 8);
-        }
+        private void RebuildNodes() => RebuildChapterMap();
 
         private static int BookCount(StageData s)
         {
@@ -612,7 +521,7 @@ namespace SubcultureRPG.Meta.UI
             _detTitle.text = s.IsAscensionDungeon
                 ? $"<color={Traits.Hex(s.dungeonElement)}>{Traits.Name(s.dungeonElement)}</color> 돌파 던전  <size=70%>{s.Code}</size>"
                 : s.IsDungeon
-                ? $"<color={SpecialDungeons.Hex(s.kind)}>{SpecialDungeons.Name(s.kind)}</color>  <size=70%>{s.Code}</size>"
+                ? $"<color={SpecialDungeons.Hex(s.kind)}>{(s.kind == StageKind.EquipmentDungeon ? SiteName(s.chapter) : SpecialDungeons.Name(s.kind))}</color>  <size=70%>{s.Code}</size>"
                 : $"{s.Code}  {s.stageName}" + (s.isBoss ? "  <size=60%><color=#FF8A8A>BOSS</color></size>" : "");
 
             var sb = new StringBuilder();
@@ -630,17 +539,9 @@ namespace SubcultureRPG.Meta.UI
                     var rates = new List<string>();
                     for (int i = 0; i < s.equipmentRarityWeights.Count; i++)
                         if (s.equipmentRarityWeights[i] > 0 && total > 0)
-                            rates.Add($"{EquipStats.Stars(3 + i)} {Grades.Tag(3 + i)} {Mathf.RoundToInt(100f * s.equipmentRarityWeights[i] / total)}%");
-                    sb.Append("<color=#FFD36B>드롭 성급</color>  ").Append(string.Join("  ·  ", rates))
-                      .Append("  <size=80%><color=#9AA3B5>(최대 강화 3★ +9 · 4★ +12 · 5★ +16 · 6★ +20)</color></size>\n");
+                            rates.Add($"{EquipRules.WeightBase(s.equipmentRarityWeights) + i}★ {Mathf.RoundToInt(100f * s.equipmentRarityWeights[i] / total)}%");
+                    sb.Append("<color=#FFD36B>드롭 성급</color>  ").Append(string.Join(" · ", rates)).Append("\n");
                 }
-                if (s.kind == StageKind.EquipmentDungeon && s.equipmentSets != null)
-                    foreach (var id in s.equipmentSets)
-                    {
-                        var set = EquipSets.Get(id);
-                        if (set == null) continue;
-                        sb.Append($"<b>{EquipSets.Rich(id)}</b>  <size=85%>2세트 {set.desc2} / 4세트 {set.desc4}</size>\n");
-                    }
                 if (!unlocked && s.unlockAfter != null)
                     sb.Append($"<color=#FF8A8A>개방 조건: 스테이지 {s.unlockAfter.Code} {s.unlockAfter.stageName} 클리어</color>\n");
                 sb.Append("\n");
@@ -711,6 +612,7 @@ namespace SubcultureRPG.Meta.UI
 
             _detBody.text = sb.ToString();
             if (_detScroll != null && _detShown != s) _detScroll.verticalNormalizedPosition = 1f;   // 다른 스테이지를 고르면 맨 위부터
+            RefreshMainDetail(s);
             _detShown = s;
             if (_storyBtn != null) _storyBtn.gameObject.SetActive(StageRunner.HasReplay(s, cleared));
 
@@ -739,10 +641,14 @@ namespace SubcultureRPG.Meta.UI
             UIFactory.Stretch((RectTransform)_root.transform);
             BackgroundArt.Create(_root.transform, 0.7f).Set("Backgrounds/stage");
 
-            var title = UIFactory.AddText("Title", _root.transform, "스테이지", 40, font, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            var trt = title.rectTransform;
-            UIFactory.Anchor(trt, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            trt.sizeDelta = new Vector2(600, 56); trt.anchoredPosition = new Vector2(0, -30);
+            // 맨 위 가운데: 메인 스토리 / 특수 던전
+            _topTabs = UIFactory.NewRect("TopTabs", _root.transform);
+            UIFactory.Anchor(_topTabs, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
+            _topTabs.sizeDelta = new Vector2(500, 54); _topTabs.anchoredPosition = new Vector2(-150, -24);
+            var thl = _topTabs.gameObject.AddComponent<HorizontalLayoutGroup>();
+            thl.spacing = 12; thl.childAlignment = TextAnchor.MiddleCenter;
+            thl.childControlWidth = true; thl.childControlHeight = true;
+            thl.childForceExpandWidth = false; thl.childForceExpandHeight = false;
 
             _totalStars = UIFactory.AddText("TotalStars", _root.transform, "", 26, font, Color.white, TextAlignmentOptions.Right, FontStyles.Bold);
             var tsrt = _totalStars.rectTransform;
@@ -782,21 +688,9 @@ namespace SubcultureRPG.Meta.UI
             _starRewardBtn.onClick.AddListener(() => ChapterRewardWindow.Open(database, progress, _difficulty, _chapter, font, Refresh));
             _starRewardBadge = NotifyBadge.Attach(_starRewardBtn, font, 8, 8, 28);
 
-            // 스테이지 노드(3열)
-            // 노드 목록은 스크롤(던전 단계가 많아도 아래로 넘치지 않음)
-            var nodesView = UIFactory.NewRect("NodesView", _root.transform);
-            UIFactory.Anchor(nodesView, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1));
-            nodesView.sizeDelta = new Vector2(1016, 780); nodesView.anchoredPosition = new Vector2(-380, -248);
-            _nodes = UIFactory.NewRect("Nodes", nodesView);
-            var gl = _nodes.gameObject.AddComponent<GridLayoutGroup>();
-            gl.padding = new RectOffset(8, 8, 8, 8);   // 선택 테두리가 잘리지 않게
-            UIFactory.MakeVerticalScroll(nodesView, _nodes);
-            _grid = gl;
-            gl.cellSize = new Vector2(300, 170); gl.spacing = new Vector2(30, 30);
-            gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount; gl.constraintCount = 3;
-            gl.childAlignment = TextAnchor.UpperLeft;
-
             BuildDetail();
+            BuildChapterMap();
+            BuildDungeonUI();
 
             _backBtn = UIFactory.AddButton("BackBtn", _root.transform, "← 홈", 20, font, new Color(1, 1, 1, 0.14f), Color.white);
             var bkrt = (RectTransform)_backBtn.transform;
@@ -827,6 +721,7 @@ namespace SubcultureRPG.Meta.UI
             _detBody.lineSpacing = 6f;
             _detBody.margin = new Vector4(8, 4, 14, 12);
             _detScroll = UIFactory.MakeVerticalScroll(bodyView, _detBody.rectTransform);
+            BuildMainDetail(panel.transform, bodyView);
 
             _sortieBtn = UIFactory.AddButton("Sortie", panel.transform, "", 28, font, new Color(0.85f, 0.45f, 0.25f, 0.95f), Color.white);
             TutorialTargets.Set("stage.sortie", _sortieBtn);

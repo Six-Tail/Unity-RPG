@@ -27,20 +27,20 @@ MonoBehaviour:
   - assault
   - guardian
   equipmentDrops: 2
-  equipmentRarityWeights: 00000000230000002d00000014000000
-  unlockAfter: {fileID: 11400000, guid: 44b2d58cab338ad44a3a3015c58f653c, type: 2}
+  equipmentRarityWeights: 00000000050000002d000000320000000000000000000000
+  unlockAfter: {fileID: 11400000, guid: 73fbfd3947c13b74eb41d3348f5c8891, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: b6abdcc1684e5074fabb191bdb031815, type: 2}
-    level: 71
+    level: 38
   - unit: {fileID: 11400000, guid: 9b005bb8a33ccb04eb3ac52eed8c2918, type: 2}
-    level: 73
+    level: 40
   - unit: {fileID: 11400000, guid: b6abdcc1684e5074fabb191bdb031815, type: 2}
-    level: 71
-  recommendedLevel: 73
-  turnLimit: 14
-  firstClearCrystals: 60
+    level: 38
+  recommendedLevel: 40
+  turnLimit: 12
+  firstClearCrystals: 40
   rewards:
   - type: 6
-    count: 14
-  characterExp: 6000
-  gold: 11000
+    count: 7
+  characterExp: 2500
+  gold: 5500

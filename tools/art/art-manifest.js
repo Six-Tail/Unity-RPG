@@ -189,6 +189,14 @@ const ITEMS = [
   ['ShopTabCrystal', '상점 탭 — 크리스탈 상점', 'a cluster of glowing cyan blue crystals with sparkles'],
   ['ShopTabGuild', '상점 탭 — 길드 상점', 'a blue heraldic guild banner with a golden anchor-and-star crest above a small pile of gold guild coins'],
   ['ShopTabExchange', '상점 탭 — 교환소', 'two circular golden arrows forming an exchange cycle around a small glowing gem'],
+  // 홈 아래 메뉴 바 · 출격/소환 · 메뉴
+  ['UiCharacter', '홈 메뉴 — 캐릭터(육성)', 'a heroine silhouette bust portrait inside a golden circular frame with a small upward green arrow and sparkles'],
+  ['UiParty', '홈 메뉴 — 편성', 'three small chibi hero silhouettes standing side by side on a blue team banner with a golden star above them'],
+  ['UiMission', '홈 메뉴 — 임무', 'a parchment checklist scroll with three golden check marks and a small red quill pen'],
+  ['UiMenu', '홈 메뉴 — 더보기', 'a round dark navy button with three bold golden horizontal bars and small golden star sparkles'],
+  ['UiCodex', '홈 메뉴 — 도감', 'an ornate open book with a deep blue cover, golden corners and a glowing star emblem, a few character cards peeking out of the pages'],
+  ['UiSortie', '출격 아이콘', 'a golden anchor crossed with a silver sword over a glowing blue star compass, heroic emblem'],
+  ['UiSummon', '소환 아이콘', 'a glowing magic summoning circle of golden runes with a rainbow star crystal floating above it, sparkles'],
   ['DispatchIcon', '파견 아이콘', 'a rolled parchment map with a red route line and a small golden compass on top, a tiny traveler backpack beside it'],
   ['TowerIcon', '무한의 탑 아이콘', 'a tall slender mystical stone tower spiraling up into the clouds with glowing blue windows and a bright star at its tip'],
   ['GuildIcon', '길드 아이콘', 'a heraldic guild banner flag in deep blue with a golden anchor-and-star crest, hanging from a golden pole'],
@@ -316,6 +324,7 @@ const BACKGROUNDS = [
   ['battle_dungeon_book', '스킬 교본 던전', 'a grand arcane library with towering bookshelves and floating books, blue magic light'],
   ['battle_dungeon_equipment', '장비 던전', 'an ancient forge armory, glowing anvils, racks of weapons and armor, sparks'],
   ['battle_dungeon_exp', '경험치 던전', 'a sacred grove around a giant ancient tree with glowing green spirits and lanterns'],
+  ['equip_map', '장비 던전 지도(장소 5곳을 핀으로 표시)', 'a top-down illustrated fantasy world map painted on aged parchment, one large continent with five clearly separated regions: a stone fortress plain in the west, a red volcano next to a snowy glacier in the north, a stormy thunder highland with windy cliffs in the east, an iron mine mountain range in the center, a green spring forest with a river in the south, winding roads connecting them, a compass rose in the corner, sea around the edges, no text, no labels, no characters'],
 ];
 
 // ---------------------------------------------------------------- 가챠 배너 (파일명 = 픽업 캐릭터 id · standard)

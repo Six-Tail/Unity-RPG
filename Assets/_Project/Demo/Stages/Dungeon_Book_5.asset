@@ -26,21 +26,21 @@ MonoBehaviour:
   equipmentSets: []
   equipmentDrops: 0
   equipmentRarityWeights: 
-  unlockAfter: {fileID: 11400000, guid: 44b2d58cab338ad44a3a3015c58f653c, type: 2}
+  unlockAfter: {fileID: 11400000, guid: 73fbfd3947c13b74eb41d3348f5c8891, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: de7cfa3ccb08976408f9ee2b9557c6c7, type: 2}
-    level: 71
+    level: 38
   - unit: {fileID: 11400000, guid: 5fda1b7c0d32fb1488954dcfa9e5a209, type: 2}
-    level: 73
+    level: 40
   - unit: {fileID: 11400000, guid: de7cfa3ccb08976408f9ee2b9557c6c7, type: 2}
-    level: 71
-  recommendedLevel: 73
-  turnLimit: 13
-  firstClearCrystals: 80
+    level: 38
+  recommendedLevel: 40
+  turnLimit: 11
+  firstClearCrystals: 50
   rewards:
   - type: 7
-    count: 2
+    count: 3
   - type: 8
-    count: 5
-  characterExp: 6000
-  gold: 12000
+    count: 1
+  characterExp: 2500
+  gold: 6000

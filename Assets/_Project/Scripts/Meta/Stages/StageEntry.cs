@@ -28,8 +28,9 @@ namespace SubcultureRPG.Meta
             int tier = Mathf.Max(1, s.dungeonTier);
             return s.kind switch
             {
-                StageKind.EquipmentDungeon => 15 + 2 * (tier - 1),   // 15 · 17 · 19 · 21 · 23
-                _ => 10 + 2 * (tier - 1),                            // 돌파 · 금화 · 교본 · 경험치: 10 · 12 · 14 …
+                StageKind.EquipmentDungeon => 15 + (tier - 1),       // 1 ~ 10단계: 15 ~ 24
+                StageKind.AscensionDungeon => 10 + 2 * (tier - 1),   // 초급 · 중급 · 상급: 10 · 12 · 14
+                _ => 10 + (tier - 1),                                // 금화 · 교본 · 경험치 1 ~ 10단계: 10 ~ 19
             };
         }
 

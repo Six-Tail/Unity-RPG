@@ -50,11 +50,13 @@ namespace SubcultureRPG.Meta
 
         public static string Name(int grade) => grade switch
         {
-            3 => "고급", 4 => "희귀", 5 => "영웅", _ => "전설",
+            1 => "낡은", 2 => "일반", 3 => "고급", 4 => "희귀", 5 => "영웅", _ => "전설",
         };
 
         public static Color ColorOf(int grade) => grade switch
         {
+            1 => new Color(0.62f, 0.64f, 0.70f),   // 회색(장비 1성)
+            2 => new Color(0.90f, 0.92f, 0.96f),   // 흰색(장비 2성)
             3 => new Color(0.45f, 0.85f, 0.45f),   // 초록
             4 => new Color(0.40f, 0.65f, 1.00f),   // 파랑
             5 => new Color(0.74f, 0.47f, 1.00f),   // 보라

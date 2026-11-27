@@ -43,6 +43,9 @@ namespace SubcultureRPG.Meta.UI
         public const int Done = 100;
         private const string StepKey = "tutorial.step";
 
+        /// <summary>신규 튜토리얼(첫 전투 · 레벨업)을 마쳤는지.</summary>
+        public static bool Finished => SaveStore.GetInt(StepKey, 0) >= Done;
+
         private static bool Flag(string k) => SaveStore.GetInt("tutorial.flag." + k, 0) == 1;
         private static void SetFlag(string k) { SaveStore.SetInt("tutorial.flag." + k, 1); SaveStore.Save(); }
 
@@ -207,7 +210,7 @@ namespace SubcultureRPG.Meta.UI
             switch (cur)
             {
                 case HubScreen.Home:
-                    Guide("먼저 <color=#FFD36B>스테이지</color>에 들어가 첫 전투를 치러 봅시다.", "home.stage");
+                    Guide("<color=#FFD36B>출격</color> → <color=#FFD36B>스토리 · 스테이지</color>로 들어가 첫 전투를 치러 봅시다.", "home.stage");
                     break;
                 case HubScreen.Stage:
                     Guide("<color=#FFD36B>1-1</color>이 선택돼 있습니다. 오른쪽에서 적과 보상을 확인하고\n<color=#FFD36B>편성 후 출격</color>을 누르세요.", "stage.sortie");
@@ -254,7 +257,7 @@ namespace SubcultureRPG.Meta.UI
             switch (cur)
             {
                 case HubScreen.Home:
-                    Guide("<color=#FFD36B>육성</color> 화면에서 캐릭터 레벨을 올려 봅시다.", "home.growth");
+                    Guide("아래 메뉴의 <color=#FFD36B>캐릭터</color>에서 캐릭터 레벨을 올려 봅시다.", "home.growth");
                     break;
                 case HubScreen.Growth:
                     Guide("왼쪽에서 캐릭터를 고르고 <color=#FFD36B>레벨</color> 탭에서\n① <color=#FFD36B>자동 선택</color>으로 물약을 고른 뒤  ② <color=#FFD36B>레벨업</color>을 누르세요.", "growth.auto", "growth.confirm");

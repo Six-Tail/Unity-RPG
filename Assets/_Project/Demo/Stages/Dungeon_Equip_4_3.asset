@@ -27,20 +27,20 @@ MonoBehaviour:
   - steel
   - breaker
   equipmentDrops: 2
-  equipmentRarityWeights: 1e000000460000000000000000000000
-  unlockAfter: {fileID: 11400000, guid: 73fbfd3947c13b74eb41d3348f5c8891, type: 2}
+  equipmentRarityWeights: 0a00000023000000280000000f0000000000000000000000
+  unlockAfter: {fileID: 11400000, guid: 87b098ffef47cd7448a5a4c266099459, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: eac91cfbc7ac0594a9460abc59559be1, type: 2}
-    level: 38
+    level: 22
   - unit: {fileID: 11400000, guid: 9bd618f86e9ff814499977d5b156be75, type: 2}
-    level: 40
+    level: 24
   - unit: {fileID: 11400000, guid: eac91cfbc7ac0594a9460abc59559be1, type: 2}
-    level: 38
-  recommendedLevel: 40
-  turnLimit: 12
-  firstClearCrystals: 40
+    level: 22
+  recommendedLevel: 24
+  turnLimit: 11
+  firstClearCrystals: 30
   rewards:
   - type: 6
-    count: 7
-  characterExp: 2500
-  gold: 5500
+    count: 5
+  characterExp: 1200
+  gold: 3500

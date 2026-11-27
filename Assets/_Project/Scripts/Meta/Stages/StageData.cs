@@ -133,7 +133,7 @@ namespace SubcultureRPG.Meta
         public List<string> equipmentSets = new();
         [Tooltip("장비 던전: 클리어마다 얻는 장비 개수.")]
         [Min(0)] public int equipmentDrops = 0;
-        [Tooltip("장비 던전: 드롭 성급 가중치 [3성, 4성, 5성, 6성].")]
+        [Tooltip("장비 던전: 드롭 성급 가중치 [1성 ~ 6성] (옛 데이터 4칸 = [3성 ~ 6성]).")]
         public List<int> equipmentRarityWeights = new();
 
         /// <summary>장비 던전에서 나올 수 있는 최고 성급(가중치 > 0).</summary>
@@ -144,7 +144,7 @@ namespace SubcultureRPG.Meta
                 int max = 0;
                 if (equipmentRarityWeights != null)
                     for (int i = 0; i < equipmentRarityWeights.Count; i++)
-                        if (equipmentRarityWeights[i] > 0) max = 3 + i;
+                        if (equipmentRarityWeights[i] > 0) max = EquipRules.WeightBase(equipmentRarityWeights) + i;
                 return max;
             }
         }

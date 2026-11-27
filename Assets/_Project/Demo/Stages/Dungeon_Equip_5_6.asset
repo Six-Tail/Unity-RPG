@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 034775bd59d07d44e9c2a5d7cfdf895c, type: 3}
+  m_Name: Dungeon_Equip_5_6
+  m_EditorClassIdentifier: Assembly-CSharp::SubcultureRPG.Meta.StageData
+  id: dungeon_equip_5_6
+  chapter: 5
+  number: 6
+  stageName: "\uC0DD\uBA85\uC758 \uC0D8 \xB7 \uC2E0\uC18D\uC758 \uBC14\uB78C"
+  description: 
+  isBoss: 0
+  difficulty: 0
+  enemyStatMultiplier: 1
+  kind: 4
+  dungeonElement: 2
+  dungeonTier: 6
+  equipmentSets:
+  - spring
+  - swift
+  equipmentDrops: 2
+  equipmentRarityWeights: 00000000000000001e000000370000000f00000000000000
+  unlockAfter: {fileID: 11400000, guid: 6fcb2883a2418fd4f9fb077dba7a9268, type: 2}
+  enemies:
+  - unit: {fileID: 11400000, guid: 24d54f7b5de1f9a41932029e77ebceed, type: 2}
+    level: 49
+  - unit: {fileID: 11400000, guid: 30cc43eb297170e4381f7c3d62b2ebea, type: 2}
+    level: 51
+  - unit: {fileID: 11400000, guid: 24d54f7b5de1f9a41932029e77ebceed, type: 2}
+    level: 49
+  recommendedLevel: 51
+  turnLimit: 12
+  firstClearCrystals: 45
+  rewards:
+  - type: 6
+    count: 8
+  characterExp: 3200
+  gold: 6700

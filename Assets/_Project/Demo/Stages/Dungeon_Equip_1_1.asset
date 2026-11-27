@@ -27,7 +27,7 @@ MonoBehaviour:
   - assault
   - guardian
   equipmentDrops: 2
-  equipmentRarityWeights: 50000000140000000000000000000000
+  equipmentRarityWeights: 32000000230000000f000000000000000000000000000000
   unlockAfter: {fileID: 11400000, guid: 720048dfcffdaa745bab3581c1195784, type: 2}
   enemies:
   - unit: {fileID: 11400000, guid: b6abdcc1684e5074fabb191bdb031815, type: 2}

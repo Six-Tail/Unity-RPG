@@ -41,7 +41,7 @@ namespace SubcultureRPG.Meta
     {
         public string uid;
         public string set;
-        public int rarity = 6;          // 성급 3~6 (최대 강화 9 / 12 / 16 / 20)
+        public int rarity = 6;          // 성급 1~6 (최대 강화 3 / 6 / 9 / 12 / 16 / 20)
         public EquipSlot slot;
         public EquipStat main;
         public int level;
@@ -73,13 +73,16 @@ namespace SubcultureRPG.Meta
     {
         public const int MaxLevel = 20;   // 6성 기준 최대
         public const int RollEvery = 4;   // 4강마다 보조 옵션 1회
-        public const int MinRarity = 3, MaxRarity = 6;
+        public const int MinRarity = 1, MaxRarity = 6;   // 1 · 2성 = 초반 장비 던전(낮은 단계)에서만 나오는 입문용
 
-        /// <summary>성급별 최대 강화: 3성 9 · 4성 12 · 5성 16 · 6성 20.</summary>
-        public static int MaxLevelOf(int rarity) => rarity switch { 3 => 9, 4 => 12, 5 => 16, _ => 20 };
+        /// <summary>성급별 최대 강화: 1성 3 · 2성 6 · 3성 9 · 4성 12 · 5성 16 · 6성 20.</summary>
+        public static int MaxLevelOf(int rarity) => rarity switch { 1 => 3, 2 => 6, 3 => 9, 4 => 12, 5 => 16, _ => 20 };
 
-        /// <summary>성급별 수치 배율(주옵션·보조 옵션): 3성 50% · 4성 65% · 5성 80% · 6성 100%.</summary>
-        public static float RarityScale(int rarity) => rarity switch { 3 => 0.5f, 4 => 0.65f, 5 => 0.8f, _ => 1f };
+        /// <summary>성급별 수치 배율(주옵션·보조 옵션): 1성 25% · 2성 37% · 3성 50% · 4성 65% · 5성 80% · 6성 100%.</summary>
+        public static float RarityScale(int rarity) => rarity switch { 1 => 0.25f, 2 => 0.37f, 3 => 0.5f, 4 => 0.65f, 5 => 0.8f, _ => 1f };
+
+        /// <summary>태생 보조 옵션 줄 수: 1성 1줄 · 2성 2줄 · 3성부터 3 ~ 4줄.</summary>
+        public static int BaseSubsOf(int rarity) => rarity <= 1 ? 1 : rarity == 2 ? 2 : 3;
 
         /// <summary>성급 색 = 아이템 등급 색(3 고급 초록 · 4 희귀 파랑 · 5 영웅 보라 · 6 전설 금색).</summary>
         public static Color RarityColor(int rarity) => Grades.ColorOf(rarity);
@@ -363,13 +366,13 @@ namespace SubcultureRPG.Meta
         {
             int spent = 0;
             for (int l = 0; l < it.level; l++) spent += EnhanceOre(l);
-            int baseOre = it.Rarity switch { 3 => 1, 4 => 2, 5 => 3, _ => 5 };
+            int baseOre = it.Rarity switch { <= 3 => 1, 4 => 2, 5 => 3, _ => 5 };
             return baseOre + Mathf.FloorToInt(spent * 0.6f);
         }
 
         /// <summary>분해 시 얻는 장비 정수(선택 제작 재료): 성급 3 · 4 · 5 · 6 = 1 · 2 · 4 · 8, 강화 4단계마다 +1.</summary>
         public static int DismantleEssence(EquipmentItem it) =>
-            (it.Rarity switch { 3 => 1, 4 => 2, 5 => 4, _ => 8 }) + it.level / 4;
+            (it.Rarity switch { <= 2 => 0, 3 => 1, 4 => 2, 5 => 4, _ => 8 }) + it.level / 4;
 
         // ---------------- 선택 제작 · 재련(튜닝 지점) ----------------
 
@@ -419,19 +422,23 @@ namespace SubcultureRPG.Meta
         }
 
         /// <summary>성급 가중치(3·4·5·6성 순)로 성급 하나 뽑기.</summary>
-        public static int RollRarity(IList<int> weights3to6, System.Random rng)
+        public static int RollRarity(IList<int> weights, System.Random rng)
         {
             int total = 0;
-            if (weights3to6 != null) foreach (var w in weights3to6) total += Mathf.Max(0, w);
+            if (weights != null) foreach (var w in weights) total += Mathf.Max(0, w);
             if (total <= 0) return EquipStats.MaxRarity;
+            int first = WeightBase(weights);
             int r = rng.Next(total);
-            for (int i = 0; i < weights3to6.Count; i++)
+            for (int i = 0; i < weights.Count; i++)
             {
-                r -= Mathf.Max(0, weights3to6[i]);
-                if (r < 0) return EquipStats.MinRarity + i;
+                r -= Mathf.Max(0, weights[i]);
+                if (r < 0) return Mathf.Clamp(first + i, EquipStats.MinRarity, EquipStats.MaxRarity);
             }
             return EquipStats.MaxRarity;
         }
+
+        /// <summary>성급 가중치 표의 첫 칸이 뜻하는 성급: 6칸 = 1성부터, 4칸(옛 표) = 3성부터.</summary>
+        public static int WeightBase(IList<int> weights) => weights != null && weights.Count > 4 ? 1 : 3;
 
         /// <summary>무작위 장비 생성(부위를 지정하지 않으면 무작위).</summary>
         public static EquipmentItem Generate(string set, System.Random rng, int rarity = EquipStats.MaxRarity, EquipSlot? slot = null)
@@ -446,7 +453,7 @@ namespace SubcultureRPG.Meta
             };
             var pool = EquipStats.MainPool(it.slot);
             it.main = pool[rng.Next(pool.Length)];
-            it.initialSubs = rng.NextDouble() < FourLineChance ? 4 : 3;
+            it.initialSubs = it.rarity >= 3 ? (rng.NextDouble() < FourLineChance ? 4 : 3) : EquipStats.BaseSubsOf(it.rarity);
             for (int i = 0; i < it.initialSubs; i++) AddRandomSub(it, rng);
             return it;
         }
